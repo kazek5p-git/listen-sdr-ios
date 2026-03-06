@@ -35,7 +35,8 @@ jobs:
             echo "No .xcworkspace found under ios/"
             exit 1
           fi
-          SCHEME="$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')"
+          WORKSPACE_NAME="$(basename "$WORKSPACE" .xcworkspace)"
+          SCHEME="$(xcodebuild -list -json -workspace "$WORKSPACE" | WORKSPACE_NAME="$WORKSPACE_NAME" python3 -c 'import json,os,sys; s=json.load(sys.stdin).get("workspace",{}).get("schemes",[]); w=os.environ.get("WORKSPACE_NAME",""); bad=("EX","Expo","Pods","React","RCT","hermes"); c=[x for x in s if x==w] or [x for x in s if not x.startswith(bad)] or s; print(c[0])')"
           echo "WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
           echo "Detected workspace: $WORKSPACE"
