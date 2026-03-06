@@ -33,7 +33,7 @@ Workflow: `.github/workflows/ios-unsigned-ipa.yml`
 
 Co robi:
 - uruchamia sie recznie (`workflow_dispatch`)
-- buduje iOS na `macos-15` bez podpisu
+- buduje natywna aplikacje SwiftUI z `native-ios/` na `macos-15` bez podpisu
 - pakuje artefakt `Listen-SDR-unsigned.ipa`
 
 Jak uzyc:

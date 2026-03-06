@@ -8,65 +8,42 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: read
-    env:
-      CI: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+      - name: Install XcodeGen
+        run: brew install xcodegen
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate iOS project (Expo prebuild)
-        run: npx expo prebuild --platform ios --non-interactive
-
-      - name: Detect workspace and scheme
-        shell: bash
+      - name: Generate Xcode project
         run: |
-          set -euo pipefail
-          WORKSPACE="$(find ios -maxdepth 2 -name '*.xcworkspace' -print -quit)"
-          if [ -z "${WORKSPACE}" ]; then
-            echo "No .xcworkspace found under ios/"
-            exit 1
-          fi
-          WORKSPACE_NAME="$(basename "$WORKSPACE" .xcworkspace)"
-          SCHEME="$(xcodebuild -list -json -workspace "$WORKSPACE" | WORKSPACE_NAME="$WORKSPACE_NAME" python3 -c 'import json,os,sys; s=json.load(sys.stdin).get("workspace",{}).get("schemes",[]); w=os.environ.get("WORKSPACE_NAME",""); bad=("EX","Expo","Pods","React","RCT","hermes"); c=[x for x in s if x==w] or [x for x in s if not x.startswith(bad)] or s; print(c[0])')"
-          echo "WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
-          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
-          echo "Detected workspace: $WORKSPACE"
-          echo "Detected scheme: $SCHEME"
+          cd native-ios
+          xcodegen generate
 
       - name: Build unsigned iOS app
         shell: bash
         run: |
           set -euo pipefail
           xcodebuild \
-            -workspace "$WORKSPACE" \
-            -scheme "$SCHEME" \
+            -project native-ios/ListenSDR.xcodeproj \
+            -scheme ListenSDR \
             -configuration Release \
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
-            SWIFT_VERSION=6.0 \
+            -derivedDataPath native-ios/build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
             clean build
 
       - name: Package unsigned IPA
         shell: bash
         run: |
           set -euo pipefail
-          APP_PATH="$(find ios/build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -print -quit)"
-          if [ -z "${APP_PATH}" ]; then
-            echo "No .app found after build."
+          APP_PATH="native-ios/build/Build/Products/Release-iphoneos/ListenSDR.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "No app bundle found at $APP_PATH"
             exit 1
           fi
           rm -rf unsigned-ipa
@@ -76,7 +53,6 @@ jobs:
             cd unsigned-ipa
             zip -qry ../Listen-SDR-unsigned.ipa Payload
           )
-          echo "IPA_PATH=$PWD/Listen-SDR-unsigned.ipa" >> "$GITHUB_ENV"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
