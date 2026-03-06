@@ -1,0 +1,85 @@
+name: iOS Unsigned IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-unsigned-ipa:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    env:
+      CI: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate iOS project (Expo prebuild)
+        run: npx expo prebuild --platform ios --non-interactive
+
+      - name: Detect workspace and scheme
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKSPACE="$(find ios -maxdepth 2 -name '*.xcworkspace' -print -quit)"
+          if [ -z "${WORKSPACE}" ]; then
+            echo "No .xcworkspace found under ios/"
+            exit 1
+          fi
+          SCHEME="$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')"
+          echo "WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          echo "Detected workspace: $WORKSPACE"
+          echo "Detected scheme: $SCHEME"
+
+      - name: Build unsigned iOS app
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            clean build
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find ios/build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -print -quit)"
+          if [ -z "${APP_PATH}" ]; then
+            echo "No .app found after build."
+            exit 1
+          fi
+          rm -rf unsigned-ipa
+          mkdir -p unsigned-ipa/Payload
+          cp -R "$APP_PATH" unsigned-ipa/Payload/
+          (
+            cd unsigned-ipa
+            zip -qry ../Listen-SDR-unsigned.ipa Payload
+          )
+          echo "IPA_PATH=$PWD/Listen-SDR-unsigned.ipa" >> "$GITHUB_ENV"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Listen-SDR-unsigned-ipa
+          path: Listen-SDR-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
