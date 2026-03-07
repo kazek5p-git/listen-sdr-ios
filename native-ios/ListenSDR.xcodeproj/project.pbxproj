@@ -42,13 +42,16 @@
 		224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyPresetStore.swift; sourceTree = "<group>"; };
 		293251298AE8C5A5C89DFF78 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyFormatter.swift; sourceTree = "<group>"; };
+		317CE6791652B8E4C5A4327D /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
 		3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackendClient.swift; sourceTree = "<group>"; };
 		4286BB33324D82C98CA59BFE /* ReceiverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverView.swift; sourceTree = "<group>"; };
 		530A6B024830FC4082BDBF66 /* ListenSDR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ListenSDR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		53C8E30919D0CCF77C1D172C /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
 		5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectory.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		7F806ECE48FB8AF9299DF745 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/Localizable.strings; sourceTree = "<group>"; };
+		86D584BECE59BE8BE8B2AFF1 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationMode.swift; sourceTree = "<group>"; };
 		9D4640039B5A50DBCB293C69 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -58,6 +61,7 @@
 		C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionViewModel.swift; sourceTree = "<group>"; };
 		CA8430FABA0F566E0392A547 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRConnectionProfile.swift; sourceTree = "<group>"; };
+		D94B9941F71A65E867B363C7 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		DAE460852390C71A3267E19E /* DiagnosticsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsStore.swift; sourceTree = "<group>"; };
 		DC198DC08EE579F8E7D22664 /* RadiosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadiosView.swift; sourceTree = "<group>"; };
 		DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnavailableContentView.swift; sourceTree = "<group>"; };
@@ -162,7 +166,11 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				de,
 				en,
+				es,
+				fr,
+				it,
 				pl,
 			);
 			mainGroup = 9EF2394544E94DC3F99F8BA1;
@@ -226,7 +234,11 @@
 		7B8C0A52D13309CB9883A20A /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
+				86D584BECE59BE8BE8B2AFF1 /* de */,
 				9D4640039B5A50DBCB293C69 /* en */,
+				D94B9941F71A65E867B363C7 /* es */,
+				317CE6791652B8E4C5A4327D /* fr */,
+				53C8E30919D0CCF77C1D172C /* it */,
 				7F806ECE48FB8AF9299DF745 /* pl */,
 			);
 			name = Localizable.strings;
