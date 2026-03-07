@@ -18,6 +18,8 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
+        UIBackgroundModes:
+          - audio
         UILaunchScreen: {}
         UIRequiresFullScreen: false
     settings:
