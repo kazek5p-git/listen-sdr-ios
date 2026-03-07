@@ -159,8 +159,10 @@ struct ReceiverView: View {
             Text("Frequency")
             Text(FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz))
               .foregroundStyle(.secondary)
+              .accessibilityHidden(true)
           }
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Frequency")
         .accessibilityValue(FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz))
         .accessibilityHint(
