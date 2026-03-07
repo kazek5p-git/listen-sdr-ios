@@ -1135,7 +1135,7 @@ final class FMDXMP3AudioPlayer {
 
     workerQueue.async {
       self.ensureFileStreamLocked()
-      guard let fileStreamID else { return }
+      guard let fileStreamID = self.fileStreamID else { return }
 
       data.withUnsafeBytes { rawBuffer in
         guard let baseAddress = rawBuffer.baseAddress else { return }
@@ -1463,7 +1463,6 @@ final class FMDXMP3AudioPlayer {
     fileStreamID,
     propertyID,
     _ in
-    guard let userData else { return }
     let player = Unmanaged<FMDXMP3AudioPlayer>.fromOpaque(userData).takeUnretainedValue()
     player.consumeProperty(propertyID, fileStreamID: fileStreamID)
   }
@@ -1474,7 +1473,6 @@ final class FMDXMP3AudioPlayer {
     numberPackets,
     inputData,
     packetDescriptions in
-    guard let userData else { return }
     let player = Unmanaged<FMDXMP3AudioPlayer>.fromOpaque(userData).takeUnretainedValue()
     player.consumePackets(
       numberBytes: numberBytes,
