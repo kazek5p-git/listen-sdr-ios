@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- native-ios/ListenSDR.xcodeproj; then
+          if [ -z "$(git status --porcelain -- native-ios/ListenSDR.xcodeproj)" ]; then
             echo "No changes in generated xcodeproj."
             exit 0
           fi
