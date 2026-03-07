@@ -1,13 +1,23 @@
-name: iOS Unsigned IPA
+name: iOS Unsigned IPA (Native)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "native-ios/**"
+      - ".github/workflows/ios-unsigned-ipa.yml"
 
 jobs:
   build-unsigned-ipa:
     runs-on: macos-15
     permissions:
       contents: read
+    concurrency:
+      group: native-ios-unsigned-ipa-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -35,7 +45,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
-            clean build
+            clean build | tee native-ios-build.log
 
       - name: Package unsigned IPA
         shell: bash
@@ -59,5 +69,14 @@ jobs:
         with:
           name: Listen-SDR-unsigned-ipa
           path: Listen-SDR-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Listen-SDR-native-ios-build-log
+          path: native-ios-build.log
           if-no-files-found: error
           retention-days: 7
