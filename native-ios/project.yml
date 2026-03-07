@@ -16,6 +16,8 @@ targets:
       properties:
         CFBundleDisplayName: Listen SDR
         ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
         UILaunchScreen: {}
         UIRequiresFullScreen: false
     settings:
