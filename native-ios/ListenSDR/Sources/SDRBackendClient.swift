@@ -1,3 +1,5 @@
+import AVFAudio
+import AudioToolbox
 import Foundation
 
 protocol SDRBackendClient {
@@ -1098,11 +1100,407 @@ actor OpenWebRXClient: SDRBackendClient {
   }
 }
 
+final class FMDXMP3AudioPlayer {
+  static let shared = FMDXMP3AudioPlayer()
+
+  private let workerQueue = DispatchQueue(label: "ListenSDR.FMDXMP3AudioPlayer")
+  private let queueBufferSize: Int = 8 * 1024
+  private let queueBufferCount: Int = 4
+  private let maxPacketsPerBuffer: Int = 256
+
+  private var fileStreamID: AudioFileStreamID?
+  private var audioQueue: AudioQueueRef?
+  private var streamDescription: AudioStreamBasicDescription?
+  private var reusableBuffers: [AudioQueueBufferRef] = []
+  private var activeBuffer: AudioQueueBufferRef?
+  private var activeBufferOffset = 0
+  private var activePacketCount = 0
+  private var packetDescriptions: [AudioStreamPacketDescription]
+  private var queueStarted = false
+  private var parserNeedsDiscontinuity = true
+
+  private var sessionConfigured = false
+  private var desiredVolume: Float = 0.85
+  private var muted = false
+
+  private init() {
+    packetDescriptions = Array(
+      repeating: AudioStreamPacketDescription(),
+      count: maxPacketsPerBuffer
+    )
+  }
+
+  func append(_ data: Data) {
+    guard !data.isEmpty else { return }
+
+    workerQueue.async {
+      self.ensureFileStreamLocked()
+      guard let fileStreamID else { return }
+
+      data.withUnsafeBytes { rawBuffer in
+        guard let baseAddress = rawBuffer.baseAddress else { return }
+        let flags: AudioFileStreamParseFlags = self.parserNeedsDiscontinuity ? [.discontinuity] : []
+        let status = AudioFileStreamParseBytes(
+          fileStreamID,
+          UInt32(data.count),
+          baseAddress,
+          flags
+        )
+
+        if status == noErr {
+          self.parserNeedsDiscontinuity = false
+        } else {
+          self.log("Audio parser failed (status \(status))", severity: .warning)
+          self.resetLocked()
+        }
+      }
+    }
+  }
+
+  func stop() {
+    workerQueue.async {
+      self.resetLocked()
+    }
+  }
+
+  func setVolume(_ value: Double) {
+    workerQueue.async {
+      self.desiredVolume = Float(min(max(value, 0), 1))
+      self.applyVolumeLocked()
+    }
+  }
+
+  func setMuted(_ value: Bool) {
+    workerQueue.async {
+      self.muted = value
+      self.applyVolumeLocked()
+    }
+  }
+
+  private func ensureFileStreamLocked() {
+    guard fileStreamID == nil else { return }
+
+    var streamID: AudioFileStreamID?
+    let status = AudioFileStreamOpen(
+      Unmanaged.passUnretained(self).toOpaque(),
+      Self.fileStreamPropertyListener,
+      Self.fileStreamPacketsCallback,
+      kAudioFileMP3Type,
+      &streamID
+    )
+
+    if status == noErr {
+      fileStreamID = streamID
+    } else {
+      log("Unable to open MP3 stream parser (status \(status))", severity: .error)
+    }
+  }
+
+  private func ensureAudioQueueLocked(for description: AudioStreamBasicDescription, fileStreamID: AudioFileStreamID) {
+    guard audioQueue == nil else { return }
+
+    configureAudioSessionIfNeeded(sampleRate: description.mSampleRate)
+
+    var mutableDescription = description
+    var queue: AudioQueueRef?
+    let status = AudioQueueNewOutput(
+      &mutableDescription,
+      Self.audioQueueCallback,
+      Unmanaged.passUnretained(self).toOpaque(),
+      nil,
+      nil,
+      0,
+      &queue
+    )
+
+    guard status == noErr, let queue else {
+      log("Unable to open audio output queue (status \(status))", severity: .error)
+      return
+    }
+
+    audioQueue = queue
+    for _ in 0..<queueBufferCount {
+      var buffer: AudioQueueBufferRef?
+      let bufferStatus = AudioQueueAllocateBuffer(queue, UInt32(queueBufferSize), &buffer)
+      if bufferStatus == noErr, let buffer {
+        reusableBuffers.append(buffer)
+      } else {
+        log("Unable to allocate audio buffer (status \(bufferStatus))", severity: .warning)
+      }
+    }
+
+    applyMagicCookieLocked(from: fileStreamID)
+    applyVolumeLocked()
+    log("FM-DX audio output ready (\(Int(description.mSampleRate)) Hz)")
+  }
+
+  private func applyMagicCookieLocked(from fileStreamID: AudioFileStreamID) {
+    guard let audioQueue else { return }
+
+    var cookieSize: UInt32 = 0
+    let infoStatus = AudioFileStreamGetPropertyInfo(
+      fileStreamID,
+      kAudioFileStreamProperty_MagicCookieData,
+      &cookieSize,
+      nil
+    )
+    guard infoStatus == noErr, cookieSize > 0 else { return }
+
+    var cookie = [UInt8](repeating: 0, count: Int(cookieSize))
+    let getStatus = cookie.withUnsafeMutableBytes { bytes in
+      guard let baseAddress = bytes.baseAddress else { return noErr }
+      return AudioFileStreamGetProperty(
+        fileStreamID,
+        kAudioFileStreamProperty_MagicCookieData,
+        &cookieSize,
+        baseAddress
+      )
+    }
+    guard getStatus == noErr else { return }
+
+    _ = cookie.withUnsafeBytes { bytes in
+      guard let baseAddress = bytes.baseAddress else { return noErr }
+      return AudioQueueSetProperty(
+        audioQueue,
+        kAudioQueueProperty_MagicCookie,
+        baseAddress,
+        cookieSize
+      )
+    }
+  }
+
+  private func configureAudioSessionIfNeeded(sampleRate: Double) {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      if !sessionConfigured {
+        try session.setCategory(.playback, mode: .default, options: [])
+      }
+      try session.setPreferredSampleRate(sampleRate)
+      if !sessionConfigured {
+        try session.setActive(true, options: [])
+        sessionConfigured = true
+      }
+    } catch {
+      sessionConfigured = false
+      log("Audio session setup failed: \(error.localizedDescription)", severity: .warning)
+    }
+  }
+
+  private func applyVolumeLocked() {
+    guard let audioQueue else { return }
+    _ = AudioQueueSetParameter(audioQueue, kAudioQueueParam_Volume, muted ? 0 : desiredVolume)
+  }
+
+  private func resetLocked() {
+    parserNeedsDiscontinuity = true
+
+    if let fileStreamID {
+      AudioFileStreamClose(fileStreamID)
+      self.fileStreamID = nil
+    }
+
+    if let audioQueue {
+      AudioQueueStop(audioQueue, true)
+      AudioQueueDispose(audioQueue, true)
+      self.audioQueue = nil
+    }
+
+    streamDescription = nil
+    reusableBuffers.removeAll()
+    activeBuffer = nil
+    activeBufferOffset = 0
+    activePacketCount = 0
+    queueStarted = false
+  }
+
+  private func consumeProperty(_ propertyID: AudioFileStreamPropertyID, fileStreamID: AudioFileStreamID) {
+    switch propertyID {
+    case kAudioFileStreamProperty_DataFormat:
+      var description = AudioStreamBasicDescription()
+      var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+      let status = AudioFileStreamGetProperty(
+        fileStreamID,
+        kAudioFileStreamProperty_DataFormat,
+        &size,
+        &description
+      )
+      guard status == noErr else {
+        log("Unable to read audio stream format (status \(status))", severity: .warning)
+        return
+      }
+
+      streamDescription = description
+      ensureAudioQueueLocked(for: description, fileStreamID: fileStreamID)
+
+    case kAudioFileStreamProperty_MagicCookieData:
+      applyMagicCookieLocked(from: fileStreamID)
+
+    default:
+      break
+    }
+  }
+
+  private func consumePackets(
+    numberBytes: UInt32,
+    numberPackets: UInt32,
+    inputData: UnsafeRawPointer,
+    packetDescriptions: UnsafeMutablePointer<AudioStreamPacketDescription>?
+  ) {
+    guard audioQueue != nil else { return }
+
+    if let packetDescriptions, numberPackets > 0 {
+      for packetIndex in 0..<Int(numberPackets) {
+        let packetDescription = packetDescriptions[packetIndex]
+        let packetSize = Int(packetDescription.mDataByteSize)
+        guard packetSize > 0 else { continue }
+
+        let packetStart = inputData.advanced(by: Int(packetDescription.mStartOffset))
+        appendPacketLocked(packetData: packetStart, packetSize: packetSize)
+      }
+    } else if let bytesPerPacket = streamDescription?.mBytesPerPacket, bytesPerPacket > 0 {
+      let packetSize = Int(bytesPerPacket)
+      var byteOffset = 0
+      while byteOffset + packetSize <= Int(numberBytes) {
+        let packetStart = inputData.advanced(by: byteOffset)
+        appendPacketLocked(packetData: packetStart, packetSize: packetSize)
+        byteOffset += packetSize
+      }
+    } else {
+      appendPacketLocked(packetData: inputData, packetSize: Int(numberBytes))
+    }
+
+    if activePacketCount > 0 {
+      enqueueActiveBufferLocked()
+    }
+  }
+
+  private func appendPacketLocked(packetData: UnsafeRawPointer, packetSize: Int) {
+    guard packetSize > 0, packetSize <= queueBufferSize else { return }
+
+    if activeBuffer == nil {
+      activeBuffer = dequeueBufferLocked()
+      activeBufferOffset = 0
+      activePacketCount = 0
+    }
+    guard self.activeBuffer != nil else { return }
+
+    if (activeBufferOffset + packetSize) > queueBufferSize || activePacketCount >= maxPacketsPerBuffer {
+      enqueueActiveBufferLocked()
+      guard let nextBuffer = dequeueBufferLocked() else { return }
+      self.activeBuffer = nextBuffer
+      activeBufferOffset = 0
+      activePacketCount = 0
+    }
+
+    guard let activeBuffer = self.activeBuffer else { return }
+    let destination = activeBuffer.pointee.mAudioData.advanced(by: activeBufferOffset)
+    memcpy(destination, packetData, packetSize)
+
+    packetDescriptions[activePacketCount] = AudioStreamPacketDescription(
+      mStartOffset: Int64(activeBufferOffset),
+      mVariableFramesInPacket: 0,
+      mDataByteSize: UInt32(packetSize)
+    )
+    activeBufferOffset += packetSize
+    activePacketCount += 1
+  }
+
+  private func dequeueBufferLocked() -> AudioQueueBufferRef? {
+    guard !reusableBuffers.isEmpty else { return nil }
+    return reusableBuffers.removeFirst()
+  }
+
+  private func enqueueActiveBufferLocked() {
+    guard
+      let audioQueue,
+      let activeBuffer,
+      activePacketCount > 0
+    else {
+      return
+    }
+
+    activeBuffer.pointee.mAudioDataByteSize = UInt32(activeBufferOffset)
+    let status = packetDescriptions.withUnsafeMutableBufferPointer { buffer in
+      AudioQueueEnqueueBuffer(audioQueue, activeBuffer, UInt32(activePacketCount), buffer.baseAddress)
+    }
+
+    if status == noErr {
+      if !queueStarted {
+        let startStatus = AudioQueueStart(audioQueue, nil)
+        if startStatus == noErr {
+          queueStarted = true
+        } else {
+          log("Unable to start audio queue (status \(startStatus))", severity: .warning)
+        }
+      }
+    } else {
+      reusableBuffers.append(activeBuffer)
+      log("Unable to enqueue audio packet (status \(status))", severity: .warning)
+    }
+
+    self.activeBuffer = nil
+    activeBufferOffset = 0
+    activePacketCount = 0
+  }
+
+  private func recycleBuffer(_ buffer: AudioQueueBufferRef) {
+    workerQueue.async {
+      guard self.audioQueue != nil else { return }
+      self.reusableBuffers.append(buffer)
+    }
+  }
+
+  private func log(_ message: String, severity: DiagnosticSeverity = .info) {
+    Diagnostics.log(
+      severity: severity,
+      category: "FM-DX Audio",
+      message: message
+    )
+  }
+
+  private static let fileStreamPropertyListener: AudioFileStream_PropertyListenerProc = {
+    userData,
+    fileStreamID,
+    propertyID,
+    _ in
+    guard let userData else { return }
+    let player = Unmanaged<FMDXMP3AudioPlayer>.fromOpaque(userData).takeUnretainedValue()
+    player.consumeProperty(propertyID, fileStreamID: fileStreamID)
+  }
+
+  private static let fileStreamPacketsCallback: AudioFileStream_PacketsProc = {
+    userData,
+    numberBytes,
+    numberPackets,
+    inputData,
+    packetDescriptions in
+    guard let userData else { return }
+    let player = Unmanaged<FMDXMP3AudioPlayer>.fromOpaque(userData).takeUnretainedValue()
+    player.consumePackets(
+      numberBytes: numberBytes,
+      numberPackets: numberPackets,
+      inputData: inputData,
+      packetDescriptions: packetDescriptions
+    )
+  }
+
+  private static let audioQueueCallback: AudioQueueOutputCallback = {
+    userData,
+    _,
+    buffer in
+    guard let userData else { return }
+    let player = Unmanaged<FMDXMP3AudioPlayer>.fromOpaque(userData).takeUnretainedValue()
+    player.recycleBuffer(buffer)
+  }
+}
+
 actor FMDXWebserverClient: SDRBackendClient {
   let backend: SDRBackend = .fmDxWebserver
 
   private var socket: URLSessionWebSocketTask?
+  private var audioSocket: URLSessionWebSocketTask?
   private var receiveTask: Task<Void, Never>?
+  private var audioReceiveTask: Task<Void, Never>?
   private var pollTask: Task<Void, Never>?
   private var lastServerMessage: String?
   private var pendingStatusUpdate: String?
@@ -1129,6 +1527,18 @@ actor FMDXWebserverClient: SDRBackendClient {
       await self.pollLoop(profile: profile)
     }
 
+    do {
+      try await connectAudio(profile: profile, basePath: basePath)
+    } catch {
+      audioReceiveTask?.cancel()
+      audioReceiveTask = nil
+      audioSocket?.cancel(with: .goingAway, reason: nil)
+      audioSocket = nil
+      FMDXMP3AudioPlayer.shared.stop()
+      log("Audio stream unavailable: \(error.localizedDescription)", severity: .warning)
+      pendingStatusUpdate = "Connected without audio stream"
+    }
+
     if let tunerName = try? await fetchTunerName(profile: profile), !tunerName.isEmpty {
       pendingStatusUpdate = "Tuner: \(tunerName)"
     }
@@ -1138,11 +1548,17 @@ actor FMDXWebserverClient: SDRBackendClient {
     receiveTask?.cancel()
     receiveTask = nil
 
+    audioReceiveTask?.cancel()
+    audioReceiveTask = nil
+
     pollTask?.cancel()
     pollTask = nil
 
     socket?.cancel(with: .normalClosure, reason: nil)
     socket = nil
+    audioSocket?.cancel(with: .normalClosure, reason: nil)
+    audioSocket = nil
+    FMDXMP3AudioPlayer.shared.stop()
     lastServerMessage = nil
     pendingStatusUpdate = nil
     telemetryQueue.removeAll()
@@ -1159,6 +1575,8 @@ actor FMDXWebserverClient: SDRBackendClient {
     let eq = settings.noiseReductionEnabled ? 1 : 0
     let ims = settings.agcEnabled ? 1 : 0
     try? await send("G\(eq)\(ims)")
+    FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
+    FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
 
     if settings.mode != .fm && settings.mode != .nfm {
       pendingStatusUpdate = "FM-DX supports FM demodulation. Current mode may be ignored."
@@ -1189,6 +1607,33 @@ actor FMDXWebserverClient: SDRBackendClient {
     try await socket.send(.string(message))
   }
 
+  private func sendAudio(_ message: String) async throws {
+    guard let audioSocket else {
+      throw SDRClientError.unsupported("FM-DX audio websocket is unavailable.")
+    }
+    try await audioSocket.send(.string(message))
+  }
+
+  private func connectAudio(profile: SDRConnectionProfile, basePath: String) async throws {
+    let audioURL = try makeWebSocketURL(profile: profile, path: "\(basePath)audio")
+    log("Connecting audio stream: \(audioURL.absoluteString)")
+
+    let task = URLSession.shared.webSocketTask(with: audioURL)
+    audioSocket = task
+    task.resume()
+
+    audioReceiveTask = Task { [task] in
+      await self.receiveAudioLoop(task: task)
+    }
+
+    let message = try encodeJSONString([
+      "type": "fallback",
+      "data": "mp3"
+    ])
+    try await sendAudio(message)
+    log("Requested FM-DX fallback audio format: mp3")
+  }
+
   private func receiveLoop(task: URLSessionWebSocketTask) async {
     while !Task.isCancelled {
       do {
@@ -1208,6 +1653,28 @@ actor FMDXWebserverClient: SDRBackendClient {
           return
         }
         handleReceiveFailure(error)
+        break
+      }
+    }
+  }
+
+  private func receiveAudioLoop(task: URLSessionWebSocketTask) async {
+    while !Task.isCancelled {
+      do {
+        let message = try await task.receive()
+        switch message {
+        case .data(let data):
+          FMDXMP3AudioPlayer.shared.append(data)
+        case .string(let text):
+          await handleAudioControlText(text)
+        @unknown default:
+          break
+        }
+      } catch {
+        if Task.isCancelled {
+          return
+        }
+        handleAudioReceiveFailure(error)
         break
       }
     }
@@ -1245,6 +1712,19 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     updateStatus(from: snapshot)
+  }
+
+  private func handleAudioControlText(_ text: String) async {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.isEmpty {
+      return
+    }
+
+    if trimmed == "KICK" {
+      pendingStatusUpdate = "FM-DX audio denied by server"
+      log("Audio stream access denied", severity: .warning)
+      return
+    }
   }
 
   private func authenticateIfNeeded(profile: SDRConnectionProfile) async throws {
@@ -1472,6 +1952,18 @@ actor FMDXWebserverClient: SDRBackendClient {
     log("Receive loop failed: \(error.localizedDescription)", severity: .error)
     receiveTask = nil
     socket = nil
+    audioReceiveTask?.cancel()
+    audioReceiveTask = nil
+    audioSocket?.cancel(with: .goingAway, reason: nil)
+    audioSocket = nil
+    FMDXMP3AudioPlayer.shared.stop()
+  }
+
+  private func handleAudioReceiveFailure(_ error: Error) {
+    log("Audio receive loop failed: \(error.localizedDescription)", severity: .warning)
+    audioReceiveTask = nil
+    audioSocket = nil
+    FMDXMP3AudioPlayer.shared.stop()
   }
 
   private func log(_ message: String, severity: DiagnosticSeverity = .info) {

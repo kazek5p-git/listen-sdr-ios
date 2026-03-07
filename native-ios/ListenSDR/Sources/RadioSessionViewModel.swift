@@ -44,6 +44,8 @@ final class RadioSessionViewModel: ObservableObject {
     settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.tuneStepHz)
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
+    FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
+    FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
   }
 
   func connect(to profile: SDRConnectionProfile) {
@@ -313,12 +315,14 @@ final class RadioSessionViewModel: ObservableObject {
   func setAudioVolume(_ value: Double) {
     settings.audioVolume = min(max(value, 0), 1)
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
+    FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     persistSettings()
   }
 
   func setAudioMuted(_ muted: Bool) {
     settings.audioMuted = muted
     SharedAudioOutput.engine.setMuted(muted)
+    FMDXMP3AudioPlayer.shared.setMuted(muted)
     persistSettings()
   }
 
