@@ -74,6 +74,13 @@ final class ProfileStore: ObservableObject {
     indexOfMatchingProfile(profile) != nil
   }
 
+  func matchingProfile(for profile: SDRConnectionProfile) -> SDRConnectionProfile? {
+    guard let index = indexOfMatchingProfile(profile) else {
+      return nil
+    }
+    return profiles[index]
+  }
+
   private func load() {
     let defaults = UserDefaults.standard
 

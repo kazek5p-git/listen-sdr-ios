@@ -48,7 +48,7 @@ struct ReceiverDirectoryView: View {
         } header: {
           Text("Status")
         } footer: {
-          Text("Auto-updated from FMDX.org and Receiverbook.de.")
+          Text("Auto-updated from FMDX.org and Receiverbook.de. Tap a receiver row to add or select it.")
         }
 
         Section("Receivers") {
@@ -114,44 +114,56 @@ struct ReceiverDirectoryView: View {
 
   @ViewBuilder
   private func directoryRow(for entry: ReceiverDirectoryEntry) -> some View {
-    let alreadyAdded = profileStore.hasMatchingProfile(entry.makeProfile())
+    let candidateProfile = entry.makeProfile()
+    let existingProfile = profileStore.matchingProfile(for: candidateProfile)
+    let isSelected = existingProfile?.id == profileStore.selectedProfileID
 
-    HStack(alignment: .top, spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        Text(entry.name)
-          .font(.headline)
-          .accessibilityLabel(entry.name)
+    Button {
+      let storedProfile = profileStore.upsertImportedProfile(candidateProfile)
+      profileStore.updateSelection(storedProfile.id)
+    } label: {
+      HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(entry.name)
+            .font(.headline)
 
-        Text(entry.endpointDescription)
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-          .lineLimit(2)
+          Text(entry.endpointDescription)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
 
-        Text(entry.detailText)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .lineLimit(2)
-      }
-
-      Spacer(minLength: 8)
-
-      VStack(alignment: .trailing, spacing: 8) {
-        statusBadge(for: entry.status)
-
-        Button {
-          let profile = entry.makeProfile()
-          let storedProfile = profileStore.upsertImportedProfile(profile)
-          profileStore.updateSelection(storedProfile.id)
-        } label: {
-          Image(systemName: alreadyAdded ? "checkmark.circle.fill" : "plus.circle.fill")
-            .imageScale(.large)
+          Text(entry.detailText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
         }
-        .buttonStyle(.plain)
-        .disabled(alreadyAdded)
-        .accessibilityLabel(alreadyAdded ? "Already added" : "Add profile")
+
+        Spacer(minLength: 8)
+
+        VStack(alignment: .trailing, spacing: 8) {
+          statusBadge(for: entry.status)
+
+          if existingProfile == nil {
+            Image(systemName: "plus.circle.fill")
+              .imageScale(.large)
+              .foregroundStyle(.tint)
+          } else if isSelected {
+            Image(systemName: "checkmark.circle.fill")
+              .imageScale(.large)
+              .foregroundStyle(.green)
+          } else {
+            Image(systemName: "checkmark.circle")
+              .imageScale(.large)
+              .foregroundStyle(.secondary)
+          }
+        }
       }
     }
-    .accessibilityElement(children: .combine)
+    .buttonStyle(.plain)
+    .contentShape(Rectangle())
+    .accessibilityLabel(entry.name)
+    .accessibilityValue(isSelected ? "Selected" : (existingProfile == nil ? "Not added" : "Added"))
+    .accessibilityHint("Double tap to add or select this receiver profile")
   }
 
   @ViewBuilder
