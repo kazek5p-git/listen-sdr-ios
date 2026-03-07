@@ -19,7 +19,7 @@ struct ScanChannel: Identifiable, Hashable {
 final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var state: ConnectionState = .disconnected
   @Published private(set) var connectedProfileID: UUID?
-  @Published private(set) var statusText: String = "Disconnected"
+  @Published private(set) var statusText: String = L10n.text("session.status.disconnected")
   @Published private(set) var backendStatusText: String?
   @Published private(set) var lastError: String?
   @Published private(set) var settings: RadioSessionSettings = .default
@@ -36,7 +36,7 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
   private let fmDxMaxFrequencyHz = 110_000_000
-  private let fmDxMinTuneStepHz = 1_000
+  private let fmDxTuneStepOptionsHz = [50_000, 100_000, 200_000]
   private let fmDxDefaultTuneStepHz = 100_000
 
   private var client: (any SDRBackendClient)?
@@ -73,7 +73,7 @@ final class RadioSessionViewModel: ObservableObject {
     isScannerRunning = false
     scannerStatusText = nil
     state = .connecting
-    statusText = "Connecting to \(profile.name)..."
+    statusText = L10n.text("session.status.connecting_to", profile.name)
     backendStatusText = nil
     lastError = nil
     resetRuntimeState(for: profile.backend)
@@ -100,7 +100,7 @@ final class RadioSessionViewModel: ObservableObject {
           self.connectedProfileID = profile.id
           self.activeBackend = profile.backend
           self.state = .connected
-          self.statusText = "Connected to \(profile.name)"
+          self.statusText = L10n.text("session.status.connected_to", profile.name)
           self.backendStatusText = nil
           self.lastError = nil
           self.startStatusMonitor(
@@ -123,7 +123,7 @@ final class RadioSessionViewModel: ObservableObject {
           self.connectedProfileID = nil
           self.activeBackend = nil
           self.state = .failed
-          self.statusText = "Connection failed"
+          self.statusText = L10n.text("session.status.connection_failed")
           self.backendStatusText = nil
           self.lastError = error.localizedDescription
           self.isScannerRunning = false
@@ -158,7 +158,7 @@ final class RadioSessionViewModel: ObservableObject {
         self.connectedProfileID = nil
         self.activeBackend = nil
         self.state = .disconnected
-        self.statusText = "Disconnected"
+        self.statusText = L10n.text("session.status.disconnected")
         self.backendStatusText = nil
         self.lastError = nil
         self.isScannerRunning = false
@@ -246,7 +246,7 @@ final class RadioSessionViewModel: ObservableObject {
 
     stopScanner()
     isScannerRunning = true
-    scannerStatusText = "Scanner started (\(channels.count) channels)"
+    scannerStatusText = L10n.text("scanner.started", channels.count)
 
     scannerTask = Task {
       var index = 0
@@ -261,7 +261,11 @@ final class RadioSessionViewModel: ObservableObject {
             self.setMode(mode)
           }
           self.setFrequencyHz(channel.frequencyHz)
-          self.scannerStatusText = "Scanning \(channel.name) (\(FrequencyFormatter.mhzText(fromHz: channel.frequencyHz)))"
+          self.scannerStatusText = L10n.text(
+            "scanner.scanning",
+            channel.name,
+            FrequencyFormatter.mhzText(fromHz: channel.frequencyHz)
+          )
         }
 
         try? await Task.sleep(nanoseconds: dwellNanos)
@@ -271,7 +275,12 @@ final class RadioSessionViewModel: ObservableObject {
         let signal = await MainActor.run { self.currentScannerSignal() }
         if let signal, signal >= threshold {
           await MainActor.run {
-            self.scannerStatusText = "Signal found on \(channel.name): \(String(format: "%.1f", signal)) \(self.scannerSignalUnit(for: backend))"
+            self.scannerStatusText = L10n.text(
+              "scanner.signal_found",
+              channel.name,
+              signal,
+              self.scannerSignalUnit(for: backend)
+            )
           }
           try? await Task.sleep(nanoseconds: holdNanos)
           if Task.isCancelled { break }
@@ -282,8 +291,8 @@ final class RadioSessionViewModel: ObservableObject {
 
       await MainActor.run {
         self.isScannerRunning = false
-        if self.scannerStatusText?.contains("Signal found") != true {
-          self.scannerStatusText = "Scanner stopped"
+        if self.scannerStatusText?.contains(L10n.text("scanner.signal_found_prefix")) != true {
+          self.scannerStatusText = L10n.text("scanner.stopped")
         }
       }
     }
@@ -309,7 +318,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setTuneStepHz(_ value: Int) {
     let normalized = RadioSessionSettings.normalizedTuneStep(value)
-    settings.tuneStepHz = activeBackend == .fmDxWebserver ? max(normalized, fmDxMinTuneStepHz) : normalized
+    settings.tuneStepHz = activeBackend == .fmDxWebserver ? normalizeFMDXTuneStepHz(normalized) : normalized
     persistSettings()
   }
 
@@ -387,7 +396,7 @@ final class RadioSessionViewModel: ObservableObject {
       } catch {
         await MainActor.run {
           self.lastError = error.localizedDescription
-          self.statusText = "Connected with setting error"
+          self.statusText = L10n.text("session.status.connected_with_setting_error")
         }
         Diagnostics.log(
           severity: .warning,
@@ -428,8 +437,9 @@ final class RadioSessionViewModel: ObservableObject {
 
     var changed = false
 
-    if settings.tuneStepHz < fmDxMinTuneStepHz {
-      settings.tuneStepHz = fmDxDefaultTuneStepHz
+    let normalizedStep = normalizeFMDXTuneStepHz(settings.tuneStepHz)
+    if settings.tuneStepHz != normalizedStep {
+      settings.tuneStepHz = normalizedStep
       changed = true
     }
 
@@ -452,6 +462,10 @@ final class RadioSessionViewModel: ObservableObject {
     if changed {
       persistSettings()
     }
+  }
+
+  private func normalizeFMDXTuneStepHz(_ value: Int) -> Int {
+    fmDxTuneStepOptionsHz.min(by: { abs($0 - value) < abs($1 - value) }) ?? fmDxDefaultTuneStepHz
   }
 
   private func normalizeFMDXFrequencyHz(fromMHz value: Double) -> Int {
@@ -487,9 +501,9 @@ final class RadioSessionViewModel: ObservableObject {
             self.connectedProfileID = nil
             self.activeBackend = nil
             self.state = .failed
-            self.statusText = "Connection lost"
+            self.statusText = L10n.text("session.status.connection_lost")
             self.backendStatusText = nil
-            self.lastError = "Receiver closed the connection."
+            self.lastError = L10n.text("session.error.receiver_closed")
             self.stopScanner()
             self.resetRuntimeState(for: nil)
           }
@@ -509,7 +523,7 @@ final class RadioSessionViewModel: ObservableObject {
             self.connectedProfileID = nil
             self.activeBackend = nil
             self.state = .failed
-            self.statusText = "Server error on \(profileName)"
+            self.statusText = L10n.text("session.status.server_error_on", profileName)
             self.backendStatusText = nil
             self.lastError = backendError
             self.stopScanner()

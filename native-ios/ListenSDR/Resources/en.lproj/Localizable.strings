@@ -1,0 +1,45 @@
+"session.status.disconnected" = "Disconnected";
+"session.status.connecting_to" = "Connecting to %@...";
+"session.status.connected_to" = "Connected to %@";
+"session.status.connection_failed" = "Connection failed";
+"session.status.connected_with_setting_error" = "Connected with setting error";
+"session.status.connection_lost" = "Connection lost";
+"session.status.server_error_on" = "Server error on %@";
+"session.error.receiver_closed" = "Receiver closed the connection.";
+
+"scanner.started" = "Scanner started (%d channels)";
+"scanner.scanning" = "Scanning %@ (%@)";
+"scanner.signal_found" = "Signal found on %@: %.1f %@";
+"scanner.signal_found_prefix" = "Signal found";
+"scanner.stopped" = "Scanner stopped";
+
+"common.on" = "On";
+"common.off" = "Off";
+"common.yes" = "Yes";
+"common.no" = "No";
+"common.selected" = "Selected";
+"common.not_selected" = "Not selected";
+"common.not_added" = "Not added";
+"common.added" = "Added";
+
+"connection.connecting" = "Connecting...";
+"connection.disconnect" = "Disconnect";
+"connection.connect" = "Connect";
+"receiver.frequency.swipe_hint" = "Swipe up or down to tune by %@";
+
+"frequency_input.invalid_fm" = "Invalid FM frequency. Try 102.3, 1023 or 102300.";
+"frequency_input.invalid_generic" = "Invalid frequency. Use values like 7.050 MHz, 7050 kHz or 7050000.";
+"frequency_input.fmdx_range" = "FM-DX supports 64.000 to 110.000 MHz.";
+"frequency_input.hint_fmdx" = "Examples: 102.3 MHz, 1023 (for 102.3 MHz), or 102300 kHz";
+"frequency_input.hint_generic" = "Examples: seven point zero five megahertz or seven thousand fifty kilohertz";
+"frequency_input.placeholder_fmdx" = "102.3 MHz or 1023";
+"frequency_input.placeholder_generic" = "7.050 MHz or 7050 kHz";
+
+"scan_source.favorites" = "Favorites";
+"scan_source.server_list" = "Server list";
+
+"directory.status.available" = "Available";
+"directory.status.limited" = "Limited";
+"directory.status.unreachable" = "Unreachable";
+"directory.status.unknown" = "Unknown";
+"directory.last_update" = "Last update: %@";

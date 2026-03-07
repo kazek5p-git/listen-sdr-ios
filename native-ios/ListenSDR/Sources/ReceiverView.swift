@@ -9,9 +9,9 @@ private enum ScanSource: String, CaseIterable, Identifiable {
   var displayName: String {
     switch self {
     case .favorites:
-      return "Favorites"
+      return L10n.text("scan_source.favorites")
     case .serverBookmarks:
-      return "Server list"
+      return L10n.text("scan_source.server_list")
     }
   }
 }
@@ -31,6 +31,7 @@ struct ReceiverView: View {
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
+  private let fmDxTuneStepOptionsHz: [Int] = [50_000, 100_000, 200_000]
 
   var body: some View {
     NavigationStack {
@@ -39,9 +40,9 @@ struct ReceiverView: View {
           receiverForm(for: selectedProfile)
         } else {
           UnavailableContentView(
-            title: "No Selected Radio",
+            title: L10n.text("No Selected Radio"),
             systemImage: "antenna.radiowaves.left.and.right",
-            description: "Add and select a receiver profile in the Radios tab."
+            description: L10n.text("Add and select a receiver profile in the Radios tab.")
           )
         }
       }
@@ -63,19 +64,19 @@ struct ReceiverView: View {
     Form {
       Section("Connection") {
         LabeledContent("Profile", value: profile.name)
-          .accessibilityLabel("Selected profile")
+          .accessibilityLabel(L10n.text("Selected profile"))
           .accessibilityValue(profile.name)
 
         LabeledContent("Backend", value: profile.backend.displayName)
         LabeledContent("Endpoint", value: profile.endpointDescription)
 
         LabeledContent("Status", value: radioSession.statusText)
-          .accessibilityLabel("Connection status")
+          .accessibilityLabel(L10n.text("Connection status"))
           .accessibilityValue(radioSession.statusText)
 
         if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
           LabeledContent("Receiver data", value: backendStatus)
-            .accessibilityLabel("Receiver live data")
+            .accessibilityLabel(L10n.text("Receiver live data"))
             .accessibilityValue(backendStatus)
         }
 
@@ -103,7 +104,7 @@ struct ReceiverView: View {
               }
             }
             .pickerStyle(.menu)
-            .accessibilityHint("Select SDR profile from OpenWebRX server")
+            .accessibilityHint(L10n.text("Select SDR profile from OpenWebRX server"))
           }
         }
 
@@ -111,7 +112,7 @@ struct ReceiverView: View {
           Text(error)
             .foregroundStyle(.red)
             .font(.footnote)
-            .accessibilityLabel("Last error")
+            .accessibilityLabel(L10n.text("Last error"))
             .accessibilityValue(error)
         }
 
@@ -127,7 +128,7 @@ struct ReceiverView: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
-        .accessibilityHint("Double tap to change connection state")
+        .accessibilityHint(L10n.text("Double tap to change connection state"))
 
         if radioSession.state == .failed {
           Button {
@@ -137,7 +138,7 @@ struct ReceiverView: View {
               .frame(maxWidth: .infinity)
           }
           .buttonStyle(.bordered)
-          .accessibilityHint("Try connecting to this receiver again")
+          .accessibilityHint(L10n.text("Try connecting to this receiver again"))
         }
       }
 
@@ -159,7 +160,10 @@ struct ReceiverView: View {
         .accessibilityLabel("Frequency")
         .accessibilityValue(FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz))
         .accessibilityHint(
-          "Swipe up or down to tune by \(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))"
+          L10n.text(
+            "receiver.frequency.swipe_hint",
+            FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
+          )
         )
 
         HStack {
@@ -168,9 +172,9 @@ struct ReceiverView: View {
           } label: {
             Label("Step down", systemImage: "minus.circle")
           }
-          .accessibilityLabel("Tune down")
+          .accessibilityLabel(L10n.text("Tune down"))
           .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
-          .accessibilityHint("Decrease frequency by selected step size")
+          .accessibilityHint(L10n.text("Decrease frequency by selected step size"))
 
           Spacer()
 
@@ -179,9 +183,9 @@ struct ReceiverView: View {
           } label: {
             Label("Step up", systemImage: "plus.circle")
           }
-          .accessibilityLabel("Tune up")
+          .accessibilityLabel(L10n.text("Tune up"))
           .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
-          .accessibilityHint("Increase frequency by selected step size")
+          .accessibilityHint(L10n.text("Increase frequency by selected step size"))
         }
 
         Button {
@@ -189,7 +193,7 @@ struct ReceiverView: View {
         } label: {
           Label("Set exact frequency", systemImage: "number")
         }
-        .accessibilityHint("Enter frequency in hertz, kilohertz or megahertz")
+        .accessibilityHint(L10n.text("Enter frequency in hertz, kilohertz or megahertz"))
 
         Picker(
           "Tune step",
@@ -230,7 +234,7 @@ struct ReceiverView: View {
           )
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("RF gain")
+        .accessibilityLabel(L10n.text("RF gain"))
         .accessibilityValue("\(Int(radioSession.settings.rfGain))")
       }
 
@@ -373,10 +377,13 @@ struct ReceiverView: View {
             LabeledContent("Users", value: "\(users)")
           }
           if let isStereo = telemetry.isStereo {
-            LabeledContent("Stereo", value: isStereo ? "On" : "Off")
+            LabeledContent("Stereo", value: isStereo ? L10n.text("common.on") : L10n.text("common.off"))
           }
           if let isForced = telemetry.isForcedStereo {
-            LabeledContent("Forced stereo", value: isForced ? "On" : "Off")
+            LabeledContent(
+              "Forced stereo",
+              value: isForced ? L10n.text("common.on") : L10n.text("common.off")
+            )
           }
           if let pi = telemetry.pi, !pi.isEmpty {
             LabeledContent("PI", value: pi)
@@ -388,10 +395,10 @@ struct ReceiverView: View {
             LabeledContent("PTY", value: "\(pty)")
           }
           if let tp = telemetry.tp {
-            LabeledContent("TP", value: tp == 1 ? "Yes" : "No")
+            LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
           }
           if let ta = telemetry.ta {
-            LabeledContent("TA", value: ta == 1 ? "Yes" : "No")
+            LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
           }
           if let countryName = telemetry.countryName, !countryName.isEmpty {
             LabeledContent("Country", value: countryName)
@@ -492,7 +499,7 @@ struct ReceiverView: View {
         Button("Reset DSP settings") {
           radioSession.resetDSPSettings()
         }
-        .accessibilityHint("Restores demodulation mode and DSP controls to defaults")
+        .accessibilityHint(L10n.text("Restores demodulation mode and DSP controls to defaults"))
       }
 
       Section("Favorites") {
@@ -501,7 +508,7 @@ struct ReceiverView: View {
         } label: {
           Label("Save current frequency", systemImage: "star")
         }
-        .accessibilityHint("Saves current frequency and mode as a favorite")
+        .accessibilityHint(L10n.text("Saves current frequency and mode as a favorite"))
 
         if presets.isEmpty {
           Text("No favorites yet. Save one to recall frequency and mode quickly.")
@@ -525,7 +532,7 @@ struct ReceiverView: View {
             }
             .accessibilityLabel(preset.name)
             .accessibilityValue("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)), \(preset.mode.displayName)")
-            .accessibilityHint("Double tap to apply this favorite")
+            .accessibilityHint(L10n.text("Double tap to apply this favorite"))
           }
         }
       }
@@ -543,7 +550,7 @@ struct ReceiverView: View {
           )
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Audio volume")
+        .accessibilityLabel(L10n.text("Audio volume"))
         .accessibilityValue("\(Int((radioSession.settings.audioVolume * 100).rounded())) percent")
 
         Toggle(
@@ -559,13 +566,13 @@ struct ReceiverView: View {
 
   private func connectionButtonTitle(for profile: SDRConnectionProfile) -> String {
     if radioSession.state == .connecting {
-      return "Connecting..."
+      return L10n.text("connection.connecting")
     }
     if radioSession.state == .connected &&
       radioSession.connectedProfileID == profile.id {
-      return "Disconnect"
+      return L10n.text("connection.disconnect")
     }
-    return "Connect"
+    return L10n.text("connection.connect")
   }
 
   private func thresholdRange(for backend: SDRBackend) -> ClosedRange<Double> {
@@ -589,7 +596,7 @@ struct ReceiverView: View {
   private func tuneStepOptions(for backend: SDRBackend) -> [Int] {
     switch backend {
     case .fmDxWebserver:
-      return RadioSessionSettings.supportedTuneStepsHz.filter { $0 >= 1_000 }
+      return fmDxTuneStepOptionsHz
     case .kiwiSDR, .openWebRX:
       return RadioSessionSettings.supportedTuneStepsHz
     }
@@ -601,7 +608,7 @@ struct ReceiverView: View {
         TextField("Preset name", text: $presetNameDraft)
           .textInputAutocapitalization(.words)
           .autocorrectionDisabled()
-          .accessibilityLabel("Preset name")
+          .accessibilityLabel(L10n.text("Preset name"))
 
         LabeledContent(
           "Frequency",
@@ -628,18 +635,18 @@ struct ReceiverView: View {
   private var frequencyEntrySheet: some View {
     NavigationStack {
       Form {
-        TextField("7.050 MHz or 7050 kHz", text: $frequencyInputDraft)
+        TextField(frequencyInputPlaceholder, text: $frequencyInputDraft)
           .keyboardType(.decimalPad)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
-          .accessibilityLabel("Frequency input")
-          .accessibilityHint("Examples: seven point zero five megahertz or seven thousand fifty kilohertz")
+          .accessibilityLabel(L10n.text("Frequency input"))
+          .accessibilityHint(frequencyInputHint)
 
         if let frequencyInputError {
           Text(frequencyInputError)
             .foregroundStyle(.red)
             .font(.footnote)
-            .accessibilityLabel("Frequency input error")
+            .accessibilityLabel(L10n.text("Frequency input error"))
             .accessibilityValue(frequencyInputError)
         }
 
@@ -713,14 +720,19 @@ struct ReceiverView: View {
   }
 
   private func applyExactFrequencyInput() {
-    guard let frequencyHz = FrequencyInputParser.parseHz(from: frequencyInputDraft) else {
-      frequencyInputError = "Invalid frequency. Use values like 7.050 MHz, 7050 kHz or 7050000."
+    let parserContext: FrequencyInputParser.Context =
+      profileStore.selectedProfile?.backend == .fmDxWebserver ? .fmBroadcast : .generic
+
+    guard let frequencyHz = FrequencyInputParser.parseHz(from: frequencyInputDraft, context: parserContext) else {
+      frequencyInputError = profileStore.selectedProfile?.backend == .fmDxWebserver
+        ? L10n.text("frequency_input.invalid_fm")
+        : L10n.text("frequency_input.invalid_generic")
       return
     }
 
     if profileStore.selectedProfile?.backend == .fmDxWebserver &&
       !fmDxFrequencyRangeHz.contains(frequencyHz) {
-      frequencyInputError = "FM-DX supports 64.000 to 110.000 MHz."
+      frequencyInputError = L10n.text("frequency_input.fmdx_range")
       return
     }
 
@@ -728,6 +740,20 @@ struct ReceiverView: View {
     radioSession.setFrequencyHz(normalizedFrequencyHz)
     frequencyInputError = nil
     isFrequencyEntrySheetPresented = false
+  }
+
+  private var frequencyInputHint: String {
+    if profileStore.selectedProfile?.backend == .fmDxWebserver {
+      return L10n.text("frequency_input.hint_fmdx")
+    }
+    return L10n.text("frequency_input.hint_generic")
+  }
+
+  private var frequencyInputPlaceholder: String {
+    if profileStore.selectedProfile?.backend == .fmDxWebserver {
+      return L10n.text("frequency_input.placeholder_fmdx")
+    }
+    return L10n.text("frequency_input.placeholder_generic")
   }
 
   private func frequencyRange(for backend: SDRBackend) -> ClosedRange<Int> {

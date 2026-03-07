@@ -15,12 +15,17 @@ struct ReceiverDirectoryView: View {
             }
           }
           .pickerStyle(.segmented)
-          .accessibilityLabel("Receiver backend list")
+          .accessibilityLabel(L10n.text("Receiver backend list"))
         }
 
         Section {
           if let lastRefreshDate = viewModel.lastRefreshDate {
-            Text("Last update: \(lastRefreshDate.formatted(date: .abbreviated, time: .shortened))")
+            Text(
+              L10n.text(
+                "directory.last_update",
+                lastRefreshDate.formatted(date: .abbreviated, time: .shortened)
+              )
+            )
               .font(.footnote)
               .foregroundStyle(.secondary)
           } else {
@@ -33,7 +38,7 @@ struct ReceiverDirectoryView: View {
             Text(errorMessage)
               .foregroundStyle(.orange)
               .font(.footnote)
-              .accessibilityLabel("Directory error")
+              .accessibilityLabel(L10n.text("Directory error"))
           }
 
           if viewModel.isProbingStatus {
@@ -43,7 +48,7 @@ struct ReceiverDirectoryView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             }
-            .accessibilityLabel("Checking receiver availability")
+            .accessibilityLabel(L10n.text("Checking receiver availability"))
           }
         } header: {
           Text("Status")
@@ -79,7 +84,7 @@ struct ReceiverDirectoryView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
           if viewModel.isLoading || viewModel.isProbingStatus {
             ProgressView()
-              .accessibilityLabel("Refreshing receiver status")
+              .accessibilityLabel(L10n.text("Refreshing receiver status"))
           } else {
             Button {
               Task {
@@ -88,7 +93,7 @@ struct ReceiverDirectoryView: View {
             } label: {
               Image(systemName: "arrow.clockwise")
             }
-            .accessibilityLabel("Refresh receiver directory")
+            .accessibilityLabel(L10n.text("Refresh receiver directory"))
           }
         }
       }
@@ -162,8 +167,12 @@ struct ReceiverDirectoryView: View {
     .buttonStyle(.plain)
     .contentShape(Rectangle())
     .accessibilityLabel(entry.name)
-    .accessibilityValue(isSelected ? "Selected" : (existingProfile == nil ? "Not added" : "Added"))
-    .accessibilityHint("Double tap to add or select this receiver profile")
+    .accessibilityValue(
+      isSelected
+        ? L10n.text("common.selected")
+        : (existingProfile == nil ? L10n.text("common.not_added") : L10n.text("common.added"))
+    )
+    .accessibilityHint(L10n.text("Double tap to add or select this receiver profile"))
   }
 
   @ViewBuilder

@@ -1,0 +1,197 @@
+"Radios" = "Radia";
+"Receiver" = "Odbiornik";
+"Diagnostics" = "Diagnostyka";
+
+"No Radios Yet" = "Brak zapisanych odbiorników";
+"Add a KiwiSDR, OpenWebRX or FM-DX receiver profile." = "Dodaj profil odbiornika KiwiSDR, OpenWebRX lub FM-DX.";
+"Directory" = "Katalog";
+"Add radio" = "Dodaj radio";
+"New Radio" = "Nowe radio";
+"Edit" = "Edytuj";
+"Edit Radio" = "Edytuj radio";
+"Delete" = "Usuń";
+"Double tap to select this receiver profile" = "Stuknij dwukrotnie, aby wybrać ten profil odbiornika";
+
+"General" = "Ogólne";
+"Profile name" = "Nazwa profilu";
+"Backend" = "Backend";
+"Receiver backend" = "Backend odbiornika";
+"Name shown in your radio list" = "Nazwa widoczna na liście odbiorników";
+"Server" = "Serwer";
+"Host" = "Host";
+"Port" = "Port";
+"Path" = "Ścieżka";
+"Use TLS" = "Użyj TLS";
+"Enable secure HTTPS or WSS transport" = "Włącz bezpieczny transport HTTPS lub WSS";
+"Authentication" = "Uwierzytelnianie";
+"Username" = "Nazwa użytkownika";
+"Password" = "Hasło";
+"Cancel" = "Anuluj";
+"Save" = "Zapisz";
+
+"Backend source" = "Źródło backendu";
+"Receiver backend list" = "Lista backendów odbiorników";
+"No directory data cached yet." = "Brak zapisanych danych katalogu.";
+"Directory error" = "Błąd katalogu";
+"Checking receiver availability..." = "Sprawdzanie dostępności odbiorników...";
+"Checking receiver availability" = "Sprawdzanie dostępności odbiorników";
+"Status" = "Status";
+"Auto-updated from FMDX.org and Receiverbook.de. Tap a receiver row to add or select it." = "Automatyczna aktualizacja z FMDX.org i Receiverbook.de. Stuknij wiersz odbiornika, aby go dodać lub wybrać.";
+"Receivers" = "Odbiorniki";
+"Refreshing directory..." = "Odświeżanie katalogu...";
+"No receivers found for current filter." = "Brak odbiorników dla bieżącego filtra.";
+"Receiver Directory" = "Katalog odbiorników";
+"Close" = "Zamknij";
+"Refreshing receiver status" = "Odświeżanie statusu odbiorników";
+"Refresh receiver directory" = "Odśwież katalog odbiorników";
+"Search by name, location or host" = "Szukaj po nazwie, lokalizacji lub hoście";
+"Double tap to add or select this receiver profile" = "Stuknij dwukrotnie, aby dodać lub wybrać ten profil odbiornika";
+
+"Quick Actions" = "Szybkie akcje";
+"Reconnect" = "Połącz ponownie";
+"Reset DSP" = "Reset DSP";
+"Copy diagnostics" = "Kopiuj diagnostykę";
+"Logs" = "Logi";
+"No Diagnostics Yet" = "Brak danych diagnostycznych";
+"Connection logs and errors will appear here." = "Logi połączeń i błędy pojawią się tutaj.";
+"Clear" = "Wyczyść";
+"Copied" = "Skopiowano";
+"OK" = "OK";
+"Diagnostics were copied to the clipboard." = "Diagnostyka została skopiowana do schowka.";
+
+"No Selected Radio" = "Nie wybrano odbiornika";
+"Add and select a receiver profile in the Radios tab." = "Dodaj i wybierz profil odbiornika w zakładce Radia.";
+"Connection" = "Połączenie";
+"Profile" = "Profil";
+"Selected profile" = "Wybrany profil";
+"Endpoint" = "Endpoint";
+"Connection status" = "Status połączenia";
+"Receiver data" = "Dane odbiornika";
+"Receiver live data" = "Dane odbiornika na żywo";
+"Waiting for OpenWebRX profile list..." = "Oczekiwanie na listę profili OpenWebRX...";
+"Server profile" = "Profil serwera";
+"Select SDR profile from OpenWebRX server" = "Wybierz profil SDR z serwera OpenWebRX";
+"Last error" = "Ostatni błąd";
+"Double tap to change connection state" = "Stuknij dwukrotnie, aby zmienić stan połączenia";
+"Try connecting to this receiver again" = "Spróbuj ponownie połączyć się z tym odbiornikiem";
+
+"Tuning" = "Strojenie";
+"Frequency" = "Częstotliwość";
+"Step down" = "Krok w dół";
+"Tune down" = "Strojenie w dół";
+"Decrease frequency by selected step size" = "Zmniejsz częstotliwość o wybrany krok";
+"Step up" = "Krok w górę";
+"Tune up" = "Strojenie w górę";
+"Increase frequency by selected step size" = "Zwiększ częstotliwość o wybrany krok";
+"Set exact frequency" = "Ustaw dokładną częstotliwość";
+"Enter frequency in hertz, kilohertz or megahertz" = "Wpisz częstotliwość w hercach, kilohercach lub megahercach";
+"Tune step" = "Krok strojenia";
+"Mode" = "Tryb";
+"Demodulation mode" = "Tryb demodulacji";
+"RF gain" = "Wzmocnienie RF";
+
+"Server Bookmarks" = "Zakładki serwera";
+"No OpenWebRX bookmarks yet." = "Brak zakładek OpenWebRX.";
+"Band Plan" = "Plan pasm";
+"Band plan is loading..." = "Ładowanie planu pasm...";
+"Tune band center" = "Strojenie do środka pasma";
+
+"Scanner" = "Skaner";
+"Channel source" = "Źródło kanałów";
+"Channels" = "Kanały";
+"Threshold" = "Próg";
+"Dwell" = "Czas postoju";
+"Hold on hit" = "Podtrzymanie po trafieniu";
+"Stop scanner" = "Zatrzymaj skaner";
+"Start scanner" = "Uruchom skaner";
+"Threshold hold works with live signal metrics (KiwiSDR and FM-DX)." = "Podtrzymanie progu działa z metrykami sygnału na żywo (KiwiSDR i FM-DX).";
+
+"FM-DX Live" = "FM-DX na żywo";
+"Signal" = "Sygnał";
+"Signal peak" = "Szczyt sygnału";
+"Users" = "Użytkownicy";
+"Stereo" = "Stereo";
+"Forced stereo" = "Wymuszone stereo";
+"Country" = "Kraj";
+"Distance" = "Odległość";
+"Azimuth" = "Azymut";
+"Polarization" = "Polaryzacja";
+
+"Kiwi Live" = "Kiwi na żywo";
+"S-meter" = "S-metr";
+"No data" = "Brak danych";
+"Audio rate" = "Częstotliwość audio";
+"Waterfall" = "Wodospad";
+"Live spectrum strip" = "Pasek widma na żywo";
+"Waterfall loading..." = "Ładowanie wodospadu...";
+
+"DSP" = "DSP";
+"AGC" = "AGC";
+"Automatic gain control" = "Automatyczna regulacja wzmocnienia";
+"Noise reduction" = "Redukcja szumów";
+"Squelch" = "Squelch";
+"Reset DSP settings" = "Reset ustawień DSP";
+"Restores demodulation mode and DSP controls to defaults" = "Przywraca domyślne ustawienia demodulacji i DSP";
+
+"Favorites" = "Ulubione";
+"Save current frequency" = "Zapisz bieżącą częstotliwość";
+"Saves current frequency and mode as a favorite" = "Zapisuje bieżącą częstotliwość i tryb jako ulubione";
+"No favorites yet. Save one to recall frequency and mode quickly." = "Brak ulubionych. Zapisz pozycję, aby szybko przywoływać częstotliwość i tryb.";
+"Double tap to apply this favorite" = "Stuknij dwukrotnie, aby zastosować tę pozycję";
+
+"Audio" = "Audio";
+"Audio volume" = "Głośność audio";
+"Mute audio" = "Wycisz audio";
+"Preset name" = "Nazwa presetu";
+"Save Favorite" = "Zapisz ulubione";
+"Current" = "Bieżąca";
+"Set Frequency" = "Ustaw częstotliwość";
+"Apply" = "Zastosuj";
+"Frequency input" = "Wpis częstotliwości";
+"Frequency input error" = "Błąd wpisu częstotliwości";
+
+"session.status.disconnected" = "Rozłączono";
+"session.status.connecting_to" = "Łączenie z %@...";
+"session.status.connected_to" = "Połączono z %@";
+"session.status.connection_failed" = "Połączenie nieudane";
+"session.status.connected_with_setting_error" = "Połączono, ale wystąpił błąd ustawień";
+"session.status.connection_lost" = "Utracono połączenie";
+"session.status.server_error_on" = "Błąd serwera na %@";
+"session.error.receiver_closed" = "Odbiornik zamknął połączenie.";
+
+"scanner.started" = "Skaner uruchomiony (%d kanałów)";
+"scanner.scanning" = "Skanowanie %@ (%@)";
+"scanner.signal_found" = "Znaleziono sygnał na %@: %.1f %@";
+"scanner.signal_found_prefix" = "Znaleziono sygnał";
+"scanner.stopped" = "Skaner zatrzymany";
+
+"common.on" = "Wł.";
+"common.off" = "Wył.";
+"common.yes" = "Tak";
+"common.no" = "Nie";
+"common.selected" = "Wybrany";
+"common.not_selected" = "Niewybrany";
+"common.not_added" = "Nie dodano";
+"common.added" = "Dodany";
+
+"connection.connecting" = "Łączenie...";
+"connection.disconnect" = "Rozłącz";
+"connection.connect" = "Połącz";
+"receiver.frequency.swipe_hint" = "Przesuń w górę lub w dół, aby stroić co %@";
+
+"frequency_input.invalid_fm" = "Nieprawidłowa częstotliwość FM. Spróbuj: 102.3, 1023 lub 102300.";
+"frequency_input.invalid_generic" = "Nieprawidłowa częstotliwość. Użyj np. 7.050 MHz, 7050 kHz lub 7050000.";
+"frequency_input.fmdx_range" = "FM-DX obsługuje zakres 64.000 do 110.000 MHz.";
+"frequency_input.hint_fmdx" = "Przykłady: 102.3 MHz, 1023 (czyli 102.3 MHz) albo 102300 kHz";
+"frequency_input.hint_generic" = "Przykłady: siedem przecinek zero pięć megaherca lub siedem tysięcy pięćdziesiąt kiloherców";
+"frequency_input.placeholder_fmdx" = "102.3 MHz lub 1023";
+"frequency_input.placeholder_generic" = "7.050 MHz lub 7050 kHz";
+
+"scan_source.favorites" = "Ulubione";
+"scan_source.server_list" = "Lista serwera";
+
+"directory.status.available" = "Dostępny";
+"directory.status.limited" = "Ograniczony";
+"directory.status.unreachable" = "Niedostępny";
+"directory.status.unknown" = "Nieznany";
+"directory.last_update" = "Ostatnia aktualizacja: %@";

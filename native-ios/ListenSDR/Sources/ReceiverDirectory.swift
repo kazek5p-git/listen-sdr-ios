@@ -10,13 +10,13 @@ enum ReceiverDirectoryStatus: String, Codable, CaseIterable {
   var displayName: String {
     switch self {
     case .available:
-      return "Available"
+      return L10n.text("directory.status.available")
     case .limited:
-      return "Limited"
+      return L10n.text("directory.status.limited")
     case .unreachable:
-      return "Unreachable"
+      return L10n.text("directory.status.unreachable")
     case .unknown:
-      return "Unknown"
+      return L10n.text("directory.status.unknown")
     }
   }
 

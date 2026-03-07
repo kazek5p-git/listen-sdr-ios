@@ -38,9 +38,9 @@ struct DiagnosticsView: View {
         Section("Logs") {
           if diagnostics.entries.isEmpty {
             UnavailableContentView(
-              title: "No Diagnostics Yet",
+              title: L10n.text("No Diagnostics Yet"),
               systemImage: "doc.text.magnifyingglass",
-              description: "Connection logs and errors will appear here."
+              description: L10n.text("Connection logs and errors will appear here.")
             )
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)

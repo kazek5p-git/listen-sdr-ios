@@ -1,7 +1,12 @@
 import Foundation
 
 enum FrequencyInputParser {
-  static func parseHz(from text: String) -> Int? {
+  enum Context {
+    case generic
+    case fmBroadcast
+  }
+
+  static func parseHz(from text: String, context: Context = .generic) -> Int? {
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return nil }
 
@@ -10,37 +15,76 @@ enum FrequencyInputParser {
       .replacingOccurrences(of: ",", with: ".")
       .replacingOccurrences(of: " ", with: "")
 
+    let explicit = parseExplicitUnit(normalized)
     let unit: Double
     let numberPart: String
 
-    if normalized.hasSuffix("mhz") {
-      unit = 1_000_000
-      numberPart = String(normalized.dropLast(3))
-    } else if normalized.hasSuffix("m") {
-      unit = 1_000_000
-      numberPart = String(normalized.dropLast(1))
-    } else if normalized.hasSuffix("khz") {
-      unit = 1_000
-      numberPart = String(normalized.dropLast(3))
-    } else if normalized.hasSuffix("k") {
-      unit = 1_000
-      numberPart = String(normalized.dropLast(1))
-    } else if normalized.hasSuffix("hz") {
-      unit = 1
-      numberPart = String(normalized.dropLast(2))
+    if let explicit {
+      unit = explicit.unit
+      numberPart = explicit.numberPart
     } else {
       numberPart = normalized
-      if numberPart.contains(".") {
-        unit = 1_000_000
-      } else if let integerValue = Int(numberPart), integerValue < 100_000 {
-        unit = 1_000
-      } else {
-        unit = 1
-      }
+      unit = inferredUnit(for: numberPart, context: context)
     }
 
     guard let number = Double(numberPart), number.isFinite, number >= 0 else { return nil }
     let hz = Int((number * unit).rounded())
     return hz > 0 ? hz : nil
+  }
+
+  private static func parseExplicitUnit(_ value: String) -> (numberPart: String, unit: Double)? {
+    if value.hasSuffix("mhz") {
+      return (String(value.dropLast(3)), 1_000_000)
+    }
+    if value.hasSuffix("m") {
+      return (String(value.dropLast(1)), 1_000_000)
+    }
+    if value.hasSuffix("khz") {
+      return (String(value.dropLast(3)), 1_000)
+    }
+    if value.hasSuffix("k") {
+      return (String(value.dropLast(1)), 1_000)
+    }
+    if value.hasSuffix("hz") {
+      return (String(value.dropLast(2)), 1)
+    }
+    return nil
+  }
+
+  private static func inferredUnit(for numberPart: String, context: Context) -> Double {
+    if numberPart.contains(".") {
+      return 1_000_000
+    }
+
+    guard let integerValue = Int(numberPart), integerValue > 0 else {
+      return 1
+    }
+
+    switch context {
+    case .generic:
+      return integerValue < 100_000 ? 1_000 : 1
+
+    case .fmBroadcast:
+      // FM-friendly shortcuts:
+      // 1023  -> 102.3 MHz
+      // 10230 -> 102.30 MHz
+      // 102300 -> 102300 kHz
+      if (64...110).contains(integerValue) {
+        return 1_000_000
+      }
+      if (640...1100).contains(integerValue) {
+        return 100_000
+      }
+      if (6400...11_000).contains(integerValue) {
+        return 10_000
+      }
+      if (64_000...110_000).contains(integerValue) {
+        return 1_000
+      }
+      if (64_000_000...110_000_000).contains(integerValue) {
+        return 1
+      }
+      return integerValue < 100_000 ? 1_000 : 1
+    }
   }
 }

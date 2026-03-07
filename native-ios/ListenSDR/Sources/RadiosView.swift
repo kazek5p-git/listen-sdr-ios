@@ -17,9 +17,9 @@ struct RadiosView: View {
       Group {
         if profileStore.profiles.isEmpty {
           UnavailableContentView(
-            title: "No Radios Yet",
+            title: L10n.text("No Radios Yet"),
             systemImage: "dot.radiowaves.left.and.right",
-            description: "Add a KiwiSDR, OpenWebRX or FM-DX receiver profile."
+            description: L10n.text("Add a KiwiSDR, OpenWebRX or FM-DX receiver profile.")
           )
         } else {
           List {
@@ -43,7 +43,7 @@ struct RadiosView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
           Button {
             editorContext = ProfileEditorContext(
-              title: "New Radio",
+              title: L10n.text("New Radio"),
               profile: SDRConnectionProfile.empty(),
               isNew: true
             )
@@ -103,7 +103,7 @@ struct RadiosView: View {
     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
       Button("Edit") {
         editorContext = ProfileEditorContext(
-          title: "Edit Radio",
+          title: L10n.text("Edit Radio"),
           profile: profile,
           isNew: false
         )
@@ -114,7 +114,11 @@ struct RadiosView: View {
       }
     }
     .accessibilityLabel(profile.name)
-    .accessibilityHint("Double tap to select this receiver profile")
-    .accessibilityValue(profileStore.selectedProfileID == profile.id ? "Selected" : "Not selected")
+    .accessibilityHint(L10n.text("Double tap to select this receiver profile"))
+    .accessibilityValue(
+      profileStore.selectedProfileID == profile.id
+        ? L10n.text("common.selected")
+        : L10n.text("common.not_selected")
+    )
   }
 }
