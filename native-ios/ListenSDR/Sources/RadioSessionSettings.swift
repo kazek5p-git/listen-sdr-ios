@@ -8,6 +8,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var audioVolume: Double
   var audioMuted: Bool
   var agcEnabled: Bool
+  var imsEnabled: Bool
   var noiseReductionEnabled: Bool
   var squelchEnabled: Bool
 
@@ -24,6 +25,7 @@ struct RadioSessionSettings: Codable, Equatable {
     audioVolume: 0.85,
     audioMuted: false,
     agcEnabled: true,
+    imsEnabled: true,
     noiseReductionEnabled: false,
     squelchEnabled: false
   )
@@ -36,6 +38,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case audioVolume
     case audioMuted
     case agcEnabled
+    case imsEnabled
     case noiseReductionEnabled
     case squelchEnabled
   }
@@ -48,6 +51,7 @@ struct RadioSessionSettings: Codable, Equatable {
     audioVolume: Double,
     audioMuted: Bool,
     agcEnabled: Bool,
+    imsEnabled: Bool,
     noiseReductionEnabled: Bool,
     squelchEnabled: Bool
   ) {
@@ -58,6 +62,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.audioVolume = audioVolume
     self.audioMuted = audioMuted
     self.agcEnabled = agcEnabled
+    self.imsEnabled = imsEnabled
     self.noiseReductionEnabled = noiseReductionEnabled
     self.squelchEnabled = squelchEnabled
   }
@@ -72,6 +77,7 @@ struct RadioSessionSettings: Codable, Equatable {
     audioVolume = try container.decodeIfPresent(Double.self, forKey: .audioVolume) ?? Self.default.audioVolume
     audioMuted = try container.decodeIfPresent(Bool.self, forKey: .audioMuted) ?? Self.default.audioMuted
     agcEnabled = try container.decodeIfPresent(Bool.self, forKey: .agcEnabled) ?? Self.default.agcEnabled
+    imsEnabled = try container.decodeIfPresent(Bool.self, forKey: .imsEnabled) ?? Self.default.imsEnabled
     noiseReductionEnabled = try container.decodeIfPresent(Bool.self, forKey: .noiseReductionEnabled) ?? Self.default.noiseReductionEnabled
     squelchEnabled = try container.decodeIfPresent(Bool.self, forKey: .squelchEnabled) ?? Self.default.squelchEnabled
   }

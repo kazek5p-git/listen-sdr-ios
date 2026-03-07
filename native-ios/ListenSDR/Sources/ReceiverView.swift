@@ -3,6 +3,7 @@ import SwiftUI
 private enum ScanSource: String, CaseIterable, Identifiable {
   case favorites
   case serverBookmarks
+  case quickList
 
   var id: String { rawValue }
 
@@ -12,6 +13,8 @@ private enum ScanSource: String, CaseIterable, Identifiable {
       return L10n.text("scan_source.favorites")
     case .serverBookmarks:
       return L10n.text("scan_source.server_list")
+    case .quickList:
+      return L10n.text("scan_source.quick_list")
     }
   }
 }
@@ -26,6 +29,7 @@ struct ReceiverView: View {
   @State private var frequencyInputDraft = ""
   @State private var frequencyInputError: String?
   @State private var scanSource: ScanSource = .favorites
+  @State private var quickScanChannels: [ScanChannel] = []
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
 
@@ -222,6 +226,13 @@ struct ReceiverView: View {
         }
         .accessibilityLabel("Demodulation mode")
 
+        if let tuneWarning = radioSession.fmdxTuneWarningText,
+          profile.backend == .fmDxWebserver {
+          Text(tuneWarning)
+            .font(.footnote)
+            .foregroundStyle(.orange)
+        }
+
         VStack(alignment: .leading, spacing: 6) {
           Text(L10n.text("receiver.rf_gain_value", Int(radioSession.settings.rfGain)))
           Slider(
@@ -302,11 +313,78 @@ struct ReceiverView: View {
         }
       }
 
+      if profile.backend == .fmDxWebserver {
+        Section(L10n.text("fmdx.controls")) {
+          Toggle(
+            L10n.text("fmdx.forced_stereo"),
+            isOn: Binding(
+              get: { radioSession.fmdxTelemetry?.isForcedStereo ?? false },
+              set: { radioSession.setFMDXForcedStereoEnabled($0) }
+            )
+          )
+          .disabled(radioSession.state != .connected)
+
+          if !radioSession.fmdxCapabilities.antennas.isEmpty {
+            Picker(
+              L10n.text("fmdx.antenna"),
+              selection: Binding(
+                get: {
+                  radioSession.selectedFMDXAntennaID
+                    ?? radioSession.fmdxCapabilities.antennas.first?.id
+                    ?? ""
+                },
+                set: { value in
+                  if !value.isEmpty {
+                    radioSession.setFMDXAntenna(value)
+                  }
+                }
+              )
+            ) {
+              ForEach(radioSession.fmdxCapabilities.antennas) { option in
+                Text(option.label).tag(option.id)
+              }
+            }
+            .disabled(radioSession.state != .connected)
+          }
+
+          if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
+            Picker(
+              L10n.text("fmdx.bandwidth"),
+              selection: Binding(
+                get: {
+                  radioSession.selectedFMDXBandwidthID
+                    ?? radioSession.fmdxCapabilities.bandwidths.first?.id
+                    ?? ""
+                },
+                set: { value in
+                  guard
+                    let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value })
+                  else { return }
+                  radioSession.setFMDXBandwidth(option)
+                }
+              )
+            ) {
+              ForEach(radioSession.fmdxCapabilities.bandwidths) { option in
+                Text(option.label).tag(option.id)
+              }
+            }
+            .disabled(radioSession.state != .connected)
+          }
+        }
+      }
+
       Section("Scanner") {
         Picker("Channel source", selection: $scanSource) {
           ForEach(ScanSource.allCases) { source in
             Text(source.displayName).tag(source)
           }
+        }
+
+        if scanSource == .quickList {
+          Button(L10n.text("scanner.quick_list.clear")) {
+            quickScanChannels.removeAll()
+          }
+          .disabled(quickScanChannels.isEmpty)
         }
 
         LabeledContent("Channels", value: "\(scannerChannels.count)")
@@ -392,13 +470,25 @@ struct ReceiverView: View {
             LabeledContent("PS", value: ps)
           }
           if let pty = telemetry.pty {
-            LabeledContent("PTY", value: "\(pty)")
+            LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
           }
           if let tp = telemetry.tp {
             LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
           }
           if let ta = telemetry.ta {
             LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+          }
+          if let ms = telemetry.ms {
+            LabeledContent("MS", value: msDisplayText(ms))
+          }
+          if let ecc = telemetry.ecc {
+            LabeledContent("ECC", value: String(format: "0x%02X", ecc))
+          }
+          if let rbds = telemetry.rbds {
+            LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
+          }
+          if let agc = telemetry.agc, !agc.isEmpty {
+            LabeledContent("AGC", value: agc)
           }
           if let countryName = telemetry.countryName, !countryName.isEmpty {
             LabeledContent("Country", value: countryName)
@@ -407,16 +497,46 @@ struct ReceiverView: View {
             LabeledContent("ISO", value: countryISO)
           }
           if !telemetry.afMHz.isEmpty {
-            let afList = telemetry.afMHz.prefix(12).map { String(format: "%.1f", $0) }.joined(separator: ", ")
-            Text(L10n.text("fmdx.af_list", afList))
+            ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
+              let afHz = frequencyHz(fromMHz: afMHz)
+              HStack {
+                Button(String(format: "%.1f MHz", afMHz)) {
+                  radioSession.setFrequencyHz(afHz)
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Button(L10n.text("fmdx.af.favorite")) {
+                  saveAFAsPreset(afHz, profile: profile)
+                }
+                .buttonStyle(.borderless)
+
+                Button(L10n.text("fmdx.af.scan")) {
+                  addQuickScanChannel(frequencyHz: afHz)
+                }
+                .buttonStyle(.borderless)
+              }
+            }
+          }
+          if let errors = telemetry.psErrors, !errors.isEmpty {
+            Text(L10n.text("fmdx.ps_errors", errors))
               .font(.footnote)
           }
           if let rt0 = telemetry.rt0, !rt0.isEmpty {
             Text(L10n.text("fmdx.rt0", rt0))
               .font(.footnote)
           }
+          if let errors = telemetry.rt0Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt0_errors", errors))
+              .font(.footnote)
+          }
           if let rt1 = telemetry.rt1, !rt1.isEmpty {
             Text(L10n.text("fmdx.rt1", rt1))
+              .font(.footnote)
+          }
+          if let errors = telemetry.rt1Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt1_errors", errors))
               .font(.footnote)
           }
           if let tx = telemetry.txInfo {
@@ -472,30 +592,57 @@ struct ReceiverView: View {
       }
 
       Section("DSP") {
-        Toggle(
-          "AGC",
-          isOn: Binding(
-            get: { radioSession.settings.agcEnabled },
-            set: { radioSession.setAGCEnabled($0) }
+        if profile.backend == .fmDxWebserver {
+          Toggle(
+            "AGC",
+            isOn: Binding(
+              get: { radioSession.settings.agcEnabled },
+              set: { radioSession.setAGCEnabled($0) }
+            )
           )
-        )
-        .accessibilityHint("Automatic gain control")
+          .accessibilityHint("Automatic gain control")
 
-        Toggle(
-          "Noise reduction",
-          isOn: Binding(
-            get: { radioSession.settings.noiseReductionEnabled },
-            set: { radioSession.setNoiseReductionEnabled($0) }
+          Toggle(
+            "cEQ",
+            isOn: Binding(
+              get: { radioSession.settings.noiseReductionEnabled },
+              set: { radioSession.setNoiseReductionEnabled($0) }
+            )
           )
-        )
 
-        Toggle(
-          "Squelch",
-          isOn: Binding(
-            get: { radioSession.settings.squelchEnabled },
-            set: { radioSession.setSquelchEnabled($0) }
+          Toggle(
+            "iMS",
+            isOn: Binding(
+              get: { radioSession.settings.imsEnabled },
+              set: { radioSession.setIMSEnabled($0) }
+            )
           )
-        )
+        } else {
+          Toggle(
+            "AGC",
+            isOn: Binding(
+              get: { radioSession.settings.agcEnabled },
+              set: { radioSession.setAGCEnabled($0) }
+            )
+          )
+          .accessibilityHint("Automatic gain control")
+
+          Toggle(
+            "Noise reduction",
+            isOn: Binding(
+              get: { radioSession.settings.noiseReductionEnabled },
+              set: { radioSession.setNoiseReductionEnabled($0) }
+            )
+          )
+
+          Toggle(
+            "Squelch",
+            isOn: Binding(
+              get: { radioSession.settings.squelchEnabled },
+              set: { radioSession.setSquelchEnabled($0) }
+            )
+          )
+        }
 
         Button("Reset DSP settings") {
           radioSession.resetDSPSettings()
@@ -743,6 +890,78 @@ struct ReceiverView: View {
     isFrequencyEntrySheetPresented = false
   }
 
+  private func frequencyHz(fromMHz value: Double) -> Int {
+    let hz = Int((value * 1_000_000.0).rounded())
+    if profileStore.selectedProfile?.backend == .fmDxWebserver {
+      let rounded = Int((Double(hz) / 1_000.0).rounded()) * 1_000
+      return min(max(rounded, fmDxFrequencyRangeHz.lowerBound), fmDxFrequencyRangeHz.upperBound)
+    }
+    return hz
+  }
+
+  private func saveAFAsPreset(_ frequencyHz: Int, profile: SDRConnectionProfile) {
+    let name = L10n.text("fmdx.af_preset_name", FrequencyFormatter.mhzText(fromHz: frequencyHz))
+    presetStore.addPreset(
+      name: name,
+      frequencyHz: frequencyHz,
+      mode: .fm,
+      profileID: profile.id,
+      profileName: profile.name
+    )
+  }
+
+  private func addQuickScanChannel(frequencyHz: Int) {
+    let normalizedHz = normalizeFrequencyHz(frequencyHz, for: profileStore.selectedProfile?.backend)
+    let id = "quick|\(normalizedHz)"
+    guard quickScanChannels.contains(where: { $0.id == id }) == false else { return }
+
+    let channel = ScanChannel(
+      id: id,
+      name: L10n.text("fmdx.af_scan_name", FrequencyFormatter.mhzText(fromHz: normalizedHz)),
+      frequencyHz: normalizedHz,
+      mode: .fm
+    )
+    quickScanChannels.append(channel)
+    quickScanChannels.sort { $0.frequencyHz < $1.frequencyHz }
+  }
+
+  private func msDisplayText(_ ms: Int) -> String {
+    switch ms {
+    case 1:
+      return L10n.text("common.yes")
+    case 0:
+      return L10n.text("common.no")
+    default:
+      return L10n.text("common.not_selected")
+    }
+  }
+
+  private func ptyDisplayText(pty: Int, rbds: Bool?) -> String {
+    let labelsEU = [
+      "No PTY", "News", "Current Affairs", "Info", "Sport", "Education", "Drama", "Culture",
+      "Science", "Varied", "Pop Music", "Rock Music", "Easy Listening", "Light Classical",
+      "Serious Classical", "Other Music", "Weather", "Finance", "Children's", "Social Affairs",
+      "Religion", "Phone-in", "Travel", "Leisure", "Jazz Music", "Country Music", "National Music",
+      "Oldies Music", "Folk Music", "Documentary", "Alarm Test", "Alarm"
+    ]
+    let labelsUS = [
+      "No PTY", "News", "Information", "Sports", "Talk", "Rock", "Classic Rock", "Adult Hits",
+      "Soft Rock", "Top 40", "Country", "Oldies", "Soft Music", "Nostalgia", "Jazz", "Classical",
+      "Rhythm and Blues", "Soft R&B", "Language", "Religious Music", "Religious Talk", "Personality",
+      "Public", "College", "Spanish Talk", "Spanish Music", "Hip Hop", "", "", "Weather",
+      "Emergency Test", "Emergency"
+    ]
+
+    let table = (rbds ?? false) ? labelsUS : labelsEU
+    if pty >= 0 && pty < table.count {
+      let label = table[pty].trimmingCharacters(in: .whitespacesAndNewlines)
+      if !label.isEmpty {
+        return "\(pty) (\(label))"
+      }
+    }
+    return "\(pty)"
+  }
+
   private var frequencyInputHint: String {
     if profileStore.selectedProfile?.backend == .fmDxWebserver {
       return L10n.text("frequency_input.hint_fmdx")
@@ -799,6 +1018,8 @@ struct ReceiverView: View {
           mode: bookmark.modulation
         )
       }
+    case .quickList:
+      return quickScanChannels
     }
   }
 }

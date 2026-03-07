@@ -28,6 +28,10 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var serverBookmarks: [SDRServerBookmark] = []
   @Published private(set) var openWebRXBandPlan: [SDRBandPlanEntry] = []
   @Published private(set) var fmdxTelemetry: FMDXTelemetry?
+  @Published private(set) var fmdxCapabilities: FMDXCapabilities = .empty
+  @Published private(set) var selectedFMDXAntennaID: String?
+  @Published private(set) var selectedFMDXBandwidthID: String?
+  @Published private(set) var fmdxTuneWarningText: String?
   @Published private(set) var kiwiTelemetry: KiwiTelemetry?
   @Published private(set) var isScannerRunning = false
   @Published private(set) var scannerStatusText: String?
@@ -43,6 +47,9 @@ final class RadioSessionViewModel: ObservableObject {
   private var connectTask: Task<Void, Never>?
   private var statusMonitorTask: Task<Void, Never>?
   private var scannerTask: Task<Void, Never>?
+  private var fmDxTuneDebounceTask: Task<Void, Never>?
+  private var fmDxTuneConfirmTask: Task<Void, Never>?
+  private var pendingFMDXTuneFrequencyHz: Int?
   private var activeBackend: SDRBackend?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
 
@@ -70,6 +77,11 @@ final class RadioSessionViewModel: ObservableObject {
     statusMonitorTask = nil
     scannerTask?.cancel()
     scannerTask = nil
+    fmDxTuneDebounceTask?.cancel()
+    fmDxTuneDebounceTask = nil
+    fmDxTuneConfirmTask?.cancel()
+    fmDxTuneConfirmTask = nil
+    pendingFMDXTuneFrequencyHz = nil
     isScannerRunning = false
     scannerStatusText = nil
     state = .connecting
@@ -145,6 +157,11 @@ final class RadioSessionViewModel: ObservableObject {
     statusMonitorTask = nil
     scannerTask?.cancel()
     scannerTask = nil
+    fmDxTuneDebounceTask?.cancel()
+    fmDxTuneDebounceTask = nil
+    fmDxTuneConfirmTask?.cancel()
+    fmDxTuneConfirmTask = nil
+    pendingFMDXTuneFrequencyHz = nil
 
     Diagnostics.log(category: "Session", message: "Disconnect requested")
 
@@ -313,7 +330,12 @@ final class RadioSessionViewModel: ObservableObject {
       settings.frequencyHz = min(max(value, 100_000), 3_000_000_000)
     }
     persistSettings()
-    applyIfConnected()
+
+    guard activeBackend == .fmDxWebserver else {
+      applyIfConnected()
+      return
+    }
+    queueFMDXFrequencySend(settings.frequencyHz)
   }
 
   func setTuneStepHz(_ value: Int) {
@@ -330,12 +352,18 @@ final class RadioSessionViewModel: ObservableObject {
   func setMode(_ mode: DemodulationMode) {
     settings.mode = mode
     persistSettings()
+    if activeBackend == .fmDxWebserver {
+      return
+    }
     applyIfConnected()
   }
 
   func setRFGain(_ value: Double) {
     settings.rfGain = min(max(value, 0), 100)
     persistSettings()
+    if activeBackend == .fmDxWebserver {
+      return
+    }
     applyIfConnected()
   }
 
@@ -356,18 +384,56 @@ final class RadioSessionViewModel: ObservableObject {
   func setAGCEnabled(_ enabled: Bool) {
     settings.agcEnabled = enabled
     persistSettings()
-    applyIfConnected()
+    if activeBackend == .fmDxWebserver {
+      sendFMDXControl(.setFMDXAGC(enabled))
+    } else {
+      applyIfConnected()
+    }
   }
 
   func setNoiseReductionEnabled(_ enabled: Bool) {
     settings.noiseReductionEnabled = enabled
     persistSettings()
-    applyIfConnected()
+    if activeBackend == .fmDxWebserver {
+      sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+    } else {
+      applyIfConnected()
+    }
+  }
+
+  func setIMSEnabled(_ enabled: Bool) {
+    settings.imsEnabled = enabled
+    persistSettings()
+    if activeBackend == .fmDxWebserver {
+      sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+    } else {
+      applyIfConnected()
+    }
+  }
+
+  func setFMDXForcedStereoEnabled(_ enabled: Bool) {
+    guard activeBackend == .fmDxWebserver else { return }
+    sendFMDXControl(.setFMDXForcedStereo(enabled))
+  }
+
+  func setFMDXAntenna(_ id: String) {
+    guard activeBackend == .fmDxWebserver else { return }
+    selectedFMDXAntennaID = id
+    sendFMDXControl(.setFMDXAntenna(id))
+  }
+
+  func setFMDXBandwidth(_ option: FMDXControlOption) {
+    guard activeBackend == .fmDxWebserver else { return }
+    selectedFMDXBandwidthID = option.id
+    sendFMDXControl(.setFMDXBandwidth(value: option.id, legacyValue: option.legacyValue))
   }
 
   func setSquelchEnabled(_ enabled: Bool) {
     settings.squelchEnabled = enabled
     persistSettings()
+    if activeBackend == .fmDxWebserver {
+      return
+    }
     applyIfConnected()
   }
 
@@ -375,10 +441,16 @@ final class RadioSessionViewModel: ObservableObject {
     settings.mode = .am
     settings.rfGain = RadioSessionSettings.default.rfGain
     settings.agcEnabled = RadioSessionSettings.default.agcEnabled
+    settings.imsEnabled = RadioSessionSettings.default.imsEnabled
     settings.noiseReductionEnabled = RadioSessionSettings.default.noiseReductionEnabled
     settings.squelchEnabled = RadioSessionSettings.default.squelchEnabled
     persistSettings()
-    applyIfConnected()
+    if activeBackend == .fmDxWebserver {
+      sendFMDXControl(.setFMDXAGC(settings.agcEnabled))
+      sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+    } else {
+      applyIfConnected()
+    }
 
     Diagnostics.log(
       category: "Session",
@@ -405,6 +477,79 @@ final class RadioSessionViewModel: ObservableObject {
         )
       }
     }
+  }
+
+  private func sendFMDXControl(_ command: BackendControlCommand) {
+    guard state == .connected, activeBackend == .fmDxWebserver, let client else { return }
+
+    Task {
+      do {
+        try await client.sendControl(command)
+      } catch {
+        await MainActor.run {
+          self.lastError = error.localizedDescription
+          self.statusText = L10n.text("session.status.connected_with_setting_error")
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Session",
+          message: "FM-DX control failed: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  private func queueFMDXFrequencySend(_ frequencyHz: Int) {
+    guard state == .connected, activeBackend == .fmDxWebserver else { return }
+
+    fmDxTuneDebounceTask?.cancel()
+    let target = frequencyHz
+    fmDxTuneDebounceTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 180_000_000)
+      if Task.isCancelled { return }
+      await MainActor.run {
+        self?.sendFMDXFrequencyNow(target)
+      }
+    }
+  }
+
+  private func sendFMDXFrequencyNow(_ frequencyHz: Int) {
+    pendingFMDXTuneFrequencyHz = frequencyHz
+    fmdxTuneWarningText = nil
+    sendFMDXControl(.setFMDXFrequencyHz(frequencyHz))
+    scheduleFMDXTuneConfirmation(for: frequencyHz)
+  }
+
+  private func scheduleFMDXTuneConfirmation(for frequencyHz: Int) {
+    fmDxTuneConfirmTask?.cancel()
+    fmDxTuneConfirmTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 1_700_000_000)
+      if Task.isCancelled { return }
+
+      await MainActor.run {
+        guard let self else { return }
+        guard self.pendingFMDXTuneFrequencyHz == frequencyHz else { return }
+        guard self.activeBackend == .fmDxWebserver else { return }
+
+        let requestedText = FrequencyFormatter.mhzText(fromHz: frequencyHz)
+        if let actualMHz = self.fmdxTelemetry?.frequencyMHz {
+          let actualHz = self.normalizeFMDXFrequencyHz(fromMHz: actualMHz)
+          let actualText = FrequencyFormatter.mhzText(fromHz: actualHz)
+          if abs(actualHz - frequencyHz) >= 1_000 {
+            self.fmdxTuneWarningText = L10n.text("fmdx.tune_warning_mismatch", requestedText, actualText)
+          }
+        } else {
+          self.fmdxTuneWarningText = L10n.text("fmdx.tune_warning_no_confirmation", requestedText)
+        }
+      }
+    }
+  }
+
+  private func clearFMDXTuneConfirmationState() {
+    pendingFMDXTuneFrequencyHz = nil
+    fmDxTuneConfirmTask?.cancel()
+    fmDxTuneConfirmTask = nil
+    fmdxTuneWarningText = nil
   }
 
   private func makeClient(for backend: SDRBackend) -> any SDRBackendClient {
@@ -472,6 +617,16 @@ final class RadioSessionViewModel: ObservableObject {
     let hz = Int((value * 1_000_000.0).rounded())
     let roundedToKHz = Int((Double(hz) / 1_000.0).rounded()) * 1_000
     return min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
+  }
+
+  private func resolveFMDXBandwidthSelectionID(from rawValue: String) -> String {
+    if fmdxCapabilities.bandwidths.contains(where: { $0.id == rawValue }) {
+      return rawValue
+    }
+    if let match = fmdxCapabilities.bandwidths.first(where: { $0.legacyValue == rawValue }) {
+      return match.id
+    }
+    return rawValue
   }
 
   private func startStatusMonitor(
@@ -561,10 +716,23 @@ final class RadioSessionViewModel: ObservableObject {
     case .openWebRXBandPlan(let bands):
       openWebRXBandPlan = bands
 
+    case .fmdxCapabilities(let capabilities):
+      fmdxCapabilities = capabilities
+
     case .fmdx(let telemetry):
       fmdxTelemetry = telemetry
+      if let antenna = telemetry.antenna, !antenna.isEmpty {
+        selectedFMDXAntennaID = antenna
+      }
+      if let bandwidth = telemetry.bandwidth, !bandwidth.isEmpty {
+        selectedFMDXBandwidthID = resolveFMDXBandwidthSelectionID(from: bandwidth)
+      }
       if let frequencyMHz = telemetry.frequencyMHz {
         let backendFrequencyHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
+        if let pending = pendingFMDXTuneFrequencyHz,
+          abs(backendFrequencyHz - pending) < 1_000 {
+          clearFMDXTuneConfirmationState()
+        }
         if abs(backendFrequencyHz - settings.frequencyHz) >= 1_000 {
           settings.frequencyHz = backendFrequencyHz
           persistSettings()
@@ -598,35 +766,18 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func resetRuntimeState(for backend: SDRBackend?) {
-    switch backend {
-    case .openWebRX:
-      openWebRXProfiles = []
-      selectedOpenWebRXProfileID = nil
-      serverBookmarks = []
-      openWebRXBandPlan = []
-      fmdxTelemetry = nil
-      kiwiTelemetry = nil
-    case .fmDxWebserver:
-      openWebRXProfiles = []
-      selectedOpenWebRXProfileID = nil
-      serverBookmarks = []
-      openWebRXBandPlan = []
-      fmdxTelemetry = nil
-      kiwiTelemetry = nil
-    case .kiwiSDR:
-      openWebRXProfiles = []
-      selectedOpenWebRXProfileID = nil
-      serverBookmarks = []
-      openWebRXBandPlan = []
-      fmdxTelemetry = nil
-      kiwiTelemetry = nil
-    case .none:
-      openWebRXProfiles = []
-      selectedOpenWebRXProfileID = nil
-      serverBookmarks = []
-      openWebRXBandPlan = []
-      fmdxTelemetry = nil
-      kiwiTelemetry = nil
-    }
+    _ = backend
+    openWebRXProfiles = []
+    selectedOpenWebRXProfileID = nil
+    serverBookmarks = []
+    openWebRXBandPlan = []
+    fmdxTelemetry = nil
+    fmdxCapabilities = .empty
+    selectedFMDXAntennaID = nil
+    selectedFMDXBandwidthID = nil
+    kiwiTelemetry = nil
+    fmDxTuneDebounceTask?.cancel()
+    fmDxTuneDebounceTask = nil
+    clearFMDXTuneConfirmationState()
   }
 }

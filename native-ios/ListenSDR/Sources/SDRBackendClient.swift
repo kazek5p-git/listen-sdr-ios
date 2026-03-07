@@ -749,6 +749,8 @@ actor OpenWebRXClient: SDRBackendClient {
       selectedProfileID = profileID
       emitProfiles()
       log("Profile selected: \(profileID)")
+    default:
+      throw SDRClientError.unsupported("OpenWebRX does not support this control.")
     }
   }
 
@@ -1540,33 +1542,45 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var receiveTask: Task<Void, Never>?
   private var audioReceiveTask: Task<Void, Never>?
   private var pollTask: Task<Void, Never>?
+  private var healthTask: Task<Void, Never>?
+  private var textReconnectTask: Task<Void, Never>?
+  private var audioReconnectTask: Task<Void, Never>?
+
   private var lastServerMessage: String?
   private var pendingStatusUpdate: String?
   private var telemetryQueue: [BackendTelemetryEvent] = []
+
+  private var activeProfile: SDRConnectionProfile?
+  private var activeBasePath = "/"
+  private var lastAppliedSettings: RadioSessionSettings?
+  private var lastAudioPacketAt = Date.distantPast
+  private var supportsPingEndpoint: Bool?
+  private var consecutivePingFailures = 0
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
     await disconnect()
     try await authenticateIfNeeded(profile: profile)
 
-    let basePath = pathWithTrailingSlash(profile.normalizedPath)
-    let url = try makeWebSocketURL(profile: profile, path: "\(basePath)text")
-    log("Connecting to \(url.absoluteString)")
+    activeProfile = profile
+    activeBasePath = pathWithTrailingSlash(profile.normalizedPath)
+    lastAppliedSettings = nil
+    supportsPingEndpoint = nil
+    consecutivePingFailures = 0
+    lastAudioPacketAt = .distantPast
 
-    let task = URLSession.shared.webSocketTask(with: url)
-    socket = task
-    task.resume()
-
-    receiveTask = Task { [task] in
-      await self.receiveLoop(task: task)
-    }
+    try openTextSocket(profile: profile, basePath: activeBasePath)
 
     pollTask = Task { [profile] in
       await self.pollLoop(profile: profile)
     }
 
+    healthTask = Task {
+      await self.healthLoop()
+    }
+
     do {
-      try await connectAudio(profile: profile, basePath: basePath)
+      try await connectAudio(profile: profile, basePath: activeBasePath)
     } catch {
       audioReceiveTask?.cancel()
       audioReceiveTask = nil
@@ -1577,8 +1591,19 @@ actor FMDXWebserverClient: SDRBackendClient {
       pendingStatusUpdate = "Connected without audio stream"
     }
 
-    if let tunerName = try? await fetchTunerName(profile: profile), !tunerName.isEmpty {
-      pendingStatusUpdate = "Tuner: \(tunerName)"
+    var staticData: [String: Any]?
+    if let snapshot = try? await fetchStaticData(profile: profile) {
+      staticData = snapshot
+      if let tunerName = parseString(snapshot["tunerName"])?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !tunerName.isEmpty {
+        pendingStatusUpdate = "Tuner: \(tunerName)"
+      }
+    }
+
+    let html = try? await fetchIndexHTML(profile: profile, basePath: activeBasePath)
+    let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
+    if !capabilities.antennas.isEmpty || !capabilities.bandwidths.isEmpty {
+      enqueueTelemetry(.fmdxCapabilities(capabilities))
     }
   }
 
@@ -1592,27 +1617,41 @@ actor FMDXWebserverClient: SDRBackendClient {
     pollTask?.cancel()
     pollTask = nil
 
+    healthTask?.cancel()
+    healthTask = nil
+    textReconnectTask?.cancel()
+    textReconnectTask = nil
+    audioReconnectTask?.cancel()
+    audioReconnectTask = nil
+
     socket?.cancel(with: .normalClosure, reason: nil)
     socket = nil
     audioSocket?.cancel(with: .normalClosure, reason: nil)
     audioSocket = nil
     FMDXMP3AudioPlayer.shared.stop()
+
     lastServerMessage = nil
     pendingStatusUpdate = nil
     telemetryQueue.removeAll()
+
+    activeProfile = nil
+    activeBasePath = "/"
+    lastAppliedSettings = nil
+    lastAudioPacketAt = .distantPast
+    supportsPingEndpoint = nil
+    consecutivePingFailures = 0
+
     log("Disconnected")
   }
 
   func apply(settings: RadioSessionSettings) async throws {
     guard socket != nil else { throw SDRClientError.notConnected }
+    lastAppliedSettings = settings
 
-    let frequencyKHz = max(1, Int((Double(settings.frequencyHz) / 1000.0).rounded()))
-    try await send("T\(frequencyKHz)")
+    try await sendFrequency(settings.frequencyHz)
+    try await sendFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled)
+    try? await send("A\(settings.agcEnabled ? 1 : 0)")
 
-    // FM-DX exposes cEQ/iMS via Gxy command; map app DSP toggles to it.
-    let eq = settings.noiseReductionEnabled ? 1 : 0
-    let ims = settings.agcEnabled ? 1 : 0
-    try? await send("G\(eq)\(ims)")
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
 
@@ -1636,13 +1675,59 @@ actor FMDXWebserverClient: SDRBackendClient {
     return telemetryQueue.removeFirst()
   }
 
+  func sendControl(_ command: BackendControlCommand) async throws {
+    switch command {
+    case .selectOpenWebRXProfile:
+      throw SDRClientError.unsupported("FM-DX does not support OpenWebRX profile selection.")
+
+    case .setFMDXFrequencyHz(let frequencyHz):
+      try await sendFrequency(frequencyHz)
+
+    case .setFMDXFilter(let eqEnabled, let imsEnabled):
+      try await sendFilter(eqEnabled: eqEnabled, imsEnabled: imsEnabled)
+
+    case .setFMDXAGC(let enabled):
+      try await send("A\(enabled ? 1 : 0)")
+
+    case .setFMDXForcedStereo(let enabled):
+      try await send("B\(enabled ? 1 : 0)")
+
+    case .setFMDXAntenna(let value):
+      guard let safeValue = sanitizeCommandValue(value) else {
+        throw SDRClientError.unsupported("Invalid FM-DX antenna value.")
+      }
+      try await send("Z\(safeValue)")
+
+    case .setFMDXBandwidth(let value, let legacyValue):
+      guard let safeValue = sanitizeCommandValue(value) else {
+        throw SDRClientError.unsupported("Invalid FM-DX bandwidth value.")
+      }
+      if let legacyValue, let safeLegacy = sanitizeCommandValue(legacyValue) {
+        try? await send("F\(safeLegacy)")
+      }
+      try await send("W\(safeValue)")
+    }
+  }
+
   func isConnected() async -> Bool {
-    socket != nil
+    guard activeProfile != nil else { return false }
+    return socket != nil || textReconnectTask != nil
   }
 
   private func send(_ message: String) async throws {
     guard let socket else { throw SDRClientError.notConnected }
     try await socket.send(.string(message))
+  }
+
+  private func sendFrequency(_ frequencyHz: Int) async throws {
+    let frequencyKHz = max(1, Int((Double(frequencyHz) / 1000.0).rounded()))
+    try await send("T\(frequencyKHz)")
+  }
+
+  private func sendFilter(eqEnabled: Bool, imsEnabled: Bool) async throws {
+    let eq = eqEnabled ? 1 : 0
+    let ims = imsEnabled ? 1 : 0
+    try await send("G\(eq)\(ims)")
   }
 
   private func sendAudio(_ message: String) async throws {
@@ -1653,6 +1738,11 @@ actor FMDXWebserverClient: SDRBackendClient {
   }
 
   private func connectAudio(profile: SDRConnectionProfile, basePath: String) async throws {
+    audioReceiveTask?.cancel()
+    audioReceiveTask = nil
+    audioSocket?.cancel(with: .goingAway, reason: nil)
+    audioSocket = nil
+
     let audioURL = try makeWebSocketURL(profile: profile, path: "\(basePath)audio")
     log("Connecting audio stream: \(audioURL.absoluteString)")
 
@@ -1669,7 +1759,26 @@ actor FMDXWebserverClient: SDRBackendClient {
       "data": "mp3"
     ])
     try await sendAudio(message)
+    lastAudioPacketAt = .distantPast
     log("Requested FM-DX fallback audio format: mp3")
+  }
+
+  private func openTextSocket(profile: SDRConnectionProfile, basePath: String) throws {
+    receiveTask?.cancel()
+    receiveTask = nil
+    socket?.cancel(with: .goingAway, reason: nil)
+    socket = nil
+
+    let url = try makeWebSocketURL(profile: profile, path: "\(basePath)text")
+    log("Connecting to \(url.absoluteString)")
+
+    let task = URLSession.shared.webSocketTask(with: url)
+    socket = task
+    task.resume()
+
+    receiveTask = Task { [task] in
+      await self.receiveLoop(task: task)
+    }
   }
 
   private func receiveLoop(task: URLSessionWebSocketTask) async {
@@ -1702,6 +1811,7 @@ actor FMDXWebserverClient: SDRBackendClient {
         let message = try await task.receive()
         switch message {
         case .data(let data):
+          lastAudioPacketAt = Date()
           FMDXMP3AudioPlayer.shared.append(data)
         case .string(let text):
           await handleAudioControlText(text)
@@ -1714,6 +1824,43 @@ actor FMDXWebserverClient: SDRBackendClient {
         }
         handleAudioReceiveFailure(error)
         break
+      }
+    }
+  }
+
+  private func healthLoop() async {
+    while !Task.isCancelled {
+      try? await Task.sleep(nanoseconds: 5_000_000_000)
+      if Task.isCancelled {
+        return
+      }
+
+      guard let profile = activeProfile else {
+        return
+      }
+
+      if socket == nil {
+        scheduleTextReconnect()
+      } else {
+        let pingOK = await pingServerIfAvailable(profile: profile, basePath: activeBasePath)
+        if pingOK {
+          consecutivePingFailures = 0
+        } else {
+          consecutivePingFailures += 1
+          if consecutivePingFailures >= 2 {
+            consecutivePingFailures = 0
+            restartTextConnection(reason: "FM-DX ping timeout. Reconnecting...")
+          }
+        }
+      }
+
+      if audioSocket == nil {
+        scheduleAudioReconnect()
+      } else if lastAudioPacketAt != .distantPast {
+        let idleSeconds = Date().timeIntervalSince(lastAudioPacketAt)
+        if idleSeconds > 12 {
+          restartAudioConnection(reason: "FM-DX audio stalled. Reconnecting...")
+        }
       }
     }
   }
@@ -1813,7 +1960,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     return snapshot
   }
 
-  private func fetchTunerName(profile: SDRConnectionProfile) async throws -> String {
+  private func fetchStaticData(profile: SDRConnectionProfile) async throws -> [String: Any] {
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
     let url = try makeHTTPURL(profile: profile, path: "\(basePath)static_data")
     let (data, response) = try await URLSession.shared.data(from: url)
@@ -1822,10 +1969,274 @@ actor FMDXWebserverClient: SDRBackendClient {
       (200...299).contains(httpResponse.statusCode),
       let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any]
     else {
-      return ""
+      return [:]
     }
 
-    return (payload["tunerName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return payload
+  }
+
+  private func fetchIndexHTML(profile: SDRConnectionProfile, basePath: String) async throws -> String {
+    let url = try makeHTTPURL(profile: profile, path: basePath)
+    var request = URLRequest(url: url)
+    request.timeoutInterval = 15
+    request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let httpResponse = response as? HTTPURLResponse,
+      (200...299).contains(httpResponse.statusCode),
+      let html = String(data: data, encoding: .utf8) else {
+      throw SDRClientError.unsupported("FM-DX index page is unavailable.")
+    }
+
+    return html
+  }
+
+  private func pingServerIfAvailable(profile: SDRConnectionProfile, basePath: String) async -> Bool {
+    if supportsPingEndpoint == false {
+      return true
+    }
+
+    do {
+      let url = try makeHTTPURL(profile: profile, path: "\(basePath)ping")
+      var request = URLRequest(url: url)
+      request.timeoutInterval = 4
+      request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+
+      let (_, response) = try await URLSession.shared.data(for: request)
+      guard let httpResponse = response as? HTTPURLResponse else {
+        return false
+      }
+
+      if httpResponse.statusCode == 404 {
+        supportsPingEndpoint = false
+        return true
+      }
+
+      if (200...299).contains(httpResponse.statusCode) {
+        supportsPingEndpoint = true
+        return true
+      }
+
+      return false
+    } catch {
+      return false
+    }
+  }
+
+  private func restartTextConnection(reason: String) {
+    guard activeProfile != nil else { return }
+    pendingStatusUpdate = reason
+    receiveTask?.cancel()
+    receiveTask = nil
+    socket?.cancel(with: .goingAway, reason: nil)
+    socket = nil
+    scheduleTextReconnect()
+  }
+
+  private func restartAudioConnection(reason: String) {
+    guard activeProfile != nil else { return }
+    pendingStatusUpdate = reason
+    audioReceiveTask?.cancel()
+    audioReceiveTask = nil
+    audioSocket?.cancel(with: .goingAway, reason: nil)
+    audioSocket = nil
+    FMDXMP3AudioPlayer.shared.stop()
+    scheduleAudioReconnect()
+  }
+
+  private func scheduleTextReconnect() {
+    guard activeProfile != nil else { return }
+    guard textReconnectTask == nil else { return }
+
+    pendingStatusUpdate = "FM-DX control stream interrupted. Reconnecting..."
+    textReconnectTask = Task {
+      await self.runTextReconnectLoop()
+    }
+  }
+
+  private func runTextReconnectLoop() async {
+    defer { textReconnectTask = nil }
+    var delaySeconds: UInt64 = 1
+
+    while !Task.isCancelled {
+      guard let profile = activeProfile else { return }
+      if socket != nil { return }
+
+      try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+      if Task.isCancelled { return }
+
+      do {
+        try await authenticateIfNeeded(profile: profile)
+        try openTextSocket(profile: profile, basePath: activeBasePath)
+
+        if let settings = lastAppliedSettings {
+          try? await apply(settings: settings)
+        }
+
+        pendingStatusUpdate = "FM-DX control stream restored"
+        scheduleAudioReconnect()
+        return
+      } catch {
+        log("Text reconnect attempt failed: \(error.localizedDescription)", severity: .warning)
+        delaySeconds = min(delaySeconds * 2, 12)
+      }
+    }
+  }
+
+  private func scheduleAudioReconnect() {
+    guard activeProfile != nil else { return }
+    guard audioSocket == nil else { return }
+    guard audioReconnectTask == nil else { return }
+
+    pendingStatusUpdate = "FM-DX audio interrupted. Reconnecting..."
+    audioReconnectTask = Task {
+      await self.runAudioReconnectLoop()
+    }
+  }
+
+  private func runAudioReconnectLoop() async {
+    defer { audioReconnectTask = nil }
+    var delaySeconds: UInt64 = 1
+
+    while !Task.isCancelled {
+      guard let profile = activeProfile else { return }
+      if audioSocket != nil { return }
+
+      if socket == nil {
+        delaySeconds = min(delaySeconds * 2, 12)
+        try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+        continue
+      }
+
+      do {
+        try await connectAudio(profile: profile, basePath: activeBasePath)
+        pendingStatusUpdate = "FM-DX audio stream restored"
+        return
+      } catch {
+        log("Audio reconnect attempt failed: \(error.localizedDescription)", severity: .warning)
+        delaySeconds = min(delaySeconds * 2, 12)
+      }
+
+      try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+    }
+  }
+
+  private func buildCapabilities(
+    staticData: [String: Any]?,
+    indexHTML: String?
+  ) -> FMDXCapabilities {
+    let antennas = parseAntennaOptions(from: staticData)
+    let bandwidths = parseBandwidthOptions(from: indexHTML)
+    return FMDXCapabilities(antennas: antennas, bandwidths: bandwidths)
+  }
+
+  private func parseAntennaOptions(from staticData: [String: Any]?) -> [FMDXControlOption] {
+    guard
+      let staticData,
+      let antennas = staticData["ant"] as? [String: Any],
+      parseBool(antennas["enabled"]) == true
+    else {
+      return []
+    }
+
+    var options: [FMDXControlOption] = []
+    for index in 1...4 {
+      let key = "ant\(index)"
+      guard
+        let entry = antennas[key] as? [String: Any],
+        parseBool(entry["enabled"]) == true
+      else {
+        continue
+      }
+
+      let rawName = parseString(entry["name"])?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+      let label = rawName.isEmpty ? "Antenna \(index)" : rawName
+      options.append(
+        FMDXControlOption(
+          id: String(index - 1),
+          label: label,
+          legacyValue: nil
+        )
+      )
+    }
+
+    return options
+  }
+
+  private func parseBandwidthOptions(from html: String?) -> [FMDXControlOption] {
+    guard let html, !html.isEmpty else { return [] }
+    let blockPattern = #"(?is)<div[^>]*id=\"data-bw(?:-phone)?\"[^>]*>.*?<ul[^>]*class=\"options[^\"]*\"[^>]*>(.*?)</ul>"#
+    let itemPattern = #"(?is)<li[^>]*data-value=\"([^\"]+)\"(?:[^>]*data-value2=\"([^\"]*)\")?[^>]*class=\"option\"[^>]*>(.*?)</li>"#
+
+    var options: [FMDXControlOption] = []
+    var seen = Set<String>()
+
+    for block in captures(for: blockPattern, in: html, group: 1) {
+      guard let regex = try? NSRegularExpression(pattern: itemPattern, options: []) else {
+        continue
+      }
+
+      let nsBlock = block as NSString
+      let matches = regex.matches(in: block, options: [], range: NSRange(location: 0, length: nsBlock.length))
+      for match in matches {
+        guard match.numberOfRanges >= 4 else { continue }
+
+        let value = nsBlock.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.isEmpty { continue }
+
+        let legacyRange = match.range(at: 2)
+        let legacyValue = legacyRange.location != NSNotFound
+          ? nsBlock.substring(with: legacyRange).trimmingCharacters(in: .whitespacesAndNewlines)
+          : nil
+
+        let labelHTML = nsBlock.substring(with: match.range(at: 3))
+        let label = decodeHTMLEntities(stripHTMLTags(labelHTML)).trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeLabel = label.isEmpty ? value : label
+        let dedupeKey = "\(value)|\(legacyValue ?? "")"
+        if seen.contains(dedupeKey) { continue }
+        seen.insert(dedupeKey)
+
+        options.append(
+          FMDXControlOption(
+            id: value,
+            label: safeLabel,
+            legacyValue: legacyValue?.isEmpty == true ? nil : legacyValue
+          )
+        )
+      }
+    }
+
+    return options
+  }
+
+  private func captures(for pattern: String, in text: String, group: Int) -> [String] {
+    guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+      return []
+    }
+
+    let nsText = text as NSString
+    let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsText.length))
+    return matches.compactMap { match in
+      guard match.numberOfRanges > group else { return nil }
+      let range = match.range(at: group)
+      guard range.location != NSNotFound else { return nil }
+      return nsText.substring(with: range)
+    }
+  }
+
+  private func stripHTMLTags(_ text: String) -> String {
+    text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+  }
+
+  private func decodeHTMLEntities(_ text: String) -> String {
+    text
+      .replacingOccurrences(of: "&nbsp;", with: " ")
+      .replacingOccurrences(of: "&amp;", with: "&")
+      .replacingOccurrences(of: "&quot;", with: "\"")
+      .replacingOccurrences(of: "&#39;", with: "'")
+      .replacingOccurrences(of: "&lt;", with: "<")
+      .replacingOccurrences(of: "&gt;", with: ">")
   }
 
   private func updateStatus(from snapshot: [String: Any]) {
@@ -1845,13 +2256,20 @@ actor FMDXWebserverClient: SDRBackendClient {
       pty: parseInt(snapshot["pty"]),
       tp: parseInt(snapshot["tp"]),
       ta: parseInt(snapshot["ta"]),
+      ms: parseInt(snapshot["ms"]),
+      ecc: parseInt(snapshot["ecc"]),
+      rbds: parseBool(snapshot["rbds"]),
       countryName: parseString(snapshot["country_name"]),
       countryISO: parseString(snapshot["country_iso"]),
       afMHz: parseAF(snapshot["af"]),
       bandwidth: parseString(snapshot["bw"]),
       antenna: parseString(snapshot["ant"]),
+      agc: parseString(snapshot["agc"]),
       eq: parseString(snapshot["eq"]),
       ims: parseString(snapshot["ims"]),
+      psErrors: parseString(snapshot["ps_errors"]),
+      rt0Errors: parseString(snapshot["rt0_errors"]),
+      rt1Errors: parseString(snapshot["rt1_errors"]),
       txInfo: parseTxInfo(txInfoRaw)
     )
 
@@ -1937,6 +2355,9 @@ actor FMDXWebserverClient: SDRBackendClient {
     if let text = value as? String {
       return text
     }
+    if let number = value as? NSNumber {
+      return number.stringValue
+    }
     return nil
   }
 
@@ -2008,16 +2429,21 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
   }
 
+  private func sanitizeCommandValue(_ raw: String) -> String? {
+    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+    let allowed = CharacterSet(charactersIn: "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-")
+    guard trimmed.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+      return nil
+    }
+    return trimmed
+  }
+
   private func handleReceiveFailure(_ error: Error) {
-    lastServerMessage = error.localizedDescription
-    log("Receive loop failed: \(error.localizedDescription)", severity: .error)
+    log("Receive loop failed: \(error.localizedDescription)", severity: .warning)
     receiveTask = nil
     socket = nil
-    audioReceiveTask?.cancel()
-    audioReceiveTask = nil
-    audioSocket?.cancel(with: .goingAway, reason: nil)
-    audioSocket = nil
-    FMDXMP3AudioPlayer.shared.stop()
+    scheduleTextReconnect()
   }
 
   private func handleAudioReceiveFailure(_ error: Error) {
@@ -2025,6 +2451,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     audioReceiveTask = nil
     audioSocket = nil
     FMDXMP3AudioPlayer.shared.stop()
+    scheduleAudioReconnect()
   }
 
   private func log(_ message: String, severity: DiagnosticSeverity = .info) {

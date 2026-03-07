@@ -48,6 +48,19 @@ struct FMDXTxInfo: Equatable {
   let regional: Bool?
 }
 
+struct FMDXControlOption: Identifiable, Hashable {
+  let id: String
+  let label: String
+  let legacyValue: String?
+}
+
+struct FMDXCapabilities: Equatable {
+  let antennas: [FMDXControlOption]
+  let bandwidths: [FMDXControlOption]
+
+  static let empty = FMDXCapabilities(antennas: [], bandwidths: [])
+}
+
 struct FMDXTelemetry: Equatable {
   let frequencyMHz: Double?
   let signal: Double?
@@ -63,13 +76,20 @@ struct FMDXTelemetry: Equatable {
   let pty: Int?
   let tp: Int?
   let ta: Int?
+  let ms: Int?
+  let ecc: Int?
+  let rbds: Bool?
   let countryName: String?
   let countryISO: String?
   let afMHz: [Double]
   let bandwidth: String?
   let antenna: String?
+  let agc: String?
   let eq: String?
   let ims: String?
+  let psErrors: String?
+  let rt0Errors: String?
+  let rt1Errors: String?
   let txInfo: FMDXTxInfo?
 }
 
@@ -83,12 +103,19 @@ enum BackendTelemetryEvent: Equatable {
   case openWebRXProfiles([OpenWebRXProfileOption], selectedID: String?)
   case openWebRXBookmarks([SDRServerBookmark])
   case openWebRXBandPlan([SDRBandPlanEntry])
+  case fmdxCapabilities(FMDXCapabilities)
   case fmdx(FMDXTelemetry)
   case kiwi(KiwiTelemetry)
 }
 
 enum BackendControlCommand {
   case selectOpenWebRXProfile(String)
+  case setFMDXFrequencyHz(Int)
+  case setFMDXFilter(eqEnabled: Bool, imsEnabled: Bool)
+  case setFMDXAGC(Bool)
+  case setFMDXForcedStereo(Bool)
+  case setFMDXAntenna(String)
+  case setFMDXBandwidth(value: String, legacyValue: String?)
 }
 
 extension DemodulationMode {

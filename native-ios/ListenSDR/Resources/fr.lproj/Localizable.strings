@@ -213,3 +213,19 @@
 "fmdx.rt0" = "RT0 : %@";
 "fmdx.rt1" = "RT1 : %@";
 "diagnostics.entry_accessibility" = "%@, %@";
+
+"scan_source.quick_list" = "Liste rapide";
+"fmdx.controls" = "Commandes FM-DX";
+"fmdx.forced_stereo" = "Stereo force";
+"fmdx.antenna" = "Antenne";
+"fmdx.bandwidth" = "Largeur de bande";
+"scanner.quick_list.clear" = "Vider la liste rapide";
+"fmdx.af.favorite" = "Favori";
+"fmdx.af.scan" = "Scanner";
+"fmdx.ps_errors" = "Erreurs PS: %@";
+"fmdx.rt0_errors" = "Erreurs RT0: %@";
+"fmdx.rt1_errors" = "Erreurs RT1: %@";
+"fmdx.af_preset_name" = "AF %@";
+"fmdx.af_scan_name" = "AF %@";
+"fmdx.tune_warning_mismatch" = "Desaccord de syntonisation. Demande %@, recepteur indique %@.";
+"fmdx.tune_warning_no_confirmation" = "Aucune confirmation de syntonisation pour %@.";
