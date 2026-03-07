@@ -10,6 +10,7 @@ private struct ProfileEditorContext: Identifiable {
 struct RadiosView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @State private var editorContext: ProfileEditorContext?
+  @State private var isDirectoryPresented = false
 
   var body: some View {
     NavigationStack {
@@ -18,7 +19,7 @@ struct RadiosView: View {
           UnavailableContentView(
             title: "No Radios Yet",
             systemImage: "dot.radiowaves.left.and.right",
-            description: "Add a KiwiSDR or OpenWebRX receiver profile."
+            description: "Add a KiwiSDR, OpenWebRX or FM-DX receiver profile."
           )
         } else {
           List {
@@ -31,6 +32,14 @@ struct RadiosView: View {
       }
       .navigationTitle("Radios")
       .toolbar {
+        ToolbarItem(placement: .navigationBarLeading) {
+          Button {
+            isDirectoryPresented = true
+          } label: {
+            Label("Directory", systemImage: "globe")
+          }
+        }
+
         ToolbarItem(placement: .navigationBarTrailing) {
           Button {
             editorContext = ProfileEditorContext(
@@ -42,6 +51,9 @@ struct RadiosView: View {
             Label("Add radio", systemImage: "plus")
           }
         }
+      }
+      .sheet(isPresented: $isDirectoryPresented) {
+        ReceiverDirectoryView()
       }
       .sheet(item: $editorContext) { context in
         ProfileEditorView(

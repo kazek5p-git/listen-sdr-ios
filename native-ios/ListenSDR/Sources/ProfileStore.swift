@@ -54,6 +54,26 @@ final class ProfileStore: ObservableObject {
     selectedProfileID = id
   }
 
+  func upsertImportedProfile(_ profile: SDRConnectionProfile) -> SDRConnectionProfile {
+    if let existingIndex = indexOfMatchingProfile(profile) {
+      return profiles[existingIndex]
+    }
+
+    profiles.append(profile)
+    profiles.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+    if selectedProfileID == nil {
+      selectedProfileID = profile.id
+    }
+
+    persistProfiles()
+    return profile
+  }
+
+  func hasMatchingProfile(_ profile: SDRConnectionProfile) -> Bool {
+    indexOfMatchingProfile(profile) != nil
+  }
+
   private func load() {
     let defaults = UserDefaults.standard
 
@@ -74,5 +94,18 @@ final class ProfileStore: ObservableObject {
 
   private func persistSelection() {
     UserDefaults.standard.set(selectedProfileID?.uuidString, forKey: selectedProfileKey)
+  }
+
+  private func indexOfMatchingProfile(_ profile: SDRConnectionProfile) -> Int? {
+    let normalizedHost = profile.host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let normalizedPath = profile.normalizedPath.lowercased()
+
+    return profiles.firstIndex { existing in
+      existing.backend == profile.backend &&
+      existing.useTLS == profile.useTLS &&
+      existing.port == profile.port &&
+      existing.host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedHost &&
+      existing.normalizedPath.lowercased() == normalizedPath
+    }
   }
 }
