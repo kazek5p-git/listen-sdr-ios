@@ -195,3 +195,21 @@
 "directory.status.unreachable" = "Injoignable";
 "directory.status.unknown" = "Inconnu";
 "directory.last_update" = "Derniere mise a jour : %@";
+
+"City" = "Ville";
+"ERP" = "ERP";
+"ISO" = "ISO";
+"ITU" = "ITU";
+"PI" = "PI";
+"PS" = "PS";
+"PTY" = "PTY";
+"TA" = "TA";
+"TP" = "TP";
+"TX" = "Emetteur";
+
+"receiver.rf_gain_value" = "Gain RF : %d";
+"audio.volume_percent" = "Volume : %d%%";
+"fmdx.af_list" = "AF : %@";
+"fmdx.rt0" = "RT0 : %@";
+"fmdx.rt1" = "RT1 : %@";
+"diagnostics.entry_accessibility" = "%@, %@";

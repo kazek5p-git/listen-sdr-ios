@@ -61,13 +61,13 @@ struct DiagnosticsView: View {
                     .background(.thinMaterial, in: Capsule())
                 }
 
-                Text(entry.message)
+              Text(entry.message)
                   .font(.body)
                   .foregroundStyle(color(for: entry.severity))
                   .textSelection(.enabled)
               }
               .accessibilityElement(children: .combine)
-              .accessibilityLabel("\(entry.category), \(entry.message)")
+              .accessibilityLabel(L10n.text("diagnostics.entry_accessibility", entry.category, entry.message))
             }
           }
         }

@@ -223,7 +223,7 @@ struct ReceiverView: View {
         .accessibilityLabel("Demodulation mode")
 
         VStack(alignment: .leading, spacing: 6) {
-          Text("RF Gain: \(Int(radioSession.settings.rfGain))")
+          Text(L10n.text("receiver.rf_gain_value", Int(radioSession.settings.rfGain)))
           Slider(
             value: Binding(
               get: { radioSession.settings.rfGain },
@@ -407,15 +407,16 @@ struct ReceiverView: View {
             LabeledContent("ISO", value: countryISO)
           }
           if !telemetry.afMHz.isEmpty {
-            Text("AF: \(telemetry.afMHz.prefix(12).map { String(format: "%.1f", $0) }.joined(separator: ", "))")
+            let afList = telemetry.afMHz.prefix(12).map { String(format: "%.1f", $0) }.joined(separator: ", ")
+            Text(L10n.text("fmdx.af_list", afList))
               .font(.footnote)
           }
           if let rt0 = telemetry.rt0, !rt0.isEmpty {
-            Text("RT0: \(rt0)")
+            Text(L10n.text("fmdx.rt0", rt0))
               .font(.footnote)
           }
           if let rt1 = telemetry.rt1, !rt1.isEmpty {
-            Text("RT1: \(rt1)")
+            Text(L10n.text("fmdx.rt1", rt1))
               .font(.footnote)
           }
           if let tx = telemetry.txInfo {
@@ -539,7 +540,7 @@ struct ReceiverView: View {
 
       Section("Audio") {
         VStack(alignment: .leading, spacing: 6) {
-          Text("Volume: \(Int((radioSession.settings.audioVolume * 100).rounded()))%")
+          Text(L10n.text("audio.volume_percent", Int((radioSession.settings.audioVolume * 100).rounded())))
           Slider(
             value: Binding(
               get: { radioSession.settings.audioVolume },
