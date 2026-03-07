@@ -32,6 +32,8 @@ npm run build:ios:prod
 Katalog: `native-ios/`
 
 - Projekt jest definiowany przez `native-ios/project.yml` (XcodeGen).
+- Wygenerowany projekt Xcode jest trzymany w repo jako `native-ios/ListenSDR.xcodeproj`.
+- Workflow `.github/workflows/sync-xcodeproj.yml` automatycznie aktualizuje `ListenSDR.xcodeproj` po zmianach w `native-ios/`.
 - Ikony aplikacji sa gotowe w `native-ios/ListenSDR/Resources/Assets.xcassets/AppIcon.appiconset`.
 - `ASSETCATALOG_COMPILER_APPICON_NAME` jest ustawione na `AppIcon`.
 
