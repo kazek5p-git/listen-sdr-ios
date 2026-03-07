@@ -37,6 +37,7 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxMinFrequencyHz = 64_000_000
   private let fmDxMaxFrequencyHz = 110_000_000
   private let fmDxMinTuneStepHz = 1_000
+  private let fmDxDefaultTuneStepHz = 100_000
 
   private var client: (any SDRBackendClient)?
   private var connectTask: Task<Void, Never>?
@@ -428,7 +429,7 @@ final class RadioSessionViewModel: ObservableObject {
     var changed = false
 
     if settings.tuneStepHz < fmDxMinTuneStepHz {
-      settings.tuneStepHz = fmDxMinTuneStepHz
+      settings.tuneStepHz = fmDxDefaultTuneStepHz
       changed = true
     }
 

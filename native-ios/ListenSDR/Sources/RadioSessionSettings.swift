@@ -11,7 +11,10 @@ struct RadioSessionSettings: Codable, Equatable {
   var noiseReductionEnabled: Bool
   var squelchEnabled: Bool
 
-  static let supportedTuneStepsHz: [Int] = [10, 50, 100, 500, 1_000, 5_000, 9_000, 10_000, 12_500, 25_000]
+  static let supportedTuneStepsHz: [Int] = [
+    10, 50, 100, 500, 1_000, 5_000, 9_000, 10_000, 12_500, 25_000,
+    50_000, 100_000, 200_000
+  ]
 
   static let `default` = RadioSessionSettings(
     frequencyHz: 7_050_000,
