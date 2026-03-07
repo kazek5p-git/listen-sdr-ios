@@ -29,8 +29,8 @@ struct ReceiverView: View {
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
 
-  private let minFrequencyHz = 100_000
-  private let maxFrequencyHz = 3_000_000_000
+  private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
+  private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
 
   var body: some View {
     NavigationStack {
@@ -147,7 +147,7 @@ struct ReceiverView: View {
             get: { radioSession.settings.frequencyHz },
             set: { radioSession.setFrequencyHz($0) }
           ),
-          in: minFrequencyHz...maxFrequencyHz,
+          in: frequencyRange(for: profile.backend),
           step: radioSession.settings.tuneStepHz
         ) {
           VStack(alignment: .leading, spacing: 4) {
@@ -701,7 +701,8 @@ struct ReceiverView: View {
 
   private func apply(preset: FrequencyPreset) {
     radioSession.setMode(preset.mode)
-    radioSession.setFrequencyHz(preset.frequencyHz)
+    let normalizedFrequencyHz = normalizeFrequencyHz(preset.frequencyHz, for: profileStore.selectedProfile?.backend)
+    radioSession.setFrequencyHz(normalizedFrequencyHz)
   }
 
   private func beginFrequencyEntry() {
@@ -716,9 +717,32 @@ struct ReceiverView: View {
       frequencyInputError = "Invalid frequency. Use values like 7.050 MHz, 7050 kHz or 7050000."
       return
     }
-    radioSession.setFrequencyHz(frequencyHz)
+
+    if profileStore.selectedProfile?.backend == .fmDxWebserver &&
+      !fmDxFrequencyRangeHz.contains(frequencyHz) {
+      frequencyInputError = "FM-DX supports 64.000 to 110.000 MHz."
+      return
+    }
+
+    let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: profileStore.selectedProfile?.backend)
+    radioSession.setFrequencyHz(normalizedFrequencyHz)
     frequencyInputError = nil
     isFrequencyEntrySheetPresented = false
+  }
+
+  private func frequencyRange(for backend: SDRBackend) -> ClosedRange<Int> {
+    switch backend {
+    case .fmDxWebserver:
+      return fmDxFrequencyRangeHz
+    case .kiwiSDR, .openWebRX:
+      return defaultFrequencyRangeHz
+    }
+  }
+
+  private func normalizeFrequencyHz(_ value: Int, for backend: SDRBackend?) -> Int {
+    guard let backend else { return value }
+    let range = frequencyRange(for: backend)
+    return min(max(value, range.lowerBound), range.upperBound)
   }
 
   private func visiblePresets(for profile: SDRConnectionProfile) -> [FrequencyPreset] {
