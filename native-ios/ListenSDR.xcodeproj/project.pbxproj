@@ -17,7 +17,9 @@
 		60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */; };
 		69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */; };
 		71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8CEEFF5137077F585714EE /* AudioDecoders.swift */; };
+		817BC8EE996142812994AAA3 /* ReceiverDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */; };
 		82428741563F6BEB47648217 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 293251298AE8C5A5C89DFF78 /* Assets.xcassets */; };
+		899E90DCF3F8E5489D3F5613 /* ReceiverDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */; };
 		904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */; };
 		97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */; };
 		A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */; };
@@ -41,9 +43,11 @@
 		3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackendClient.swift; sourceTree = "<group>"; };
 		4286BB33324D82C98CA59BFE /* ReceiverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverView.swift; sourceTree = "<group>"; };
 		530A6B024830FC4082BDBF66 /* ListenSDR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ListenSDR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectory.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationMode.swift; sourceTree = "<group>"; };
 		AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectoryView.swift; sourceTree = "<group>"; };
 		BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputEngine.swift; sourceTree = "<group>"; };
 		C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionViewModel.swift; sourceTree = "<group>"; };
 		D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRConnectionProfile.swift; sourceTree = "<group>"; };
@@ -82,6 +86,8 @@
 				F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */,
 				C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */,
 				DC198DC08EE579F8E7D22664 /* RadiosView.swift */,
+				5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */,
+				BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */,
 				4286BB33324D82C98CA59BFE /* ReceiverView.swift */,
 				7A8D52E05033560ABC688416 /* SDRBackend.swift */,
 				3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */,
@@ -190,6 +196,8 @@
 				69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */,
 				5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */,
 				A83F58F1D406EC3C8894D954 /* RadiosView.swift in Sources */,
+				899E90DCF3F8E5489D3F5613 /* ReceiverDirectory.swift in Sources */,
+				817BC8EE996142812994AAA3 /* ReceiverDirectoryView.swift in Sources */,
 				015FC07CFB8D3B0FF066B3C6 /* ReceiverView.swift in Sources */,
 				37A2B9CC76C458C794DECA72 /* SDRBackend.swift in Sources */,
 				E23F2265F3F9263F898DC5F4 /* SDRBackendClient.swift in Sources */,
