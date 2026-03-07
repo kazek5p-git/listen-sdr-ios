@@ -41,6 +41,32 @@ Jak uzyc:
 2. Po zakonczeniu pobierz artifact `Listen-SDR-unsigned-ipa`.
 3. Podpisz i zainstaluj plik `.ipa` przez Sideloadly na iPhonie (Developer Mode wlaczony).
 
+## GitHub Actions: signed IPA + TestFlight (konto znajomego)
+Workflow: `.github/workflows/ios-signed-testflight.yml`
+
+Co robi:
+- uruchamia sie recznie (`workflow_dispatch`)
+- buduje natywna aplikacje SwiftUI z `native-ios/` na `macos-15`
+- podpisuje build certyfikatem dystrybucyjnym z sekretow GitHub
+- eksportuje signed `.ipa` i dodaje artifact `Listen-SDR-signed-ipa`
+- opcjonalnie wysyla ten sam `.ipa` do TestFlight (`upload_to_testflight=true`)
+
+Wymagane sekrety repo (GitHub -> Settings -> Secrets and variables -> Actions):
+- `APPLE_TEAM_ID`
+- `ASC_KEY_ID`
+- `ASC_ISSUER_ID`
+- `ASC_API_KEY_BASE64` (base64 z pliku `AuthKey_XXXXXX.p8`)
+- `IOS_DIST_CERT_P12_BASE64` (base64 z certyfikatu dystrybucyjnego `.p12`)
+- `IOS_DIST_CERT_PASSWORD`
+- `IOS_PROVISION_PROFILE_BASE64` (base64 z profilu App Store `.mobileprovision`)
+- `KEYCHAIN_PASSWORD` (dowolne silne haslo techniczne dla tymczasowego keychaina CI)
+
+Jak uzyc:
+1. Ustaw powyzsze sekrety z konta Apple znajomego.
+2. Wejdz w GitHub -> Actions -> `iOS Signed IPA + TestFlight (Native)` -> `Run workflow`.
+3. Dla samego podpisanego artefaktu ustaw `upload_to_testflight=false`.
+4. Dla automatycznego wyslania do TestFlight ustaw `upload_to_testflight=true`.
+
 ## App Store Connect API key (lokalnie)
 W systemie sa ustawione zmienne:
 - `EXPO_ASC_API_KEY_PATH`
