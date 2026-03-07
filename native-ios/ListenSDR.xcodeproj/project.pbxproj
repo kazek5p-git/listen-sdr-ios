@@ -27,11 +27,13 @@
 		ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */; };
 		F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */; };
 		F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */; };
+		FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRApp.swift; sourceTree = "<group>"; };
 		11598D4ED736766676E23600 /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
+		18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyInputParser.swift; sourceTree = "<group>"; };
 		224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyPresetStore.swift; sourceTree = "<group>"; };
 		293251298AE8C5A5C89DFF78 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyFormatter.swift; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
 				DAE460852390C71A3267E19E /* DiagnosticsStore.swift */,
 				E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */,
 				2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */,
+				18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */,
 				224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */,
 				06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */,
 				3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */,
@@ -179,6 +182,7 @@
 				1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */,
 				D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */,
 				F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */,
+				FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */,
 				904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */,
 				F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */,
 				2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */,
