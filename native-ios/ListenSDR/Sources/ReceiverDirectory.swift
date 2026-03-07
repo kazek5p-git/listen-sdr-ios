@@ -75,6 +75,25 @@ struct ReceiverDirectoryEntry: Identifiable, Codable, Hashable {
       path: path
     )
   }
+
+  func withStatus(_ updatedStatus: ReceiverDirectoryStatus) -> ReceiverDirectoryEntry {
+    ReceiverDirectoryEntry(
+      id: id,
+      backend: backend,
+      name: name,
+      host: host,
+      port: port,
+      path: path,
+      useTLS: useTLS,
+      endpointURL: endpointURL,
+      sourceName: sourceName,
+      status: updatedStatus,
+      locationLabel: locationLabel,
+      softwareVersion: softwareVersion,
+      latitude: latitude,
+      longitude: longitude
+    )
+  }
 }
 
 private struct DirectoryEndpoint {
@@ -118,6 +137,8 @@ private struct ReceiverbookReceiver: Decodable {
 
 actor ReceiverDirectoryService {
   private let session: URLSession = .shared
+  private let maxProbeConcurrency = 16
+  private let probeTimeoutSeconds: TimeInterval = 4.0
 
   func fetchAllEntries() async throws -> [ReceiverDirectoryEntry] {
     async let fmdxEntries = fetchFMDXEntries()
@@ -129,6 +150,47 @@ actor ReceiverDirectoryService {
     let openWebRX = try await openWebRXEntries
     let merged = fmdx + kiwi + openWebRX
     return deduplicatedAndSorted(merged)
+  }
+
+  func probeStatuses(
+    for entries: [ReceiverDirectoryEntry],
+    backend: SDRBackend
+  ) async -> [String: ReceiverDirectoryStatus] {
+    guard backend == .kiwiSDR || backend == .openWebRX else {
+      return [:]
+    }
+
+    let targets = entries.filter { $0.backend == backend }
+    guard !targets.isEmpty else {
+      return [:]
+    }
+
+    var results: [String: ReceiverDirectoryStatus] = [:]
+    results.reserveCapacity(targets.count)
+
+    await withTaskGroup(of: (String, ReceiverDirectoryStatus).self) { group in
+      var iterator = targets.makeIterator()
+
+      for _ in 0..<min(maxProbeConcurrency, targets.count) {
+        guard let entry = iterator.next() else { break }
+        group.addTask { [self] in
+          let status = await self.probeEntry(entry)
+          return (entry.id, status)
+        }
+      }
+
+      while let (entryID, status) = await group.next() {
+        results[entryID] = status
+        if let nextEntry = iterator.next() {
+          group.addTask { [self] in
+            let status = await self.probeEntry(nextEntry)
+            return (nextEntry.id, status)
+          }
+        }
+      }
+    }
+
+    return results
   }
 
   private func fetchFMDXEntries() async throws -> [ReceiverDirectoryEntry] {
@@ -373,6 +435,65 @@ actor ReceiverDirectoryService {
     }
   }
 
+  private func probeEntry(_ entry: ReceiverDirectoryEntry) async -> ReceiverDirectoryStatus {
+    guard let url = URL(string: entry.endpointURL) else {
+      return .unknown
+    }
+
+    let headStatus = await probe(url: url, method: "HEAD")
+    switch headStatus {
+    case .available, .limited:
+      return headStatus
+    case .unknown:
+      break
+    case .unreachable:
+      break
+    }
+
+    let fallbackStatus = await probe(url: url, method: "GET")
+    if fallbackStatus != .unknown {
+      return fallbackStatus
+    }
+
+    return headStatus
+  }
+
+  private func probe(url: URL, method: String) async -> ReceiverDirectoryStatus {
+    var request = URLRequest(url: url)
+    request.httpMethod = method
+    request.timeoutInterval = probeTimeoutSeconds
+    request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+    if method == "GET" {
+      request.setValue("bytes=0-1024", forHTTPHeaderField: "Range")
+    }
+
+    do {
+      let (_, response) = try await session.data(for: request)
+      guard let httpResponse = response as? HTTPURLResponse else {
+        return .unknown
+      }
+      return mapProbeStatus(from: httpResponse.statusCode)
+    } catch {
+      return .unreachable
+    }
+  }
+
+  private func mapProbeStatus(from statusCode: Int) -> ReceiverDirectoryStatus {
+    switch statusCode {
+    case 200...399:
+      return .available
+    case 401, 403, 423, 429:
+      return .limited
+    case 400...499:
+      return .unreachable
+    case 500...599:
+      return .unreachable
+    default:
+      return .unknown
+    }
+  }
+
   private func preferredEntry(
     _ lhs: ReceiverDirectoryEntry,
     _ rhs: ReceiverDirectoryEntry
@@ -408,6 +529,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   @Published var searchText: String = ""
   @Published private(set) var entries: [ReceiverDirectoryEntry] = []
   @Published private(set) var isLoading = false
+  @Published private(set) var isProbingStatus = false
   @Published private(set) var lastRefreshDate: Date?
   @Published private(set) var errorMessage: String?
 
@@ -415,11 +537,14 @@ final class ReceiverDirectoryViewModel: ObservableObject {
 
   private let service: ReceiverDirectoryService
   private var autoRefreshTask: Task<Void, Never>?
+  private var statusProbeTask: Task<Void, Never>?
+  private var lastProbeDateByBackend: [SDRBackend: Date] = [:]
 
   private let cacheEntriesKey = "ListenSDR.directory.entries.v1"
   private let cacheRefreshDateKey = "ListenSDR.directory.refreshDate.v1"
   private let refreshIntervalSeconds: UInt64 = 300
   private let staleAfterSeconds: TimeInterval = 300
+  private let statusProbeIntervalSeconds: TimeInterval = 600
 
   init(service: ReceiverDirectoryService = ReceiverDirectoryService()) {
     self.service = service
@@ -466,6 +591,9 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   func stop() {
     autoRefreshTask?.cancel()
     autoRefreshTask = nil
+    statusProbeTask?.cancel()
+    statusProbeTask = nil
+    isProbingStatus = false
   }
 
   func refresh(force: Bool) async {
@@ -481,7 +609,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
 
     do {
       let fetched = try await service.fetchAllEntries()
-      entries = fetched
+      entries = sortEntries(applyKnownStatuses(to: fetched))
       lastRefreshDate = Date()
       persistCache()
       Diagnostics.log(
@@ -498,12 +626,146 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     }
 
     isLoading = false
+    scheduleStatusProbeForSelectedBackend(force: force)
+  }
+
+  func scheduleStatusProbeForSelectedBackend(force: Bool = false) {
+    let backend = selectedBackend
+    guard backend == .kiwiSDR || backend == .openWebRX else {
+      statusProbeTask?.cancel()
+      statusProbeTask = nil
+      isProbingStatus = false
+      return
+    }
+
+    guard force || shouldProbeStatus(for: backend) else {
+      return
+    }
+
+    let targets = entries.filter { $0.backend == backend }
+    guard !targets.isEmpty else {
+      statusProbeTask?.cancel()
+      statusProbeTask = nil
+      isProbingStatus = false
+      return
+    }
+
+    statusProbeTask?.cancel()
+    isProbingStatus = true
+
+    statusProbeTask = Task { [service] in
+      let probeResults = await service.probeStatuses(for: targets, backend: backend)
+      if Task.isCancelled {
+        return
+      }
+
+      await MainActor.run {
+        self.applyProbedStatuses(probeResults, backend: backend)
+      }
+    }
   }
 
   private var shouldRefresh: Bool {
     guard !entries.isEmpty else { return true }
     guard let lastRefreshDate else { return true }
     return Date().timeIntervalSince(lastRefreshDate) >= staleAfterSeconds
+  }
+
+  private func shouldProbeStatus(for backend: SDRBackend) -> Bool {
+    let backendEntries = entries.filter { $0.backend == backend }
+    guard !backendEntries.isEmpty else { return false }
+
+    if backendEntries.contains(where: { $0.status == .unknown }) {
+      return true
+    }
+
+    guard let lastProbeDate = lastProbeDateByBackend[backend] else {
+      return true
+    }
+
+    return Date().timeIntervalSince(lastProbeDate) >= statusProbeIntervalSeconds
+  }
+
+  private func applyKnownStatuses(to fetched: [ReceiverDirectoryEntry]) -> [ReceiverDirectoryEntry] {
+    guard !entries.isEmpty else {
+      return fetched
+    }
+
+    let knownStatusByEntryID: [String: ReceiverDirectoryStatus] = entries.reduce(into: [:]) { acc, entry in
+      acc[entry.id] = entry.status
+    }
+
+    return fetched.map { entry in
+      guard entry.backend != .fmDxWebserver else {
+        return entry
+      }
+
+      guard let status = knownStatusByEntryID[entry.id], status != .unknown else {
+        return entry
+      }
+
+      return entry.withStatus(status)
+    }
+  }
+
+  private func applyProbedStatuses(
+    _ probedStatuses: [String: ReceiverDirectoryStatus],
+    backend: SDRBackend
+  ) {
+    isProbingStatus = false
+    lastProbeDateByBackend[backend] = Date()
+
+    guard !probedStatuses.isEmpty else {
+      Diagnostics.log(
+        severity: .warning,
+        category: "Directory",
+        message: "Status probe returned no results for \(backend.displayName)"
+      )
+      return
+    }
+
+    var updatedCount = 0
+    let updatedEntries = entries.map { entry in
+      guard entry.backend == backend, let newStatus = probedStatuses[entry.id] else {
+        return entry
+      }
+
+      if entry.status != newStatus {
+        updatedCount += 1
+      }
+
+      return entry.withStatus(newStatus)
+    }
+
+    entries = sortEntries(updatedEntries)
+    persistCache()
+    Diagnostics.log(
+      category: "Directory",
+      message: "Status probe completed for \(backend.displayName) (\(probedStatuses.count) checked, \(updatedCount) changed)"
+    )
+  }
+
+  private func sortEntries(_ source: [ReceiverDirectoryEntry]) -> [ReceiverDirectoryEntry] {
+    source.sorted { lhs, rhs in
+      if lhs.backend != rhs.backend {
+        return backendSortRank(lhs.backend) < backendSortRank(rhs.backend)
+      }
+      if lhs.status.sortRank != rhs.status.sortRank {
+        return lhs.status.sortRank < rhs.status.sortRank
+      }
+      return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    }
+  }
+
+  private func backendSortRank(_ backend: SDRBackend) -> Int {
+    switch backend {
+    case .fmDxWebserver:
+      return 0
+    case .kiwiSDR:
+      return 1
+    case .openWebRX:
+      return 2
+    }
   }
 
   private func loadCache() {

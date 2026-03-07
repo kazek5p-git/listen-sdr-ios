@@ -35,6 +35,16 @@ struct ReceiverDirectoryView: View {
               .font(.footnote)
               .accessibilityLabel("Directory error")
           }
+
+          if viewModel.isProbingStatus {
+            HStack(spacing: 8) {
+              ProgressView()
+              Text("Checking receiver availability...")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+            .accessibilityLabel("Checking receiver availability")
+          }
         } header: {
           Text("Status")
         } footer: {
@@ -67,9 +77,9 @@ struct ReceiverDirectoryView: View {
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
-          if viewModel.isLoading {
+          if viewModel.isLoading || viewModel.isProbingStatus {
             ProgressView()
-              .accessibilityLabel("Refreshing directory")
+              .accessibilityLabel("Refreshing receiver status")
           } else {
             Button {
               Task {
@@ -91,9 +101,13 @@ struct ReceiverDirectoryView: View {
       }
       .task {
         viewModel.start()
+        viewModel.scheduleStatusProbeForSelectedBackend(force: false)
       }
       .onDisappear {
         viewModel.stop()
+      }
+      .onChange(of: viewModel.selectedBackend) { _ in
+        viewModel.scheduleStatusProbeForSelectedBackend(force: false)
       }
     }
   }
