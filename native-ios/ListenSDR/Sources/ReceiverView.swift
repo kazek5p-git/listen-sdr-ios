@@ -198,7 +198,7 @@ struct ReceiverView: View {
             set: { radioSession.setTuneStepHz($0) }
           )
         ) {
-          ForEach(RadioSessionSettings.supportedTuneStepsHz, id: \.self) { stepHz in
+          ForEach(tuneStepOptions(for: profile.backend), id: \.self) { stepHz in
             Text(FrequencyFormatter.tuneStepText(fromHz: stepHz)).tag(stepHz)
           }
         }
@@ -583,6 +583,15 @@ struct ReceiverView: View {
       return 1
     case .kiwiSDR, .openWebRX:
       return 0.5
+    }
+  }
+
+  private func tuneStepOptions(for backend: SDRBackend) -> [Int] {
+    switch backend {
+    case .fmDxWebserver:
+      return RadioSessionSettings.supportedTuneStepsHz.filter { $0 >= 1_000 }
+    case .kiwiSDR, .openWebRX:
+      return RadioSessionSettings.supportedTuneStepsHz
     }
   }
 

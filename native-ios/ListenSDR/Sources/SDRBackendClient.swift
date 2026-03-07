@@ -1606,7 +1606,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   func apply(settings: RadioSessionSettings) async throws {
     guard socket != nil else { throw SDRClientError.notConnected }
 
-    let frequencyKHz = max(1, settings.frequencyHz / 1000)
+    let frequencyKHz = max(1, Int((Double(settings.frequencyHz) / 1000.0).rounded()))
     try await send("T\(frequencyKHz)")
 
     // FM-DX exposes cEQ/iMS via Gxy command; map app DSP toggles to it.
@@ -1831,7 +1831,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private func updateStatus(from snapshot: [String: Any]) {
     let txInfoRaw = snapshot["txInfo"] as? [String: Any]
     let telemetry = FMDXTelemetry(
-      frequencyMHz: parseDouble(snapshot["freq"]),
+      frequencyMHz: parseFrequencyMHz(snapshot["freq"]),
       signal: parseDouble(snapshot["sig"]),
       signalTop: parseDouble(snapshot["sigTop"]),
       users: parseInt(snapshot["users"]),
@@ -1888,13 +1888,23 @@ actor FMDXWebserverClient: SDRBackendClient {
   private func parseAF(_ value: Any?) -> [Double] {
     guard let raw = value as? [Any] else { return [] }
     return raw.compactMap { item in
+      let rawValue: Double?
       if let number = item as? NSNumber {
-        return number.doubleValue / 1000.0
+        rawValue = number.doubleValue
+      } else if let text = item as? String {
+        rawValue = Double(text)
+      } else {
+        rawValue = nil
       }
-      if let text = item as? String, let parsed = Double(text) {
-        return parsed / 1000.0
+
+      guard let rawValue, rawValue.isFinite, rawValue > 0 else { return nil }
+      if rawValue >= 1_000_000 {
+        return rawValue / 1_000_000.0
       }
-      return nil
+      if rawValue >= 1_000 {
+        return rawValue / 1_000.0
+      }
+      return rawValue
     }
     .sorted()
   }
@@ -1944,6 +1954,19 @@ actor FMDXWebserverClient: SDRBackendClient {
       return Double(text)
     }
     return nil
+  }
+
+  private func parseFrequencyMHz(_ value: Any?) -> Double? {
+    guard let raw = parseDouble(value), raw.isFinite, raw > 0 else { return nil }
+
+    // Some FM-DX instances expose MHz (e.g. "89.100"), others kHz (e.g. 89100).
+    if raw >= 1_000_000 {
+      return raw / 1_000_000.0
+    }
+    if raw >= 1_000 {
+      return raw / 1_000.0
+    }
+    return raw
   }
 
   private func parseBool(_ value: Any?) -> Bool? {

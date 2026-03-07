@@ -33,10 +33,16 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var scannerStatusText: String?
   @Published var scannerThreshold: Double = -95
 
+  private let fmDxDefaultFrequencyHz = 87_500_000
+  private let fmDxMinFrequencyHz = 64_000_000
+  private let fmDxMaxFrequencyHz = 110_000_000
+  private let fmDxMinTuneStepHz = 1_000
+
   private var client: (any SDRBackendClient)?
   private var connectTask: Task<Void, Never>?
   private var statusMonitorTask: Task<Void, Never>?
   private var scannerTask: Task<Void, Never>?
+  private var activeBackend: SDRBackend?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
 
   init() {
@@ -71,6 +77,8 @@ final class RadioSessionViewModel: ObservableObject {
     lastError = nil
     resetRuntimeState(for: profile.backend)
     scannerThreshold = defaultScannerThreshold(for: profile.backend)
+    activeBackend = nil
+    normalizeSettingsForBackendBeforeConnect(profile.backend)
 
     connectTask = Task { [settings] in
       do {
@@ -89,6 +97,7 @@ final class RadioSessionViewModel: ObservableObject {
         await MainActor.run {
           self.client = newClient
           self.connectedProfileID = profile.id
+          self.activeBackend = profile.backend
           self.state = .connected
           self.statusText = "Connected to \(profile.name)"
           self.backendStatusText = nil
@@ -111,6 +120,7 @@ final class RadioSessionViewModel: ObservableObject {
         await MainActor.run {
           self.client = nil
           self.connectedProfileID = nil
+          self.activeBackend = nil
           self.state = .failed
           self.statusText = "Connection failed"
           self.backendStatusText = nil
@@ -145,6 +155,7 @@ final class RadioSessionViewModel: ObservableObject {
       await MainActor.run {
         self.client = nil
         self.connectedProfileID = nil
+        self.activeBackend = nil
         self.state = .disconnected
         self.statusText = "Disconnected"
         self.backendStatusText = nil
@@ -285,13 +296,19 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setFrequencyHz(_ value: Int) {
-    settings.frequencyHz = min(max(value, 100_000), 3_000_000_000)
+    if activeBackend == .fmDxWebserver {
+      let roundedToKHz = Int((Double(value) / 1_000.0).rounded()) * 1_000
+      settings.frequencyHz = min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
+    } else {
+      settings.frequencyHz = min(max(value, 100_000), 3_000_000_000)
+    }
     persistSettings()
     applyIfConnected()
   }
 
   func setTuneStepHz(_ value: Int) {
-    settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(value)
+    let normalized = RadioSessionSettings.normalizedTuneStep(value)
+    settings.tuneStepHz = activeBackend == .fmDxWebserver ? max(normalized, fmDxMinTuneStepHz) : normalized
     persistSettings()
   }
 
@@ -405,6 +422,43 @@ final class RadioSessionViewModel: ObservableObject {
     UserDefaults.standard.set(encoded, forKey: settingsKey)
   }
 
+  private func normalizeSettingsForBackendBeforeConnect(_ backend: SDRBackend) {
+    guard backend == .fmDxWebserver else { return }
+
+    var changed = false
+
+    if settings.tuneStepHz < fmDxMinTuneStepHz {
+      settings.tuneStepHz = fmDxMinTuneStepHz
+      changed = true
+    }
+
+    if !(fmDxMinFrequencyHz...fmDxMaxFrequencyHz).contains(settings.frequencyHz) {
+      settings.frequencyHz = fmDxDefaultFrequencyHz
+      changed = true
+    } else {
+      let roundedToKHz = Int((Double(settings.frequencyHz) / 1_000.0).rounded()) * 1_000
+      if roundedToKHz != settings.frequencyHz {
+        settings.frequencyHz = roundedToKHz
+        changed = true
+      }
+    }
+
+    if settings.mode != .fm && settings.mode != .nfm {
+      settings.mode = .fm
+      changed = true
+    }
+
+    if changed {
+      persistSettings()
+    }
+  }
+
+  private func normalizeFMDXFrequencyHz(fromMHz value: Double) -> Int {
+    let hz = Int((value * 1_000_000.0).rounded())
+    let roundedToKHz = Int((Double(hz) / 1_000.0).rounded()) * 1_000
+    return min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
+  }
+
   private func startStatusMonitor(
     profileName: String,
     profileID: UUID,
@@ -430,6 +484,7 @@ final class RadioSessionViewModel: ObservableObject {
             guard self.connectedProfileID == profileID else { return }
             self.client = nil
             self.connectedProfileID = nil
+            self.activeBackend = nil
             self.state = .failed
             self.statusText = "Connection lost"
             self.backendStatusText = nil
@@ -451,6 +506,7 @@ final class RadioSessionViewModel: ObservableObject {
             guard self.connectedProfileID == profileID else { return }
             self.client = nil
             self.connectedProfileID = nil
+            self.activeBackend = nil
             self.state = .failed
             self.statusText = "Server error on \(profileName)"
             self.backendStatusText = nil
@@ -492,6 +548,13 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .fmdx(let telemetry):
       fmdxTelemetry = telemetry
+      if let frequencyMHz = telemetry.frequencyMHz {
+        let backendFrequencyHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
+        if abs(backendFrequencyHz - settings.frequencyHz) >= 1_000 {
+          settings.frequencyHz = backendFrequencyHz
+          persistSettings()
+        }
+      }
 
     case .kiwi(let telemetry):
       kiwiTelemetry = telemetry
