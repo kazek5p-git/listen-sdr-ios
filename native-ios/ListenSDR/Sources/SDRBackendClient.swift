@@ -1104,9 +1104,11 @@ final class FMDXMP3AudioPlayer {
   static let shared = FMDXMP3AudioPlayer()
 
   private let workerQueue = DispatchQueue(label: "ListenSDR.FMDXMP3AudioPlayer")
-  private let queueBufferSize: Int = 8 * 1024
-  private let queueBufferCount: Int = 4
-  private let maxPacketsPerBuffer: Int = 256
+  private let queueBufferSize: Int = 32 * 1024
+  private let queueBufferCount: Int = 20
+  private let maxPacketsPerBuffer: Int = 1024
+  private let minEnqueueBytes: Int = 2 * 1024
+  private let maxBufferHoldSeconds: TimeInterval = 0.12
 
   private var fileStreamID: AudioFileStreamID?
   private var audioQueue: AudioQueueRef?
@@ -1115,9 +1117,12 @@ final class FMDXMP3AudioPlayer {
   private var activeBuffer: AudioQueueBufferRef?
   private var activeBufferOffset = 0
   private var activePacketCount = 0
+  private var activeBufferStartedAt = Date.distantPast
   private var packetDescriptions: [AudioStreamPacketDescription]
   private var queueStarted = false
   private var parserNeedsDiscontinuity = true
+  private var consecutiveParseErrors = 0
+  private var droppedPacketCount = 0
 
   private var sessionConfigured = false
   private var desiredVolume: Float = 0.85
@@ -1149,9 +1154,22 @@ final class FMDXMP3AudioPlayer {
 
         if status == noErr {
           self.parserNeedsDiscontinuity = false
+          self.consecutiveParseErrors = 0
         } else {
-          self.log("Audio parser failed (status \(status))", severity: .warning)
-          self.resetLocked()
+          self.parserNeedsDiscontinuity = true
+          self.consecutiveParseErrors += 1
+          if self.consecutiveParseErrors == 1 || self.consecutiveParseErrors % 10 == 0 {
+            self.log(
+              "Audio parser warning (status \(status), streak \(self.consecutiveParseErrors))",
+              severity: .warning
+            )
+          }
+
+          // Recover parser state only after sustained failures to avoid audio dropouts.
+          if self.consecutiveParseErrors >= 30 {
+            self.log("Audio parser reset after repeated failures", severity: .warning)
+            self.resetLocked()
+          }
         }
       }
     }
@@ -1310,7 +1328,10 @@ final class FMDXMP3AudioPlayer {
     activeBuffer = nil
     activeBufferOffset = 0
     activePacketCount = 0
+    activeBufferStartedAt = .distantPast
     queueStarted = false
+    consecutiveParseErrors = 0
+    droppedPacketCount = 0
   }
 
   private func consumeProperty(_ propertyID: AudioFileStreamPropertyID, fileStreamID: AudioFileStreamID) {
@@ -1369,9 +1390,7 @@ final class FMDXMP3AudioPlayer {
       appendPacketLocked(packetData: inputData, packetSize: Int(numberBytes))
     }
 
-    if activePacketCount > 0 {
-      enqueueActiveBufferLocked()
-    }
+    flushActiveBufferIfNeeded(force: false)
   }
 
   private func appendPacketLocked(packetData: UnsafeRawPointer, packetSize: Int) {
@@ -1379,8 +1398,17 @@ final class FMDXMP3AudioPlayer {
 
     if activeBuffer == nil {
       activeBuffer = dequeueBufferLocked()
+      if activeBuffer == nil {
+        droppedPacketCount += 1
+        if droppedPacketCount % 50 == 0 {
+          log("Dropped \(droppedPacketCount) packets because output buffers were exhausted.", severity: .warning)
+        }
+      }
       activeBufferOffset = 0
       activePacketCount = 0
+      if activeBuffer != nil {
+        activeBufferStartedAt = Date()
+      }
     }
     guard self.activeBuffer != nil else { return }
 
@@ -1390,6 +1418,7 @@ final class FMDXMP3AudioPlayer {
       self.activeBuffer = nextBuffer
       activeBufferOffset = 0
       activePacketCount = 0
+      activeBufferStartedAt = Date()
     }
 
     guard let activeBuffer = self.activeBuffer else { return }
@@ -1410,6 +1439,19 @@ final class FMDXMP3AudioPlayer {
     return reusableBuffers.removeFirst()
   }
 
+  private func flushActiveBufferIfNeeded(force: Bool) {
+    guard activePacketCount > 0 else { return }
+    if force {
+      enqueueActiveBufferLocked()
+      return
+    }
+
+    let heldForSeconds = Date().timeIntervalSince(activeBufferStartedAt)
+    if activeBufferOffset >= minEnqueueBytes || heldForSeconds >= maxBufferHoldSeconds {
+      enqueueActiveBufferLocked()
+    }
+  }
+
   private func enqueueActiveBufferLocked() {
     guard
       let audioQueue,
@@ -1425,13 +1467,11 @@ final class FMDXMP3AudioPlayer {
     }
 
     if status == noErr {
-      if !queueStarted {
-        let startStatus = AudioQueueStart(audioQueue, nil)
-        if startStatus == noErr {
-          queueStarted = true
-        } else {
-          log("Unable to start audio queue (status \(startStatus))", severity: .warning)
-        }
+      let startStatus = AudioQueueStart(audioQueue, nil)
+      if startStatus == noErr {
+        queueStarted = true
+      } else {
+        log("Unable to start audio queue (status \(startStatus))", severity: .warning)
       }
     } else {
       reusableBuffers.append(activeBuffer)
