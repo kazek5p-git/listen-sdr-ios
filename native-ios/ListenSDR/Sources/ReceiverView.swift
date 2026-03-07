@@ -72,6 +72,17 @@ struct ReceiverView: View {
         }
         .buttonStyle(.borderedProminent)
         .accessibilityHint("Double tap to change connection state")
+
+        if radioSession.state == .failed {
+          Button {
+            radioSession.reconnect(to: profile)
+          } label: {
+            Text("Reconnect")
+              .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.bordered)
+          .accessibilityHint("Try connecting to this receiver again")
+        }
       }
 
       Section("Tuning") {
@@ -192,6 +203,11 @@ struct ReceiverView: View {
             set: { radioSession.setSquelchEnabled($0) }
           )
         )
+
+        Button("Reset DSP settings") {
+          radioSession.resetDSPSettings()
+        }
+        .accessibilityHint("Restores demodulation mode and DSP controls to defaults")
       }
 
       Section("Favorites") {
