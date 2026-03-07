@@ -5,7 +5,10 @@ struct ReceiverView: View {
   @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var presetStore: FrequencyPresetStore
   @State private var isSavePresetSheetPresented = false
+  @State private var isFrequencyEntrySheetPresented = false
   @State private var presetNameDraft = ""
+  @State private var frequencyInputDraft = ""
+  @State private var frequencyInputError: String?
 
   private let minFrequencyHz = 100_000
   private let maxFrequencyHz = 3_000_000_000
@@ -26,6 +29,9 @@ struct ReceiverView: View {
       .navigationTitle("Receiver")
       .sheet(isPresented: $isSavePresetSheetPresented) {
         savePresetSheet
+      }
+      .sheet(isPresented: $isFrequencyEntrySheetPresented) {
+        frequencyEntrySheet
       }
     }
   }
@@ -111,6 +117,13 @@ struct ReceiverView: View {
           .accessibilityHint("Increase frequency by selected step size")
         }
 
+        Button {
+          beginFrequencyEntry()
+        } label: {
+          Label("Set exact frequency", systemImage: "number")
+        }
+        .accessibilityHint("Enter frequency in hertz, kilohertz or megahertz")
+
         Picker(
           "Tune step",
           selection: Binding(
@@ -189,11 +202,11 @@ struct ReceiverView: View {
         }
         .accessibilityHint("Saves current frequency and mode as a favorite")
 
-        if presetStore.presets.isEmpty {
+        if visiblePresets(for: profile).isEmpty {
           Text("No favorites yet. Save one to recall frequency and mode quickly.")
             .foregroundStyle(.secondary)
         } else {
-          ForEach(presetStore.presets) { preset in
+          ForEach(visiblePresets(for: profile)) { preset in
             Button {
               apply(preset: preset)
             } label: {
@@ -284,6 +297,46 @@ struct ReceiverView: View {
     }
   }
 
+  private var frequencyEntrySheet: some View {
+    NavigationStack {
+      Form {
+        TextField("7.050 MHz or 7050 kHz", text: $frequencyInputDraft)
+          .keyboardType(.decimalPad)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .accessibilityLabel("Frequency input")
+          .accessibilityHint("Examples: seven point zero five megahertz or seven thousand fifty kilohertz")
+
+        if let frequencyInputError {
+          Text(frequencyInputError)
+            .foregroundStyle(.red)
+            .font(.footnote)
+            .accessibilityLabel("Frequency input error")
+            .accessibilityValue(frequencyInputError)
+        }
+
+        LabeledContent(
+          "Current",
+          value: FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+        )
+      }
+      .navigationTitle("Set Frequency")
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") {
+            frequencyInputError = nil
+            isFrequencyEntrySheetPresented = false
+          }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Apply") {
+            applyExactFrequencyInput()
+          }
+        }
+      }
+    }
+  }
+
   private func beginSavingCurrentFrequency() {
     presetNameDraft = presetStore.defaultName(
       for: radioSession.settings.frequencyHz,
@@ -293,10 +346,17 @@ struct ReceiverView: View {
   }
 
   private func saveCurrentFrequencyAsPreset() {
+    guard let profile = profileStore.selectedProfile else {
+      isSavePresetSheetPresented = false
+      return
+    }
+
     presetStore.addPreset(
       name: presetNameDraft,
       frequencyHz: radioSession.settings.frequencyHz,
-      mode: radioSession.settings.mode
+      mode: radioSession.settings.mode,
+      profileID: profile.id,
+      profileName: profile.name
     )
     isSavePresetSheetPresented = false
   }
@@ -304,5 +364,26 @@ struct ReceiverView: View {
   private func apply(preset: FrequencyPreset) {
     radioSession.setMode(preset.mode)
     radioSession.setFrequencyHz(preset.frequencyHz)
+  }
+
+  private func beginFrequencyEntry() {
+    frequencyInputDraft = FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+      .replacingOccurrences(of: " MHz", with: "")
+    frequencyInputError = nil
+    isFrequencyEntrySheetPresented = true
+  }
+
+  private func applyExactFrequencyInput() {
+    guard let frequencyHz = FrequencyInputParser.parseHz(from: frequencyInputDraft) else {
+      frequencyInputError = "Invalid frequency. Use values like 7.050 MHz, 7050 kHz or 7050000."
+      return
+    }
+    radioSession.setFrequencyHz(frequencyHz)
+    frequencyInputError = nil
+    isFrequencyEntrySheetPresented = false
+  }
+
+  private func visiblePresets(for profile: SDRConnectionProfile) -> [FrequencyPreset] {
+    presetStore.presets(for: profile.id)
   }
 }
