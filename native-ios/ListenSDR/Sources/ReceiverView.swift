@@ -51,6 +51,12 @@ struct ReceiverView: View {
           .accessibilityLabel("Connection status")
           .accessibilityValue(radioSession.statusText)
 
+        if let backendStatus = radioSession.backendStatusText {
+          LabeledContent("Receiver data", value: backendStatus)
+            .accessibilityLabel("Receiver live data")
+            .accessibilityValue(backendStatus)
+        }
+
         if let error = radioSession.lastError {
           Text(error)
             .foregroundStyle(.red)

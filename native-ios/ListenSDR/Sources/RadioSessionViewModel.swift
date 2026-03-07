@@ -13,6 +13,7 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var state: ConnectionState = .disconnected
   @Published private(set) var connectedProfileID: UUID?
   @Published private(set) var statusText: String = "Disconnected"
+  @Published private(set) var backendStatusText: String?
   @Published private(set) var lastError: String?
   @Published private(set) var settings: RadioSessionSettings = .default
 
@@ -43,6 +44,7 @@ final class RadioSessionViewModel: ObservableObject {
     statusMonitorTask = nil
     state = .connecting
     statusText = "Connecting to \(profile.name)..."
+    backendStatusText = nil
     lastError = nil
 
     connectTask = Task { [settings] in
@@ -64,6 +66,7 @@ final class RadioSessionViewModel: ObservableObject {
           self.connectedProfileID = profile.id
           self.state = .connected
           self.statusText = "Connected to \(profile.name)"
+          self.backendStatusText = nil
           self.lastError = nil
           self.startStatusMonitor(
             profileName: profile.name,
@@ -85,6 +88,7 @@ final class RadioSessionViewModel: ObservableObject {
           self.connectedProfileID = nil
           self.state = .failed
           self.statusText = "Connection failed"
+          self.backendStatusText = nil
           self.lastError = error.localizedDescription
         }
         Diagnostics.log(
@@ -114,6 +118,7 @@ final class RadioSessionViewModel: ObservableObject {
         self.connectedProfileID = nil
         self.state = .disconnected
         self.statusText = "Disconnected"
+        self.backendStatusText = nil
         self.lastError = nil
       }
       Diagnostics.log(category: "Session", message: "Disconnected")
@@ -238,6 +243,8 @@ final class RadioSessionViewModel: ObservableObject {
       return KiwiSDRClient()
     case .openWebRX:
       return OpenWebRXClient()
+    case .fmDxWebserver:
+      return FMDXWebserverClient()
     }
   }
 
@@ -282,6 +289,7 @@ final class RadioSessionViewModel: ObservableObject {
             self.connectedProfileID = nil
             self.state = .failed
             self.statusText = "Connection lost"
+            self.backendStatusText = nil
             self.lastError = "Receiver closed the connection."
           }
           return
@@ -300,9 +308,17 @@ final class RadioSessionViewModel: ObservableObject {
             self.connectedProfileID = nil
             self.state = .failed
             self.statusText = "Server error on \(profileName)"
+            self.backendStatusText = nil
             self.lastError = backendError
           }
           return
+        }
+
+        if let backendStatus = await client.consumeStatusUpdate() {
+          await MainActor.run {
+            guard self.connectedProfileID == profileID else { return }
+            self.backendStatusText = backendStatus
+          }
         }
       }
     }

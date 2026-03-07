@@ -6,7 +6,12 @@ protocol SDRBackendClient {
   func disconnect() async
   func apply(settings: RadioSessionSettings) async throws
   func consumeServerError() async -> String?
+  func consumeStatusUpdate() async -> String?
   func isConnected() async -> Bool
+}
+
+extension SDRBackendClient {
+  func consumeStatusUpdate() async -> String? { nil }
 }
 
 enum SDRClientError: LocalizedError {
@@ -59,6 +64,20 @@ private func makeWebSocketURL(profile: SDRConnectionProfile, path: String) throw
   let endpoint = try validate(profile: profile)
   var components = URLComponents()
   components.scheme = profile.useTLS ? "wss" : "ws"
+  components.host = endpoint.host
+  components.port = endpoint.port
+  components.path = path
+
+  guard let url = components.url else {
+    throw SDRClientError.invalidURL
+  }
+  return url
+}
+
+private func makeHTTPURL(profile: SDRConnectionProfile, path: String) throws -> URL {
+  let endpoint = try validate(profile: profile)
+  var components = URLComponents()
+  components.scheme = profile.useTLS ? "https" : "http"
   components.host = endpoint.host
   components.port = endpoint.port
   components.path = path
@@ -688,6 +707,310 @@ actor OpenWebRXClient: SDRBackendClient {
     Diagnostics.log(
       severity: severity,
       category: "OpenWebRX",
+      message: message
+    )
+  }
+}
+
+actor FMDXWebserverClient: SDRBackendClient {
+  let backend: SDRBackend = .fmDxWebserver
+
+  private var socket: URLSessionWebSocketTask?
+  private var receiveTask: Task<Void, Never>?
+  private var pollTask: Task<Void, Never>?
+  private var lastServerMessage: String?
+  private var pendingStatusUpdate: String?
+
+  func connect(profile: SDRConnectionProfile) async throws {
+    _ = try validate(profile: profile)
+    await disconnect()
+    try await authenticateIfNeeded(profile: profile)
+
+    let basePath = pathWithTrailingSlash(profile.normalizedPath)
+    let url = try makeWebSocketURL(profile: profile, path: "\(basePath)text")
+    log("Connecting to \(url.absoluteString)")
+
+    let task = URLSession.shared.webSocketTask(with: url)
+    socket = task
+    task.resume()
+
+    receiveTask = Task { [task] in
+      await self.receiveLoop(task: task)
+    }
+
+    pollTask = Task { [profile] in
+      await self.pollLoop(profile: profile)
+    }
+
+    if let tunerName = try? await fetchTunerName(profile: profile), !tunerName.isEmpty {
+      pendingStatusUpdate = "Tuner: \(tunerName)"
+    }
+  }
+
+  func disconnect() async {
+    receiveTask?.cancel()
+    receiveTask = nil
+
+    pollTask?.cancel()
+    pollTask = nil
+
+    socket?.cancel(with: .normalClosure, reason: nil)
+    socket = nil
+    lastServerMessage = nil
+    pendingStatusUpdate = nil
+    log("Disconnected")
+  }
+
+  func apply(settings: RadioSessionSettings) async throws {
+    guard socket != nil else { throw SDRClientError.notConnected }
+
+    let frequencyKHz = max(1, settings.frequencyHz / 1000)
+    try await send("T\(frequencyKHz)")
+
+    // FM-DX exposes cEQ/iMS via Gxy command; map app DSP toggles to it.
+    let eq = settings.noiseReductionEnabled ? 1 : 0
+    let ims = settings.agcEnabled ? 1 : 0
+    try? await send("G\(eq)\(ims)")
+
+    if settings.mode != .fm && settings.mode != .nfm {
+      pendingStatusUpdate = "FM-DX supports FM demodulation. Current mode may be ignored."
+    }
+  }
+
+  func consumeServerError() async -> String? {
+    defer { lastServerMessage = nil }
+    return lastServerMessage
+  }
+
+  func consumeStatusUpdate() async -> String? {
+    defer { pendingStatusUpdate = nil }
+    return pendingStatusUpdate
+  }
+
+  func isConnected() async -> Bool {
+    socket != nil
+  }
+
+  private func send(_ message: String) async throws {
+    guard let socket else { throw SDRClientError.notConnected }
+    try await socket.send(.string(message))
+  }
+
+  private func receiveLoop(task: URLSessionWebSocketTask) async {
+    while !Task.isCancelled {
+      do {
+        let message = try await task.receive()
+        switch message {
+        case .string(let text):
+          await handleInboundText(text)
+        case .data(let data):
+          if let text = String(data: data, encoding: .utf8) {
+            await handleInboundText(text)
+          }
+        @unknown default:
+          break
+        }
+      } catch {
+        if Task.isCancelled {
+          return
+        }
+        handleReceiveFailure(error)
+        break
+      }
+    }
+  }
+
+  private func pollLoop(profile: SDRConnectionProfile) async {
+    while !Task.isCancelled {
+      try? await Task.sleep(nanoseconds: 2_000_000_000)
+      if Task.isCancelled {
+        return
+      }
+
+      do {
+        let snapshot = try await fetchAPI(profile: profile)
+        updateStatus(from: snapshot)
+      } catch {
+        if Task.isCancelled {
+          return
+        }
+      }
+    }
+  }
+
+  private func handleInboundText(_ text: String) async {
+    if text == "KICK" {
+      lastServerMessage = "Access denied by FM-DX server."
+      log(lastServerMessage ?? "Access denied", severity: .error)
+      return
+    }
+
+    guard let data = text.data(using: .utf8),
+      let snapshot = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else {
+      return
+    }
+
+    updateStatus(from: snapshot)
+  }
+
+  private func authenticateIfNeeded(profile: SDRConnectionProfile) async throws {
+    let password = profile.password.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !password.isEmpty else { return }
+
+    let basePath = pathWithTrailingSlash(profile.normalizedPath)
+    let url = try makeHTTPURL(profile: profile, path: "\(basePath)login")
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONSerialization.data(
+      withJSONObject: ["password": password],
+      options: []
+    )
+
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw SDRClientError.unsupported("FM-DX login returned invalid response.")
+    }
+
+    guard (200...299).contains(httpResponse.statusCode) else {
+      let message = extractServerMessage(from: data)
+      if let message, !message.isEmpty {
+        throw SDRClientError.unsupported("FM-DX login failed: \(message)")
+      }
+      throw SDRClientError.unsupported("FM-DX login failed. Check tune/admin password.")
+    }
+
+    log("Authenticated on FM-DX /login endpoint")
+  }
+
+  private func fetchAPI(profile: SDRConnectionProfile) async throws -> [String: Any] {
+    let basePath = pathWithTrailingSlash(profile.normalizedPath)
+    let url = try makeHTTPURL(profile: profile, path: "\(basePath)api")
+    let (data, response) = try await URLSession.shared.data(from: url)
+
+    guard let httpResponse = response as? HTTPURLResponse,
+      (200...299).contains(httpResponse.statusCode)
+    else {
+      throw SDRClientError.unsupported("FM-DX API is unavailable.")
+    }
+
+    guard let snapshot = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      throw SDRClientError.unsupported("FM-DX API returned invalid JSON.")
+    }
+
+    return snapshot
+  }
+
+  private func fetchTunerName(profile: SDRConnectionProfile) async throws -> String {
+    let basePath = pathWithTrailingSlash(profile.normalizedPath)
+    let url = try makeHTTPURL(profile: profile, path: "\(basePath)static_data")
+    let (data, response) = try await URLSession.shared.data(from: url)
+
+    guard let httpResponse = response as? HTTPURLResponse,
+      (200...299).contains(httpResponse.statusCode),
+      let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else {
+      return ""
+    }
+
+    return (payload["tunerName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+  }
+
+  private func updateStatus(from snapshot: [String: Any]) {
+    let frequencyMHz = parseDouble(snapshot["freq"])
+    let signal = parseDouble(snapshot["sig"])
+    let users = parseInt(snapshot["users"])
+    let ps = parseString(snapshot["ps"])
+    let countryISO = parseString(snapshot["country_iso"])
+
+    var stationName: String?
+    if let txInfo = snapshot["txInfo"] as? [String: Any] {
+      stationName = parseString(txInfo["tx"])
+    }
+
+    var parts: [String] = []
+    if let frequencyMHz {
+      parts.append(String(format: "%.3f MHz", frequencyMHz))
+    }
+    if let stationName, !stationName.isEmpty, stationName != "?" {
+      parts.append(stationName)
+    }
+    if let ps, !ps.isEmpty, ps != "?" {
+      parts.append("PS \(ps)")
+    }
+    if let signal {
+      parts.append(String(format: "S %.0f", signal))
+    }
+    if let users {
+      parts.append("U \(users)")
+    }
+    if let countryISO, !countryISO.isEmpty, countryISO != "UN" {
+      parts.append(countryISO)
+    }
+
+    let update = parts.joined(separator: " | ")
+    if !update.isEmpty {
+      pendingStatusUpdate = update
+    }
+  }
+
+  private func extractServerMessage(from data: Data) -> String? {
+    guard
+      let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else {
+      return nil
+    }
+    return payload["message"] as? String
+  }
+
+  private func parseString(_ value: Any?) -> String? {
+    if let text = value as? String {
+      return text
+    }
+    return nil
+  }
+
+  private func parseDouble(_ value: Any?) -> Double? {
+    if let number = value as? Double {
+      return number
+    }
+    if let number = value as? Float {
+      return Double(number)
+    }
+    if let number = value as? NSNumber {
+      return number.doubleValue
+    }
+    if let text = value as? String {
+      return Double(text)
+    }
+    return nil
+  }
+
+  private func parseInt(_ value: Any?) -> Int? {
+    if let number = value as? Int {
+      return number
+    }
+    if let number = value as? NSNumber {
+      return number.intValue
+    }
+    if let text = value as? String {
+      return Int(text)
+    }
+    return nil
+  }
+
+  private func handleReceiveFailure(_ error: Error) {
+    lastServerMessage = error.localizedDescription
+    log("Receive loop failed: \(error.localizedDescription)", severity: .error)
+    receiveTask = nil
+    socket = nil
+  }
+
+  private func log(_ message: String, severity: DiagnosticSeverity = .info) {
+    Diagnostics.log(
+      severity: severity,
+      category: "FM-DX",
       message: message
     )
   }

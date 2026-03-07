@@ -33,6 +33,9 @@ struct ProfileEditorView: View {
             }
           }
           .accessibilityLabel("Receiver backend")
+          .onChange(of: draft.backend) { newBackend in
+            draft.port = newBackend.defaultPort
+          }
         }
 
         Section("Server") {
