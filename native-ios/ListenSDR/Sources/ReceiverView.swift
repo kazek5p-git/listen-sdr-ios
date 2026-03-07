@@ -318,11 +318,16 @@ struct ReceiverView: View {
       if profile.backend == .fmDxWebserver {
         Section(L10n.text("fmdx.controls")) {
           Toggle(
-            L10n.text("fmdx.forced_stereo"),
+            L10n.text("fmdx.stereo_mode"),
             isOn: Binding(
               get: { radioSession.fmdxTelemetry?.isForcedStereo ?? false },
               set: { radioSession.setFMDXForcedStereoEnabled($0) }
             )
+          )
+          .accessibilityValue(
+            (radioSession.fmdxTelemetry?.isForcedStereo ?? false)
+              ? L10n.text("fmdx.stereo_state.stereo")
+              : L10n.text("fmdx.stereo_state.mono")
           )
           .disabled(radioSession.state != .connected)
 
@@ -461,8 +466,8 @@ struct ReceiverView: View {
           }
           if let isForced = telemetry.isForcedStereo {
             LabeledContent(
-              "Forced stereo",
-              value: isForced ? L10n.text("common.on") : L10n.text("common.off")
+              L10n.text("fmdx.stereo_mode"),
+              value: isForced ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
             )
           }
           if let pi = telemetry.pi, !pi.isEmpty {

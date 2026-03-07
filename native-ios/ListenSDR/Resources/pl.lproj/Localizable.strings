@@ -217,6 +217,9 @@
 "scan_source.quick_list" = "Lista szybka";
 "fmdx.controls" = "Sterowanie FM-DX";
 "fmdx.forced_stereo" = "Wymuszone stereo";
+"fmdx.stereo_mode" = "Tryb stereo/mono";
+"fmdx.stereo_state.stereo" = "Stereo";
+"fmdx.stereo_state.mono" = "Mono";
 "fmdx.antenna" = "Antena";
 "fmdx.bandwidth" = "Szerokosc pasma";
 "scanner.quick_list.clear" = "Wyczysc liste szybka";
