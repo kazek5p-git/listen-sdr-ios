@@ -28,6 +28,19 @@ npm run build:ios:preview
 npm run build:ios:prod
 ```
 
+## Natywny projekt iOS (Xcode)
+Katalog: `native-ios/`
+
+- Projekt jest definiowany przez `native-ios/project.yml` (XcodeGen).
+- Ikony aplikacji sa gotowe w `native-ios/ListenSDR/Resources/Assets.xcassets/AppIcon.appiconset`.
+- `ASSETCATALOG_COMPILER_APPICON_NAME` jest ustawione na `AppIcon`.
+
+Podpisanie przez inne konto Apple w Xcode:
+1. Wygeneruj projekt przez XcodeGen (`xcodegen generate` w `native-ios/`).
+2. Otworz `ListenSDR.xcodeproj` w Xcode.
+3. W `Signing & Capabilities` ustaw Team i unikalny Bundle Identifier.
+4. Uzyj `Automatically manage signing`.
+
 ## GitHub Actions: unsigned IPA (pod Sideloadly)
 Workflow: `.github/workflows/ios-unsigned-ipa.yml`
 
