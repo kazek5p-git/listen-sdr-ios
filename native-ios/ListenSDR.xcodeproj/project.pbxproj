@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		015FC07CFB8D3B0FF066B3C6 /* ReceiverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4286BB33324D82C98CA59BFE /* ReceiverView.swift */; };
 		048284CE689221E778C8C818 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11598D4ED736766676E23600 /* ProfileStore.swift */; };
+		1FAE7760D6B3448BAA6411C3 /* BackendTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C5B36172F4C4CB6BC5FB8D2 /* BackendTelemetry.swift */; };
 		1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE460852390C71A3267E19E /* DiagnosticsStore.swift */; };
 		217D33FBBCC6215FD86050A3 /* UnavailableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */; };
 		2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */; };
@@ -45,6 +46,7 @@
 		530A6B024830FC4082BDBF66 /* ListenSDR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ListenSDR.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectory.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
+		8C5B36172F4C4CB6BC5FB8D2 /* BackendTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendTelemetry.swift; sourceTree = "<group>"; };
 		9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationMode.swift; sourceTree = "<group>"; };
 		AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectoryView.swift; sourceTree = "<group>"; };
@@ -73,6 +75,7 @@
 			children = (
 				FF8CEEFF5137077F585714EE /* AudioDecoders.swift */,
 				BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */,
+				8C5B36172F4C4CB6BC5FB8D2 /* BackendTelemetry.swift */,
 				AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */,
 				9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */,
 				DAE460852390C71A3267E19E /* DiagnosticsStore.swift */,
@@ -183,6 +186,7 @@
 			files = (
 				71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */,
 				A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */,
+				1FAE7760D6B3448BAA6411C3 /* BackendTelemetry.swift in Sources */,
 				ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */,
 				97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */,
 				1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */,

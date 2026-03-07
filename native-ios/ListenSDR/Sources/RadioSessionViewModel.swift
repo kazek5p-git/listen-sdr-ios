@@ -8,6 +8,13 @@ enum ConnectionState {
   case failed
 }
 
+struct ScanChannel: Identifiable, Hashable {
+  let id: String
+  let name: String
+  let frequencyHz: Int
+  let mode: DemodulationMode?
+}
+
 @MainActor
 final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var state: ConnectionState = .disconnected
@@ -16,10 +23,20 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var backendStatusText: String?
   @Published private(set) var lastError: String?
   @Published private(set) var settings: RadioSessionSettings = .default
+  @Published private(set) var openWebRXProfiles: [OpenWebRXProfileOption] = []
+  @Published private(set) var selectedOpenWebRXProfileID: String?
+  @Published private(set) var serverBookmarks: [SDRServerBookmark] = []
+  @Published private(set) var openWebRXBandPlan: [SDRBandPlanEntry] = []
+  @Published private(set) var fmdxTelemetry: FMDXTelemetry?
+  @Published private(set) var kiwiTelemetry: KiwiTelemetry?
+  @Published private(set) var isScannerRunning = false
+  @Published private(set) var scannerStatusText: String?
+  @Published var scannerThreshold: Double = -95
 
   private var client: (any SDRBackendClient)?
   private var connectTask: Task<Void, Never>?
   private var statusMonitorTask: Task<Void, Never>?
+  private var scannerTask: Task<Void, Never>?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
 
   init() {
@@ -42,10 +59,16 @@ final class RadioSessionViewModel: ObservableObject {
     connectTask?.cancel()
     statusMonitorTask?.cancel()
     statusMonitorTask = nil
+    scannerTask?.cancel()
+    scannerTask = nil
+    isScannerRunning = false
+    scannerStatusText = nil
     state = .connecting
     statusText = "Connecting to \(profile.name)..."
     backendStatusText = nil
     lastError = nil
+    resetRuntimeState(for: profile.backend)
+    scannerThreshold = defaultScannerThreshold(for: profile.backend)
 
     connectTask = Task { [settings] in
       do {
@@ -90,6 +113,8 @@ final class RadioSessionViewModel: ObservableObject {
           self.statusText = "Connection failed"
           self.backendStatusText = nil
           self.lastError = error.localizedDescription
+          self.isScannerRunning = false
+          self.scannerStatusText = nil
         }
         Diagnostics.log(
           severity: .error,
@@ -105,6 +130,8 @@ final class RadioSessionViewModel: ObservableObject {
     connectTask = nil
     statusMonitorTask?.cancel()
     statusMonitorTask = nil
+    scannerTask?.cancel()
+    scannerTask = nil
 
     Diagnostics.log(category: "Session", message: "Disconnect requested")
 
@@ -120,6 +147,9 @@ final class RadioSessionViewModel: ObservableObject {
         self.statusText = "Disconnected"
         self.backendStatusText = nil
         self.lastError = nil
+        self.isScannerRunning = false
+        self.scannerStatusText = nil
+        self.resetRuntimeState(for: nil)
       }
       Diagnostics.log(category: "Session", message: "Disconnected")
     }
@@ -141,6 +171,115 @@ final class RadioSessionViewModel: ObservableObject {
         self?.connect(to: profile)
       }
     }
+  }
+
+  func selectOpenWebRXProfile(_ profileID: String) {
+    guard state == .connected, let client else { return }
+
+    Task {
+      do {
+        try await client.sendControl(.selectOpenWebRXProfile(profileID))
+        await MainActor.run {
+          self.selectedOpenWebRXProfileID = profileID
+        }
+      } catch {
+        await MainActor.run {
+          self.lastError = error.localizedDescription
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Session",
+          message: "OpenWebRX profile selection failed: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  func applyServerBookmark(_ bookmark: SDRServerBookmark) {
+    if let mode = bookmark.modulation {
+      setMode(mode)
+    }
+    setFrequencyHz(bookmark.frequencyHz)
+  }
+
+  func tuneToBand(_ band: SDRBandPlanEntry, using suggestion: SDRBandFrequency? = nil) {
+    let targetHz = suggestion?.frequencyHz ?? band.centerFrequencyHz
+    setFrequencyHz(targetHz)
+
+    if let suggestionMode = DemodulationMode.fromOpenWebRX(suggestion?.name.lowercased()) {
+      setMode(suggestionMode)
+    }
+  }
+
+  func scannerSignalUnit(for backend: SDRBackend?) -> String {
+    switch backend {
+    case .fmDxWebserver:
+      return "dBf"
+    case .kiwiSDR:
+      return "dBm"
+    default:
+      return "dB"
+    }
+  }
+
+  func startScanner(
+    channels: [ScanChannel],
+    backend: SDRBackend,
+    dwellSeconds: Double = 1.5,
+    holdSeconds: Double = 4.0
+  ) {
+    guard state == .connected, !channels.isEmpty else { return }
+
+    stopScanner()
+    isScannerRunning = true
+    scannerStatusText = "Scanner started (\(channels.count) channels)"
+
+    scannerTask = Task {
+      var index = 0
+      let dwellNanos = UInt64(max(0.4, dwellSeconds) * 1_000_000_000)
+      let holdNanos = UInt64(max(0.5, holdSeconds) * 1_000_000_000)
+
+      while !Task.isCancelled {
+        let channel = channels[index]
+
+        await MainActor.run {
+          if let mode = channel.mode {
+            self.setMode(mode)
+          }
+          self.setFrequencyHz(channel.frequencyHz)
+          self.scannerStatusText = "Scanning \(channel.name) (\(FrequencyFormatter.mhzText(fromHz: channel.frequencyHz)))"
+        }
+
+        try? await Task.sleep(nanoseconds: dwellNanos)
+        if Task.isCancelled { break }
+
+        let threshold = await MainActor.run { self.scannerThreshold }
+        let signal = await MainActor.run { self.currentScannerSignal() }
+        if let signal, signal >= threshold {
+          await MainActor.run {
+            self.scannerStatusText = "Signal found on \(channel.name): \(String(format: "%.1f", signal)) \(self.scannerSignalUnit(for: backend))"
+          }
+          try? await Task.sleep(nanoseconds: holdNanos)
+          if Task.isCancelled { break }
+        }
+
+        index = (index + 1) % channels.count
+      }
+
+      await MainActor.run {
+        self.isScannerRunning = false
+        if self.scannerStatusText?.contains("Signal found") != true {
+          self.scannerStatusText = "Scanner stopped"
+        }
+      }
+    }
+  }
+
+  func stopScanner() {
+    scannerTask?.cancel()
+    scannerTask = nil
+    isScannerRunning = false
+    scannerStatusText = nil
   }
 
   func setFrequencyHz(_ value: Int) {
@@ -291,6 +430,8 @@ final class RadioSessionViewModel: ObservableObject {
             self.statusText = "Connection lost"
             self.backendStatusText = nil
             self.lastError = "Receiver closed the connection."
+            self.stopScanner()
+            self.resetRuntimeState(for: nil)
           }
           return
         }
@@ -310,6 +451,8 @@ final class RadioSessionViewModel: ObservableObject {
             self.statusText = "Server error on \(profileName)"
             self.backendStatusText = nil
             self.lastError = backendError
+            self.stopScanner()
+            self.resetRuntimeState(for: nil)
           }
           return
         }
@@ -320,7 +463,88 @@ final class RadioSessionViewModel: ObservableObject {
             self.backendStatusText = backendStatus
           }
         }
+
+        if let telemetryEvent = await client.consumeTelemetryUpdate() {
+          await MainActor.run {
+            guard self.connectedProfileID == profileID else { return }
+            self.apply(telemetryEvent: telemetryEvent)
+          }
+        }
       }
+    }
+  }
+
+  private func apply(telemetryEvent: BackendTelemetryEvent) {
+    switch telemetryEvent {
+    case .openWebRXProfiles(let profiles, let selectedID):
+      openWebRXProfiles = profiles
+      selectedOpenWebRXProfileID = selectedID
+
+    case .openWebRXBookmarks(let bookmarks):
+      serverBookmarks = bookmarks
+
+    case .openWebRXBandPlan(let bands):
+      openWebRXBandPlan = bands
+
+    case .fmdx(let telemetry):
+      fmdxTelemetry = telemetry
+
+    case .kiwi(let telemetry):
+      kiwiTelemetry = telemetry
+    }
+  }
+
+  private func currentScannerSignal() -> Double? {
+    if let signal = fmdxTelemetry?.signal {
+      return signal
+    }
+    if let signal = kiwiTelemetry?.rssiDBm {
+      return signal
+    }
+    return nil
+  }
+
+  private func defaultScannerThreshold(for backend: SDRBackend) -> Double {
+    switch backend {
+    case .fmDxWebserver:
+      return 20
+    case .kiwiSDR:
+      return -95
+    case .openWebRX:
+      return -95
+    }
+  }
+
+  private func resetRuntimeState(for backend: SDRBackend?) {
+    switch backend {
+    case .openWebRX:
+      openWebRXProfiles = []
+      selectedOpenWebRXProfileID = nil
+      serverBookmarks = []
+      openWebRXBandPlan = []
+      fmdxTelemetry = nil
+      kiwiTelemetry = nil
+    case .fmDxWebserver:
+      openWebRXProfiles = []
+      selectedOpenWebRXProfileID = nil
+      serverBookmarks = []
+      openWebRXBandPlan = []
+      fmdxTelemetry = nil
+      kiwiTelemetry = nil
+    case .kiwiSDR:
+      openWebRXProfiles = []
+      selectedOpenWebRXProfileID = nil
+      serverBookmarks = []
+      openWebRXBandPlan = []
+      fmdxTelemetry = nil
+      kiwiTelemetry = nil
+    case .none:
+      openWebRXProfiles = []
+      selectedOpenWebRXProfileID = nil
+      serverBookmarks = []
+      openWebRXBandPlan = []
+      fmdxTelemetry = nil
+      kiwiTelemetry = nil
     }
   }
 }
