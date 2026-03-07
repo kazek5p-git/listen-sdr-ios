@@ -839,7 +839,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   }
 
   private func handleInboundText(_ text: String) async {
-    if text == "KICK" {
+    if text.trimmingCharacters(in: .whitespacesAndNewlines) == "KICK" {
       lastServerMessage = "Access denied by FM-DX server."
       log(lastServerMessage ?? "Access denied", severity: .error)
       return
