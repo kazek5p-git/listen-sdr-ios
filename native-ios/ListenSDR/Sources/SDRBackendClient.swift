@@ -1106,11 +1106,12 @@ final class FMDXMP3AudioPlayer {
   static let shared = FMDXMP3AudioPlayer()
 
   private let workerQueue = DispatchQueue(label: "ListenSDR.FMDXMP3AudioPlayer")
-  private let queueBufferSize: Int = 32 * 1024
-  private let queueBufferCount: Int = 20
+  private let queueBufferSize: Int = 64 * 1024
+  private let queueBufferCount: Int = 36
   private let maxPacketsPerBuffer: Int = 1024
   private let minEnqueueBytes: Int = 2 * 1024
   private let maxBufferHoldSeconds: TimeInterval = 0.12
+  private let maxConsecutiveBufferStarvation = 120
 
   private var fileStreamID: AudioFileStreamID?
   private var audioQueue: AudioQueueRef?
@@ -1125,8 +1126,9 @@ final class FMDXMP3AudioPlayer {
   private var parserNeedsDiscontinuity = true
   private var consecutiveParseErrors = 0
   private var droppedPacketCount = 0
+  private var consecutiveBufferStarvation = 0
+  private var lastSuccessfulEnqueueAt = Date.distantPast
 
-  private var sessionConfigured = false
   private var desiredVolume: Float = 0.85
   private var muted = false
 
@@ -1194,6 +1196,12 @@ final class FMDXMP3AudioPlayer {
     workerQueue.async {
       self.muted = value
       self.applyVolumeLocked()
+    }
+  }
+
+  func secondsSinceLastAudioOutput() -> TimeInterval {
+    workerQueue.sync {
+      Date().timeIntervalSince(lastSuccessfulEnqueueAt)
     }
   }
 
@@ -1292,16 +1300,11 @@ final class FMDXMP3AudioPlayer {
   private func configureAudioSessionIfNeeded(sampleRate: Double) {
     let session = AVAudioSession.sharedInstance()
     do {
-      if !sessionConfigured {
-        try session.setCategory(.playback, mode: .default, options: [])
-      }
+      try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
+      try session.setPreferredIOBufferDuration(0.01)
       try session.setPreferredSampleRate(sampleRate)
-      if !sessionConfigured {
-        try session.setActive(true, options: [])
-        sessionConfigured = true
-      }
+      try session.setActive(true, options: [])
     } catch {
-      sessionConfigured = false
       log("Audio session setup failed: \(error.localizedDescription)", severity: .warning)
     }
   }
@@ -1334,6 +1337,8 @@ final class FMDXMP3AudioPlayer {
     queueStarted = false
     consecutiveParseErrors = 0
     droppedPacketCount = 0
+    consecutiveBufferStarvation = 0
+    lastSuccessfulEnqueueAt = .distantPast
   }
 
   private func consumeProperty(_ propertyID: AudioFileStreamPropertyID, fileStreamID: AudioFileStreamID) {
@@ -1402,14 +1407,23 @@ final class FMDXMP3AudioPlayer {
       activeBuffer = dequeueBufferLocked()
       if activeBuffer == nil {
         droppedPacketCount += 1
+        consecutiveBufferStarvation += 1
         if droppedPacketCount % 50 == 0 {
           log("Dropped \(droppedPacketCount) packets because output buffers were exhausted.", severity: .warning)
+        }
+        if consecutiveBufferStarvation >= maxConsecutiveBufferStarvation {
+          log(
+            "Audio output starved for \(consecutiveBufferStarvation) packets. Resetting MP3 pipeline.",
+            severity: .warning
+          )
+          resetLocked()
         }
       }
       activeBufferOffset = 0
       activePacketCount = 0
       if activeBuffer != nil {
         activeBufferStartedAt = Date()
+        consecutiveBufferStarvation = 0
       }
     }
     guard self.activeBuffer != nil else { return }
@@ -1469,14 +1483,20 @@ final class FMDXMP3AudioPlayer {
     }
 
     if status == noErr {
-      let startStatus = AudioQueueStart(audioQueue, nil)
-      if startStatus == noErr {
-        queueStarted = true
-      } else {
-        log("Unable to start audio queue (status \(startStatus))", severity: .warning)
+      lastSuccessfulEnqueueAt = Date()
+      consecutiveBufferStarvation = 0
+
+      if !queueStarted {
+        let startStatus = AudioQueueStart(audioQueue, nil)
+        if startStatus == noErr {
+          queueStarted = true
+        } else {
+          log("Unable to start audio queue (status \(startStatus))", severity: .warning)
+        }
       }
     } else {
       reusableBuffers.append(activeBuffer)
+      consecutiveBufferStarvation += 1
       log("Unable to enqueue audio packet (status \(status))", severity: .warning)
     }
 
@@ -1489,6 +1509,7 @@ final class FMDXMP3AudioPlayer {
     workerQueue.async {
       guard self.audioQueue != nil else { return }
       self.reusableBuffers.append(buffer)
+      self.consecutiveBufferStarvation = 0
     }
   }
 
@@ -1856,10 +1877,20 @@ actor FMDXWebserverClient: SDRBackendClient {
 
       if audioSocket == nil {
         scheduleAudioReconnect()
-      } else if lastAudioPacketAt != .distantPast {
-        let idleSeconds = Date().timeIntervalSince(lastAudioPacketAt)
-        if idleSeconds > 12 {
-          restartAudioConnection(reason: "FM-DX audio stalled. Reconnecting...")
+      } else {
+        if lastAudioPacketAt != .distantPast {
+          let rendererIdleSeconds = FMDXMP3AudioPlayer.shared.secondsSinceLastAudioOutput()
+          if rendererIdleSeconds > 15 {
+            restartAudioConnection(reason: "FM-DX audio playback stalled. Reconnecting...")
+            continue
+          }
+        }
+
+        if lastAudioPacketAt != .distantPast {
+          let idleSeconds = Date().timeIntervalSince(lastAudioPacketAt)
+          if idleSeconds > 12 {
+            restartAudioConnection(reason: "FM-DX audio stalled. Reconnecting...")
+          }
         }
       }
     }
