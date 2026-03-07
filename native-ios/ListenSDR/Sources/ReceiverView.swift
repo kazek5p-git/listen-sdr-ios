@@ -3,6 +3,12 @@ import SwiftUI
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var presetStore: FrequencyPresetStore
+  @State private var isSavePresetSheetPresented = false
+  @State private var presetNameDraft = ""
+
+  private let minFrequencyHz = 100_000
+  private let maxFrequencyHz = 3_000_000_000
 
   var body: some View {
     NavigationStack {
@@ -18,6 +24,9 @@ struct ReceiverView: View {
         }
       }
       .navigationTitle("Receiver")
+      .sheet(isPresented: $isSavePresetSheetPresented) {
+        savePresetSheet
+      }
     }
   }
 
@@ -65,8 +74,8 @@ struct ReceiverView: View {
             get: { radioSession.settings.frequencyHz },
             set: { radioSession.setFrequencyHz($0) }
           ),
-          in: 100_000...30_000_000,
-          step: 100
+          in: minFrequencyHz...maxFrequencyHz,
+          step: radioSession.settings.tuneStepHz
         ) {
           VStack(alignment: .leading, spacing: 4) {
             Text("Frequency")
@@ -76,7 +85,45 @@ struct ReceiverView: View {
         }
         .accessibilityLabel("Frequency")
         .accessibilityValue(FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz))
-        .accessibilityHint("Swipe up or down to tune by one hundred hertz")
+        .accessibilityHint(
+          "Swipe up or down to tune by \(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))"
+        )
+
+        HStack {
+          Button {
+            radioSession.tune(byStepCount: -1)
+          } label: {
+            Label("Step down", systemImage: "minus.circle")
+          }
+          .accessibilityLabel("Tune down")
+          .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
+          .accessibilityHint("Decrease frequency by selected step size")
+
+          Spacer()
+
+          Button {
+            radioSession.tune(byStepCount: 1)
+          } label: {
+            Label("Step up", systemImage: "plus.circle")
+          }
+          .accessibilityLabel("Tune up")
+          .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
+          .accessibilityHint("Increase frequency by selected step size")
+        }
+
+        Picker(
+          "Tune step",
+          selection: Binding(
+            get: { radioSession.settings.tuneStepHz },
+            set: { radioSession.setTuneStepHz($0) }
+          )
+        ) {
+          ForEach(RadioSessionSettings.supportedTuneStepsHz, id: \.self) { stepHz in
+            Text(FrequencyFormatter.tuneStepText(fromHz: stepHz)).tag(stepHz)
+          }
+        }
+        .accessibilityLabel("Tune step")
+        .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
 
         Picker(
           "Mode",
@@ -134,6 +181,41 @@ struct ReceiverView: View {
         )
       }
 
+      Section("Favorites") {
+        Button {
+          beginSavingCurrentFrequency()
+        } label: {
+          Label("Save current frequency", systemImage: "star")
+        }
+        .accessibilityHint("Saves current frequency and mode as a favorite")
+
+        if presetStore.presets.isEmpty {
+          Text("No favorites yet. Save one to recall frequency and mode quickly.")
+            .foregroundStyle(.secondary)
+        } else {
+          ForEach(presetStore.presets) { preset in
+            Button {
+              apply(preset: preset)
+            } label: {
+              VStack(alignment: .leading, spacing: 4) {
+                Text(preset.name)
+                Text("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)) - \(preset.mode.displayName)")
+                  .font(.footnote)
+                  .foregroundStyle(.secondary)
+              }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              Button("Delete", role: .destructive) {
+                presetStore.removePreset(preset)
+              }
+            }
+            .accessibilityLabel(preset.name)
+            .accessibilityValue("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)), \(preset.mode.displayName)")
+            .accessibilityHint("Double tap to apply this favorite")
+          }
+        }
+      }
+
       Section("Audio") {
         VStack(alignment: .leading, spacing: 6) {
           Text("Volume: \(Int((radioSession.settings.audioVolume * 100).rounded()))%")
@@ -170,5 +252,57 @@ struct ReceiverView: View {
       return "Disconnect"
     }
     return "Connect"
+  }
+
+  private var savePresetSheet: some View {
+    NavigationStack {
+      Form {
+        TextField("Preset name", text: $presetNameDraft)
+          .textInputAutocapitalization(.words)
+          .autocorrectionDisabled()
+          .accessibilityLabel("Preset name")
+
+        LabeledContent(
+          "Frequency",
+          value: FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+        )
+        LabeledContent("Mode", value: radioSession.settings.mode.displayName)
+      }
+      .navigationTitle("Save Favorite")
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") {
+            isSavePresetSheetPresented = false
+          }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") {
+            saveCurrentFrequencyAsPreset()
+          }
+        }
+      }
+    }
+  }
+
+  private func beginSavingCurrentFrequency() {
+    presetNameDraft = presetStore.defaultName(
+      for: radioSession.settings.frequencyHz,
+      mode: radioSession.settings.mode
+    )
+    isSavePresetSheetPresented = true
+  }
+
+  private func saveCurrentFrequencyAsPreset() {
+    presetStore.addPreset(
+      name: presetNameDraft,
+      frequencyHz: radioSession.settings.frequencyHz,
+      mode: radioSession.settings.mode
+    )
+    isSavePresetSheetPresented = false
+  }
+
+  private func apply(preset: FrequencyPreset) {
+    radioSession.setMode(preset.mode)
+    radioSession.setFrequencyHz(preset.frequencyHz)
   }
 }

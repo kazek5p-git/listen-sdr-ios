@@ -23,6 +23,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   init() {
     settings = loadPersistedSettings()
+    settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.tuneStepHz)
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
   }
@@ -141,6 +142,16 @@ final class RadioSessionViewModel: ObservableObject {
     settings.frequencyHz = min(max(value, 100_000), 3_000_000_000)
     persistSettings()
     applyIfConnected()
+  }
+
+  func setTuneStepHz(_ value: Int) {
+    settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(value)
+    persistSettings()
+  }
+
+  func tune(byStepCount stepCount: Int) {
+    let delta = stepCount * settings.tuneStepHz
+    setFrequencyHz(settings.frequencyHz + delta)
   }
 
   func setMode(_ mode: DemodulationMode) {
