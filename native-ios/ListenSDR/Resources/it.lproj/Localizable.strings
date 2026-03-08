@@ -181,6 +181,7 @@
 "receiver.frequency.swipe_and_step_hint" = "Scorri in alto o in basso per sintonizzare di %@. Scorri con due dita a sinistra o destra per cambiare il passo di sintonia.";
 "receiver.tune_step.previous_action" = "Passo di sintonia precedente";
 "receiver.tune_step.next_action" = "Passo di sintonia successivo";
+"receiver.tune_step.changed" = "Passo di sintonia: %@";
 
 "frequency_input.invalid_fm" = "Frequenza FM non valida. Prova 102.3, 1023 o 102300.";
 "frequency_input.invalid_generic" = "Frequenza non valida. Usa valori come 7.050 MHz, 7050 kHz o 7050000.";

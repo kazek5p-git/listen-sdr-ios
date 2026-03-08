@@ -181,6 +181,7 @@
 "receiver.frequency.swipe_and_step_hint" = "Balayez vers le haut ou le bas pour accorder par %@. Balayez avec deux doigts vers la gauche ou la droite pour changer le pas d'accord.";
 "receiver.tune_step.previous_action" = "Pas d'accord precedent";
 "receiver.tune_step.next_action" = "Pas d'accord suivant";
+"receiver.tune_step.changed" = "Pas d'accord: %@";
 
 "frequency_input.invalid_fm" = "Frequence FM invalide. Essayez 102.3, 1023 ou 102300.";
 "frequency_input.invalid_generic" = "Frequence invalide. Utilisez par exemple 7.050 MHz, 7050 kHz ou 7050000.";

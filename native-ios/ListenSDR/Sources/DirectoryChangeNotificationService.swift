@@ -30,7 +30,7 @@ final class DirectoryChangeNotificationService {
     }
   }
 
-  func notifyNewReceiversIfNeeded(groupedByBackend: [SDRBackend: Int]) {
+  func notifyNewReceiversIfNeeded(groupedByBackend: [SDRBackend: [String]]) {
     guard !groupedByBackend.isEmpty else { return }
 
     let summary = summaryText(from: groupedByBackend)
@@ -56,11 +56,17 @@ final class DirectoryChangeNotificationService {
     }
   }
 
-  private func summaryText(from groupedByBackend: [SDRBackend: Int]) -> String {
+  private func summaryText(from groupedByBackend: [SDRBackend: [String]]) -> String {
     let order: [SDRBackend] = [.fmDxWebserver, .kiwiSDR, .openWebRX]
     let parts = order.compactMap { backend -> String? in
-      guard let count = groupedByBackend[backend], count > 0 else { return nil }
-      return "\(backend.displayName) +\(count)"
+      guard let names = groupedByBackend[backend], !names.isEmpty else { return nil }
+      let count = names.count
+      let previewLimit = 3
+      let preview = names.prefix(previewLimit).joined(separator: ", ")
+      if count > previewLimit {
+        return "\(backend.displayName) +\(count): \(preview), +\(count - previewLimit)"
+      }
+      return "\(backend.displayName) +\(count): \(preview)"
     }
 
     return parts.joined(separator: ", ")

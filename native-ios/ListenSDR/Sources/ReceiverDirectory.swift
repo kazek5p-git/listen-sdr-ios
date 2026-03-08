@@ -635,7 +635,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
       )
 
       if !previousEntries.isEmpty {
-        let newlyAddedByBackend = newlyAddedReceiverCounts(previous: previousEntries, current: mergedEntries)
+        let newlyAddedByBackend = newlyAddedReceivers(previous: previousEntries, current: mergedEntries)
         if !newlyAddedByBackend.isEmpty {
           notificationService.notifyNewReceiversIfNeeded(groupedByBackend: newlyAddedByBackend)
           Diagnostics.log(
@@ -796,16 +796,27 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     }
   }
 
-  private func newlyAddedReceiverCounts(
+  private func newlyAddedReceivers(
     previous: [ReceiverDirectoryEntry],
     current: [ReceiverDirectoryEntry]
-  ) -> [SDRBackend: Int] {
+  ) -> [SDRBackend: [String]] {
     let previousIDs = Set(previous.map(\.id))
     let newlyAdded = current.filter { !previousIDs.contains($0.id) }
     guard !newlyAdded.isEmpty else { return [:] }
 
-    return newlyAdded.reduce(into: [:]) { counts, entry in
-      counts[entry.backend, default: 0] += 1
+    let grouped = newlyAdded.reduce(into: [SDRBackend: [String]]()) { result, entry in
+      let trimmedName = entry.name.trimmingCharacters(in: .whitespacesAndNewlines)
+      let name = trimmedName.isEmpty ? entry.host : trimmedName
+      result[entry.backend, default: []].append(name)
+    }
+
+    return grouped.reduce(into: [SDRBackend: [String]]()) { result, element in
+      let uniqueNames = Array(Set(element.value)).sorted {
+        $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+      }
+      if !uniqueNames.isEmpty {
+        result[element.key] = uniqueNames
+      }
     }
   }
 

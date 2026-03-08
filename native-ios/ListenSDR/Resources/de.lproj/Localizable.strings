@@ -181,6 +181,7 @@
 "receiver.frequency.swipe_and_step_hint" = "Nach oben oder unten wischen, um mit %@ abzustimmen. Mit zwei Fingern nach links oder rechts wischen, um den Abstimmschritt zu aendern.";
 "receiver.tune_step.previous_action" = "Vorheriger Abstimmschritt";
 "receiver.tune_step.next_action" = "Naechster Abstimmschritt";
+"receiver.tune_step.changed" = "Abstimmschritt: %@";
 
 "frequency_input.invalid_fm" = "Ungueltige FM-Frequenz. Versuche 102.3, 1023 oder 102300.";
 "frequency_input.invalid_generic" = "Ungueltige Frequenz. Werte wie 7.050 MHz, 7050 kHz oder 7050000 verwenden.";

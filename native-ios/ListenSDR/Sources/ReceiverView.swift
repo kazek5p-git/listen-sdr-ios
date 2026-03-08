@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 private enum ScanSource: String, CaseIterable, Identifiable {
   case favorites
@@ -198,7 +199,7 @@ struct ReceiverView: View {
         "Tune step",
         selection: Binding(
           get: { radioSession.settings.tuneStepHz },
-          set: { radioSession.setTuneStepHz($0) }
+          set: { setTuneStepAndAnnounce($0) }
         )
       ) {
         ForEach(tuneStepOptions(for: profile.backend), id: \.self) { stepHz in
@@ -812,7 +813,16 @@ struct ReceiverView: View {
 
     let nextIndex = min(max(currentIndex + offset, 0), steps.count - 1)
     guard nextIndex != currentIndex else { return }
-    radioSession.setTuneStepHz(steps[nextIndex])
+    setTuneStepAndAnnounce(steps[nextIndex])
+  }
+
+  private func setTuneStepAndAnnounce(_ stepHz: Int) {
+    guard stepHz != radioSession.settings.tuneStepHz else { return }
+    radioSession.setTuneStepHz(stepHz)
+
+    let stepText = FrequencyFormatter.tuneStepText(fromHz: stepHz)
+    let announcement = L10n.text("receiver.tune_step.changed", stepText)
+    UIAccessibility.post(notification: .announcement, argument: announcement)
   }
 
   private func frequencySlider(for backend: SDRBackend, tuningRange: ClosedRange<Int>) -> some View {
@@ -836,6 +846,10 @@ struct ReceiverView: View {
       case .leading:
         changeTuneStep(by: -1, backend: backend)
       case .trailing:
+        changeTuneStep(by: 1, backend: backend)
+      case .top:
+        changeTuneStep(by: -1, backend: backend)
+      case .bottom:
         changeTuneStep(by: 1, backend: backend)
       default:
         break
