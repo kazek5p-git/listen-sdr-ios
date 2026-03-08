@@ -1109,8 +1109,9 @@ final class FMDXMP3AudioPlayer {
   private let queueBufferSize: Int = 64 * 1024
   private let queueBufferCount: Int = 36
   private let maxPacketsPerBuffer: Int = 1024
-  private let minEnqueueBytes: Int = 2 * 1024
-  private let maxBufferHoldSeconds: TimeInterval = 0.12
+  private let minEnqueueBytes: Int = 8 * 1024
+  private let maxBufferHoldSeconds: TimeInterval = 0.2
+  private let minBuffersBeforeStart = 4
   private let maxConsecutiveBufferStarvation = 120
 
   private var fileStreamID: AudioFileStreamID?
@@ -1128,6 +1129,7 @@ final class FMDXMP3AudioPlayer {
   private var droppedPacketCount = 0
   private var consecutiveBufferStarvation = 0
   private var lastSuccessfulEnqueueAt = Date.distantPast
+  private var enqueuedBuffersBeforeStart = 0
 
   private var desiredVolume: Float = 0.85
   private var muted = false
@@ -1339,6 +1341,7 @@ final class FMDXMP3AudioPlayer {
     droppedPacketCount = 0
     consecutiveBufferStarvation = 0
     lastSuccessfulEnqueueAt = .distantPast
+    enqueuedBuffersBeforeStart = 0
   }
 
   private func consumeProperty(_ propertyID: AudioFileStreamPropertyID, fileStreamID: AudioFileStreamID) {
@@ -1487,11 +1490,15 @@ final class FMDXMP3AudioPlayer {
       consecutiveBufferStarvation = 0
 
       if !queueStarted {
-        let startStatus = AudioQueueStart(audioQueue, nil)
-        if startStatus == noErr {
-          queueStarted = true
-        } else {
-          log("Unable to start audio queue (status \(startStatus))", severity: .warning)
+        enqueuedBuffersBeforeStart += 1
+        if enqueuedBuffersBeforeStart >= minBuffersBeforeStart {
+          let startStatus = AudioQueueStart(audioQueue, nil)
+          if startStatus == noErr {
+            queueStarted = true
+            log("FM-DX audio queue started with \(enqueuedBuffersBeforeStart) prebuffered chunks")
+          } else {
+            log("Unable to start audio queue (status \(startStatus))", severity: .warning)
+          }
         }
       }
     } else {

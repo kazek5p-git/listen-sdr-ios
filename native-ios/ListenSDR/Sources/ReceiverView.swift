@@ -317,19 +317,17 @@ struct ReceiverView: View {
 
       if profile.backend == .fmDxWebserver {
         Section(L10n.text("fmdx.controls")) {
-          Toggle(
-            L10n.text("fmdx.stereo_mode"),
-            isOn: Binding(
-              get: { radioSession.fmdxTelemetry?.isForcedStereo ?? false },
-              set: { radioSession.setFMDXForcedStereoEnabled($0) }
+          let forcedStereoEnabled = radioSession.fmdxTelemetry?.isForcedStereo ?? false
+          Button {
+            radioSession.setFMDXForcedStereoEnabled(!forcedStereoEnabled)
+          } label: {
+            LabeledContent(
+              L10n.text("fmdx.stereo_mode"),
+              value: forcedStereoEnabled ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
             )
-          )
-          .accessibilityLabel(
-            (radioSession.fmdxTelemetry?.isForcedStereo ?? false)
-              ? L10n.text("fmdx.stereo_state.stereo")
-              : L10n.text("fmdx.stereo_state.mono")
-          )
+          }
           .disabled(radioSession.state != .connected)
+          .accessibilityLabel(forcedStereoEnabled ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono"))
 
           if !radioSession.fmdxCapabilities.antennas.isEmpty {
             Picker(
