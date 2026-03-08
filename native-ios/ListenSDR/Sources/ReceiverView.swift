@@ -486,9 +486,7 @@ struct ReceiverView: View {
           if let isForced = telemetry.isForcedStereo {
             LabeledContent(
               L10n.text("fmdx.audio_mode"),
-              value: isForced
-                ? L10n.text("fmdx.audio_mode.value.stereo_forced")
-                : L10n.text("fmdx.audio_mode.value.auto")
+              value: isForced ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
             )
           }
           if let pi = telemetry.pi, !pi.isEmpty {
@@ -1006,19 +1004,8 @@ struct ReceiverView: View {
   }
 
   private func fmdxAudioModeButtonValue(for telemetry: FMDXTelemetry?) -> String {
-    guard let telemetry else {
-      return L10n.text("fmdx.audio_mode.value.auto")
-    }
-
-    if telemetry.isForcedStereo == true {
-      return L10n.text("fmdx.audio_mode.value.stereo_forced")
-    }
-
-    if let isStereo = telemetry.isStereo {
-      return isStereo ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
-    }
-
-    return L10n.text("fmdx.audio_mode.value.auto")
+    let forcedStereoEnabled = telemetry?.isForcedStereo == true
+    return forcedStereoEnabled ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
   }
 
   private func frequencyText(fromHz value: Int, backend: SDRBackend?) -> String {
