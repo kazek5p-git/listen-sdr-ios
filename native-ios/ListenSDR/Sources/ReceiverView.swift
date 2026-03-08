@@ -327,12 +327,13 @@ struct ReceiverView: View {
             radioSession.setFMDXForcedStereoEnabled(!forcedStereoEnabled)
           } label: {
             LabeledContent(
-              L10n.text("fmdx.stereo_mode"),
-              value: forcedStereoEnabled ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
+              L10n.text("fmdx.audio_mode"),
+              value: fmdxAudioModeButtonValue(for: radioSession.fmdxTelemetry)
             )
           }
           .disabled(radioSession.state != .connected)
-          .accessibilityLabel(forcedStereoEnabled ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono"))
+          .accessibilityLabel(L10n.text("fmdx.audio_mode"))
+          .accessibilityValue(fmdxAudioModeButtonValue(for: radioSession.fmdxTelemetry))
 
           if !radioSession.fmdxCapabilities.antennas.isEmpty {
             Picker(
@@ -467,12 +468,17 @@ struct ReceiverView: View {
             LabeledContent("Users", value: "\(users)")
           }
           if let isStereo = telemetry.isStereo {
-            LabeledContent("Stereo", value: isStereo ? L10n.text("common.on") : L10n.text("common.off"))
+            LabeledContent(
+              L10n.text("fmdx.audio_state"),
+              value: isStereo ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
+            )
           }
           if let isForced = telemetry.isForcedStereo {
             LabeledContent(
-              L10n.text("fmdx.stereo_mode"),
-              value: isForced ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
+              L10n.text("fmdx.audio_mode"),
+              value: isForced
+                ? L10n.text("fmdx.audio_mode.value.stereo_forced")
+                : L10n.text("fmdx.audio_mode.value.auto")
             )
           }
           if let pi = telemetry.pi, !pi.isEmpty {
@@ -982,6 +988,22 @@ struct ReceiverView: View {
       }
     }
     return "\(pty)"
+  }
+
+  private func fmdxAudioModeButtonValue(for telemetry: FMDXTelemetry?) -> String {
+    guard let telemetry else {
+      return L10n.text("fmdx.audio_mode.value.auto")
+    }
+
+    if telemetry.isForcedStereo == true {
+      return L10n.text("fmdx.audio_mode.value.stereo_forced")
+    }
+
+    if let isStereo = telemetry.isStereo {
+      return isStereo ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
+    }
+
+    return L10n.text("fmdx.audio_mode.value.auto")
   }
 
   private var frequencyInputHint: String {

@@ -2443,6 +2443,12 @@ actor FMDXWebserverClient: SDRBackendClient {
       if ["0", "false", "no", "off"].contains(normalized) {
         return false
       }
+      if ["stereo", "enabled", "enable"].contains(normalized) {
+        return true
+      }
+      if ["mono", "disabled", "disable"].contains(normalized) {
+        return false
+      }
     }
     return nil
   }

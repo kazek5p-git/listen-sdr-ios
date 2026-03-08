@@ -66,6 +66,10 @@
 "fmdx.controls" = "FM-DX Controls";
 "fmdx.forced_stereo" = "Forced stereo";
 "fmdx.stereo_mode" = "Stereo mode";
+"fmdx.audio_mode" = "Audio mode";
+"fmdx.audio_state" = "Audio state";
+"fmdx.audio_mode.value.auto" = "Auto";
+"fmdx.audio_mode.value.stereo_forced" = "Forced stereo";
 "fmdx.stereo_state.stereo" = "Stereo";
 "fmdx.stereo_state.mono" = "Mono";
 "fmdx.antenna" = "Antenna";
