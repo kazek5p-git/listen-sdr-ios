@@ -1849,17 +1849,45 @@ private enum FMDXPluginPresetImporter {
   }
 
   private static func parseStringArray(_ raw: String) -> [String] {
-    let matches = captureAll(
-      pattern: "'((?:\\\\.|[^'])*)'|\"((?:\\\\.|[^\"])*)\"",
-      in: raw
-    )
-    return matches.map { value in
-      value
-        .replacingOccurrences(of: "\\'", with: "'")
-        .replacingOccurrences(of: "\\\"", with: "\"")
-        .replacingOccurrences(of: "\\\\", with: "\\")
-        .trimmingCharacters(in: .whitespacesAndNewlines)
+    var results: [String] = []
+    var buffer = ""
+    var activeQuote: Character?
+    var isEscaped = false
+
+    for character in raw {
+      if let quote = activeQuote {
+        if isEscaped {
+          buffer.append(character)
+          isEscaped = false
+          continue
+        }
+
+        if character == "\\" {
+          isEscaped = true
+          continue
+        }
+
+        if character == quote {
+          let value = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+          if value.isEmpty == false {
+            results.append(value)
+          }
+          buffer = ""
+          activeQuote = nil
+          continue
+        }
+
+        buffer.append(character)
+        continue
+      }
+
+      if character == "'" || character == "\"" {
+        activeQuote = character
+        buffer = ""
+      }
     }
+
+    return results
   }
 
   private static func normalizeFrequencyHz(fromMHz value: Double) -> Int {
