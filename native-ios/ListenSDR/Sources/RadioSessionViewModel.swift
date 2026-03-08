@@ -621,14 +621,13 @@ final class RadioSessionViewModel: ObservableObject {
           )
         )
       } catch {
-        await MainActor.run {
-          self.lastError = error.localizedDescription
-          self.statusText = L10n.text("session.status.connected_with_setting_error")
-        }
+        // Some Kiwi servers expose audio-only streams without waterfall socket.
+        // In that case keep settings persisted and avoid breaking tuning flow.
+        applyIfConnected()
         Diagnostics.log(
           severity: .warning,
           category: "Session",
-          message: "Kiwi waterfall control failed: \(error.localizedDescription)"
+          message: "Kiwi waterfall control failed, fallback apply used: \(error.localizedDescription)"
         )
       }
     }
