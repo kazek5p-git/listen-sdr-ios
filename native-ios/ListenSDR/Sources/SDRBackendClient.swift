@@ -351,7 +351,16 @@ actor KiwiSDRClient: SDRBackendClient {
     try await sendSND(
       "SET mod=\(mode) low_cut=\(passband.lowCut) high_cut=\(passband.highCut) freq=\(formattedFrequency)"
     )
-    try? await sendWF("SET zoom=0 cf=\(formattedFrequency)")
+    let wfSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(settings.kiwiWaterfallSpeed)
+    let wfZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(settings.kiwiWaterfallZoom)
+    let wfMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(settings.kiwiWaterfallMinDB)
+    var wfMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(settings.kiwiWaterfallMaxDB)
+    if wfMaxDB <= wfMinDB {
+      wfMaxDB = min(0, wfMinDB + 10)
+    }
+    try? await sendWF("SET wf_speed=\(wfSpeed)")
+    try? await sendWF("SET maxdb=\(wfMaxDB) mindb=\(wfMinDB)")
+    try? await sendWF("SET zoom=\(wfZoom) cf=\(formattedFrequency)")
     log("Applied tuning: mode=\(mode) freq=\(formattedFrequency) kHz")
 
     if settings.agcEnabled {
@@ -362,7 +371,7 @@ actor KiwiSDRClient: SDRBackendClient {
     }
 
     let squelchEnabled = settings.squelchEnabled ? 1 : 0
-    let squelchThreshold = settings.squelchEnabled ? 6 : 0
+    let squelchThreshold = settings.squelchEnabled ? RadioSessionSettings.clampedKiwiSquelchThreshold(settings.kiwiSquelchThreshold) : 0
     try await sendSND("SET squelch=\(squelchEnabled) max=\(squelchThreshold)")
   }
 
@@ -379,6 +388,28 @@ actor KiwiSDRClient: SDRBackendClient {
   func consumeTelemetryUpdate() async -> BackendTelemetryEvent? {
     guard !telemetryQueue.isEmpty else { return nil }
     return telemetryQueue.removeFirst()
+  }
+
+  func sendControl(_ command: BackendControlCommand) async throws {
+    switch command {
+    case .setKiwiWaterfall(let speed, let zoom, let minDB, let maxDB, let centerFrequencyHz):
+      let safeSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(speed)
+      let safeZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(zoom)
+      let safeMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(minDB)
+      var safeMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(maxDB)
+      if safeMaxDB <= safeMinDB {
+        safeMaxDB = min(0, safeMinDB + 10)
+      }
+      let centerKHz = Double(centerFrequencyHz) / 1000.0
+      let formattedCenter = String(format: "%.3f", centerKHz)
+      try await sendWF("SET wf_speed=\(safeSpeed)")
+      try await sendWF("SET maxdb=\(safeMaxDB) mindb=\(safeMinDB)")
+      try await sendWF("SET zoom=\(safeZoom) cf=\(formattedCenter)")
+      log("Kiwi waterfall updated: speed=\(safeSpeed), zoom=\(safeZoom), db=\(safeMinDB)...\(safeMaxDB)")
+
+    default:
+      throw SDRClientError.unsupported("KiwiSDR does not support this control.")
+    }
   }
 
   func isConnected() async -> Bool {
@@ -921,6 +952,19 @@ actor OpenWebRXClient: SDRBackendClient {
       selectedProfileID = profileID
       emitProfiles()
       log("Profile selected: \(profileID)")
+
+    case .setOpenWebRXSquelchLevel(let level):
+      var snapshot = lastAppliedSettings ?? .default
+      snapshot.openWebRXSquelchLevel = RadioSessionSettings.clampedOpenWebRXSquelchLevel(level)
+      lastAppliedSettings = snapshot
+      try await sendJSON(
+        [
+          "type": "dspcontrol",
+          "params": openWebRXParams(from: snapshot)
+        ]
+      )
+      log("OpenWebRX squelch level set to \(snapshot.openWebRXSquelchLevel) dB")
+
     default:
       throw SDRClientError.unsupported("OpenWebRX does not support this control.")
     }
@@ -934,13 +978,14 @@ actor OpenWebRXClient: SDRBackendClient {
     let mode = openWebRXMode(from: settings.mode)
     let passband = openWebRXBandpass(for: settings.mode)
     let offset = boundedOpenWebRXOffset(for: settings.frequencyHz)
+    let squelchLevel = settings.squelchEnabled ? RadioSessionSettings.clampedOpenWebRXSquelchLevel(settings.openWebRXSquelchLevel) : -150
 
     return [
       "mod": mode,
       "offset_freq": offset,
       "low_cut": passband.lowCut,
       "high_cut": passband.highCut,
-      "squelch_level": settings.squelchEnabled ? -95 : -150
+      "squelch_level": squelchLevel
     ]
   }
 
@@ -1947,6 +1992,12 @@ actor FMDXWebserverClient: SDRBackendClient {
     switch command {
     case .selectOpenWebRXProfile:
       throw SDRClientError.unsupported("FM-DX does not support OpenWebRX profile selection.")
+
+    case .setOpenWebRXSquelchLevel:
+      throw SDRClientError.unsupported("FM-DX does not support OpenWebRX squelch control.")
+
+    case .setKiwiWaterfall:
+      throw SDRClientError.unsupported("FM-DX does not support Kiwi waterfall control.")
 
     case .setFMDXFrequencyHz(let frequencyHz):
       try await sendFrequency(frequencyHz)

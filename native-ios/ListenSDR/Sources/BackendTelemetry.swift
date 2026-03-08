@@ -112,6 +112,8 @@ enum BackendTelemetryEvent: Equatable {
 
 enum BackendControlCommand {
   case selectOpenWebRXProfile(String)
+  case setOpenWebRXSquelchLevel(Int)
+  case setKiwiWaterfall(speed: Int, zoom: Int, minDB: Int, maxDB: Int, centerFrequencyHz: Int)
   case setFMDXFrequencyHz(Int)
   case setFMDXFilter(eqEnabled: Bool, imsEnabled: Bool)
   case setFMDXAGC(Bool)

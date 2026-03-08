@@ -460,7 +460,57 @@ final class RadioSessionViewModel: ObservableObject {
     if activeBackend == .fmDxWebserver {
       return
     }
+    if activeBackend == .openWebRX {
+      applyIfConnected()
+      return
+    }
     applyIfConnected()
+  }
+
+  func setOpenWebRXSquelchLevel(_ value: Int) {
+    settings.openWebRXSquelchLevel = RadioSessionSettings.clampedOpenWebRXSquelchLevel(value)
+    persistSettings()
+    guard activeBackend == .openWebRX else { return }
+    sendOpenWebRXSquelchControl()
+  }
+
+  func setKiwiSquelchThreshold(_ value: Int) {
+    settings.kiwiSquelchThreshold = RadioSessionSettings.clampedKiwiSquelchThreshold(value)
+    persistSettings()
+    guard activeBackend == .kiwiSDR else { return }
+    applyIfConnected()
+  }
+
+  func setKiwiWaterfallSpeed(_ value: Int) {
+    settings.kiwiWaterfallSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(value)
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func setKiwiWaterfallZoom(_ value: Int) {
+    settings.kiwiWaterfallZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(value)
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func setKiwiWaterfallMinDB(_ value: Int) {
+    let clamped = RadioSessionSettings.clampedKiwiWaterfallMinDB(value)
+    settings.kiwiWaterfallMinDB = clamped
+    if settings.kiwiWaterfallMaxDB <= clamped {
+      settings.kiwiWaterfallMaxDB = min(0, clamped + 10)
+    }
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func setKiwiWaterfallMaxDB(_ value: Int) {
+    var clamped = RadioSessionSettings.clampedKiwiWaterfallMaxDB(value)
+    if clamped <= settings.kiwiWaterfallMinDB {
+      clamped = min(30, settings.kiwiWaterfallMinDB + 10)
+    }
+    settings.kiwiWaterfallMaxDB = clamped
+    persistSettings()
+    sendKiwiWaterfallControl()
   }
 
   func setShowRdsErrorCounters(_ enabled: Bool) {
@@ -525,6 +575,60 @@ final class RadioSessionViewModel: ObservableObject {
           severity: .warning,
           category: "Session",
           message: "FM-DX control failed: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  private func sendOpenWebRXSquelchControl() {
+    guard state == .connected, activeBackend == .openWebRX, let client else { return }
+    let level = settings.openWebRXSquelchLevel
+
+    Task {
+      do {
+        try await client.sendControl(.setOpenWebRXSquelchLevel(level))
+      } catch {
+        await MainActor.run {
+          self.lastError = error.localizedDescription
+          self.statusText = L10n.text("session.status.connected_with_setting_error")
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Session",
+          message: "OpenWebRX squelch control failed: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  private func sendKiwiWaterfallControl() {
+    guard state == .connected, activeBackend == .kiwiSDR, let client else { return }
+    let speed = settings.kiwiWaterfallSpeed
+    let zoom = settings.kiwiWaterfallZoom
+    let minDB = settings.kiwiWaterfallMinDB
+    let maxDB = settings.kiwiWaterfallMaxDB
+    let centerFrequencyHz = settings.frequencyHz
+
+    Task {
+      do {
+        try await client.sendControl(
+          .setKiwiWaterfall(
+            speed: speed,
+            zoom: zoom,
+            minDB: minDB,
+            maxDB: maxDB,
+            centerFrequencyHz: centerFrequencyHz
+          )
+        )
+      } catch {
+        await MainActor.run {
+          self.lastError = error.localizedDescription
+          self.statusText = L10n.text("session.status.connected_with_setting_error")
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Session",
+          message: "Kiwi waterfall control failed: \(error.localizedDescription)"
         )
       }
     }
@@ -641,10 +745,49 @@ final class RadioSessionViewModel: ObservableObject {
         changed = true
       }
 
+      let kiwiThreshold = RadioSessionSettings.clampedKiwiSquelchThreshold(settings.kiwiSquelchThreshold)
+      if settings.kiwiSquelchThreshold != kiwiThreshold {
+        settings.kiwiSquelchThreshold = kiwiThreshold
+        changed = true
+      }
+
+      let kiwiSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(settings.kiwiWaterfallSpeed)
+      if settings.kiwiWaterfallSpeed != kiwiSpeed {
+        settings.kiwiWaterfallSpeed = kiwiSpeed
+        changed = true
+      }
+
+      let kiwiZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(settings.kiwiWaterfallZoom)
+      if settings.kiwiWaterfallZoom != kiwiZoom {
+        settings.kiwiWaterfallZoom = kiwiZoom
+        changed = true
+      }
+
+      let kiwiMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(settings.kiwiWaterfallMinDB)
+      if settings.kiwiWaterfallMinDB != kiwiMinDB {
+        settings.kiwiWaterfallMinDB = kiwiMinDB
+        changed = true
+      }
+
+      var kiwiMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(settings.kiwiWaterfallMaxDB)
+      if kiwiMaxDB <= settings.kiwiWaterfallMinDB {
+        kiwiMaxDB = min(30, settings.kiwiWaterfallMinDB + 10)
+      }
+      if settings.kiwiWaterfallMaxDB != kiwiMaxDB {
+        settings.kiwiWaterfallMaxDB = kiwiMaxDB
+        changed = true
+      }
+
     case .openWebRX:
       let clamped = min(max(settings.frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
         settings.frequencyHz = clamped
+        changed = true
+      }
+
+      let openWebRXSquelchLevel = RadioSessionSettings.clampedOpenWebRXSquelchLevel(settings.openWebRXSquelchLevel)
+      if settings.openWebRXSquelchLevel != openWebRXSquelchLevel {
+        settings.openWebRXSquelchLevel = openWebRXSquelchLevel
         changed = true
       }
     }
