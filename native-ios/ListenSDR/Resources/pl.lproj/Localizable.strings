@@ -289,7 +289,7 @@
 "kiwi.live.waterfall" = "Waterfall";
 "kiwi.live.waterfall_loading" = "Ladowanie waterfall...";
 "fmdx.server_presets.section" = "Lista stacji serwera";
-"fmdx.server_presets.empty" = "Ten serwer FM-DX nie udostepnia listy stacji.";
+"fmdx.server_presets.empty" = "Brak listy stacji z serwera (lub trwa ladowanie).";
 "fmdx.server_slots.section" = "Sloty serwera (F1-F4)";
 "fmdx.station_list.expand" = "Rozwin liste stacji";
 "fmdx.station_list.collapse" = "Zwin liste stacji";
@@ -297,7 +297,7 @@
 "fmdx.user_presets.section" = "Moje presety";
 "fmdx.user_presets.add_current" = "Zapisz biezaca jako preset";
 "fmdx.user_presets.add_manual" = "Dodaj preset recznie";
-"fmdx.user_presets.import_server" = "Importuj liste stacji z serwera";
+"fmdx.user_presets.import_server" = "Importuj liste stacji do moich presetow";
 "fmdx.user_presets.importing" = "Importowanie listy stacji...";
 "fmdx.user_presets.empty" = "Brak wlasnych presetow.";
 "fmdx.user_presets.manual_sheet_title" = "Dodaj preset";

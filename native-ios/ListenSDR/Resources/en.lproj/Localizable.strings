@@ -137,7 +137,7 @@
 "kiwi.live.waterfall" = "Waterfall";
 "kiwi.live.waterfall_loading" = "Waterfall loading...";
 "fmdx.server_presets.section" = "Server station list";
-"fmdx.server_presets.empty" = "This FM-DX server does not publish a station list.";
+"fmdx.server_presets.empty" = "No station list from server yet (or still loading).";
 "fmdx.server_slots.section" = "Server slots (F1-F4)";
 "fmdx.station_list.expand" = "Expand station list";
 "fmdx.station_list.collapse" = "Collapse station list";
@@ -145,7 +145,7 @@
 "fmdx.user_presets.section" = "My Presets";
 "fmdx.user_presets.add_current" = "Save current as preset";
 "fmdx.user_presets.add_manual" = "Add preset manually";
-"fmdx.user_presets.import_server" = "Import station list from server";
+"fmdx.user_presets.import_server" = "Import station list into my presets";
 "fmdx.user_presets.importing" = "Importing station list...";
 "fmdx.user_presets.empty" = "No custom presets yet.";
 "fmdx.user_presets.manual_sheet_title" = "Add Preset";

@@ -41,8 +41,8 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
   private let fmDxMaxFrequencyHz = 110_000_000
-  private let fmDxFMTuneStepOptionsHz = [10_000, 25_000, 50_000, 100_000, 200_000]
-  private let fmDxAMTuneStepOptionsHz = [1_000, 5_000, 9_000, 10_000]
+  private let fmDxFMTuneStepOptionsHz = [25_000, 50_000, 100_000, 200_000]
+  private let fmDxAMTuneStepOptionsHz = [9_000, 10_000, 25_000, 50_000]
   private let fmDxDefaultTuneStepHz = 100_000
   private let kiwiDefaultFrequencyHz = 7_050_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000

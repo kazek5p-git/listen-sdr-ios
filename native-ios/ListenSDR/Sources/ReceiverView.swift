@@ -34,20 +34,24 @@ struct ReceiverView: View {
   @State private var manualPresetError: String?
   @State private var frequencyInputDraft = ""
   @State private var frequencyInputError: String?
+  @State private var frequencyInputHintText = ""
+  @State private var frequencyInputPlaceholderText = ""
   @State private var isImportingFMDXPresets = false
   @State private var fmdxPresetImportStatusText: String?
+  @State private var autoImportedFMDXProfileIDs: Set<UUID> = []
   @State private var scanSource: ScanSource = .favorites
   @State private var quickScanChannels: [ScanChannel] = []
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
   @State private var isFMDXDetailsExpanded = false
   @State private var isFMDXStationListExpanded = true
+  @FocusState private var isFrequencyInputFocused: Bool
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
-  private let fmDxFMTuneStepOptionsHz: [Int] = [10_000, 25_000, 50_000, 100_000, 200_000]
-  private let fmDxAMTuneStepOptionsHz: [Int] = [1_000, 5_000, 9_000, 10_000]
+  private let fmDxFMTuneStepOptionsHz: [Int] = [25_000, 50_000, 100_000, 200_000]
+  private let fmDxAMTuneStepOptionsHz: [Int] = [9_000, 10_000, 25_000, 50_000]
   private let fmDxScannerAutoStepHz = 100_000
 
   var body: some View {
@@ -90,8 +94,8 @@ struct ReceiverView: View {
       openWebRXBandPlanSection(for: profile)
       kiwiControlsSection(for: profile)
       fmDxControlsSection(for: profile)
-      fmDxUserPresetsSection(for: profile, presets: presets)
       fmDxServerPresetsSection(for: profile)
+      fmDxUserPresetsSection(for: profile, presets: presets)
       if profile.backend != .fmDxWebserver {
         scannerSection(for: profile, scannerChannels: scannerChannels)
       }
@@ -402,7 +406,7 @@ struct ReceiverView: View {
       let stationList = radioSession.fmdxServerPresets.filter { $0.source != "fmdx-static" }
       let serverSlots = radioSession.fmdxServerPresets.filter { $0.source == "fmdx-static" }
 
-      Section(L10n.text("fmdx.server_presets.section")) {
+      Section {
         Button {
           withAnimation(.easeInOut(duration: 0.2)) {
             isFMDXStationListExpanded.toggle()
@@ -417,8 +421,11 @@ struct ReceiverView: View {
             systemImage: isFMDXStationListExpanded ? "chevron.up" : "chevron.down"
           )
         }
+      }
+      .appSectionStyle()
 
-        if isFMDXStationListExpanded {
+      if isFMDXStationListExpanded {
+        Section(L10n.text("fmdx.server_presets.section")) {
           if stationList.isEmpty {
             Text(L10n.text("fmdx.server_presets.empty"))
               .foregroundStyle(.secondary)
@@ -429,8 +436,8 @@ struct ReceiverView: View {
             }
           }
         }
+        .appSectionStyle()
       }
-      .appSectionStyle()
 
       if !serverSlots.isEmpty {
         Section(L10n.text("fmdx.server_slots.section")) {
@@ -525,6 +532,9 @@ struct ReceiverView: View {
         }
       }
       .appSectionStyle()
+      .onAppear {
+        autoImportFMDXPluginPresetsIfNeeded(for: profile)
+      }
     }
   }
 
@@ -1298,42 +1308,61 @@ struct ReceiverView: View {
   }
 
   private var frequencyEntrySheet: some View {
-    NavigationStack {
-      VStack(alignment: .leading, spacing: 12) {
-        TextField(frequencyInputPlaceholder, text: $frequencyInputDraft)
-          .keyboardType(.decimalPad)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .textFieldStyle(.roundedBorder)
-          .accessibilityLabel(L10n.text("Frequency input"))
-          .accessibilityHint(frequencyInputHint)
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Set Frequency")
+        .font(.headline)
 
-        if let frequencyInputError {
-          Text(frequencyInputError)
-            .foregroundStyle(.red)
-            .font(.footnote)
-            .accessibilityLabel(L10n.text("Frequency input error"))
-            .accessibilityValue(frequencyInputError)
+      TextField(frequencyInputPlaceholderText, text: $frequencyInputDraft)
+        .keyboardType(.decimalPad)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .textFieldStyle(.roundedBorder)
+        .focused($isFrequencyInputFocused)
+        .submitLabel(.done)
+        .onSubmit {
+          applyExactFrequencyInput()
         }
-        Spacer(minLength: 0)
+        .accessibilityLabel(L10n.text("Frequency input"))
+        .accessibilityHint(frequencyInputHintText)
+
+      Text(frequencyInputHintText)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+
+      if let frequencyInputError {
+        Text(frequencyInputError)
+          .foregroundStyle(.red)
+          .font(.footnote)
+          .accessibilityLabel(L10n.text("Frequency input error"))
+          .accessibilityValue(frequencyInputError)
       }
-      .padding()
-      .navigationTitle("Set Frequency")
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
-            frequencyInputError = nil
-            isFrequencyEntrySheetPresented = false
-          }
+
+      Spacer(minLength: 0)
+
+      HStack(spacing: 12) {
+        Button("Cancel") {
+          frequencyInputError = nil
+          isFrequencyEntrySheetPresented = false
         }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Apply") {
-            applyExactFrequencyInput()
-          }
+        .buttonStyle(.bordered)
+
+        Button("Apply") {
+          applyExactFrequencyInput()
         }
+        .buttonStyle(.borderedProminent)
       }
-      .appScreenBackground()
+      .frame(maxWidth: .infinity, alignment: .trailing)
     }
+    .padding()
+    .onAppear {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        isFrequencyInputFocused = true
+      }
+    }
+    .onDisappear {
+      isFrequencyInputFocused = false
+    }
+    .appScreenBackground()
   }
 
   private func beginSavingCurrentFrequency() {
@@ -1420,12 +1449,14 @@ struct ReceiverView: View {
     isManualPresetSheetPresented = false
   }
 
-  private func importFMDXPluginPresets(from profile: SDRConnectionProfile) {
+  private func importFMDXPluginPresets(from profile: SDRConnectionProfile, automatic: Bool = false) {
     guard profile.backend == .fmDxWebserver else { return }
     guard isImportingFMDXPresets == false else { return }
 
     isImportingFMDXPresets = true
-    fmdxPresetImportStatusText = nil
+    if !automatic {
+      fmdxPresetImportStatusText = nil
+    }
 
     Task {
       do {
@@ -1451,23 +1482,38 @@ struct ReceiverView: View {
             addedCount += 1
           }
 
-          if importedPresets.isEmpty {
-            fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_none")
-          } else if addedCount == 0 {
-            fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_already")
+          if automatic {
+            if addedCount > 0 {
+              fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_count", addedCount)
+            }
           } else {
-            fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_count", addedCount)
+            if importedPresets.isEmpty {
+              fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_none")
+            } else if addedCount == 0 {
+              fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_already")
+            } else {
+              fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_count", addedCount)
+            }
           }
 
           isImportingFMDXPresets = false
         }
       } catch {
         await MainActor.run {
-          fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.import_error", error.localizedDescription)
+          if !automatic {
+            fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.import_error", error.localizedDescription)
+          }
           isImportingFMDXPresets = false
         }
       }
     }
+  }
+
+  private func autoImportFMDXPluginPresetsIfNeeded(for profile: SDRConnectionProfile) {
+    guard profile.backend == .fmDxWebserver else { return }
+    guard autoImportedFMDXProfileIDs.contains(profile.id) == false else { return }
+    autoImportedFMDXProfileIDs.insert(profile.id)
+    importFMDXPluginPresets(from: profile, automatic: true)
   }
 
   private func saveBookmarkAsPreset(_ bookmark: SDRServerBookmark, profile: SDRConnectionProfile) {
@@ -1488,6 +1534,9 @@ struct ReceiverView: View {
 
   private func beginFrequencyEntry() {
     let backend = profileStore.selectedProfile?.backend
+    frequencyInputHintText = frequencyInputHint(for: backend)
+    frequencyInputPlaceholderText = frequencyInputPlaceholder(for: backend)
+
     if backend == .fmDxWebserver {
       frequencyInputDraft = FrequencyFormatter.fmDxEntryText(fromHz: radioSession.settings.frequencyHz)
     } else {
@@ -1495,6 +1544,7 @@ struct ReceiverView: View {
         .replacingOccurrences(of: " MHz", with: "")
     }
     frequencyInputError = nil
+    isFrequencyInputFocused = false
     isFrequencyEntrySheetPresented = true
   }
 
@@ -1608,15 +1658,15 @@ struct ReceiverView: View {
     return FrequencyFormatter.mhzText(fromHz: value)
   }
 
-  private var frequencyInputHint: String {
-    if profileStore.selectedProfile?.backend == .fmDxWebserver {
+  private func frequencyInputHint(for backend: SDRBackend?) -> String {
+    if backend == .fmDxWebserver {
       return L10n.text("frequency_input.hint_fmdx")
     }
     return L10n.text("frequency_input.hint_generic")
   }
 
-  private var frequencyInputPlaceholder: String {
-    if profileStore.selectedProfile?.backend == .fmDxWebserver {
+  private func frequencyInputPlaceholder(for backend: SDRBackend?) -> String {
+    if backend == .fmDxWebserver {
       return L10n.text("frequency_input.placeholder_fmdx")
     }
     return L10n.text("frequency_input.placeholder_generic")

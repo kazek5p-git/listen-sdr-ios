@@ -2685,7 +2685,8 @@ actor FMDXWebserverClient: SDRBackendClient {
   ) -> URL? {
     let patterns = [
       #"(?is)<script[^>]+src=["']([^"']*pluginButtonPresets[^"']*)["'][^>]*>"#,
-      #"(?is)<script[^>]+src=["']([^"']*ButtonPresets[^"']*\.js[^"']*)["'][^>]*>"#
+      #"(?is)<script[^>]+src=["']([^"']*ButtonPresets[^"']*\.js[^"']*)["'][^>]*>"#,
+      #"(?is)<script[^>]+src=["']([^"']*preset[^"']*\.js[^"']*)["'][^>]*>"#
     ]
 
     guard let indexURL = try? makeHTTPURL(profile: profile, path: basePath) else {

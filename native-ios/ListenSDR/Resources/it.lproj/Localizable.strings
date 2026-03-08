@@ -289,12 +289,12 @@
 "kiwi.live.waterfall" = "Waterfall";
 "kiwi.live.waterfall_loading" = "Caricamento waterfall...";
 "fmdx.server_presets.section" = "Elenco stazioni del server";
-"fmdx.server_presets.empty" = "Questo server FM-DX non pubblica un elenco stazioni.";
+"fmdx.server_presets.empty" = "Nessun elenco stazioni dal server (o caricamento in corso).";
 "fmdx.server_slots.section" = "Slot server (F1-F4)";
 "fmdx.station_list.expand" = "Espandi elenco stazioni";
 "fmdx.station_list.collapse" = "Comprimi elenco stazioni";
 "fmdx.live.more_details" = "Altri dettagli FM-DX";
-"fmdx.user_presets.import_server" = "Importa elenco stazioni dal server";
+"fmdx.user_presets.import_server" = "Importa elenco stazioni nei miei preset";
 "fmdx.user_presets.importing" = "Importazione elenco stazioni...";
 "fmdx.user_presets.imported_none" = "Nessuna stazione da importare trovata su questo server.";
 "fmdx.user_presets.imported_already" = "Tutte le stazioni importate sono gia salvate.";
