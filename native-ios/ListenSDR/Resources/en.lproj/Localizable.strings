@@ -113,3 +113,26 @@
 "kiwi.agc_hint" = "Automatic gain control for KiwiSDR";
 "kiwi.squelch" = "Squelch";
 "kiwi.squelch_hint" = "Enable squelch gate for KiwiSDR audio";
+"openwebrx.squelch_level" = "Squelch level";
+"kiwi.squelch_level" = "Squelch threshold";
+"kiwi.waterfall.speed" = "Waterfall speed";
+"kiwi.waterfall.zoom" = "Waterfall zoom";
+"kiwi.waterfall.min_db" = "Waterfall minimum";
+"kiwi.waterfall.max_db" = "Waterfall maximum";
+
+"fmdx.live.section" = "FM-DX Live";
+"fmdx.field.frequency" = "Frequency";
+"fmdx.field.signal" = "Signal";
+"fmdx.field.signal_peak" = "Signal peak";
+"fmdx.field.users" = "Users";
+"fmdx.field.country" = "Country";
+"fmdx.field.distance" = "Distance";
+"fmdx.field.azimuth" = "Azimuth";
+"fmdx.field.polarization" = "Polarization";
+
+"kiwi.live.section" = "Kiwi Live";
+"kiwi.live.smeter" = "S-meter";
+"kiwi.live.no_data" = "No data";
+"kiwi.live.audio_rate" = "Audio rate";
+"kiwi.live.waterfall" = "Waterfall";
+"kiwi.live.waterfall_loading" = "Waterfall loading...";

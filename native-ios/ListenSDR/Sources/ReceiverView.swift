@@ -245,6 +245,27 @@ struct ReceiverView: View {
         .disabled(radioSession.state != .connected)
         .accessibilityHint(L10n.text("openwebrx.squelch_hint"))
 
+        if radioSession.settings.squelchEnabled {
+          VStack(alignment: .leading, spacing: 6) {
+            LabeledContent(
+              L10n.text("openwebrx.squelch_level"),
+              value: "\(radioSession.settings.openWebRXSquelchLevel) dB"
+            )
+            Slider(
+              value: Binding(
+                get: { Double(radioSession.settings.openWebRXSquelchLevel) },
+                set: { radioSession.setOpenWebRXSquelchLevel(Int($0.rounded())) }
+              ),
+              in: -150 ... -20,
+              step: 1
+            )
+          }
+          .disabled(radioSession.state != .connected)
+          .accessibilityElement(children: .combine)
+          .accessibilityLabel(L10n.text("openwebrx.squelch_level"))
+          .accessibilityValue("\(radioSession.settings.openWebRXSquelchLevel) dB")
+        }
+
         if let activeBand = activeOpenWebRXBandName() {
           LabeledContent(L10n.text("openwebrx.current_band"), value: activeBand)
         }
@@ -380,6 +401,97 @@ struct ReceiverView: View {
         )
         .disabled(radioSession.state != .connected)
         .accessibilityHint(L10n.text("kiwi.squelch_hint"))
+
+        if radioSession.settings.squelchEnabled {
+          VStack(alignment: .leading, spacing: 6) {
+            LabeledContent(
+              L10n.text("kiwi.squelch_level"),
+              value: "\(radioSession.settings.kiwiSquelchThreshold)"
+            )
+            Slider(
+              value: Binding(
+                get: { Double(radioSession.settings.kiwiSquelchThreshold) },
+                set: { radioSession.setKiwiSquelchThreshold(Int($0.rounded())) }
+              ),
+              in: 0 ... 30,
+              step: 1
+            )
+          }
+          .disabled(radioSession.state != .connected)
+          .accessibilityElement(children: .combine)
+          .accessibilityLabel(L10n.text("kiwi.squelch_level"))
+          .accessibilityValue("\(radioSession.settings.kiwiSquelchThreshold)")
+        }
+
+        Picker(
+          L10n.text("kiwi.waterfall.speed"),
+          selection: Binding(
+            get: { radioSession.settings.kiwiWaterfallSpeed },
+            set: { radioSession.setKiwiWaterfallSpeed($0) }
+          )
+        ) {
+          ForEach([1, 2, 4, 8], id: \.self) { speed in
+            Text("x\(speed)").tag(speed)
+          }
+        }
+        .disabled(radioSession.state != .connected)
+
+        VStack(alignment: .leading, spacing: 6) {
+          LabeledContent(
+            L10n.text("kiwi.waterfall.zoom"),
+            value: "\(radioSession.settings.kiwiWaterfallZoom)"
+          )
+          Slider(
+            value: Binding(
+              get: { Double(radioSession.settings.kiwiWaterfallZoom) },
+              set: { radioSession.setKiwiWaterfallZoom(Int($0.rounded())) }
+            ),
+            in: 0 ... 14,
+            step: 1
+          )
+        }
+        .disabled(radioSession.state != .connected)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(L10n.text("kiwi.waterfall.zoom"))
+        .accessibilityValue("\(radioSession.settings.kiwiWaterfallZoom)")
+
+        VStack(alignment: .leading, spacing: 6) {
+          LabeledContent(
+            L10n.text("kiwi.waterfall.min_db"),
+            value: "\(radioSession.settings.kiwiWaterfallMinDB) dB"
+          )
+          Slider(
+            value: Binding(
+              get: { Double(radioSession.settings.kiwiWaterfallMinDB) },
+              set: { radioSession.setKiwiWaterfallMinDB(Int($0.rounded())) }
+            ),
+            in: -190 ... -10,
+            step: 1
+          )
+        }
+        .disabled(radioSession.state != .connected)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(L10n.text("kiwi.waterfall.min_db"))
+        .accessibilityValue("\(radioSession.settings.kiwiWaterfallMinDB) dB")
+
+        VStack(alignment: .leading, spacing: 6) {
+          LabeledContent(
+            L10n.text("kiwi.waterfall.max_db"),
+            value: "\(radioSession.settings.kiwiWaterfallMaxDB) dB"
+          )
+          Slider(
+            value: Binding(
+              get: { Double(radioSession.settings.kiwiWaterfallMaxDB) },
+              set: { radioSession.setKiwiWaterfallMaxDB(Int($0.rounded())) }
+            ),
+            in: -120 ... 30,
+            step: 1
+          )
+        }
+        .disabled(radioSession.state != .connected)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(L10n.text("kiwi.waterfall.max_db"))
+        .accessibilityValue("\(radioSession.settings.kiwiWaterfallMaxDB) dB")
       }
       .appSectionStyle()
     }
@@ -528,18 +640,18 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
-      Section("FM-DX Live") {
+      Section(L10n.text("fmdx.live.section")) {
         if let frequencyMHz = telemetry.frequencyMHz {
-          LabeledContent("Frequency", value: FrequencyFormatter.fmDxMHzText(fromMHz: frequencyMHz))
+          LabeledContent(L10n.text("fmdx.field.frequency"), value: FrequencyFormatter.fmDxMHzText(fromMHz: frequencyMHz))
         }
         if let signal = telemetry.signal {
-          LabeledContent("Signal", value: String(format: "%.1f dBf", signal))
+          LabeledContent(L10n.text("fmdx.field.signal"), value: String(format: "%.1f dBf", signal))
         }
         if let signalTop = telemetry.signalTop {
-          LabeledContent("Signal peak", value: String(format: "%.1f dBf", signalTop))
+          LabeledContent(L10n.text("fmdx.field.signal_peak"), value: String(format: "%.1f dBf", signalTop))
         }
         if let users = telemetry.users {
-          LabeledContent("Users", value: "\(users)")
+          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
         }
         if let pi = telemetry.pi, !pi.isEmpty {
           LabeledContent("PI", value: pi)
@@ -569,7 +681,7 @@ struct ReceiverView: View {
           LabeledContent("AGC", value: agc)
         }
         if let countryName = telemetry.countryName, !countryName.isEmpty {
-          LabeledContent("Country", value: countryName)
+          LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
         }
         if let countryISO = telemetry.countryISO, !countryISO.isEmpty {
           LabeledContent("ISO", value: countryISO)
@@ -639,16 +751,16 @@ struct ReceiverView: View {
             LabeledContent("ITU", value: itu)
           }
           if let distance = tx.distanceKm, !distance.isEmpty {
-            LabeledContent("Distance", value: "\(distance) km")
+            LabeledContent(L10n.text("fmdx.field.distance"), value: "\(distance) km")
           }
           if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
-            LabeledContent("Azimuth", value: "\(azimuth) deg")
+            LabeledContent(L10n.text("fmdx.field.azimuth"), value: "\(azimuth) deg")
           }
           if let erp = tx.erpKW, !erp.isEmpty {
             LabeledContent("ERP", value: "\(erp) kW")
           }
           if let polarization = tx.polarization, !polarization.isEmpty {
-            LabeledContent("Polarization", value: polarization)
+            LabeledContent(L10n.text("fmdx.field.polarization"), value: polarization)
           }
         }
       }
@@ -659,13 +771,13 @@ struct ReceiverView: View {
   @ViewBuilder
   private func kiwiLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .kiwiSDR, let telemetry = radioSession.kiwiTelemetry {
-      Section("Kiwi Live") {
+      Section(L10n.text("kiwi.live.section")) {
         if let rssi = telemetry.rssiDBm {
-          LabeledContent("S-meter", value: String(format: "%.1f dBm", rssi))
+          LabeledContent(L10n.text("kiwi.live.smeter"), value: String(format: "%.1f dBm", rssi))
         } else {
-          LabeledContent("S-meter", value: "No data")
+          LabeledContent(L10n.text("kiwi.live.smeter"), value: L10n.text("kiwi.live.no_data"))
         }
-        LabeledContent("Audio rate", value: "\(telemetry.sampleRateHz) Hz")
+        LabeledContent(L10n.text("kiwi.live.audio_rate"), value: "\(telemetry.sampleRateHz) Hz")
 
         if !telemetry.waterfallBins.isEmpty {
           WaterfallStripView(bins: telemetry.waterfallBins)
@@ -675,10 +787,10 @@ struct ReceiverView: View {
               RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
             }
-            .accessibilityLabel("Waterfall")
-            .accessibilityValue("Live spectrum strip")
+            .accessibilityLabel(L10n.text("kiwi.live.waterfall"))
+            .accessibilityValue(L10n.text("kiwi.live.waterfall"))
         } else {
-          Text("Waterfall loading...")
+          Text(L10n.text("kiwi.live.waterfall_loading"))
             .foregroundStyle(.secondary)
         }
       }
