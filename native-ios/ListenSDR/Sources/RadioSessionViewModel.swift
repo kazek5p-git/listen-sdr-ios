@@ -264,6 +264,10 @@ final class RadioSessionViewModel: ObservableObject {
     stopScanner()
     isScannerRunning = true
     scannerStatusText = L10n.text("scanner.started", channels.count)
+    Diagnostics.log(
+      category: "Scanner",
+      message: "Scanner started on \(backend.displayName) with \(channels.count) channels"
+    )
 
     scannerTask = Task {
       var index = 0
@@ -288,8 +292,17 @@ final class RadioSessionViewModel: ObservableObject {
         try? await Task.sleep(nanoseconds: dwellNanos)
         if Task.isCancelled { break }
 
+        if backend == .fmDxWebserver {
+          let locked = await MainActor.run { self.isFMDXTuned(to: channel.frequencyHz) }
+          if !locked {
+            // FM-DX telemetry can lag briefly after tune command.
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if Task.isCancelled { break }
+          }
+        }
+
         let threshold = await MainActor.run { self.scannerThreshold }
-        let signal = await MainActor.run { self.currentScannerSignal() }
+        let signal = await MainActor.run { self.currentScannerSignal(for: backend) }
         if let signal, signal >= threshold {
           await MainActor.run {
             self.scannerStatusText = L10n.text(
@@ -299,6 +312,10 @@ final class RadioSessionViewModel: ObservableObject {
               self.scannerSignalUnit(for: backend)
             )
           }
+          Diagnostics.log(
+            category: "Scanner",
+            message: "Signal found on \(channel.name) at \(signal) \(self.scannerSignalUnit(for: backend))"
+          )
           try? await Task.sleep(nanoseconds: holdNanos)
           if Task.isCancelled { break }
         }
@@ -745,13 +762,35 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func currentScannerSignal() -> Double? {
-    if let signal = fmdxTelemetry?.signal {
-      return signal
+    currentScannerSignal(for: activeBackend)
+  }
+
+  private func currentScannerSignal(for backend: SDRBackend?) -> Double? {
+    switch backend {
+    case .fmDxWebserver:
+      if let signal = fmdxTelemetry?.signal {
+        return signal
+      }
+      if let peak = fmdxTelemetry?.signalTop {
+        return peak
+      }
+      return nil
+
+    case .kiwiSDR:
+      return kiwiTelemetry?.rssiDBm
+
+    case .openWebRX, .none:
+      if let signal = fmdxTelemetry?.signal {
+        return signal
+      }
+      return kiwiTelemetry?.rssiDBm
     }
-    if let signal = kiwiTelemetry?.rssiDBm {
-      return signal
-    }
-    return nil
+  }
+
+  private func isFMDXTuned(to frequencyHz: Int) -> Bool {
+    guard let frequencyMHz = fmdxTelemetry?.frequencyMHz else { return false }
+    let reportedHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
+    return abs(reportedHz - frequencyHz) <= 80_000
   }
 
   private func defaultScannerThreshold(for backend: SDRBackend) -> Double {

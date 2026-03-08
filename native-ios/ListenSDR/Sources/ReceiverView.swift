@@ -36,6 +36,7 @@ struct ReceiverView: View {
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
   private let fmDxTuneStepOptionsHz: [Int] = [50_000, 100_000, 200_000]
+  private let fmDxScannerAutoStepHz = 100_000
 
   var body: some View {
     NavigationStack {
@@ -1052,9 +1053,10 @@ struct ReceiverView: View {
     for profile: SDRConnectionProfile,
     presets: [FrequencyPreset]
   ) -> [ScanChannel] {
+    let channels: [ScanChannel]
     switch scanSource {
     case .favorites:
-      return presets.map { preset in
+      channels = presets.map { preset in
         ScanChannel(
           id: "preset|\(preset.id.uuidString)",
           name: preset.name,
@@ -1063,7 +1065,7 @@ struct ReceiverView: View {
         )
       }
     case .serverBookmarks:
-      return radioSession.serverBookmarks.map { bookmark in
+      channels = radioSession.serverBookmarks.map { bookmark in
         ScanChannel(
           id: "bookmark|\(bookmark.id)",
           name: bookmark.name,
@@ -1072,8 +1074,64 @@ struct ReceiverView: View {
         )
       }
     case .quickList:
-      return quickScanChannels
+      channels = quickScanChannels
     }
+
+    guard profile.backend == .fmDxWebserver else {
+      return channels
+    }
+
+    let normalized = normalizeFMDXScanChannels(channels)
+    if scanSource == .favorites, normalized.isEmpty {
+      // For FM-DX, make scanner usable immediately even with empty favorites.
+      return defaultFMDXScanChannels()
+    }
+    return normalized
+  }
+
+  private func normalizeFMDXScanChannels(_ channels: [ScanChannel]) -> [ScanChannel] {
+    var normalized: [ScanChannel] = []
+    normalized.reserveCapacity(channels.count)
+    var seenFrequencies = Set<Int>()
+
+    for channel in channels {
+      let roundedHz = Int((Double(channel.frequencyHz) / 1_000.0).rounded()) * 1_000
+      guard fmDxFrequencyRangeHz.contains(roundedHz) else { continue }
+      guard seenFrequencies.insert(roundedHz).inserted else { continue }
+
+      let trimmedName = channel.name.trimmingCharacters(in: .whitespacesAndNewlines)
+      let displayName = trimmedName.isEmpty ? FrequencyFormatter.fmDxMHzText(fromHz: roundedHz) : trimmedName
+
+      normalized.append(
+        ScanChannel(
+          id: "fmdx|\(roundedHz)",
+          name: displayName,
+          frequencyHz: roundedHz,
+          mode: .fm
+        )
+      )
+    }
+
+    return normalized.sorted { $0.frequencyHz < $1.frequencyHz }
+  }
+
+  private func defaultFMDXScanChannels() -> [ScanChannel] {
+    var generated: [ScanChannel] = []
+    var frequencyHz = fmDxFrequencyRangeHz.lowerBound
+
+    while frequencyHz <= fmDxFrequencyRangeHz.upperBound {
+      generated.append(
+        ScanChannel(
+          id: "fmdx-auto|\(frequencyHz)",
+          name: FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz),
+          frequencyHz: frequencyHz,
+          mode: .fm
+        )
+      )
+      frequencyHz += fmDxScannerAutoStepHz
+    }
+
+    return generated
   }
 }
 
