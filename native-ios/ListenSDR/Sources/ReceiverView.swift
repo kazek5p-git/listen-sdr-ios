@@ -25,10 +25,17 @@ struct ReceiverView: View {
   @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var presetStore: FrequencyPresetStore
   @State private var isSavePresetSheetPresented = false
+  @State private var isManualPresetSheetPresented = false
   @State private var isFrequencyEntrySheetPresented = false
   @State private var presetNameDraft = ""
+  @State private var manualPresetNameDraft = ""
+  @State private var manualPresetFrequencyDraft = ""
+  @State private var manualPresetModeDraft: DemodulationMode = .fm
+  @State private var manualPresetError: String?
   @State private var frequencyInputDraft = ""
   @State private var frequencyInputError: String?
+  @State private var isImportingFMDXPresets = false
+  @State private var fmdxPresetImportStatusText: String?
   @State private var scanSource: ScanSource = .favorites
   @State private var quickScanChannels: [ScanChannel] = []
   @State private var scannerDwellSeconds: Double = 1.5
@@ -59,6 +66,9 @@ struct ReceiverView: View {
       .sheet(isPresented: $isSavePresetSheetPresented) {
         savePresetSheet
       }
+      .sheet(isPresented: $isManualPresetSheetPresented) {
+        manualPresetSheet
+      }
       .sheet(isPresented: $isFrequencyEntrySheetPresented) {
         frequencyEntrySheet
       }
@@ -79,13 +89,16 @@ struct ReceiverView: View {
       openWebRXBandPlanSection(for: profile)
       kiwiControlsSection(for: profile)
       fmDxControlsSection(for: profile)
+      fmDxUserPresetsSection(for: profile, presets: presets)
       fmDxServerPresetsSection(for: profile)
       if profile.backend != .fmDxWebserver {
         scannerSection(for: profile, scannerChannels: scannerChannels)
       }
       fmDxLiveSection(for: profile)
       kiwiLiveSection(for: profile)
-      favoritesSection(presets: presets)
+      if profile.backend != .fmDxWebserver {
+        favoritesSection(presets: presets)
+      }
       audioSection()
     }
     .scrollContentBackground(.hidden)
@@ -405,6 +418,70 @@ struct ReceiverView: View {
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
               Button(L10n.text("fmdx.af.favorite")) {
                 saveAFAsPreset(preset.frequencyHz, profile: profile)
+              }
+            }
+          }
+        }
+      }
+      .appSectionStyle()
+    }
+  }
+
+  @ViewBuilder
+  private func fmDxUserPresetsSection(for profile: SDRConnectionProfile, presets: [FrequencyPreset]) -> some View {
+    if profile.backend == .fmDxWebserver {
+      Section(L10n.text("fmdx.user_presets.section")) {
+        Button {
+          beginSavingCurrentFrequency()
+        } label: {
+          Label(L10n.text("fmdx.user_presets.add_current"), systemImage: "plus.circle")
+        }
+
+        Button {
+          beginManualPresetEntry(for: profile)
+        } label: {
+          Label(L10n.text("fmdx.user_presets.add_manual"), systemImage: "square.and.pencil")
+        }
+
+        Button {
+          importFMDXPluginPresets(from: profile)
+        } label: {
+          if isImportingFMDXPresets {
+            HStack(spacing: 8) {
+              ProgressView()
+              Text(L10n.text("fmdx.user_presets.importing"))
+            }
+          } else {
+            Label(L10n.text("fmdx.user_presets.import_server"), systemImage: "arrow.down.circle")
+          }
+        }
+        .disabled(isImportingFMDXPresets)
+
+        if let statusText = fmdxPresetImportStatusText, !statusText.isEmpty {
+          Text(statusText)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+
+        if presets.isEmpty {
+          Text(L10n.text("fmdx.user_presets.empty"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        } else {
+          ForEach(presets) { preset in
+            Button {
+              apply(preset: preset)
+            } label: {
+              VStack(alignment: .leading, spacing: 4) {
+                Text(preset.name)
+                Text("\(frequencyText(fromHz: preset.frequencyHz, backend: profile.backend)) - \(preset.mode.displayName)")
+                  .font(.footnote)
+                  .foregroundStyle(.secondary)
+              }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+              Button("Delete", role: .destructive) {
+                presetStore.removePreset(preset)
               }
             }
           }
@@ -1137,6 +1214,52 @@ struct ReceiverView: View {
     }
   }
 
+  private var manualPresetSheet: some View {
+    NavigationStack {
+      Form {
+        TextField("Preset name", text: $manualPresetNameDraft)
+          .textInputAutocapitalization(.words)
+          .autocorrectionDisabled()
+          .accessibilityLabel(L10n.text("Preset name"))
+
+        TextField(L10n.text("fmdx.user_presets.manual_frequency"), text: $manualPresetFrequencyDraft)
+          .keyboardType(.decimalPad)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .accessibilityLabel(L10n.text("fmdx.user_presets.manual_frequency"))
+
+        Picker(L10n.text("fmdx.user_presets.manual_mode"), selection: $manualPresetModeDraft) {
+          ForEach(availableModes(for: .fmDxWebserver)) { mode in
+            Text(mode.displayName).tag(mode)
+          }
+        }
+        .accessibilityLabel(L10n.text("fmdx.user_presets.manual_mode"))
+
+        if let manualPresetError {
+          Text(manualPresetError)
+            .foregroundStyle(.red)
+            .font(.footnote)
+        }
+      }
+      .scrollContentBackground(.hidden)
+      .navigationTitle(L10n.text("fmdx.user_presets.manual_sheet_title"))
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") {
+            manualPresetError = nil
+            isManualPresetSheetPresented = false
+          }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") {
+            saveManualPreset()
+          }
+        }
+      }
+      .appScreenBackground()
+    }
+  }
+
   private var frequencyEntrySheet: some View {
     NavigationStack {
       VStack(alignment: .leading, spacing: 12) {
@@ -1184,6 +1307,16 @@ struct ReceiverView: View {
     isSavePresetSheetPresented = true
   }
 
+  private func beginManualPresetEntry(for profile: SDRConnectionProfile) {
+    manualPresetNameDraft = ""
+    manualPresetFrequencyDraft = FrequencyFormatter.fmDxEntryText(fromHz: radioSession.settings.frequencyHz)
+    manualPresetModeDraft = availableModes(for: profile.backend).contains(radioSession.settings.mode)
+      ? radioSession.settings.mode
+      : .fm
+    manualPresetError = nil
+    isManualPresetSheetPresented = true
+  }
+
   private func saveCurrentFrequencyAsPreset() {
     guard let profile = profileStore.selectedProfile else {
       isSavePresetSheetPresented = false
@@ -1198,6 +1331,106 @@ struct ReceiverView: View {
       profileName: profile.name
     )
     isSavePresetSheetPresented = false
+  }
+
+  private func saveManualPreset() {
+    guard let profile = profileStore.selectedProfile else {
+      isManualPresetSheetPresented = false
+      return
+    }
+
+    let parserContext: FrequencyInputParser.Context = {
+      switch profile.backend {
+      case .fmDxWebserver:
+        return .fmBroadcast
+      case .kiwiSDR:
+        return .shortwave
+      case .openWebRX:
+        return .generic
+      }
+    }()
+
+    guard let frequencyHz = FrequencyInputParser.parseHz(from: manualPresetFrequencyDraft, context: parserContext) else {
+      manualPresetError = profile.backend == .fmDxWebserver
+        ? L10n.text("frequency_input.invalid_fm")
+        : L10n.text("frequency_input.invalid_generic")
+      return
+    }
+
+    let allowedRange = frequencyRange(for: profile.backend)
+    guard allowedRange.contains(frequencyHz) else {
+      manualPresetError = profile.backend == .fmDxWebserver
+        ? L10n.text("frequency_input.fmdx_range")
+        : L10n.text("frequency_input.invalid_generic")
+      return
+    }
+
+    let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: profile.backend)
+    let allowedModes = availableModes(for: profile.backend)
+    let resolvedMode = allowedModes.contains(manualPresetModeDraft)
+      ? manualPresetModeDraft
+      : (allowedModes.first ?? .fm)
+
+    presetStore.addPreset(
+      name: manualPresetNameDraft,
+      frequencyHz: normalizedFrequencyHz,
+      mode: resolvedMode,
+      profileID: profile.id,
+      profileName: profile.name
+    )
+
+    manualPresetError = nil
+    isManualPresetSheetPresented = false
+  }
+
+  private func importFMDXPluginPresets(from profile: SDRConnectionProfile) {
+    guard profile.backend == .fmDxWebserver else { return }
+    guard isImportingFMDXPresets == false else { return }
+
+    isImportingFMDXPresets = true
+    fmdxPresetImportStatusText = nil
+
+    Task {
+      do {
+        let importedPresets = try await FMDXPluginPresetImporter.fetchPresets(from: profile)
+        await MainActor.run {
+          var existingKeys = Set(
+            visiblePresets(for: profile).map { "\($0.frequencyHz)|\($0.mode.rawValue)" }
+          )
+          var addedCount = 0
+
+          for importedPreset in importedPresets {
+            let key = "\(importedPreset.frequencyHz)|\(importedPreset.mode.rawValue)"
+            guard existingKeys.contains(key) == false else { continue }
+
+            presetStore.addPreset(
+              name: importedPreset.name,
+              frequencyHz: importedPreset.frequencyHz,
+              mode: importedPreset.mode,
+              profileID: profile.id,
+              profileName: profile.name
+            )
+            existingKeys.insert(key)
+            addedCount += 1
+          }
+
+          if importedPresets.isEmpty {
+            fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_none")
+          } else if addedCount == 0 {
+            fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_already")
+          } else {
+            fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_count", addedCount)
+          }
+
+          isImportingFMDXPresets = false
+        }
+      } catch {
+        await MainActor.run {
+          fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.import_error", error.localizedDescription)
+          isImportingFMDXPresets = false
+        }
+      }
+    }
   }
 
   private func saveBookmarkAsPreset(_ bookmark: SDRServerBookmark, profile: SDRConnectionProfile) {
@@ -1461,6 +1694,239 @@ struct ReceiverView: View {
     }
 
     return generated
+  }
+}
+
+private struct ImportedFMDXPreset {
+  let name: String
+  let frequencyHz: Int
+  let mode: DemodulationMode
+}
+
+private enum FMDXPluginPresetImporter {
+  private static let minFMHz = 64_000_000
+  private static let maxFMHz = 110_000_000
+
+  static func fetchPresets(from profile: SDRConnectionProfile) async throws -> [ImportedFMDXPreset] {
+    let indexURL = try makeIndexURL(from: profile)
+    let html = try await fetchText(from: indexURL)
+
+    guard let scriptURL = resolvePluginScriptURL(from: html, relativeTo: indexURL) else {
+      throw SDRClientError.unsupported("Preset plugin was not found on this FM-DX server.")
+    }
+
+    let script = try await fetchText(from: scriptURL)
+    let presets = parseDefaultPresetData(from: script)
+    if presets.isEmpty {
+      throw SDRClientError.unsupported("No preset definitions were found in plugin data.")
+    }
+    return presets
+  }
+
+  private static func makeIndexURL(from profile: SDRConnectionProfile) throws -> URL {
+    let host = profile.host.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard host.isEmpty == false else {
+      throw SDRClientError.invalidHost
+    }
+    guard (1...65535).contains(profile.port) else {
+      throw SDRClientError.invalidPort
+    }
+
+    var components = URLComponents()
+    components.scheme = profile.useTLS ? "https" : "http"
+    components.host = host
+    components.port = profile.port
+    let normalizedPath = profile.normalizedPath.hasSuffix("/") ? profile.normalizedPath : "\(profile.normalizedPath)/"
+    components.path = normalizedPath
+
+    guard let url = components.url else {
+      throw SDRClientError.invalidURL
+    }
+    return url
+  }
+
+  private static func fetchText(from url: URL) async throws -> String {
+    let (data, response) = try await URLSession.shared.data(from: url)
+    if let httpResponse = response as? HTTPURLResponse,
+      (200...299).contains(httpResponse.statusCode) == false {
+      throw SDRClientError.unsupported("Server returned HTTP \(httpResponse.statusCode) for \(url.absoluteString)")
+    }
+
+    if let text = String(data: data, encoding: .utf8), text.isEmpty == false {
+      return text
+    }
+    if let text = String(data: data, encoding: .isoLatin1), text.isEmpty == false {
+      return text
+    }
+
+    throw SDRClientError.unsupported("Unable to decode server response.")
+  }
+
+  private static func resolvePluginScriptURL(from html: String, relativeTo baseURL: URL) -> URL? {
+    if let src = firstMatch(
+      pattern: "<script[^>]+src=[\"']([^\"']*pluginButtonPresets[^\"']*)[\"'][^>]*>",
+      in: html,
+      options: [.caseInsensitive]
+    ) {
+      return URL(string: src, relativeTo: baseURL)?.absoluteURL
+    }
+
+    if let src = firstMatch(
+      pattern: "<script[^>]+src=[\"']([^\"']*preset[^\"']*\\.js[^\"']*)[\"'][^>]*>",
+      in: html,
+      options: [.caseInsensitive]
+    ) {
+      return URL(string: src, relativeTo: baseURL)?.absoluteURL
+    }
+
+    return nil
+  }
+
+  private static func parseDefaultPresetData(from script: String) -> [ImportedFMDXPreset] {
+    let block = firstMatch(
+      pattern: "defaultPresetData\\s*=\\s*\\{([\\s\\S]*?)\\}",
+      in: script,
+      options: [.dotMatchesLineSeparators]
+    )
+    guard let block else { return [] }
+
+    guard let rawValues = firstMatch(
+      pattern: "values\\s*:\\s*\\[([\\s\\S]*?)\\]",
+      in: block,
+      options: [.dotMatchesLineSeparators]
+    ) else {
+      return []
+    }
+
+    let rawNames =
+      firstMatch(
+        pattern: "names\\s*:\\s*\\[([\\s\\S]*?)\\]",
+        in: block,
+        options: [.dotMatchesLineSeparators]
+      )
+      ?? firstMatch(
+        pattern: "ps\\s*:\\s*\\[([\\s\\S]*?)\\]",
+        in: block,
+        options: [.dotMatchesLineSeparators]
+      )
+      ?? ""
+
+    let valuesMHz = parseDoubleArray(rawValues)
+    let names = parseStringArray(rawNames)
+
+    var presets: [ImportedFMDXPreset] = []
+    presets.reserveCapacity(valuesMHz.count)
+    var seenFrequencies = Set<Int>()
+
+    for (index, valueMHz) in valuesMHz.enumerated() {
+      guard valueMHz.isFinite, valueMHz > 0 else { continue }
+      let frequencyHz = normalizeFrequencyHz(fromMHz: valueMHz)
+      guard seenFrequencies.insert(frequencyHz).inserted else { continue }
+
+      let fallbackName = FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz)
+      let name = index < names.count
+        ? sanitizedName(names[index], fallback: fallbackName)
+        : fallbackName
+
+      presets.append(
+        ImportedFMDXPreset(
+          name: name,
+          frequencyHz: frequencyHz,
+          mode: .fm
+        )
+      )
+    }
+
+    return presets
+  }
+
+  private static func parseDoubleArray(_ raw: String) -> [Double] {
+    captureAll(
+      pattern: "-?\\d+(?:\\.\\d+)?",
+      in: raw
+    )
+    .compactMap { Double($0) }
+  }
+
+  private static func parseStringArray(_ raw: String) -> [String] {
+    let matches = captureAll(
+      pattern: "'((?:\\\\.|[^'])*)'|\"((?:\\\\.|[^\"])*)\"",
+      in: raw
+    )
+    return matches.map { value in
+      value
+        .replacingOccurrences(of: "\\'", with: "'")
+        .replacingOccurrences(of: "\\\"", with: "\"")
+        .replacingOccurrences(of: "\\\\", with: "\\")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+  }
+
+  private static func normalizeFrequencyHz(fromMHz value: Double) -> Int {
+    let hz = Int((value * 1_000_000.0).rounded())
+    let roundedToKHz = Int((Double(hz) / 1_000.0).rounded()) * 1_000
+    return min(max(roundedToKHz, minFMHz), maxFMHz)
+  }
+
+  private static func sanitizedName(_ value: String, fallback: String) -> String {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? fallback : trimmed
+  }
+
+  private static func firstMatch(
+    pattern: String,
+    in text: String,
+    options: NSRegularExpression.Options = []
+  ) -> String? {
+    guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else {
+      return nil
+    }
+
+    let nsText = text as NSString
+    let range = NSRange(location: 0, length: nsText.length)
+    guard let match = regex.firstMatch(in: text, options: [], range: range),
+      match.numberOfRanges > 1 else {
+      return nil
+    }
+
+    let captureRange = match.range(at: 1)
+    guard captureRange.location != NSNotFound else {
+      return nil
+    }
+    return nsText.substring(with: captureRange)
+  }
+
+  private static func captureAll(
+    pattern: String,
+    in text: String
+  ) -> [String] {
+    guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+      return []
+    }
+
+    let nsText = text as NSString
+    let range = NSRange(location: 0, length: nsText.length)
+    let matches = regex.matches(in: text, options: [], range: range)
+
+    return matches.compactMap { match in
+      if match.numberOfRanges > 2 {
+        let first = match.range(at: 1)
+        if first.location != NSNotFound {
+          return nsText.substring(with: first)
+        }
+        let second = match.range(at: 2)
+        if second.location != NSNotFound {
+          return nsText.substring(with: second)
+        }
+      }
+      if match.numberOfRanges > 1 {
+        let capture = match.range(at: 1)
+        if capture.location != NSNotFound {
+          return nsText.substring(with: capture)
+        }
+      }
+      return nsText.substring(with: match.range)
+    }
   }
 }
 

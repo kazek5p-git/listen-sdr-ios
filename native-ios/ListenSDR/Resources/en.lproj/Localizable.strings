@@ -139,3 +139,16 @@
 "fmdx.server_presets.section" = "Server Presets";
 "fmdx.server_presets.empty" = "No presets configured on this FM-DX server.";
 "fmdx.live.more_details" = "More FM-DX details";
+"fmdx.user_presets.section" = "My Presets";
+"fmdx.user_presets.add_current" = "Save current as preset";
+"fmdx.user_presets.add_manual" = "Add preset manually";
+"fmdx.user_presets.import_server" = "Import presets from server";
+"fmdx.user_presets.importing" = "Importing presets...";
+"fmdx.user_presets.empty" = "No custom presets yet.";
+"fmdx.user_presets.manual_sheet_title" = "Add Preset";
+"fmdx.user_presets.manual_frequency" = "Preset frequency";
+"fmdx.user_presets.manual_mode" = "Preset mode";
+"fmdx.user_presets.imported_none" = "No importable presets found on this server.";
+"fmdx.user_presets.imported_already" = "All imported presets are already saved.";
+"fmdx.user_presets.imported_count" = "Imported %d presets.";
+"fmdx.user_presets.import_error" = "Preset import failed: %@";
