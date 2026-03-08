@@ -2639,11 +2639,11 @@ actor FMDXWebserverClient: SDRBackendClient {
       let script = try await fetchRemoteText(url: scriptURL)
       let presets = parsePluginPresetBookmarks(from: script)
       if !presets.isEmpty {
-        log("Loaded FM-DX plugin presets (\(presets.count)) from \(scriptURL.absoluteString)")
+        log("Loaded FM-DX station list (\(presets.count)) from \(scriptURL.absoluteString)")
       }
       return presets
     } catch {
-      log("Unable to load FM-DX plugin presets: \(error.localizedDescription)", severity: .warning)
+      log("Unable to load FM-DX station list: \(error.localizedDescription)", severity: .warning)
       return []
     }
   }
@@ -2681,7 +2681,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     let (data, response) = try await URLSession.shared.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse,
       (200...299).contains(httpResponse.statusCode) else {
-      throw SDRClientError.unsupported("FM-DX preset script is unavailable.")
+      throw SDRClientError.unsupported("FM-DX station list script is unavailable.")
     }
 
     if let text = String(data: data, encoding: .utf8), !text.isEmpty {
@@ -2691,7 +2691,7 @@ actor FMDXWebserverClient: SDRBackendClient {
       return text
     }
 
-    throw SDRClientError.unsupported("FM-DX preset script returned unreadable content.")
+    throw SDRClientError.unsupported("FM-DX station list script returned unreadable content.")
   }
 
   private func parsePluginPresetBookmarks(from script: String) -> [SDRServerBookmark] {

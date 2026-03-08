@@ -398,32 +398,51 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxServerPresetsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
+      let stationList = radioSession.fmdxServerPresets.filter { $0.source != "fmdx-static" }
+      let serverSlots = radioSession.fmdxServerPresets.filter { $0.source == "fmdx-static" }
+
       Section(L10n.text("fmdx.server_presets.section")) {
-        if radioSession.fmdxServerPresets.isEmpty {
+        if stationList.isEmpty {
           Text(L10n.text("fmdx.server_presets.empty"))
             .foregroundStyle(.secondary)
             .font(.footnote)
         } else {
-          ForEach(radioSession.fmdxServerPresets) { preset in
-            Button {
-              radioSession.setFrequencyHz(preset.frequencyHz)
-            } label: {
-              HStack {
-                Text(preset.name)
-                Spacer()
-                Text(FrequencyFormatter.fmDxMHzText(fromHz: preset.frequencyHz))
-                  .foregroundStyle(.secondary)
-              }
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-              Button(L10n.text("fmdx.af.favorite")) {
-                saveAFAsPreset(preset.frequencyHz, profile: profile)
-              }
-            }
+          ForEach(stationList) { preset in
+            fmdxServerBookmarkRow(preset: preset, profile: profile)
           }
         }
       }
       .appSectionStyle()
+
+      if !serverSlots.isEmpty {
+        Section(L10n.text("fmdx.server_slots.section")) {
+          ForEach(serverSlots) { preset in
+            fmdxServerBookmarkRow(preset: preset, profile: profile)
+          }
+        }
+        .appSectionStyle()
+      }
+    }
+  }
+
+  private func fmdxServerBookmarkRow(
+    preset: SDRServerBookmark,
+    profile: SDRConnectionProfile
+  ) -> some View {
+    Button {
+      radioSession.setFrequencyHz(preset.frequencyHz)
+    } label: {
+      HStack {
+        Text(preset.name)
+        Spacer()
+        Text(FrequencyFormatter.fmDxMHzText(fromHz: preset.frequencyHz))
+          .foregroundStyle(.secondary)
+      }
+    }
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      Button(L10n.text("fmdx.af.favorite")) {
+        saveAFAsPreset(preset.frequencyHz, profile: profile)
+      }
     }
   }
 
@@ -1712,13 +1731,13 @@ private enum FMDXPluginPresetImporter {
     let html = try await fetchText(from: indexURL)
 
     guard let scriptURL = resolvePluginScriptURL(from: html, relativeTo: indexURL) else {
-      throw SDRClientError.unsupported("Preset plugin was not found on this FM-DX server.")
+      throw SDRClientError.unsupported("Station list plugin was not found on this FM-DX server.")
     }
 
     let script = try await fetchText(from: scriptURL)
     let presets = parseDefaultPresetData(from: script)
     if presets.isEmpty {
-      throw SDRClientError.unsupported("No preset definitions were found in plugin data.")
+      throw SDRClientError.unsupported("No station entries were found in plugin data.")
     }
     return presets
   }

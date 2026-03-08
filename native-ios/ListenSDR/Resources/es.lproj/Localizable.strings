@@ -288,6 +288,13 @@
 "kiwi.live.audio_rate" = "Tasa de audio";
 "kiwi.live.waterfall" = "Waterfall";
 "kiwi.live.waterfall_loading" = "Cargando waterfall...";
-"fmdx.server_presets.section" = "Presets del servidor";
-"fmdx.server_presets.empty" = "Este servidor FM-DX no tiene presets configurados.";
+"fmdx.server_presets.section" = "Lista de emisoras del servidor";
+"fmdx.server_presets.empty" = "Este servidor FM-DX no publica lista de emisoras.";
+"fmdx.server_slots.section" = "Slots del servidor (F1-F4)";
 "fmdx.live.more_details" = "Mas detalles de FM-DX";
+"fmdx.user_presets.import_server" = "Importar lista de emisoras del servidor";
+"fmdx.user_presets.importing" = "Importando lista de emisoras...";
+"fmdx.user_presets.imported_none" = "No se encontraron emisoras para importar en este servidor.";
+"fmdx.user_presets.imported_already" = "Todas las emisoras importadas ya estan guardadas.";
+"fmdx.user_presets.imported_count" = "Se importaron %d emisoras.";
+"fmdx.user_presets.import_error" = "Error al importar la lista de emisoras: %@";
