@@ -73,8 +73,10 @@ struct ReceiverView: View {
     return Form {
       connectionSection(for: profile)
       tuningSection(for: profile, tuningRange: tuningRange)
+      openWebRXControlsSection(for: profile)
       openWebRXServerBookmarksSection(for: profile)
       openWebRXBandPlanSection(for: profile)
+      kiwiControlsSection(for: profile)
       fmDxControlsSection(for: profile)
       scannerSection(for: profile, scannerChannels: scannerChannels)
       fmDxLiveSection(for: profile)
@@ -103,34 +105,6 @@ struct ReceiverView: View {
         LabeledContent("Receiver data", value: backendStatus)
           .accessibilityLabel(L10n.text("Receiver live data"))
           .accessibilityValue(backendStatus)
-      }
-
-      if profile.backend == .openWebRX && radioSession.state == .connected &&
-        radioSession.connectedProfileID == profile.id {
-        if radioSession.openWebRXProfiles.isEmpty {
-          Text("Waiting for OpenWebRX profile list...")
-            .foregroundStyle(.secondary)
-        } else {
-          Picker(
-            "Server profile",
-            selection: Binding(
-              get: {
-                radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? ""
-              },
-              set: { value in
-                if !value.isEmpty {
-                  radioSession.selectOpenWebRXProfile(value)
-                }
-              }
-            )
-          ) {
-            ForEach(radioSession.openWebRXProfiles) { profileOption in
-              Text(profileOption.name).tag(profileOption.id)
-            }
-          }
-          .pickerStyle(.menu)
-          .accessibilityHint(L10n.text("Select SDR profile from OpenWebRX server"))
-        }
       }
 
       if let error = radioSession.lastError {
@@ -221,23 +195,62 @@ struct ReceiverView: View {
           .font(.footnote)
           .foregroundStyle(.orange)
       }
-
-      VStack(alignment: .leading, spacing: 6) {
-        Text(L10n.text("receiver.rf_gain_value", Int(radioSession.settings.rfGain)))
-        Slider(
-          value: Binding(
-            get: { radioSession.settings.rfGain },
-            set: { radioSession.setRFGain($0) }
-          ),
-          in: 0...100,
-          step: 1
-        )
-      }
-      .accessibilityElement(children: .combine)
-      .accessibilityLabel(L10n.text("RF gain"))
-      .accessibilityValue("\(Int(radioSession.settings.rfGain))")
     }
     .appSectionStyle()
+  }
+
+  @ViewBuilder
+  private func openWebRXControlsSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .openWebRX {
+      Section(L10n.text("openwebrx.controls")) {
+        if radioSession.state == .connected &&
+          radioSession.connectedProfileID == profile.id {
+          if radioSession.openWebRXProfiles.isEmpty {
+            Text(L10n.text("openwebrx.controls.waiting_profiles"))
+              .foregroundStyle(.secondary)
+          } else {
+            Picker(
+              L10n.text("openwebrx.server_profile"),
+              selection: Binding(
+                get: {
+                  radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? ""
+                },
+                set: { value in
+                  if !value.isEmpty {
+                    radioSession.selectOpenWebRXProfile(value)
+                  }
+                }
+              )
+            ) {
+              ForEach(radioSession.openWebRXProfiles) { profileOption in
+                Text(profileOption.name).tag(profileOption.id)
+              }
+            }
+            .pickerStyle(.menu)
+            .accessibilityHint(L10n.text("Select SDR profile from OpenWebRX server"))
+          }
+        } else {
+          Text(L10n.text("openwebrx.controls.connect_to_load"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        }
+
+        Toggle(
+          L10n.text("openwebrx.squelch"),
+          isOn: Binding(
+            get: { radioSession.settings.squelchEnabled },
+            set: { radioSession.setSquelchEnabled($0) }
+          )
+        )
+        .disabled(radioSession.state != .connected)
+        .accessibilityHint(L10n.text("openwebrx.squelch_hint"))
+
+        if let activeBand = activeOpenWebRXBandName() {
+          LabeledContent(L10n.text("openwebrx.current_band"), value: activeBand)
+        }
+      }
+      .appSectionStyle()
+    }
   }
 
   @ViewBuilder
@@ -321,6 +334,52 @@ struct ReceiverView: View {
         fmDxAudioModePicker()
         fmDxAntennaPicker()
         fmDxBandwidthPicker()
+      }
+      .appSectionStyle()
+    }
+  }
+
+  @ViewBuilder
+  private func kiwiControlsSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .kiwiSDR {
+      Section(L10n.text("kiwi.controls")) {
+        Toggle(
+          L10n.text("kiwi.agc"),
+          isOn: Binding(
+            get: { radioSession.settings.agcEnabled },
+            set: { radioSession.setAGCEnabled($0) }
+          )
+        )
+        .disabled(radioSession.state != .connected)
+        .accessibilityHint(L10n.text("kiwi.agc_hint"))
+
+        if !radioSession.settings.agcEnabled {
+          VStack(alignment: .leading, spacing: 6) {
+            Text(L10n.text("receiver.rf_gain_value", Int(radioSession.settings.rfGain)))
+            Slider(
+              value: Binding(
+                get: { radioSession.settings.rfGain },
+                set: { radioSession.setRFGain($0) }
+              ),
+              in: 0...100,
+              step: 1
+            )
+          }
+          .accessibilityElement(children: .combine)
+          .accessibilityLabel(L10n.text("RF gain"))
+          .accessibilityValue("\(Int(radioSession.settings.rfGain))")
+          .disabled(radioSession.state != .connected)
+        }
+
+        Toggle(
+          L10n.text("kiwi.squelch"),
+          isOn: Binding(
+            get: { radioSession.settings.squelchEnabled },
+            set: { radioSession.setSquelchEnabled($0) }
+          )
+        )
+        .disabled(radioSession.state != .connected)
+        .accessibilityHint(L10n.text("kiwi.squelch_hint"))
       }
       .appSectionStyle()
     }
@@ -627,9 +686,10 @@ struct ReceiverView: View {
     }
   }
 
+  @ViewBuilder
   private func dspSection(for profile: SDRConnectionProfile) -> some View {
-    Section("DSP") {
-      if profile.backend == .fmDxWebserver {
+    if profile.backend == .fmDxWebserver {
+      Section("DSP") {
         Toggle(
           "AGC",
           isOn: Binding(
@@ -654,39 +714,14 @@ struct ReceiverView: View {
             set: { radioSession.setIMSEnabled($0) }
           )
         )
-      } else {
-        Toggle(
-          "AGC",
-          isOn: Binding(
-            get: { radioSession.settings.agcEnabled },
-            set: { radioSession.setAGCEnabled($0) }
-          )
-        )
-        .accessibilityHint("Automatic gain control")
 
-        Toggle(
-          "Noise reduction",
-          isOn: Binding(
-            get: { radioSession.settings.noiseReductionEnabled },
-            set: { radioSession.setNoiseReductionEnabled($0) }
-          )
-        )
-
-        Toggle(
-          "Squelch",
-          isOn: Binding(
-            get: { radioSession.settings.squelchEnabled },
-            set: { radioSession.setSquelchEnabled($0) }
-          )
-        )
+        Button("Reset DSP settings") {
+          radioSession.resetDSPSettings()
+        }
+        .accessibilityHint(L10n.text("Restores demodulation mode and DSP controls to defaults"))
       }
-
-      Button("Reset DSP settings") {
-        radioSession.resetDSPSettings()
-      }
-      .accessibilityHint(L10n.text("Restores demodulation mode and DSP controls to defaults"))
+      .appSectionStyle()
     }
-    .appSectionStyle()
   }
 
   private func favoritesSection(presets: [FrequencyPreset]) -> some View {
@@ -1123,6 +1158,11 @@ struct ReceiverView: View {
     case .openWebRX:
       return defaultFrequencyRangeHz
     }
+  }
+
+  private func activeOpenWebRXBandName() -> String? {
+    let frequency = radioSession.settings.frequencyHz
+    return radioSession.openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequency })?.name
   }
 
   private func normalizeFrequencyHz(_ value: Int, for backend: SDRBackend?) -> Int {

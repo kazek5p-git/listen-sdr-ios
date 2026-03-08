@@ -580,8 +580,10 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     switch selectedBackend {
     case .fmDxWebserver:
       return L10n.text("directory.source.fmdx")
-    case .kiwiSDR, .openWebRX:
-      return L10n.text("directory.source.receiverbook")
+    case .kiwiSDR:
+      return L10n.text("directory.source.kiwi")
+    case .openWebRX:
+      return L10n.text("directory.source.openwebrx")
     }
   }
 

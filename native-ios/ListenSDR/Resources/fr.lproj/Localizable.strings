@@ -249,3 +249,19 @@
 "backend.fmdx" = "Serveur FM-DX";
 "directory.notification.title" = "Nouveaux recepteurs disponibles";
 "directory.notification.body" = "Detecte: %@";
+"directory.source.kiwi" = "Mise a jour automatique depuis Receiverbook.de pour KiwiSDR. Touchez une ligne pour ajouter ou selectionner le recepteur.";
+"directory.source.openwebrx" = "Mise a jour automatique depuis Receiverbook.de pour OpenWebRX. Touchez une ligne pour ajouter ou selectionner le recepteur.";
+
+"openwebrx.controls" = "Commandes OpenWebRX";
+"openwebrx.controls.waiting_profiles" = "En attente de la liste des profils OpenWebRX...";
+"openwebrx.controls.connect_to_load" = "Connectez-vous pour charger les profils serveur OpenWebRX et les donnees de bande.";
+"openwebrx.server_profile" = "Profil serveur";
+"openwebrx.squelch" = "Squelch";
+"openwebrx.squelch_hint" = "Activer le squelch pour l'audio OpenWebRX";
+"openwebrx.current_band" = "Bande actuelle";
+
+"kiwi.controls" = "Commandes KiwiSDR";
+"kiwi.agc" = "AGC";
+"kiwi.agc_hint" = "Controle automatique du gain pour KiwiSDR";
+"kiwi.squelch" = "Squelch";
+"kiwi.squelch_hint" = "Activer le squelch pour l'audio KiwiSDR";
