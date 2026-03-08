@@ -159,14 +159,24 @@ struct ReceiverView: View {
         ) {
           VStack(alignment: .leading, spacing: 4) {
             Text("Frequency")
-            Text(FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz))
+            Text(
+              frequencyText(
+                fromHz: radioSession.settings.frequencyHz,
+                backend: profile.backend
+              )
+            )
               .foregroundStyle(.secondary)
               .accessibilityHidden(true)
           }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Frequency")
-        .accessibilityValue(FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz))
+        .accessibilityValue(
+          frequencyText(
+            fromHz: radioSession.settings.frequencyHz,
+            backend: profile.backend
+          )
+        )
         .accessibilityHint(
           L10n.text(
             "receiver.frequency.swipe_hint",
@@ -456,7 +466,7 @@ struct ReceiverView: View {
       if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
         Section("FM-DX Live") {
           if let frequencyMHz = telemetry.frequencyMHz {
-            LabeledContent("Frequency", value: String(format: "%.3f MHz", frequencyMHz))
+            LabeledContent("Frequency", value: FrequencyFormatter.fmDxMHzText(fromMHz: frequencyMHz))
           }
           if let signal = telemetry.signal {
             LabeledContent("Signal", value: String(format: "%.1f dBf", signal))
@@ -784,7 +794,7 @@ struct ReceiverView: View {
 
         LabeledContent(
           "Frequency",
-          value: FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+          value: frequencyText(fromHz: radioSession.settings.frequencyHz, backend: profileStore.selectedProfile?.backend)
         )
         LabeledContent("Mode", value: radioSession.settings.mode.displayName)
       }
@@ -826,7 +836,7 @@ struct ReceiverView: View {
 
         LabeledContent(
           "Current",
-          value: FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+          value: frequencyText(fromHz: radioSession.settings.frequencyHz, backend: profileStore.selectedProfile?.backend)
         )
       }
       .scrollContentBackground(.hidden)
@@ -889,8 +899,13 @@ struct ReceiverView: View {
   }
 
   private func beginFrequencyEntry() {
-    frequencyInputDraft = FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
-      .replacingOccurrences(of: " MHz", with: "")
+    let backend = profileStore.selectedProfile?.backend
+    if backend == .fmDxWebserver {
+      frequencyInputDraft = FrequencyFormatter.fmDxEntryText(fromHz: radioSession.settings.frequencyHz)
+    } else {
+      frequencyInputDraft = FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+        .replacingOccurrences(of: " MHz", with: "")
+    }
     frequencyInputError = nil
     isFrequencyEntrySheetPresented = true
   }
@@ -1004,6 +1019,13 @@ struct ReceiverView: View {
     }
 
     return L10n.text("fmdx.audio_mode.value.auto")
+  }
+
+  private func frequencyText(fromHz value: Int, backend: SDRBackend?) -> String {
+    if backend == .fmDxWebserver {
+      return FrequencyFormatter.fmDxMHzText(fromHz: value)
+    }
+    return FrequencyFormatter.mhzText(fromHz: value)
   }
 
   private var frequencyInputHint: String {
