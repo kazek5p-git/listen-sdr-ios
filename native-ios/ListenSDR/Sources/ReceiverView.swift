@@ -71,7 +71,6 @@ struct ReceiverView: View {
     }
   }
 
-  @ViewBuilder
   private func receiverForm(for profile: SDRConnectionProfile) -> some View {
     let presets = visiblePresets(for: profile)
     let scannerChannels = scanChannels(for: profile, presets: presets)
