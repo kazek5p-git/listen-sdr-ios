@@ -10,11 +10,11 @@ enum SDRBackend: String, Codable, CaseIterable, Identifiable {
   var displayName: String {
     switch self {
     case .kiwiSDR:
-      return "KiwiSDR"
+      return L10n.text("backend.kiwi")
     case .openWebRX:
-      return "OpenWebRX"
+      return L10n.text("backend.openwebrx")
     case .fmDxWebserver:
-      return "FM-DX Webserver"
+      return L10n.text("backend.fmdx")
     }
   }
 

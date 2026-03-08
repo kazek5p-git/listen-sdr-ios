@@ -14,8 +14,8 @@
 
 "General" = "Ogólne";
 "Profile name" = "Nazwa profilu";
-"Backend" = "Backend";
-"Receiver backend" = "Backend odbiornika";
+"Backend" = "Typ odbiornika";
+"Receiver backend" = "Typ odbiornika";
 "Name shown in your radio list" = "Nazwa widoczna na liście odbiorników";
 "Server" = "Serwer";
 "Host" = "Host";
@@ -29,8 +29,8 @@
 "Cancel" = "Anuluj";
 "Save" = "Zapisz";
 
-"Backend source" = "Źródło backendu";
-"Receiver backend list" = "Lista backendów odbiorników";
+"Backend source" = "Źródło typu odbiornika";
+"Receiver backend list" = "Lista typów odbiorników";
 "No directory data cached yet." = "Brak zapisanych danych katalogu.";
 "Directory error" = "Błąd katalogu";
 "Checking receiver availability..." = "Sprawdzanie dostępności odbiorników...";
@@ -236,3 +236,7 @@
 "fmdx.af_scan_name" = "AF %@";
 "fmdx.tune_warning_mismatch" = "Rozjazd strojenia. Zadano %@, odbiornik podaje %@.";
 "fmdx.tune_warning_no_confirmation" = "Brak potwierdzenia strojenia dla %@.";
+
+"backend.kiwi" = "KiwiSDR";
+"backend.openwebrx" = "OpenWebRX";
+"backend.fmdx" = "Serwer FM-DX";

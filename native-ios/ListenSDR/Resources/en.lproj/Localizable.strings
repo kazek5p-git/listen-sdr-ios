@@ -84,3 +84,7 @@
 "fmdx.af_scan_name" = "AF %@";
 "fmdx.tune_warning_mismatch" = "Tune mismatch. Requested %@, receiver reports %@.";
 "fmdx.tune_warning_no_confirmation" = "No tune confirmation from receiver for %@.";
+
+"backend.kiwi" = "KiwiSDR";
+"backend.openwebrx" = "OpenWebRX";
+"backend.fmdx" = "FM-DX Webserver";

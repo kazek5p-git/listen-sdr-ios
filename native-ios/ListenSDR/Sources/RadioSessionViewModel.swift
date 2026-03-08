@@ -661,7 +661,7 @@ final class RadioSessionViewModel: ObservableObject {
 
     statusMonitorTask = Task {
       while !Task.isCancelled {
-        try? await Task.sleep(nanoseconds: 700_000_000)
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
         if Task.isCancelled {
           return
         }
@@ -710,17 +710,25 @@ final class RadioSessionViewModel: ObservableObject {
           return
         }
 
-        if let backendStatus = await client.consumeStatusUpdate() {
+        var latestBackendStatus: String?
+        while let backendStatus = await client.consumeStatusUpdate() {
+          latestBackendStatus = backendStatus
+        }
+        if let latestBackendStatus {
           await MainActor.run {
             guard self.connectedProfileID == profileID else { return }
-            self.backendStatusText = backendStatus
+            self.backendStatusText = latestBackendStatus
           }
         }
 
-        if let telemetryEvent = await client.consumeTelemetryUpdate() {
+        var latestTelemetryEvent: BackendTelemetryEvent?
+        while let telemetryEvent = await client.consumeTelemetryUpdate() {
+          latestTelemetryEvent = telemetryEvent
+        }
+        if let latestTelemetryEvent {
           await MainActor.run {
             guard self.connectedProfileID == profileID else { return }
-            self.apply(telemetryEvent: telemetryEvent)
+            self.apply(telemetryEvent: latestTelemetryEvent)
           }
         }
       }

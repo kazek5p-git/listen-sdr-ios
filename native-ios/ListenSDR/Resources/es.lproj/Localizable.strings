@@ -236,3 +236,7 @@
 "fmdx.af_scan_name" = "AF %@";
 "fmdx.tune_warning_mismatch" = "Desajuste de sintonia. Solicitado %@, receptor informa %@.";
 "fmdx.tune_warning_no_confirmation" = "Sin confirmacion de sintonia para %@.";
+
+"backend.kiwi" = "KiwiSDR";
+"backend.openwebrx" = "OpenWebRX";
+"backend.fmdx" = "Servidor FM-DX";

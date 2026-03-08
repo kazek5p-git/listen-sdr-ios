@@ -236,3 +236,7 @@
 "fmdx.af_scan_name" = "AF %@";
 "fmdx.tune_warning_mismatch" = "Abstimmabweichung. Angefordert %@, Empfaenger meldet %@.";
 "fmdx.tune_warning_no_confirmation" = "Keine Abstimm-Bestaetigung fuer %@.";
+
+"backend.kiwi" = "KiwiSDR";
+"backend.openwebrx" = "OpenWebRX";
+"backend.fmdx" = "FM-DX Webserver";

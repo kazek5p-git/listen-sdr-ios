@@ -220,6 +220,7 @@ actor KiwiSDRClient: SDRBackendClient {
   private var latestRSSI: Double?
   private var latestWaterfallBins: [UInt8] = []
   private var lastTelemetryAt: Date = .distantPast
+  private var latestTelemetry: KiwiTelemetry?
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -297,6 +298,7 @@ actor KiwiSDRClient: SDRBackendClient {
     latestWaterfallBins = []
     telemetryQueue.removeAll()
     lastTelemetryAt = .distantPast
+    latestTelemetry = nil
 
     await MainActor.run {
       SharedAudioOutput.engine.stop()
@@ -533,7 +535,7 @@ actor KiwiSDRClient: SDRBackendClient {
 
   private func emitKiwiTelemetry(force: Bool) {
     let now = Date()
-    if !force, now.timeIntervalSince(lastTelemetryAt) < 0.25 {
+    if !force, now.timeIntervalSince(lastTelemetryAt) < 0.5 {
       return
     }
     lastTelemetryAt = now
@@ -543,6 +545,10 @@ actor KiwiSDRClient: SDRBackendClient {
       waterfallBins: latestWaterfallBins,
       sampleRateHz: sampleRateHz
     )
+    if telemetry == latestTelemetry {
+      return
+    }
+    latestTelemetry = telemetry
     enqueueTelemetry(.kiwi(telemetry))
   }
 
@@ -1585,6 +1591,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var lastAudioPacketAt = Date.distantPast
   private var supportsPingEndpoint: Bool?
   private var consecutivePingFailures = 0
+  private var lastRealtimeStatusAt = Date.distantPast
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -1597,6 +1604,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     supportsPingEndpoint = nil
     consecutivePingFailures = 0
     lastAudioPacketAt = .distantPast
+    lastRealtimeStatusAt = .distantPast
 
     try openTextSocket(profile: profile, basePath: activeBasePath)
 
@@ -1668,6 +1676,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     activeBasePath = "/"
     lastAppliedSettings = nil
     lastAudioPacketAt = .distantPast
+    lastRealtimeStatusAt = .distantPast
     supportsPingEndpoint = nil
     consecutivePingFailures = 0
 
@@ -1907,7 +1916,9 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func pollLoop(profile: SDRConnectionProfile) async {
     while !Task.isCancelled {
-      try? await Task.sleep(nanoseconds: 2_000_000_000)
+      let hasRecentRealtimeStatus = Date().timeIntervalSince(lastRealtimeStatusAt) < 10
+      let pollIntervalNs: UInt64 = hasRecentRealtimeStatus ? 8_000_000_000 : 2_500_000_000
+      try? await Task.sleep(nanoseconds: pollIntervalNs)
       if Task.isCancelled {
         return
       }
@@ -1936,6 +1947,7 @@ actor FMDXWebserverClient: SDRBackendClient {
       return
     }
 
+    lastRealtimeStatusAt = Date()
     updateStatus(from: snapshot)
   }
 
@@ -2339,6 +2351,9 @@ actor FMDXWebserverClient: SDRBackendClient {
       })
     )
 
+    if telemetry == previous {
+      return
+    }
     latestTelemetry = telemetry
     enqueueTelemetry(.fmdx(telemetry))
     let summary = makeStatusSummary(from: telemetry)
