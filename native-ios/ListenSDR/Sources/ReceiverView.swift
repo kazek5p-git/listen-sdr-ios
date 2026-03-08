@@ -26,7 +26,6 @@ struct ReceiverView: View {
   @EnvironmentObject private var presetStore: FrequencyPresetStore
   @State private var isSavePresetSheetPresented = false
   @State private var isFrequencyEntrySheetPresented = false
-  @FocusState private var isFrequencyInputFocused: Bool
   @State private var presetNameDraft = ""
   @State private var frequencyInputDraft = ""
   @State private var frequencyInputError: String?
@@ -35,7 +34,6 @@ struct ReceiverView: View {
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
   @State private var isFMDXDetailsExpanded = false
-  @State private var didRequestFrequencyFocus = false
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -1146,7 +1144,6 @@ struct ReceiverView: View {
           .keyboardType(.decimalPad)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
-          .focused($isFrequencyInputFocused)
           .textFieldStyle(.roundedBorder)
           .accessibilityLabel(L10n.text("Frequency input"))
           .accessibilityHint(frequencyInputHint)
@@ -1162,22 +1159,10 @@ struct ReceiverView: View {
       }
       .padding()
       .navigationTitle("Set Frequency")
-      .onAppear {
-        guard didRequestFrequencyFocus == false else { return }
-        didRequestFrequencyFocus = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-          isFrequencyInputFocused = true
-        }
-      }
-      .onDisappear {
-        isFrequencyInputFocused = false
-        didRequestFrequencyFocus = false
-      }
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") {
             frequencyInputError = nil
-            isFrequencyInputFocused = false
             isFrequencyEntrySheetPresented = false
           }
         }
@@ -1240,7 +1225,6 @@ struct ReceiverView: View {
         .replacingOccurrences(of: " MHz", with: "")
     }
     frequencyInputError = nil
-    didRequestFrequencyFocus = false
     isFrequencyEntrySheetPresented = true
   }
 
@@ -1272,7 +1256,6 @@ struct ReceiverView: View {
     let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: profileStore.selectedProfile?.backend)
     radioSession.setFrequencyHz(normalizedFrequencyHz)
     frequencyInputError = nil
-    isFrequencyInputFocused = false
     isFrequencyEntrySheetPresented = false
   }
 

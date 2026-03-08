@@ -2573,7 +2573,7 @@ actor FMDXWebserverClient: SDRBackendClient {
       bookmarks.append(
         SDRServerBookmark(
           id: "fmdx-preset-\(index + 1)-\(frequencyHz)",
-          name: "Preset \(index + 1)",
+          name: "F\(index + 1)",
           frequencyHz: frequencyHz,
           modulation: .fm,
           source: "fmdx-static"
