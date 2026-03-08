@@ -41,6 +41,7 @@ struct ReceiverView: View {
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
   @State private var isFMDXDetailsExpanded = false
+  @State private var isFMDXStationListExpanded = true
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -402,13 +403,30 @@ struct ReceiverView: View {
       let serverSlots = radioSession.fmdxServerPresets.filter { $0.source == "fmdx-static" }
 
       Section(L10n.text("fmdx.server_presets.section")) {
-        if stationList.isEmpty {
-          Text(L10n.text("fmdx.server_presets.empty"))
-            .foregroundStyle(.secondary)
-            .font(.footnote)
-        } else {
-          ForEach(stationList) { preset in
-            fmdxServerBookmarkRow(preset: preset, profile: profile)
+        Button {
+          withAnimation(.easeInOut(duration: 0.2)) {
+            isFMDXStationListExpanded.toggle()
+          }
+        } label: {
+          Label(
+            L10n.text(
+              isFMDXStationListExpanded
+                ? "fmdx.station_list.collapse"
+                : "fmdx.station_list.expand"
+            ),
+            systemImage: isFMDXStationListExpanded ? "chevron.up" : "chevron.down"
+          )
+        }
+
+        if isFMDXStationListExpanded {
+          if stationList.isEmpty {
+            Text(L10n.text("fmdx.server_presets.empty"))
+              .foregroundStyle(.secondary)
+              .font(.footnote)
+          } else {
+            ForEach(stationList) { preset in
+              fmdxServerBookmarkRow(preset: preset, profile: profile)
+            }
           }
         }
       }

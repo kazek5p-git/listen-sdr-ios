@@ -291,6 +291,8 @@
 "fmdx.server_presets.section" = "Liste des stations du serveur";
 "fmdx.server_presets.empty" = "Ce serveur FM-DX ne publie pas de liste de stations.";
 "fmdx.server_slots.section" = "Slots serveur (F1-F4)";
+"fmdx.station_list.expand" = "Developper la liste des stations";
+"fmdx.station_list.collapse" = "Reduire la liste des stations";
 "fmdx.live.more_details" = "Plus de details FM-DX";
 "fmdx.user_presets.import_server" = "Importer la liste des stations du serveur";
 "fmdx.user_presets.importing" = "Import de la liste des stations...";

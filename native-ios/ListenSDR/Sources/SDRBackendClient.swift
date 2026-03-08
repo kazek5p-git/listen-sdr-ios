@@ -1866,6 +1866,9 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var supportsPingEndpoint: Bool?
   private var consecutivePingFailures = 0
   private var lastRealtimeStatusAt = Date.distantPast
+  private let stationListRefreshInterval: TimeInterval = 90
+  private var nextStationListRefreshAt = Date.distantPast
+  private var lastPublishedFMDXPresets: [SDRServerBookmark] = []
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -1920,9 +1923,11 @@ actor FMDXWebserverClient: SDRBackendClient {
       basePath: activeBasePath
     )
     let mergedPresets = mergeFMDXPresets(staticPresets: staticPresets, pluginPresets: pluginPresets)
-    if !mergedPresets.isEmpty {
+    if mergedPresets != lastPublishedFMDXPresets {
+      lastPublishedFMDXPresets = mergedPresets
       enqueueTelemetry(.fmdxPresets(mergedPresets))
     }
+    nextStationListRefreshAt = Date().addingTimeInterval(stationListRefreshInterval)
 
     let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
     if !capabilities.antennas.isEmpty || !capabilities.bandwidths.isEmpty {
@@ -1965,6 +1970,8 @@ actor FMDXWebserverClient: SDRBackendClient {
     lastRealtimeStatusAt = .distantPast
     supportsPingEndpoint = nil
     consecutivePingFailures = 0
+    nextStationListRefreshAt = .distantPast
+    lastPublishedFMDXPresets = []
 
     log("Disconnected")
   }
@@ -2223,6 +2230,7 @@ actor FMDXWebserverClient: SDRBackendClient {
       do {
         let snapshot = try await fetchAPI(profile: profile)
         updateStatus(from: snapshot)
+        await refreshStationListIfNeeded(profile: profile)
       } catch {
         if Task.isCancelled {
           return
@@ -2616,6 +2624,28 @@ actor FMDXWebserverClient: SDRBackendClient {
       }
       return lhs.frequencyHz < rhs.frequencyHz
     }
+  }
+
+  private func refreshStationListIfNeeded(profile: SDRConnectionProfile) async {
+    let now = Date()
+    guard now >= nextStationListRefreshAt else { return }
+    nextStationListRefreshAt = now.addingTimeInterval(stationListRefreshInterval)
+
+    let basePath = activeBasePath
+    let staticData = try? await fetchStaticData(profile: profile)
+    let staticPresets = parsePresetBookmarks(from: staticData)
+    let html = try? await fetchIndexHTML(profile: profile, basePath: basePath)
+    let pluginPresets = await fetchPluginPresetBookmarks(
+      profile: profile,
+      indexHTML: html,
+      basePath: basePath
+    )
+    let mergedPresets = mergeFMDXPresets(staticPresets: staticPresets, pluginPresets: pluginPresets)
+    guard mergedPresets != lastPublishedFMDXPresets else { return }
+
+    lastPublishedFMDXPresets = mergedPresets
+    enqueueTelemetry(.fmdxPresets(mergedPresets))
+    log("FM-DX station list refreshed (\(mergedPresets.count) entries)")
   }
 
   private func fetchPluginPresetBookmarks(

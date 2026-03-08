@@ -139,6 +139,8 @@
 "fmdx.server_presets.section" = "Server station list";
 "fmdx.server_presets.empty" = "This FM-DX server does not publish a station list.";
 "fmdx.server_slots.section" = "Server slots (F1-F4)";
+"fmdx.station_list.expand" = "Expand station list";
+"fmdx.station_list.collapse" = "Collapse station list";
 "fmdx.live.more_details" = "More FM-DX details";
 "fmdx.user_presets.section" = "My Presets";
 "fmdx.user_presets.add_current" = "Save current as preset";
