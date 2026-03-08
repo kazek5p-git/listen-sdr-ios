@@ -35,6 +35,7 @@ struct ReceiverView: View {
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
   @State private var isFMDXDetailsExpanded = false
+  @State private var didRequestFrequencyFocus = false
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -81,7 +82,9 @@ struct ReceiverView: View {
       kiwiControlsSection(for: profile)
       fmDxControlsSection(for: profile)
       fmDxServerPresetsSection(for: profile)
-      scannerSection(for: profile, scannerChannels: scannerChannels)
+      if profile.backend != .fmDxWebserver {
+        scannerSection(for: profile, scannerChannels: scannerChannels)
+      }
       fmDxLiveSection(for: profile)
       kiwiLiveSection(for: profile)
       favoritesSection(presets: presets)
@@ -164,30 +167,7 @@ struct ReceiverView: View {
       }
       .accessibilityHint(L10n.text("Enter frequency in hertz, kilohertz or megahertz"))
 
-      Picker(
-        "Tune step",
-        selection: Binding(
-          get: { radioSession.settings.tuneStepHz },
-          set: { setTuneStepAndAnnounce($0) }
-        )
-      ) {
-        ForEach(tuneStepOptions(for: profile.backend), id: \.self) { stepHz in
-          Text(FrequencyFormatter.tuneStepText(fromHz: stepHz)).tag(stepHz)
-        }
-      }
-      .accessibilityLabel("Tune step")
-      .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
-      .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)))
-      .accessibilityScrollAction { edge in
-        switch edge {
-        case .leading, .top:
-          changeTuneStep(by: -1, backend: profile.backend)
-        case .trailing, .bottom:
-          changeTuneStep(by: 1, backend: profile.backend)
-        default:
-          break
-        }
-      }
+      tuneStepControl(for: profile.backend)
 
       Picker(
         "Mode",
@@ -973,6 +953,68 @@ struct ReceiverView: View {
     }
   }
 
+  private func tuneStepControl(for backend: SDRBackend) -> some View {
+    let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
+    let options = tuneStepOptions(for: backend)
+
+    return HStack(spacing: 12) {
+      Text("Tune step")
+      Spacer()
+
+      Button {
+        changeTuneStep(by: -1, backend: backend)
+      } label: {
+        Image(systemName: "minus.circle.fill")
+          .font(.title3)
+      }
+      .buttonStyle(.plain)
+
+      Menu {
+        ForEach(options, id: \.self) { stepHz in
+          Button(FrequencyFormatter.tuneStepText(fromHz: stepHz)) {
+            setTuneStepAndAnnounce(stepHz)
+          }
+        }
+      } label: {
+        Text(stepLabel)
+          .font(.body.monospacedDigit())
+          .frame(minWidth: 70)
+      }
+
+      Button {
+        changeTuneStep(by: 1, backend: backend)
+      } label: {
+        Image(systemName: "plus.circle.fill")
+          .font(.title3)
+      }
+      .buttonStyle(.plain)
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Tune step")
+    .accessibilityValue(stepLabel)
+    .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", stepLabel))
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        changeTuneStep(by: 1, backend: backend)
+      case .decrement:
+        changeTuneStep(by: -1, backend: backend)
+      @unknown default:
+        break
+      }
+    }
+    .accessibilityScrollAction { edge in
+      switch edge {
+      case .leading, .top:
+        changeTuneStep(by: -1, backend: backend)
+      case .trailing, .bottom:
+        changeTuneStep(by: 1, backend: backend)
+      default:
+        break
+      }
+    }
+  }
+
   private func tuneStepOptions(for backend: SDRBackend) -> [Int] {
     switch backend {
     case .fmDxWebserver:
@@ -1012,7 +1054,7 @@ struct ReceiverView: View {
     guard stepHz != radioSession.settings.tuneStepHz else { return }
     radioSession.setTuneStepHz(stepHz)
 
-    let stepText = FrequencyFormatter.tuneStepText(fromHz: stepHz)
+    let stepText = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
     let announcement = L10n.text("receiver.tune_step.changed", stepText)
     UIAccessibility.post(notification: .announcement, argument: announcement)
   }
@@ -1044,6 +1086,16 @@ struct ReceiverView: View {
       case .decrement:
         radioSession.tune(byStepCount: -1)
       @unknown default:
+        break
+      }
+    }
+    .accessibilityScrollAction { edge in
+      switch edge {
+      case .leading, .top:
+        changeTuneStep(by: -1, backend: backend)
+      case .trailing, .bottom:
+        changeTuneStep(by: 1, backend: backend)
+      default:
         break
       }
     }
@@ -1089,12 +1141,13 @@ struct ReceiverView: View {
 
   private var frequencyEntrySheet: some View {
     NavigationStack {
-      Form {
+      VStack(alignment: .leading, spacing: 12) {
         TextField(frequencyInputPlaceholder, text: $frequencyInputDraft)
           .keyboardType(.decimalPad)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
           .focused($isFrequencyInputFocused)
+          .textFieldStyle(.roundedBorder)
           .accessibilityLabel(L10n.text("Frequency input"))
           .accessibilityHint(frequencyInputHint)
 
@@ -1105,17 +1158,20 @@ struct ReceiverView: View {
             .accessibilityLabel(L10n.text("Frequency input error"))
             .accessibilityValue(frequencyInputError)
         }
-
+        Spacer(minLength: 0)
       }
-      .scrollContentBackground(.hidden)
+      .padding()
       .navigationTitle("Set Frequency")
       .onAppear {
-        DispatchQueue.main.async {
+        guard didRequestFrequencyFocus == false else { return }
+        didRequestFrequencyFocus = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
           isFrequencyInputFocused = true
         }
       }
       .onDisappear {
         isFrequencyInputFocused = false
+        didRequestFrequencyFocus = false
       }
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
@@ -1184,6 +1240,7 @@ struct ReceiverView: View {
         .replacingOccurrences(of: " MHz", with: "")
     }
     frequencyInputError = nil
+    didRequestFrequencyFocus = false
     isFrequencyEntrySheetPresented = true
   }
 

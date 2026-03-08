@@ -368,10 +368,15 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setTuneStepHz(_ value: Int) {
     let normalized = RadioSessionSettings.normalizedTuneStep(value)
-    settings.tuneStepHz = activeBackend == .fmDxWebserver
+    let resolved = activeBackend == .fmDxWebserver
       ? normalizeFMDXTuneStepHz(normalized, mode: settings.mode)
       : normalized
+    settings.tuneStepHz = resolved
     persistSettings()
+    Diagnostics.log(
+      category: "Session",
+      message: "Tune step set to \(resolved) Hz (requested \(value) Hz)"
+    )
   }
 
   func tune(byStepCount stepCount: Int) {
