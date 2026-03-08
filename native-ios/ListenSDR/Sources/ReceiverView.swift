@@ -76,7 +76,7 @@ struct ReceiverView: View {
     let scannerChannels = scanChannels(for: profile, presets: presets)
     let tuningRange = frequencyRange(for: profile.backend)
 
-    Form {
+    return Form {
       connectionSection(for: profile)
       tuningSection(for: profile, tuningRange: tuningRange)
       openWebRXServerBookmarksSection(for: profile)
@@ -324,73 +324,80 @@ struct ReceiverView: View {
   private func fmDxControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
       Section(L10n.text("fmdx.controls")) {
-        Picker(
-          L10n.text("fmdx.audio_mode"),
-          selection: Binding(
-            get: {
-              (radioSession.fmdxTelemetry?.isForcedStereo ?? false) ? .stereo : .mono
-            },
-            set: { mode in
-              radioSession.setFMDXForcedStereoEnabled(mode == .stereo)
-            }
-          )
-        ) {
-          Text(L10n.text("fmdx.stereo_state.mono")).tag(FMDXAudioModeSelection.mono)
-          Text(L10n.text("fmdx.stereo_state.stereo")).tag(FMDXAudioModeSelection.stereo)
-        }
-        .pickerStyle(.segmented)
-        .disabled(radioSession.state != .connected)
-        .accessibilityLabel(L10n.text("fmdx.audio_mode"))
-        .accessibilityValue(fmdxAudioModePickerValue(for: radioSession.fmdxTelemetry))
-
-        if !radioSession.fmdxCapabilities.antennas.isEmpty {
-          Picker(
-            L10n.text("fmdx.antenna"),
-            selection: Binding(
-              get: {
-                radioSession.selectedFMDXAntennaID
-                  ?? radioSession.fmdxCapabilities.antennas.first?.id
-                  ?? ""
-              },
-              set: { value in
-                if !value.isEmpty {
-                  radioSession.setFMDXAntenna(value)
-                }
-              }
-            )
-          ) {
-            ForEach(radioSession.fmdxCapabilities.antennas) { option in
-              Text(option.label).tag(option.id)
-            }
-          }
-          .disabled(radioSession.state != .connected)
-        }
-
-        if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
-          Picker(
-            L10n.text("fmdx.bandwidth"),
-            selection: Binding(
-              get: {
-                radioSession.selectedFMDXBandwidthID
-                  ?? radioSession.fmdxCapabilities.bandwidths.first?.id
-                  ?? ""
-              },
-              set: { value in
-                guard
-                  let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value })
-                else { return }
-                radioSession.setFMDXBandwidth(option)
-              }
-            )
-          ) {
-            ForEach(radioSession.fmdxCapabilities.bandwidths) { option in
-              Text(option.label).tag(option.id)
-            }
-          }
-          .disabled(radioSession.state != .connected)
-        }
+        fmDxAudioModePicker()
+        fmDxAntennaPicker()
+        fmDxBandwidthPicker()
       }
       .appSectionStyle()
+    }
+  }
+
+  private func fmDxAudioModePicker() -> some View {
+    let selection = Binding<FMDXAudioModeSelection>(
+      get: {
+        (radioSession.fmdxTelemetry?.isForcedStereo ?? false) ? .stereo : .mono
+      },
+      set: { mode in
+        radioSession.setFMDXForcedStereoEnabled(mode == .stereo)
+      }
+    )
+
+    return Picker(L10n.text("fmdx.audio_mode"), selection: selection) {
+      Text(L10n.text("fmdx.stereo_state.mono")).tag(FMDXAudioModeSelection.mono)
+      Text(L10n.text("fmdx.stereo_state.stereo")).tag(FMDXAudioModeSelection.stereo)
+    }
+    .pickerStyle(.segmented)
+    .disabled(radioSession.state != .connected)
+    .accessibilityLabel(L10n.text("fmdx.audio_mode"))
+    .accessibilityValue(fmdxAudioModePickerValue(for: radioSession.fmdxTelemetry))
+  }
+
+  @ViewBuilder
+  private func fmDxAntennaPicker() -> some View {
+    if !radioSession.fmdxCapabilities.antennas.isEmpty {
+      let selection = Binding<String>(
+        get: {
+          radioSession.selectedFMDXAntennaID
+            ?? radioSession.fmdxCapabilities.antennas.first?.id
+            ?? ""
+        },
+        set: { value in
+          if !value.isEmpty {
+            radioSession.setFMDXAntenna(value)
+          }
+        }
+      )
+
+      Picker(L10n.text("fmdx.antenna"), selection: selection) {
+        ForEach(radioSession.fmdxCapabilities.antennas) { option in
+          Text(option.label).tag(option.id)
+        }
+      }
+      .disabled(radioSession.state != .connected)
+    }
+  }
+
+  @ViewBuilder
+  private func fmDxBandwidthPicker() -> some View {
+    if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
+      let selection = Binding<String>(
+        get: {
+          radioSession.selectedFMDXBandwidthID
+            ?? radioSession.fmdxCapabilities.bandwidths.first?.id
+            ?? ""
+        },
+        set: { value in
+          guard let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value }) else { return }
+          radioSession.setFMDXBandwidth(option)
+        }
+      )
+
+      Picker(L10n.text("fmdx.bandwidth"), selection: selection) {
+        ForEach(radioSession.fmdxCapabilities.bandwidths) { option in
+          Text(option.label).tag(option.id)
+        }
+      }
+      .disabled(radioSession.state != .connected)
     }
   }
 
