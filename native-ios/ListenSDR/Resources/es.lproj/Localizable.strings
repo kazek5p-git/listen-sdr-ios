@@ -288,3 +288,6 @@
 "kiwi.live.audio_rate" = "Tasa de audio";
 "kiwi.live.waterfall" = "Waterfall";
 "kiwi.live.waterfall_loading" = "Cargando waterfall...";
+"fmdx.server_presets.section" = "Presets del servidor";
+"fmdx.server_presets.empty" = "Este servidor FM-DX no tiene presets configurados.";
+"fmdx.live.more_details" = "Mas detalles de FM-DX";

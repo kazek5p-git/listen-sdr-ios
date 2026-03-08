@@ -29,6 +29,7 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var openWebRXBandPlan: [SDRBandPlanEntry] = []
   @Published private(set) var fmdxTelemetry: FMDXTelemetry?
   @Published private(set) var fmdxCapabilities: FMDXCapabilities = .empty
+  @Published private(set) var fmdxServerPresets: [SDRServerBookmark] = []
   @Published private(set) var selectedFMDXAntennaID: String?
   @Published private(set) var selectedFMDXBandwidthID: String?
   @Published private(set) var fmdxTuneWarningText: String?
@@ -40,7 +41,8 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
   private let fmDxMaxFrequencyHz = 110_000_000
-  private let fmDxTuneStepOptionsHz = [10_000, 25_000, 50_000, 100_000, 200_000]
+  private let fmDxFMTuneStepOptionsHz = [10_000, 25_000, 50_000, 100_000, 200_000]
+  private let fmDxAMTuneStepOptionsHz = [1_000, 5_000, 9_000, 10_000]
   private let fmDxDefaultTuneStepHz = 100_000
   private let kiwiDefaultFrequencyHz = 7_050_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -366,7 +368,9 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setTuneStepHz(_ value: Int) {
     let normalized = RadioSessionSettings.normalizedTuneStep(value)
-    settings.tuneStepHz = activeBackend == .fmDxWebserver ? normalizeFMDXTuneStepHz(normalized) : normalized
+    settings.tuneStepHz = activeBackend == .fmDxWebserver
+      ? normalizeFMDXTuneStepHz(normalized, mode: settings.mode)
+      : normalized
     persistSettings()
   }
 
@@ -376,11 +380,14 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setMode(_ mode: DemodulationMode) {
-    settings.mode = mode
-    persistSettings()
     if activeBackend == .fmDxWebserver {
+      settings.mode = (mode == .fm || mode == .am) ? mode : .fm
+      settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: settings.mode)
+      persistSettings()
       return
     }
+    settings.mode = mode
+    persistSettings()
     applyIfConnected()
   }
 
@@ -716,7 +723,12 @@ final class RadioSessionViewModel: ObservableObject {
 
     switch backend {
     case .fmDxWebserver:
-      let normalizedStep = normalizeFMDXTuneStepHz(settings.tuneStepHz)
+      if settings.mode != .fm && settings.mode != .am {
+        settings.mode = .fm
+        changed = true
+      }
+
+      let normalizedStep = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: settings.mode)
       if settings.tuneStepHz != normalizedStep {
         settings.tuneStepHz = normalizedStep
         changed = true
@@ -731,11 +743,6 @@ final class RadioSessionViewModel: ObservableObject {
           settings.frequencyHz = roundedToKHz
           changed = true
         }
-      }
-
-      if settings.mode != .fm && settings.mode != .nfm {
-        settings.mode = .fm
-        changed = true
       }
 
     case .kiwiSDR:
@@ -796,8 +803,13 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
-  private func normalizeFMDXTuneStepHz(_ value: Int) -> Int {
-    fmDxTuneStepOptionsHz.min(by: { abs($0 - value) < abs($1 - value) }) ?? fmDxDefaultTuneStepHz
+  private func fmDxTuneStepOptions(for mode: DemodulationMode) -> [Int] {
+    mode == .am ? fmDxAMTuneStepOptionsHz : fmDxFMTuneStepOptionsHz
+  }
+
+  private func normalizeFMDXTuneStepHz(_ value: Int, mode: DemodulationMode) -> Int {
+    let options = fmDxTuneStepOptions(for: mode)
+    return options.min(by: { abs($0 - value) < abs($1 - value) }) ?? fmDxDefaultTuneStepHz
   }
 
   private func normalizeFMDXFrequencyHz(fromMHz value: Double) -> Int {
@@ -960,6 +972,12 @@ final class RadioSessionViewModel: ObservableObject {
     case .fmdxCapabilities(let capabilities):
       fmdxCapabilities = capabilities
 
+    case .fmdxPresets(let presets):
+      fmdxServerPresets = presets
+      if activeBackend == .fmDxWebserver {
+        serverBookmarks = presets
+      }
+
     case .fmdx(let telemetry):
       fmdxTelemetry = telemetry
       if let antenna = telemetry.antenna, !antenna.isEmpty {
@@ -1077,6 +1095,7 @@ final class RadioSessionViewModel: ObservableObject {
     openWebRXBandPlan = []
     fmdxTelemetry = nil
     fmdxCapabilities = .empty
+    fmdxServerPresets = []
     selectedFMDXAntennaID = nil
     selectedFMDXBandwidthID = nil
     kiwiTelemetry = nil

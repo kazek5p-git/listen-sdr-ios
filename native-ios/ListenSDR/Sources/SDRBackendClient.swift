@@ -1909,6 +1909,10 @@ actor FMDXWebserverClient: SDRBackendClient {
         !tunerName.isEmpty {
         pendingStatusUpdate = "Tuner: \(tunerName)"
       }
+      let presets = parsePresetBookmarks(from: snapshot)
+      if !presets.isEmpty {
+        enqueueTelemetry(.fmdxPresets(presets))
+      }
     }
 
     let html = try? await fetchIndexHTML(profile: profile, basePath: activeBasePath)
@@ -2545,6 +2549,47 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     return options
+  }
+
+  private func parsePresetBookmarks(from staticData: [String: Any]?) -> [SDRServerBookmark] {
+    guard
+      let staticData,
+      let rawPresets = staticData["presets"] as? [Any]
+    else {
+      return []
+    }
+
+    var bookmarks: [SDRServerBookmark] = []
+    var seen = Set<Int>()
+
+    for (index, rawPreset) in rawPresets.enumerated() {
+      guard let valueMHz = parseDouble(rawPreset), valueMHz.isFinite, valueMHz > 0 else {
+        continue
+      }
+
+      let frequencyHz = normalizePresetFrequencyHz(fromMHz: valueMHz)
+      guard seen.insert(frequencyHz).inserted else { continue }
+
+      bookmarks.append(
+        SDRServerBookmark(
+          id: "fmdx-preset-\(index + 1)-\(frequencyHz)",
+          name: "Preset \(index + 1)",
+          frequencyHz: frequencyHz,
+          modulation: .fm,
+          source: "fmdx-static"
+        )
+      )
+    }
+
+    return bookmarks.sorted { $0.frequencyHz < $1.frequencyHz }
+  }
+
+  private func normalizePresetFrequencyHz(fromMHz value: Double) -> Int {
+    let minHz = 64_000_000
+    let maxHz = 110_000_000
+    let hz = Int((value * 1_000_000.0).rounded())
+    let roundedToKHz = Int((Double(hz) / 1_000.0).rounded()) * 1_000
+    return min(max(roundedToKHz, minHz), maxHz)
   }
 
   private func captures(for pattern: String, in text: String, group: Int) -> [String] {

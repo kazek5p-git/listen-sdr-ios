@@ -34,11 +34,13 @@ struct ReceiverView: View {
   @State private var quickScanChannels: [ScanChannel] = []
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
+  @State private var isFMDXDetailsExpanded = false
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
-  private let fmDxTuneStepOptionsHz: [Int] = [10_000, 25_000, 50_000, 100_000, 200_000]
+  private let fmDxFMTuneStepOptionsHz: [Int] = [10_000, 25_000, 50_000, 100_000, 200_000]
+  private let fmDxAMTuneStepOptionsHz: [Int] = [1_000, 5_000, 9_000, 10_000]
   private let fmDxScannerAutoStepHz = 100_000
 
   var body: some View {
@@ -78,10 +80,10 @@ struct ReceiverView: View {
       openWebRXBandPlanSection(for: profile)
       kiwiControlsSection(for: profile)
       fmDxControlsSection(for: profile)
+      fmDxServerPresetsSection(for: profile)
       scannerSection(for: profile, scannerChannels: scannerChannels)
       fmDxLiveSection(for: profile)
       kiwiLiveSection(for: profile)
-      dspSection(for: profile)
       favoritesSection(presets: presets)
       audioSection()
     }
@@ -175,15 +177,29 @@ struct ReceiverView: View {
       }
       .accessibilityLabel("Tune step")
       .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
+      .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)))
+      .accessibilityScrollAction { edge in
+        switch edge {
+        case .leading, .top:
+          changeTuneStep(by: -1, backend: profile.backend)
+        case .trailing, .bottom:
+          changeTuneStep(by: 1, backend: profile.backend)
+        default:
+          break
+        }
+      }
 
       Picker(
         "Mode",
         selection: Binding(
-          get: { radioSession.settings.mode },
+          get: {
+            let allowed = availableModes(for: profile.backend)
+            return allowed.contains(radioSession.settings.mode) ? radioSession.settings.mode : allowed.first ?? .fm
+          },
           set: { radioSession.setMode($0) }
         )
       ) {
-        ForEach(DemodulationMode.allCases) { mode in
+        ForEach(availableModes(for: profile.backend)) { mode in
           Text(mode.displayName).tag(mode)
         }
       }
@@ -353,8 +369,68 @@ struct ReceiverView: View {
     if profile.backend == .fmDxWebserver {
       Section(L10n.text("fmdx.controls")) {
         fmDxAudioModePicker()
+
+        Toggle(
+          "AGC",
+          isOn: Binding(
+            get: { radioSession.settings.agcEnabled },
+            set: { radioSession.setAGCEnabled($0) }
+          )
+        )
+        .disabled(radioSession.state != .connected)
+
+        Toggle(
+          "cEQ Filter",
+          isOn: Binding(
+            get: { radioSession.settings.noiseReductionEnabled },
+            set: { radioSession.setNoiseReductionEnabled($0) }
+          )
+        )
+        .disabled(radioSession.state != .connected)
+
+        Toggle(
+          "iMS+ Filter",
+          isOn: Binding(
+            get: { radioSession.settings.imsEnabled },
+            set: { radioSession.setIMSEnabled($0) }
+          )
+        )
+        .disabled(radioSession.state != .connected)
+
         fmDxAntennaPicker()
         fmDxBandwidthPicker()
+      }
+      .appSectionStyle()
+    }
+  }
+
+  @ViewBuilder
+  private func fmDxServerPresetsSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .fmDxWebserver {
+      Section(L10n.text("fmdx.server_presets.section")) {
+        if radioSession.fmdxServerPresets.isEmpty {
+          Text(L10n.text("fmdx.server_presets.empty"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        } else {
+          ForEach(radioSession.fmdxServerPresets) { preset in
+            Button {
+              radioSession.setFrequencyHz(preset.frequencyHz)
+            } label: {
+              HStack {
+                Text(preset.name)
+                Spacer()
+                Text(FrequencyFormatter.fmDxMHzText(fromHz: preset.frequencyHz))
+                  .foregroundStyle(.secondary)
+              }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+              Button(L10n.text("fmdx.af.favorite")) {
+                saveAFAsPreset(preset.frequencyHz, profile: profile)
+              }
+            }
+          }
+        }
       }
       .appSectionStyle()
     }
@@ -641,9 +717,6 @@ struct ReceiverView: View {
   private func fmDxLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
       Section(L10n.text("fmdx.live.section")) {
-        if let frequencyMHz = telemetry.frequencyMHz {
-          LabeledContent(L10n.text("fmdx.field.frequency"), value: FrequencyFormatter.fmDxMHzText(fromMHz: frequencyMHz))
-        }
         if let signal = telemetry.signal {
           LabeledContent(L10n.text("fmdx.field.signal"), value: String(format: "%.1f dBf", signal))
         }
@@ -658,27 +731,6 @@ struct ReceiverView: View {
         }
         if let ps = telemetry.ps, !ps.isEmpty {
           LabeledContent("PS", value: ps)
-        }
-        if let pty = telemetry.pty {
-          LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
-        }
-        if let tp = telemetry.tp {
-          LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-        }
-        if let ta = telemetry.ta {
-          LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-        }
-        if let ms = telemetry.ms {
-          LabeledContent("MS", value: msDisplayText(ms))
-        }
-        if let ecc = telemetry.ecc {
-          LabeledContent("ECC", value: String(format: "0x%02X", ecc))
-        }
-        if let rbds = telemetry.rbds {
-          LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
-        }
-        if let agc = telemetry.agc, !agc.isEmpty {
-          LabeledContent("AGC", value: agc)
         }
         if let countryName = telemetry.countryName, !countryName.isEmpty {
           LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
@@ -718,49 +770,77 @@ struct ReceiverView: View {
             .font(.footnote)
         }
 
-        Toggle(
-          L10n.text("fmdx.show_rds_errors"),
-          isOn: Binding(
-            get: { radioSession.settings.showRdsErrorCounters },
-            set: { radioSession.setShowRdsErrorCounters($0) }
-          )
-        )
+        DisclosureGroup(
+          L10n.text("fmdx.live.more_details"),
+          isExpanded: $isFMDXDetailsExpanded
+        ) {
+          if let pty = telemetry.pty {
+            LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
+          }
+          if let tp = telemetry.tp {
+            LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+          }
+          if let ta = telemetry.ta {
+            LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+          }
+          if let ms = telemetry.ms {
+            LabeledContent("MS", value: msDisplayText(ms))
+          }
+          if let ecc = telemetry.ecc {
+            LabeledContent("ECC", value: String(format: "0x%02X", ecc))
+          }
+          if let rbds = telemetry.rbds {
+            LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
+          }
+          if let agc = telemetry.agc, !agc.isEmpty {
+            LabeledContent("AGC", value: agc)
+          }
 
-        if radioSession.settings.showRdsErrorCounters {
-          if let errors = telemetry.psErrors, !errors.isEmpty {
-            Text(L10n.text("fmdx.ps_errors", errors))
-              .font(.footnote)
+          Toggle(
+            L10n.text("fmdx.show_rds_errors"),
+            isOn: Binding(
+              get: { radioSession.settings.showRdsErrorCounters },
+              set: { radioSession.setShowRdsErrorCounters($0) }
+            )
+          )
+
+          if radioSession.settings.showRdsErrorCounters {
+            if let errors = telemetry.psErrors, !errors.isEmpty {
+              Text(L10n.text("fmdx.ps_errors", errors))
+                .font(.footnote)
+            }
+            if let errors = telemetry.rt0Errors, !errors.isEmpty {
+              Text(L10n.text("fmdx.rt0_errors", errors))
+                .font(.footnote)
+            }
+            if let errors = telemetry.rt1Errors, !errors.isEmpty {
+              Text(L10n.text("fmdx.rt1_errors", errors))
+                .font(.footnote)
+            }
           }
-          if let errors = telemetry.rt0Errors, !errors.isEmpty {
-            Text(L10n.text("fmdx.rt0_errors", errors))
-              .font(.footnote)
-          }
-          if let errors = telemetry.rt1Errors, !errors.isEmpty {
-            Text(L10n.text("fmdx.rt1_errors", errors))
-              .font(.footnote)
-          }
-        }
-        if let tx = telemetry.txInfo {
-          if let station = tx.station, !station.isEmpty {
-            LabeledContent("TX", value: station)
-          }
-          if let city = tx.city, !city.isEmpty {
-            LabeledContent("City", value: city)
-          }
-          if let itu = tx.itu, !itu.isEmpty {
-            LabeledContent("ITU", value: itu)
-          }
-          if let distance = tx.distanceKm, !distance.isEmpty {
-            LabeledContent(L10n.text("fmdx.field.distance"), value: "\(distance) km")
-          }
-          if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
-            LabeledContent(L10n.text("fmdx.field.azimuth"), value: "\(azimuth) deg")
-          }
-          if let erp = tx.erpKW, !erp.isEmpty {
-            LabeledContent("ERP", value: "\(erp) kW")
-          }
-          if let polarization = tx.polarization, !polarization.isEmpty {
-            LabeledContent(L10n.text("fmdx.field.polarization"), value: polarization)
+
+          if let tx = telemetry.txInfo {
+            if let station = tx.station, !station.isEmpty {
+              LabeledContent("TX", value: station)
+            }
+            if let city = tx.city, !city.isEmpty {
+              LabeledContent("City", value: city)
+            }
+            if let itu = tx.itu, !itu.isEmpty {
+              LabeledContent("ITU", value: itu)
+            }
+            if let distance = tx.distanceKm, !distance.isEmpty {
+              LabeledContent(L10n.text("fmdx.field.distance"), value: "\(distance) km")
+            }
+            if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
+              LabeledContent(L10n.text("fmdx.field.azimuth"), value: "\(azimuth) deg")
+            }
+            if let erp = tx.erpKW, !erp.isEmpty {
+              LabeledContent("ERP", value: "\(erp) kW")
+            }
+            if let polarization = tx.polarization, !polarization.isEmpty {
+              LabeledContent(L10n.text("fmdx.field.polarization"), value: polarization)
+            }
           }
         }
       }
@@ -793,44 +873,6 @@ struct ReceiverView: View {
           Text(L10n.text("kiwi.live.waterfall_loading"))
             .foregroundStyle(.secondary)
         }
-      }
-      .appSectionStyle()
-    }
-  }
-
-  @ViewBuilder
-  private func dspSection(for profile: SDRConnectionProfile) -> some View {
-    if profile.backend == .fmDxWebserver {
-      Section("DSP") {
-        Toggle(
-          "AGC",
-          isOn: Binding(
-            get: { radioSession.settings.agcEnabled },
-            set: { radioSession.setAGCEnabled($0) }
-          )
-        )
-        .accessibilityHint("Automatic gain control")
-
-        Toggle(
-          "cEQ",
-          isOn: Binding(
-            get: { radioSession.settings.noiseReductionEnabled },
-            set: { radioSession.setNoiseReductionEnabled($0) }
-          )
-        )
-
-        Toggle(
-          "iMS",
-          isOn: Binding(
-            get: { radioSession.settings.imsEnabled },
-            set: { radioSession.setIMSEnabled($0) }
-          )
-        )
-
-        Button("Reset DSP settings") {
-          radioSession.resetDSPSettings()
-        }
-        .accessibilityHint(L10n.text("Restores demodulation mode and DSP controls to defaults"))
       }
       .appSectionStyle()
     }
@@ -934,9 +976,18 @@ struct ReceiverView: View {
   private func tuneStepOptions(for backend: SDRBackend) -> [Int] {
     switch backend {
     case .fmDxWebserver:
-      return fmDxTuneStepOptionsHz
+      return radioSession.settings.mode == .am ? fmDxAMTuneStepOptionsHz : fmDxFMTuneStepOptionsHz
     case .kiwiSDR, .openWebRX:
       return RadioSessionSettings.supportedTuneStepsHz
+    }
+  }
+
+  private func availableModes(for backend: SDRBackend) -> [DemodulationMode] {
+    switch backend {
+    case .fmDxWebserver:
+      return [.fm, .am]
+    case .kiwiSDR, .openWebRX:
+      return DemodulationMode.allCases
     }
   }
 
@@ -969,7 +1020,11 @@ struct ReceiverView: View {
   private func frequencySlider(for backend: SDRBackend, tuningRange: ClosedRange<Int>) -> some View {
     let sliderBinding = Binding<Double>(
       get: { Double(radioSession.settings.frequencyHz) },
-      set: { radioSession.setFrequencyHz(Int($0.rounded())) }
+      set: { newValue in
+        let stepHz = max(1, radioSession.settings.tuneStepHz)
+        let snapped = Int((newValue / Double(stepHz)).rounded()) * stepHz
+        radioSession.setFrequencyHz(snapped)
+      }
     )
     let frequencyValue = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
     let tuneStepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
@@ -982,17 +1037,13 @@ struct ReceiverView: View {
     .accessibilityLabel("Frequency")
     .accessibilityValue(frequencyValue)
     .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", tuneStepLabel))
-    .accessibilityScrollAction { edge in
-      switch edge {
-      case .leading:
-        changeTuneStep(by: -1, backend: backend)
-      case .trailing:
-        changeTuneStep(by: 1, backend: backend)
-      case .top:
-        changeTuneStep(by: -1, backend: backend)
-      case .bottom:
-        changeTuneStep(by: 1, backend: backend)
-      default:
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        radioSession.tune(byStepCount: 1)
+      case .decrement:
+        radioSession.tune(byStepCount: -1)
+      @unknown default:
         break
       }
     }
