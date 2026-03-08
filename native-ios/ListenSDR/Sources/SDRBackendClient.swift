@@ -1577,6 +1577,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var lastServerMessage: String?
   private var pendingStatusUpdate: String?
   private var telemetryQueue: [BackendTelemetryEvent] = []
+  private var latestTelemetry: FMDXTelemetry?
 
   private var activeProfile: SDRConnectionProfile?
   private var activeBasePath = "/"
@@ -1661,6 +1662,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     lastServerMessage = nil
     pendingStatusUpdate = nil
     telemetryQueue.removeAll()
+    latestTelemetry = nil
 
     activeProfile = nil
     activeBasePath = "/"
@@ -2278,39 +2280,66 @@ actor FMDXWebserverClient: SDRBackendClient {
   }
 
   private func updateStatus(from snapshot: [String: Any]) {
-    let txInfoRaw = snapshot["txInfo"] as? [String: Any]
+    let previous = latestTelemetry
+    let keys = Set(snapshot.keys)
+
+    func mergedOptional<T>(
+      key: String,
+      previous previousValue: T?,
+      parser: (Any?) -> T?
+    ) -> T? {
+      if keys.contains(key) {
+        return parser(snapshot[key])
+      }
+      return previousValue
+    }
+
+    func mergedArray<T>(
+      key: String,
+      previous previousValue: [T],
+      parser: (Any?) -> [T]
+    ) -> [T] {
+      if keys.contains(key) {
+        return parser(snapshot[key])
+      }
+      return previousValue
+    }
+
     let telemetry = FMDXTelemetry(
-      frequencyMHz: parseFrequencyMHz(snapshot["freq"]),
-      signal: parseDouble(snapshot["sig"]),
-      signalTop: parseDouble(snapshot["sigTop"]),
-      users: parseInt(snapshot["users"]),
-      isStereo: parseBool(snapshot["st"]),
-      isForcedStereo: parseBool(snapshot["stForced"]),
-      rdsEnabled: parseBool(snapshot["rds"]),
-      pi: parseString(snapshot["pi"]),
-      ps: parseString(snapshot["ps"]),
-      rt0: parseString(snapshot["rt0"]),
-      rt1: parseString(snapshot["rt1"]),
-      pty: parseInt(snapshot["pty"]),
-      tp: parseInt(snapshot["tp"]),
-      ta: parseInt(snapshot["ta"]),
-      ms: parseInt(snapshot["ms"]),
-      ecc: parseInt(snapshot["ecc"]),
-      rbds: parseBool(snapshot["rbds"]),
-      countryName: parseString(snapshot["country_name"]),
-      countryISO: parseString(snapshot["country_iso"]),
-      afMHz: parseAF(snapshot["af"]),
-      bandwidth: parseString(snapshot["bw"]),
-      antenna: parseString(snapshot["ant"]),
-      agc: parseString(snapshot["agc"]),
-      eq: parseString(snapshot["eq"]),
-      ims: parseString(snapshot["ims"]),
-      psErrors: parseString(snapshot["ps_errors"]),
-      rt0Errors: parseString(snapshot["rt0_errors"]),
-      rt1Errors: parseString(snapshot["rt1_errors"]),
-      txInfo: parseTxInfo(txInfoRaw)
+      frequencyMHz: mergedOptional(key: "freq", previous: previous?.frequencyMHz, parser: parseFrequencyMHz),
+      signal: mergedOptional(key: "sig", previous: previous?.signal, parser: parseDouble),
+      signalTop: mergedOptional(key: "sigTop", previous: previous?.signalTop, parser: parseDouble),
+      users: mergedOptional(key: "users", previous: previous?.users, parser: parseInt),
+      isStereo: mergedOptional(key: "st", previous: previous?.isStereo, parser: parseBool),
+      isForcedStereo: mergedOptional(key: "stForced", previous: previous?.isForcedStereo, parser: parseBool),
+      rdsEnabled: mergedOptional(key: "rds", previous: previous?.rdsEnabled, parser: parseBool),
+      pi: mergedOptional(key: "pi", previous: previous?.pi, parser: parseString),
+      ps: mergedOptional(key: "ps", previous: previous?.ps, parser: parseString),
+      rt0: mergedOptional(key: "rt0", previous: previous?.rt0, parser: parseString),
+      rt1: mergedOptional(key: "rt1", previous: previous?.rt1, parser: parseString),
+      pty: mergedOptional(key: "pty", previous: previous?.pty, parser: parseInt),
+      tp: mergedOptional(key: "tp", previous: previous?.tp, parser: parseInt),
+      ta: mergedOptional(key: "ta", previous: previous?.ta, parser: parseInt),
+      ms: mergedOptional(key: "ms", previous: previous?.ms, parser: parseInt),
+      ecc: mergedOptional(key: "ecc", previous: previous?.ecc, parser: parseInt),
+      rbds: mergedOptional(key: "rbds", previous: previous?.rbds, parser: parseBool),
+      countryName: mergedOptional(key: "country_name", previous: previous?.countryName, parser: parseString),
+      countryISO: mergedOptional(key: "country_iso", previous: previous?.countryISO, parser: parseString),
+      afMHz: mergedArray(key: "af", previous: previous?.afMHz ?? [], parser: parseAF),
+      bandwidth: mergedOptional(key: "bw", previous: previous?.bandwidth, parser: parseString),
+      antenna: mergedOptional(key: "ant", previous: previous?.antenna, parser: parseString),
+      agc: mergedOptional(key: "agc", previous: previous?.agc, parser: parseString),
+      eq: mergedOptional(key: "eq", previous: previous?.eq, parser: parseString),
+      ims: mergedOptional(key: "ims", previous: previous?.ims, parser: parseString),
+      psErrors: mergedOptional(key: "ps_errors", previous: previous?.psErrors, parser: parseString),
+      rt0Errors: mergedOptional(key: "rt0_errors", previous: previous?.rt0Errors, parser: parseString),
+      rt1Errors: mergedOptional(key: "rt1_errors", previous: previous?.rt1Errors, parser: parseString),
+      txInfo: mergedOptional(key: "txInfo", previous: previous?.txInfo, parser: { raw in
+        parseTxInfo(raw as? [String: Any])
+      })
     )
 
+    latestTelemetry = telemetry
     enqueueTelemetry(.fmdx(telemetry))
     let summary = makeStatusSummary(from: telemetry)
     pendingStatusUpdate = summary.isEmpty ? nil : summary

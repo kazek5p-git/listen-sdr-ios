@@ -293,11 +293,17 @@ final class RadioSessionViewModel: ObservableObject {
         if Task.isCancelled { break }
 
         if backend == .fmDxWebserver {
-          let locked = await MainActor.run { self.isFMDXTuned(to: channel.frequencyHz) }
+          var locked = await MainActor.run { self.isFMDXTuned(to: channel.frequencyHz) }
           if !locked {
             // FM-DX telemetry can lag briefly after tune command.
             try? await Task.sleep(nanoseconds: 500_000_000)
             if Task.isCancelled { break }
+            locked = await MainActor.run { self.isFMDXTuned(to: channel.frequencyHz) }
+          }
+
+          if !locked {
+            index = (index + 1) % channels.count
+            continue
           }
         }
 
@@ -761,20 +767,10 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
-  private func currentScannerSignal() -> Double? {
-    currentScannerSignal(for: activeBackend)
-  }
-
   private func currentScannerSignal(for backend: SDRBackend?) -> Double? {
     switch backend {
     case .fmDxWebserver:
-      if let signal = fmdxTelemetry?.signal {
-        return signal
-      }
-      if let peak = fmdxTelemetry?.signalTop {
-        return peak
-      }
-      return nil
+      return fmdxTelemetry?.signal
 
     case .kiwiSDR:
       return kiwiTelemetry?.rssiDBm
@@ -790,7 +786,7 @@ final class RadioSessionViewModel: ObservableObject {
   private func isFMDXTuned(to frequencyHz: Int) -> Bool {
     guard let frequencyMHz = fmdxTelemetry?.frequencyMHz else { return false }
     let reportedHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
-    return abs(reportedHz - frequencyHz) <= 80_000
+    return abs(reportedHz - frequencyHz) <= 2_000
   }
 
   private func defaultScannerThreshold(for backend: SDRBackend) -> Double {
