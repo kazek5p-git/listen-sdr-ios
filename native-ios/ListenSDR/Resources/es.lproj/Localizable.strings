@@ -178,6 +178,9 @@
 "connection.disconnect" = "Desconectar";
 "connection.connect" = "Conectar";
 "receiver.frequency.swipe_hint" = "Desliza hacia arriba o abajo para sintonizar con %@";
+"receiver.frequency.swipe_and_step_hint" = "Desliza hacia arriba o abajo para sintonizar con %@. Desliza con dos dedos a la izquierda o derecha para cambiar el paso de sintonia.";
+"receiver.tune_step.previous_action" = "Paso de sintonia anterior";
+"receiver.tune_step.next_action" = "Paso de sintonia siguiente";
 
 "frequency_input.invalid_fm" = "Frecuencia FM invalida. Prueba 102.3, 1023 o 102300.";
 "frequency_input.invalid_generic" = "Frecuencia invalida. Usa valores como 7.050 MHz, 7050 kHz o 7050000.";

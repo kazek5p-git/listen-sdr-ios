@@ -178,6 +178,9 @@
 "connection.disconnect" = "Rozłącz";
 "connection.connect" = "Połącz";
 "receiver.frequency.swipe_hint" = "Przesuń w górę lub w dół, aby stroić co %@";
+"receiver.frequency.swipe_and_step_hint" = "Przesuń w górę lub w dół, aby stroić co %@. Przesuń dwoma palcami w lewo lub w prawo, aby zmienić krok strojenia.";
+"receiver.tune_step.previous_action" = "Poprzedni krok strojenia";
+"receiver.tune_step.next_action" = "Następny krok strojenia";
 
 "frequency_input.invalid_fm" = "Nieprawidłowa częstotliwość FM. Spróbuj: 102.3, 1023 lub 102300.";
 "frequency_input.invalid_generic" = "Nieprawidłowa częstotliwość. Użyj np. 7.050 MHz, 7050 kHz lub 7050000.";

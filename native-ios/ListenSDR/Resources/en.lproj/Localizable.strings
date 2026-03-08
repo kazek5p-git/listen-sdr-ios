@@ -26,6 +26,9 @@
 "connection.disconnect" = "Disconnect";
 "connection.connect" = "Connect";
 "receiver.frequency.swipe_hint" = "Swipe up or down to tune by %@";
+"receiver.frequency.swipe_and_step_hint" = "Swipe up or down to tune by %@. Swipe left or right with two fingers to change tune step.";
+"receiver.tune_step.previous_action" = "Previous tune step";
+"receiver.tune_step.next_action" = "Next tune step";
 
 "frequency_input.invalid_fm" = "Invalid FM frequency. Try 102.3, 1023 or 102300.";
 "frequency_input.invalid_generic" = "Invalid frequency. Use values like 7.050 MHz, 7050 kHz or 7050000.";

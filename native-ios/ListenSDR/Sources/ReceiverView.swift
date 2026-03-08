@@ -185,10 +185,26 @@ struct ReceiverView: View {
         )
         .accessibilityHint(
           L10n.text(
-            "receiver.frequency.swipe_hint",
+            "receiver.frequency.swipe_and_step_hint",
             FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
           )
         )
+        .accessibilityScrollAction { edge in
+          switch edge {
+          case .leading:
+            changeTuneStep(by: -1, backend: profile.backend)
+          case .trailing:
+            changeTuneStep(by: 1, backend: profile.backend)
+          default:
+            break
+          }
+        }
+        .accessibilityAction(named: Text(L10n.text("receiver.tune_step.previous_action"))) {
+          changeTuneStep(by: -1, backend: profile.backend)
+        }
+        .accessibilityAction(named: Text(L10n.text("receiver.tune_step.next_action"))) {
+          changeTuneStep(by: 1, backend: profile.backend)
+        }
 
         Button {
           beginFrequencyEntry()
@@ -769,6 +785,23 @@ struct ReceiverView: View {
     case .kiwiSDR, .openWebRX:
       return RadioSessionSettings.supportedTuneStepsHz
     }
+  }
+
+  private func changeTuneStep(by offset: Int, backend: SDRBackend) {
+    let steps = tuneStepOptions(for: backend)
+    guard !steps.isEmpty else { return }
+
+    let currentStep = radioSession.settings.tuneStepHz
+    let currentIndex: Int
+    if let exactIndex = steps.firstIndex(of: currentStep) {
+      currentIndex = exactIndex
+    } else {
+      currentIndex = steps.enumerated().min(by: { abs($0.element - currentStep) < abs($1.element - currentStep) })?.offset ?? 0
+    }
+
+    let nextIndex = min(max(currentIndex + offset, 0), steps.count - 1)
+    guard nextIndex != currentIndex else { return }
+    radioSession.setTuneStepHz(steps[nextIndex])
   }
 
   private var savePresetSheet: some View {
