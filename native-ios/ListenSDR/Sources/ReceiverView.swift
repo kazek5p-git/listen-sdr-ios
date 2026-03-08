@@ -77,639 +77,680 @@ struct ReceiverView: View {
     let tuningRange = frequencyRange(for: profile.backend)
 
     Form {
-      Section("Connection") {
-        LabeledContent("Profile", value: profile.name)
-          .accessibilityLabel(L10n.text("Selected profile"))
-          .accessibilityValue(profile.name)
+      connectionSection(for: profile)
+      tuningSection(for: profile, tuningRange: tuningRange)
+      openWebRXServerBookmarksSection(for: profile)
+      openWebRXBandPlanSection(for: profile)
+      fmDxControlsSection(for: profile)
+      scannerSection(for: profile, scannerChannels: scannerChannels)
+      fmDxLiveSection(for: profile)
+      kiwiLiveSection(for: profile)
+      dspSection(for: profile)
+      favoritesSection(presets: presets)
+      audioSection()
+    }
+    .scrollContentBackground(.hidden)
+  }
 
-        LabeledContent("Backend", value: profile.backend.displayName)
-        LabeledContent("Endpoint", value: profile.endpointDescription)
+  private func connectionSection(for profile: SDRConnectionProfile) -> some View {
+    Section("Connection") {
+      LabeledContent("Profile", value: profile.name)
+        .accessibilityLabel(L10n.text("Selected profile"))
+        .accessibilityValue(profile.name)
 
-        LabeledContent("Status", value: radioSession.statusText)
-          .accessibilityLabel(L10n.text("Connection status"))
-          .accessibilityValue(radioSession.statusText)
+      LabeledContent("Backend", value: profile.backend.displayName)
+      LabeledContent("Endpoint", value: profile.endpointDescription)
 
-        if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
-          LabeledContent("Receiver data", value: backendStatus)
-            .accessibilityLabel(L10n.text("Receiver live data"))
-            .accessibilityValue(backendStatus)
-        }
+      LabeledContent("Status", value: radioSession.statusText)
+        .accessibilityLabel(L10n.text("Connection status"))
+        .accessibilityValue(radioSession.statusText)
 
-        if profile.backend == .openWebRX && radioSession.state == .connected &&
-          radioSession.connectedProfileID == profile.id {
-          if radioSession.openWebRXProfiles.isEmpty {
-            Text("Waiting for OpenWebRX profile list...")
-              .foregroundStyle(.secondary)
-          } else {
-            Picker(
-              "Server profile",
-              selection: Binding(
-                get: {
-                  radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? ""
-                },
-                set: { value in
-                  if !value.isEmpty {
-                    radioSession.selectOpenWebRXProfile(value)
-                  }
-                }
-              )
-            ) {
-              ForEach(radioSession.openWebRXProfiles) { profileOption in
-                Text(profileOption.name).tag(profileOption.id)
-              }
-            }
-            .pickerStyle(.menu)
-            .accessibilityHint(L10n.text("Select SDR profile from OpenWebRX server"))
-          }
-        }
-
-        if let error = radioSession.lastError {
-          Text(error)
-            .foregroundStyle(.red)
-            .font(.footnote)
-            .accessibilityLabel(L10n.text("Last error"))
-            .accessibilityValue(error)
-        }
-
-        Button(action: {
-          if radioSession.state == .connected &&
-            radioSession.connectedProfileID == profile.id {
-            radioSession.disconnect()
-          } else {
-            radioSession.connect(to: profile)
-          }
-        }) {
-          Text(connectionButtonTitle(for: profile))
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .accessibilityHint(L10n.text("Double tap to change connection state"))
-
-        if radioSession.state == .failed {
-          Button {
-            radioSession.reconnect(to: profile)
-          } label: {
-            Text("Reconnect")
-              .frame(maxWidth: .infinity)
-          }
-          .buttonStyle(.bordered)
-          .accessibilityHint(L10n.text("Try connecting to this receiver again"))
-        }
-      }
-      .appSectionStyle()
-
-      Section("Tuning") {
-        LabeledContent(
-          "Frequency",
-          value: frequencyText(
-            fromHz: radioSession.settings.frequencyHz,
-            backend: profile.backend
-          )
-        )
-
-        frequencySlider(for: profile.backend, tuningRange: tuningRange)
-
-        Button {
-          beginFrequencyEntry()
-        } label: {
-          Label("Set exact frequency", systemImage: "number")
-        }
-        .accessibilityHint(L10n.text("Enter frequency in hertz, kilohertz or megahertz"))
-
-        Picker(
-          "Tune step",
-          selection: Binding(
-            get: { radioSession.settings.tuneStepHz },
-            set: { radioSession.setTuneStepHz($0) }
-          )
-        ) {
-          ForEach(tuneStepOptions(for: profile.backend), id: \.self) { stepHz in
-            Text(FrequencyFormatter.tuneStepText(fromHz: stepHz)).tag(stepHz)
-          }
-        }
-        .accessibilityLabel("Tune step")
-        .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
-
-        Picker(
-          "Mode",
-          selection: Binding(
-            get: { radioSession.settings.mode },
-            set: { radioSession.setMode($0) }
-          )
-        ) {
-          ForEach(DemodulationMode.allCases) { mode in
-            Text(mode.displayName).tag(mode)
-          }
-        }
-        .accessibilityLabel("Demodulation mode")
-
-        if let tuneWarning = radioSession.fmdxTuneWarningText,
-          profile.backend == .fmDxWebserver {
-          Text(tuneWarning)
-            .font(.footnote)
-            .foregroundStyle(.orange)
-        }
-
-        VStack(alignment: .leading, spacing: 6) {
-          Text(L10n.text("receiver.rf_gain_value", Int(radioSession.settings.rfGain)))
-          Slider(
-            value: Binding(
-              get: { radioSession.settings.rfGain },
-              set: { radioSession.setRFGain($0) }
-            ),
-            in: 0...100,
-            step: 1
-          )
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(L10n.text("RF gain"))
-        .accessibilityValue("\(Int(radioSession.settings.rfGain))")
-      }
-      .appSectionStyle()
-
-      if profile.backend == .openWebRX {
-        Section("Server Bookmarks") {
-          if radioSession.serverBookmarks.isEmpty {
-            Text("No OpenWebRX bookmarks yet.")
-              .foregroundStyle(.secondary)
-          } else {
-            ForEach(radioSession.serverBookmarks) { bookmark in
-              Button {
-                radioSession.applyServerBookmark(bookmark)
-              } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                  Text(bookmark.name)
-                  Text(FrequencyFormatter.mhzText(fromHz: bookmark.frequencyHz))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                }
-              }
-              .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button("Save") {
-                  saveBookmarkAsPreset(bookmark, profile: profile)
-                }
-              }
-            }
-          }
-        }
-        .appSectionStyle()
-
-        Section("Band Plan") {
-          if radioSession.openWebRXBandPlan.isEmpty {
-            Text("Band plan is loading...")
-              .foregroundStyle(.secondary)
-          } else {
-            ForEach(radioSession.openWebRXBandPlan) { band in
-              DisclosureGroup {
-                Button {
-                  radioSession.tuneToBand(band)
-                } label: {
-                  Label("Tune band center", systemImage: "scope")
-                }
-
-                ForEach(Array(band.frequencies.prefix(8))) { item in
-                  Button {
-                    radioSession.tuneToBand(band, using: item)
-                  } label: {
-                    HStack {
-                      Text(item.name)
-                      Spacer()
-                      Text(FrequencyFormatter.mhzText(fromHz: item.frequencyHz))
-                        .foregroundStyle(.secondary)
-                    }
-                  }
-                }
-              } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                  Text(band.name)
-                  Text(band.rangeText)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                }
-              }
-            }
-          }
-        }
-        .appSectionStyle()
+      if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
+        LabeledContent("Receiver data", value: backendStatus)
+          .accessibilityLabel(L10n.text("Receiver live data"))
+          .accessibilityValue(backendStatus)
       }
 
-      if profile.backend == .fmDxWebserver {
-        Section(L10n.text("fmdx.controls")) {
+      if profile.backend == .openWebRX && radioSession.state == .connected &&
+        radioSession.connectedProfileID == profile.id {
+        if radioSession.openWebRXProfiles.isEmpty {
+          Text("Waiting for OpenWebRX profile list...")
+            .foregroundStyle(.secondary)
+        } else {
           Picker(
-            L10n.text("fmdx.audio_mode"),
+            "Server profile",
             selection: Binding(
               get: {
-                (radioSession.fmdxTelemetry?.isForcedStereo ?? false) ? .stereo : .mono
+                radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? ""
               },
-              set: { mode in
-                radioSession.setFMDXForcedStereoEnabled(mode == .stereo)
+              set: { value in
+                if !value.isEmpty {
+                  radioSession.selectOpenWebRXProfile(value)
+                }
               }
             )
           ) {
-            Text(L10n.text("fmdx.stereo_state.mono")).tag(FMDXAudioModeSelection.mono)
-            Text(L10n.text("fmdx.stereo_state.stereo")).tag(FMDXAudioModeSelection.stereo)
-          }
-          .pickerStyle(.segmented)
-          .disabled(radioSession.state != .connected)
-          .accessibilityLabel(L10n.text("fmdx.audio_mode"))
-          .accessibilityValue(fmdxAudioModePickerValue(for: radioSession.fmdxTelemetry))
-
-          if !radioSession.fmdxCapabilities.antennas.isEmpty {
-            Picker(
-              L10n.text("fmdx.antenna"),
-              selection: Binding(
-                get: {
-                  radioSession.selectedFMDXAntennaID
-                    ?? radioSession.fmdxCapabilities.antennas.first?.id
-                    ?? ""
-                },
-                set: { value in
-                  if !value.isEmpty {
-                    radioSession.setFMDXAntenna(value)
-                  }
-                }
-              )
-            ) {
-              ForEach(radioSession.fmdxCapabilities.antennas) { option in
-                Text(option.label).tag(option.id)
-              }
+            ForEach(radioSession.openWebRXProfiles) { profileOption in
+              Text(profileOption.name).tag(profileOption.id)
             }
-            .disabled(radioSession.state != .connected)
           }
-
-          if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
-            Picker(
-              L10n.text("fmdx.bandwidth"),
-              selection: Binding(
-                get: {
-                  radioSession.selectedFMDXBandwidthID
-                    ?? radioSession.fmdxCapabilities.bandwidths.first?.id
-                    ?? ""
-                },
-                set: { value in
-                  guard
-                    let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value })
-                  else { return }
-                  radioSession.setFMDXBandwidth(option)
-                }
-              )
-            ) {
-              ForEach(radioSession.fmdxCapabilities.bandwidths) { option in
-                Text(option.label).tag(option.id)
-              }
-            }
-            .disabled(radioSession.state != .connected)
-          }
+          .pickerStyle(.menu)
+          .accessibilityHint(L10n.text("Select SDR profile from OpenWebRX server"))
         }
-        .appSectionStyle()
       }
 
-      Section("Scanner") {
-        Picker("Channel source", selection: $scanSource) {
-          ForEach(ScanSource.allCases) { source in
-            Text(source.displayName).tag(source)
-          }
-        }
+      if let error = radioSession.lastError {
+        Text(error)
+          .foregroundStyle(.red)
+          .font(.footnote)
+          .accessibilityLabel(L10n.text("Last error"))
+          .accessibilityValue(error)
+      }
 
-        if scanSource == .quickList {
-          Button(L10n.text("scanner.quick_list.clear")) {
-            quickScanChannels.removeAll()
-          }
-          .disabled(quickScanChannels.isEmpty)
-        }
-
-        LabeledContent("Channels", value: "\(scannerChannels.count)")
-
-        Slider(
-          value: $radioSession.scannerThreshold,
-          in: thresholdRange(for: profile.backend),
-          step: thresholdStep(for: profile.backend)
-        )
-        LabeledContent(
-          "Threshold",
-          value: "\(String(format: "%.1f", radioSession.scannerThreshold)) \(radioSession.scannerSignalUnit(for: profile.backend))"
-        )
-
-        VStack(alignment: .leading, spacing: 6) {
-          LabeledContent("Dwell", value: "\(String(format: "%.1f", scannerDwellSeconds)) s")
-          Slider(value: $scannerDwellSeconds, in: 0.5...6, step: 0.1)
-        }
-
-        VStack(alignment: .leading, spacing: 6) {
-          LabeledContent("Hold on hit", value: "\(String(format: "%.1f", scannerHoldSeconds)) s")
-          Slider(value: $scannerHoldSeconds, in: 0.5...12, step: 0.1)
-        }
-
-        if radioSession.isScannerRunning {
-          Button("Stop scanner") {
-            radioSession.stopScanner()
-          }
-          .buttonStyle(.borderedProminent)
+      Button(action: {
+        if radioSession.state == .connected &&
+          radioSession.connectedProfileID == profile.id {
+          radioSession.disconnect()
         } else {
-          Button("Start scanner") {
-            radioSession.startScanner(
-              channels: scannerChannels,
-              backend: profile.backend,
-              dwellSeconds: scannerDwellSeconds,
-              holdSeconds: scannerHoldSeconds
-            )
-          }
-          .buttonStyle(.borderedProminent)
-          .disabled(scannerChannels.isEmpty || radioSession.state != .connected)
+          radioSession.connect(to: profile)
         }
-
-        if let scannerStatus = radioSession.scannerStatusText {
-          Text(scannerStatus)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-
-        if profile.backend == .openWebRX {
-          Text("Threshold hold works with live signal metrics (KiwiSDR and FM-DX).")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
+      }) {
+        Text(connectionButtonTitle(for: profile))
+          .frame(maxWidth: .infinity)
       }
-      .appSectionStyle()
+      .buttonStyle(.borderedProminent)
+      .accessibilityHint(L10n.text("Double tap to change connection state"))
 
-      if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
-        Section("FM-DX Live") {
-          if let frequencyMHz = telemetry.frequencyMHz {
-            LabeledContent("Frequency", value: FrequencyFormatter.fmDxMHzText(fromMHz: frequencyMHz))
-          }
-          if let signal = telemetry.signal {
-            LabeledContent("Signal", value: String(format: "%.1f dBf", signal))
-          }
-          if let signalTop = telemetry.signalTop {
-            LabeledContent("Signal peak", value: String(format: "%.1f dBf", signalTop))
-          }
-          if let users = telemetry.users {
-            LabeledContent("Users", value: "\(users)")
-          }
-          if let pi = telemetry.pi, !pi.isEmpty {
-            LabeledContent("PI", value: pi)
-          }
-          if let ps = telemetry.ps, !ps.isEmpty {
-            LabeledContent("PS", value: ps)
-          }
-          if let pty = telemetry.pty {
-            LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
-          }
-          if let tp = telemetry.tp {
-            LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-          }
-          if let ta = telemetry.ta {
-            LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-          }
-          if let ms = telemetry.ms {
-            LabeledContent("MS", value: msDisplayText(ms))
-          }
-          if let ecc = telemetry.ecc {
-            LabeledContent("ECC", value: String(format: "0x%02X", ecc))
-          }
-          if let rbds = telemetry.rbds {
-            LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
-          }
-          if let agc = telemetry.agc, !agc.isEmpty {
-            LabeledContent("AGC", value: agc)
-          }
-          if let countryName = telemetry.countryName, !countryName.isEmpty {
-            LabeledContent("Country", value: countryName)
-          }
-          if let countryISO = telemetry.countryISO, !countryISO.isEmpty {
-            LabeledContent("ISO", value: countryISO)
-          }
-          if !telemetry.afMHz.isEmpty {
-            ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
-              let afHz = frequencyHz(fromMHz: afMHz)
-              HStack {
-                Button(String(format: "%.1f MHz", afMHz)) {
-                  radioSession.setFrequencyHz(afHz)
-                }
-                .buttonStyle(.borderless)
-
-                Spacer()
-
-                Button(L10n.text("fmdx.af.favorite")) {
-                  saveAFAsPreset(afHz, profile: profile)
-                }
-                .buttonStyle(.borderless)
-
-                Button(L10n.text("fmdx.af.scan")) {
-                  addQuickScanChannel(frequencyHz: afHz)
-                }
-                .buttonStyle(.borderless)
-              }
-            }
-          }
-          if let rt0 = telemetry.rt0, !rt0.isEmpty {
-            Text(L10n.text("fmdx.rt0", rt0))
-              .font(.footnote)
-          }
-          if let rt1 = telemetry.rt1, !rt1.isEmpty {
-            Text(L10n.text("fmdx.rt1", rt1))
-              .font(.footnote)
-          }
-
-          Toggle(
-            L10n.text("fmdx.show_rds_errors"),
-            isOn: Binding(
-              get: { radioSession.settings.showRdsErrorCounters },
-              set: { radioSession.setShowRdsErrorCounters($0) }
-            )
-          )
-
-          if radioSession.settings.showRdsErrorCounters {
-            if let errors = telemetry.psErrors, !errors.isEmpty {
-              Text(L10n.text("fmdx.ps_errors", errors))
-                .font(.footnote)
-            }
-            if let errors = telemetry.rt0Errors, !errors.isEmpty {
-              Text(L10n.text("fmdx.rt0_errors", errors))
-                .font(.footnote)
-            }
-            if let errors = telemetry.rt1Errors, !errors.isEmpty {
-              Text(L10n.text("fmdx.rt1_errors", errors))
-                .font(.footnote)
-            }
-          }
-          if let tx = telemetry.txInfo {
-            if let station = tx.station, !station.isEmpty {
-              LabeledContent("TX", value: station)
-            }
-            if let city = tx.city, !city.isEmpty {
-              LabeledContent("City", value: city)
-            }
-            if let itu = tx.itu, !itu.isEmpty {
-              LabeledContent("ITU", value: itu)
-            }
-            if let distance = tx.distanceKm, !distance.isEmpty {
-              LabeledContent("Distance", value: "\(distance) km")
-            }
-            if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
-              LabeledContent("Azimuth", value: "\(azimuth) deg")
-            }
-            if let erp = tx.erpKW, !erp.isEmpty {
-              LabeledContent("ERP", value: "\(erp) kW")
-            }
-            if let polarization = tx.polarization, !polarization.isEmpty {
-              LabeledContent("Polarization", value: polarization)
-            }
-          }
-        }
-        .appSectionStyle()
-      }
-
-      if profile.backend == .kiwiSDR, let telemetry = radioSession.kiwiTelemetry {
-        Section("Kiwi Live") {
-          if let rssi = telemetry.rssiDBm {
-            LabeledContent("S-meter", value: String(format: "%.1f dBm", rssi))
-          } else {
-            LabeledContent("S-meter", value: "No data")
-          }
-          LabeledContent("Audio rate", value: "\(telemetry.sampleRateHz) Hz")
-
-          if !telemetry.waterfallBins.isEmpty {
-            WaterfallStripView(bins: telemetry.waterfallBins)
-              .frame(height: 88)
-              .clipShape(RoundedRectangle(cornerRadius: 8))
-              .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                  .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-              }
-              .accessibilityLabel("Waterfall")
-              .accessibilityValue("Live spectrum strip")
-          } else {
-            Text("Waterfall loading...")
-              .foregroundStyle(.secondary)
-          }
-        }
-        .appSectionStyle()
-      }
-
-      Section("DSP") {
-        if profile.backend == .fmDxWebserver {
-          Toggle(
-            "AGC",
-            isOn: Binding(
-              get: { radioSession.settings.agcEnabled },
-              set: { radioSession.setAGCEnabled($0) }
-            )
-          )
-          .accessibilityHint("Automatic gain control")
-
-          Toggle(
-            "cEQ",
-            isOn: Binding(
-              get: { radioSession.settings.noiseReductionEnabled },
-              set: { radioSession.setNoiseReductionEnabled($0) }
-            )
-          )
-
-          Toggle(
-            "iMS",
-            isOn: Binding(
-              get: { radioSession.settings.imsEnabled },
-              set: { radioSession.setIMSEnabled($0) }
-            )
-          )
-        } else {
-          Toggle(
-            "AGC",
-            isOn: Binding(
-              get: { radioSession.settings.agcEnabled },
-              set: { radioSession.setAGCEnabled($0) }
-            )
-          )
-          .accessibilityHint("Automatic gain control")
-
-          Toggle(
-            "Noise reduction",
-            isOn: Binding(
-              get: { radioSession.settings.noiseReductionEnabled },
-              set: { radioSession.setNoiseReductionEnabled($0) }
-            )
-          )
-
-          Toggle(
-            "Squelch",
-            isOn: Binding(
-              get: { radioSession.settings.squelchEnabled },
-              set: { radioSession.setSquelchEnabled($0) }
-            )
-          )
-        }
-
-        Button("Reset DSP settings") {
-          radioSession.resetDSPSettings()
-        }
-        .accessibilityHint(L10n.text("Restores demodulation mode and DSP controls to defaults"))
-      }
-      .appSectionStyle()
-
-      Section("Favorites") {
+      if radioSession.state == .failed {
         Button {
-          beginSavingCurrentFrequency()
+          radioSession.reconnect(to: profile)
         } label: {
-          Label("Save current frequency", systemImage: "star")
+          Text("Reconnect")
+            .frame(maxWidth: .infinity)
         }
-        .accessibilityHint(L10n.text("Saves current frequency and mode as a favorite"))
+        .buttonStyle(.bordered)
+        .accessibilityHint(L10n.text("Try connecting to this receiver again"))
+      }
+    }
+    .appSectionStyle()
+  }
 
-        if presets.isEmpty {
-          Text("No favorites yet. Save one to recall frequency and mode quickly.")
+  private func tuningSection(for profile: SDRConnectionProfile, tuningRange: ClosedRange<Int>) -> some View {
+    Section("Tuning") {
+      LabeledContent(
+        "Frequency",
+        value: frequencyText(
+          fromHz: radioSession.settings.frequencyHz,
+          backend: profile.backend
+        )
+      )
+
+      frequencySlider(for: profile.backend, tuningRange: tuningRange)
+
+      Button {
+        beginFrequencyEntry()
+      } label: {
+        Label("Set exact frequency", systemImage: "number")
+      }
+      .accessibilityHint(L10n.text("Enter frequency in hertz, kilohertz or megahertz"))
+
+      Picker(
+        "Tune step",
+        selection: Binding(
+          get: { radioSession.settings.tuneStepHz },
+          set: { radioSession.setTuneStepHz($0) }
+        )
+      ) {
+        ForEach(tuneStepOptions(for: profile.backend), id: \.self) { stepHz in
+          Text(FrequencyFormatter.tuneStepText(fromHz: stepHz)).tag(stepHz)
+        }
+      }
+      .accessibilityLabel("Tune step")
+      .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
+
+      Picker(
+        "Mode",
+        selection: Binding(
+          get: { radioSession.settings.mode },
+          set: { radioSession.setMode($0) }
+        )
+      ) {
+        ForEach(DemodulationMode.allCases) { mode in
+          Text(mode.displayName).tag(mode)
+        }
+      }
+      .accessibilityLabel("Demodulation mode")
+
+      if let tuneWarning = radioSession.fmdxTuneWarningText,
+        profile.backend == .fmDxWebserver {
+        Text(tuneWarning)
+          .font(.footnote)
+          .foregroundStyle(.orange)
+      }
+
+      VStack(alignment: .leading, spacing: 6) {
+        Text(L10n.text("receiver.rf_gain_value", Int(radioSession.settings.rfGain)))
+        Slider(
+          value: Binding(
+            get: { radioSession.settings.rfGain },
+            set: { radioSession.setRFGain($0) }
+          ),
+          in: 0...100,
+          step: 1
+        )
+      }
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel(L10n.text("RF gain"))
+      .accessibilityValue("\(Int(radioSession.settings.rfGain))")
+    }
+    .appSectionStyle()
+  }
+
+  @ViewBuilder
+  private func openWebRXServerBookmarksSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .openWebRX {
+      Section("Server Bookmarks") {
+        if radioSession.serverBookmarks.isEmpty {
+          Text("No OpenWebRX bookmarks yet.")
             .foregroundStyle(.secondary)
         } else {
-          ForEach(presets) { preset in
+          ForEach(radioSession.serverBookmarks) { bookmark in
             Button {
-              apply(preset: preset)
+              radioSession.applyServerBookmark(bookmark)
             } label: {
               VStack(alignment: .leading, spacing: 4) {
-                Text(preset.name)
-                Text("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)) - \(preset.mode.displayName)")
+                Text(bookmark.name)
+                Text(FrequencyFormatter.mhzText(fromHz: bookmark.frequencyHz))
                   .font(.footnote)
                   .foregroundStyle(.secondary)
               }
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              Button("Delete", role: .destructive) {
-                presetStore.removePreset(preset)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+              Button("Save") {
+                saveBookmarkAsPreset(bookmark, profile: profile)
               }
             }
-            .accessibilityLabel(preset.name)
-            .accessibilityValue("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)), \(preset.mode.displayName)")
-            .accessibilityHint(L10n.text("Double tap to apply this favorite"))
           }
         }
       }
       .appSectionStyle()
+    }
+  }
 
-      Section("Audio") {
-        VStack(alignment: .leading, spacing: 6) {
-          Text(L10n.text("audio.volume_percent", Int((radioSession.settings.audioVolume * 100).rounded())))
-          Slider(
-            value: Binding(
-              get: { radioSession.settings.audioVolume },
-              set: { radioSession.setAudioVolume($0) }
-            ),
-            in: 0...1,
-            step: 0.01
-          )
+  @ViewBuilder
+  private func openWebRXBandPlanSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .openWebRX {
+      Section("Band Plan") {
+        if radioSession.openWebRXBandPlan.isEmpty {
+          Text("Band plan is loading...")
+            .foregroundStyle(.secondary)
+        } else {
+          ForEach(radioSession.openWebRXBandPlan) { band in
+            DisclosureGroup {
+              Button {
+                radioSession.tuneToBand(band)
+              } label: {
+                Label("Tune band center", systemImage: "scope")
+              }
+
+              ForEach(Array(band.frequencies.prefix(8))) { item in
+                Button {
+                  radioSession.tuneToBand(band, using: item)
+                } label: {
+                  HStack {
+                    Text(item.name)
+                    Spacer()
+                    Text(FrequencyFormatter.mhzText(fromHz: item.frequencyHz))
+                      .foregroundStyle(.secondary)
+                  }
+                }
+              }
+            } label: {
+              VStack(alignment: .leading, spacing: 4) {
+                Text(band.name)
+                Text(band.rangeText)
+                  .font(.footnote)
+                  .foregroundStyle(.secondary)
+              }
+            }
+          }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(L10n.text("Audio volume"))
-        .accessibilityValue("\(Int((radioSession.settings.audioVolume * 100).rounded())) percent")
-
-        Toggle(
-          "Mute audio",
-          isOn: Binding(
-            get: { radioSession.settings.audioMuted },
-            set: { radioSession.setAudioMuted($0) }
-          )
-        )
       }
       .appSectionStyle()
     }
-    .scrollContentBackground(.hidden)
+  }
+
+  @ViewBuilder
+  private func fmDxControlsSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .fmDxWebserver {
+      Section(L10n.text("fmdx.controls")) {
+        Picker(
+          L10n.text("fmdx.audio_mode"),
+          selection: Binding(
+            get: {
+              (radioSession.fmdxTelemetry?.isForcedStereo ?? false) ? .stereo : .mono
+            },
+            set: { mode in
+              radioSession.setFMDXForcedStereoEnabled(mode == .stereo)
+            }
+          )
+        ) {
+          Text(L10n.text("fmdx.stereo_state.mono")).tag(FMDXAudioModeSelection.mono)
+          Text(L10n.text("fmdx.stereo_state.stereo")).tag(FMDXAudioModeSelection.stereo)
+        }
+        .pickerStyle(.segmented)
+        .disabled(radioSession.state != .connected)
+        .accessibilityLabel(L10n.text("fmdx.audio_mode"))
+        .accessibilityValue(fmdxAudioModePickerValue(for: radioSession.fmdxTelemetry))
+
+        if !radioSession.fmdxCapabilities.antennas.isEmpty {
+          Picker(
+            L10n.text("fmdx.antenna"),
+            selection: Binding(
+              get: {
+                radioSession.selectedFMDXAntennaID
+                  ?? radioSession.fmdxCapabilities.antennas.first?.id
+                  ?? ""
+              },
+              set: { value in
+                if !value.isEmpty {
+                  radioSession.setFMDXAntenna(value)
+                }
+              }
+            )
+          ) {
+            ForEach(radioSession.fmdxCapabilities.antennas) { option in
+              Text(option.label).tag(option.id)
+            }
+          }
+          .disabled(radioSession.state != .connected)
+        }
+
+        if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
+          Picker(
+            L10n.text("fmdx.bandwidth"),
+            selection: Binding(
+              get: {
+                radioSession.selectedFMDXBandwidthID
+                  ?? radioSession.fmdxCapabilities.bandwidths.first?.id
+                  ?? ""
+              },
+              set: { value in
+                guard
+                  let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value })
+                else { return }
+                radioSession.setFMDXBandwidth(option)
+              }
+            )
+          ) {
+            ForEach(radioSession.fmdxCapabilities.bandwidths) { option in
+              Text(option.label).tag(option.id)
+            }
+          }
+          .disabled(radioSession.state != .connected)
+        }
+      }
+      .appSectionStyle()
+    }
+  }
+
+  private func scannerSection(for profile: SDRConnectionProfile, scannerChannels: [ScanChannel]) -> some View {
+    Section("Scanner") {
+      Picker("Channel source", selection: $scanSource) {
+        ForEach(ScanSource.allCases) { source in
+          Text(source.displayName).tag(source)
+        }
+      }
+
+      if scanSource == .quickList {
+        Button(L10n.text("scanner.quick_list.clear")) {
+          quickScanChannels.removeAll()
+        }
+        .disabled(quickScanChannels.isEmpty)
+      }
+
+      LabeledContent("Channels", value: "\(scannerChannels.count)")
+
+      Slider(
+        value: $radioSession.scannerThreshold,
+        in: thresholdRange(for: profile.backend),
+        step: thresholdStep(for: profile.backend)
+      )
+      LabeledContent(
+        "Threshold",
+        value: "\(String(format: "%.1f", radioSession.scannerThreshold)) \(radioSession.scannerSignalUnit(for: profile.backend))"
+      )
+
+      VStack(alignment: .leading, spacing: 6) {
+        LabeledContent("Dwell", value: "\(String(format: "%.1f", scannerDwellSeconds)) s")
+        Slider(value: $scannerDwellSeconds, in: 0.5...6, step: 0.1)
+      }
+
+      VStack(alignment: .leading, spacing: 6) {
+        LabeledContent("Hold on hit", value: "\(String(format: "%.1f", scannerHoldSeconds)) s")
+        Slider(value: $scannerHoldSeconds, in: 0.5...12, step: 0.1)
+      }
+
+      if radioSession.isScannerRunning {
+        Button("Stop scanner") {
+          radioSession.stopScanner()
+        }
+        .buttonStyle(.borderedProminent)
+      } else {
+        Button("Start scanner") {
+          radioSession.startScanner(
+            channels: scannerChannels,
+            backend: profile.backend,
+            dwellSeconds: scannerDwellSeconds,
+            holdSeconds: scannerHoldSeconds
+          )
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(scannerChannels.isEmpty || radioSession.state != .connected)
+      }
+
+      if let scannerStatus = radioSession.scannerStatusText {
+        Text(scannerStatus)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+
+      if profile.backend == .openWebRX {
+        Text("Threshold hold works with live signal metrics (KiwiSDR and FM-DX).")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .appSectionStyle()
+  }
+
+  @ViewBuilder
+  private func fmDxLiveSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
+      Section("FM-DX Live") {
+        if let frequencyMHz = telemetry.frequencyMHz {
+          LabeledContent("Frequency", value: FrequencyFormatter.fmDxMHzText(fromMHz: frequencyMHz))
+        }
+        if let signal = telemetry.signal {
+          LabeledContent("Signal", value: String(format: "%.1f dBf", signal))
+        }
+        if let signalTop = telemetry.signalTop {
+          LabeledContent("Signal peak", value: String(format: "%.1f dBf", signalTop))
+        }
+        if let users = telemetry.users {
+          LabeledContent("Users", value: "\(users)")
+        }
+        if let pi = telemetry.pi, !pi.isEmpty {
+          LabeledContent("PI", value: pi)
+        }
+        if let ps = telemetry.ps, !ps.isEmpty {
+          LabeledContent("PS", value: ps)
+        }
+        if let pty = telemetry.pty {
+          LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
+        }
+        if let tp = telemetry.tp {
+          LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let ta = telemetry.ta {
+          LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let ms = telemetry.ms {
+          LabeledContent("MS", value: msDisplayText(ms))
+        }
+        if let ecc = telemetry.ecc {
+          LabeledContent("ECC", value: String(format: "0x%02X", ecc))
+        }
+        if let rbds = telemetry.rbds {
+          LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let agc = telemetry.agc, !agc.isEmpty {
+          LabeledContent("AGC", value: agc)
+        }
+        if let countryName = telemetry.countryName, !countryName.isEmpty {
+          LabeledContent("Country", value: countryName)
+        }
+        if let countryISO = telemetry.countryISO, !countryISO.isEmpty {
+          LabeledContent("ISO", value: countryISO)
+        }
+        if !telemetry.afMHz.isEmpty {
+          ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
+            let afHz = frequencyHz(fromMHz: afMHz)
+            HStack {
+              Button(String(format: "%.1f MHz", afMHz)) {
+                radioSession.setFrequencyHz(afHz)
+              }
+              .buttonStyle(.borderless)
+
+              Spacer()
+
+              Button(L10n.text("fmdx.af.favorite")) {
+                saveAFAsPreset(afHz, profile: profile)
+              }
+              .buttonStyle(.borderless)
+
+              Button(L10n.text("fmdx.af.scan")) {
+                addQuickScanChannel(frequencyHz: afHz)
+              }
+              .buttonStyle(.borderless)
+            }
+          }
+        }
+        if let rt0 = telemetry.rt0, !rt0.isEmpty {
+          Text(L10n.text("fmdx.rt0", rt0))
+            .font(.footnote)
+        }
+        if let rt1 = telemetry.rt1, !rt1.isEmpty {
+          Text(L10n.text("fmdx.rt1", rt1))
+            .font(.footnote)
+        }
+
+        Toggle(
+          L10n.text("fmdx.show_rds_errors"),
+          isOn: Binding(
+            get: { radioSession.settings.showRdsErrorCounters },
+            set: { radioSession.setShowRdsErrorCounters($0) }
+          )
+        )
+
+        if radioSession.settings.showRdsErrorCounters {
+          if let errors = telemetry.psErrors, !errors.isEmpty {
+            Text(L10n.text("fmdx.ps_errors", errors))
+              .font(.footnote)
+          }
+          if let errors = telemetry.rt0Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt0_errors", errors))
+              .font(.footnote)
+          }
+          if let errors = telemetry.rt1Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt1_errors", errors))
+              .font(.footnote)
+          }
+        }
+        if let tx = telemetry.txInfo {
+          if let station = tx.station, !station.isEmpty {
+            LabeledContent("TX", value: station)
+          }
+          if let city = tx.city, !city.isEmpty {
+            LabeledContent("City", value: city)
+          }
+          if let itu = tx.itu, !itu.isEmpty {
+            LabeledContent("ITU", value: itu)
+          }
+          if let distance = tx.distanceKm, !distance.isEmpty {
+            LabeledContent("Distance", value: "\(distance) km")
+          }
+          if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
+            LabeledContent("Azimuth", value: "\(azimuth) deg")
+          }
+          if let erp = tx.erpKW, !erp.isEmpty {
+            LabeledContent("ERP", value: "\(erp) kW")
+          }
+          if let polarization = tx.polarization, !polarization.isEmpty {
+            LabeledContent("Polarization", value: polarization)
+          }
+        }
+      }
+      .appSectionStyle()
+    }
+  }
+
+  @ViewBuilder
+  private func kiwiLiveSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .kiwiSDR, let telemetry = radioSession.kiwiTelemetry {
+      Section("Kiwi Live") {
+        if let rssi = telemetry.rssiDBm {
+          LabeledContent("S-meter", value: String(format: "%.1f dBm", rssi))
+        } else {
+          LabeledContent("S-meter", value: "No data")
+        }
+        LabeledContent("Audio rate", value: "\(telemetry.sampleRateHz) Hz")
+
+        if !telemetry.waterfallBins.isEmpty {
+          WaterfallStripView(bins: telemetry.waterfallBins)
+            .frame(height: 88)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay {
+              RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+            }
+            .accessibilityLabel("Waterfall")
+            .accessibilityValue("Live spectrum strip")
+        } else {
+          Text("Waterfall loading...")
+            .foregroundStyle(.secondary)
+        }
+      }
+      .appSectionStyle()
+    }
+  }
+
+  private func dspSection(for profile: SDRConnectionProfile) -> some View {
+    Section("DSP") {
+      if profile.backend == .fmDxWebserver {
+        Toggle(
+          "AGC",
+          isOn: Binding(
+            get: { radioSession.settings.agcEnabled },
+            set: { radioSession.setAGCEnabled($0) }
+          )
+        )
+        .accessibilityHint("Automatic gain control")
+
+        Toggle(
+          "cEQ",
+          isOn: Binding(
+            get: { radioSession.settings.noiseReductionEnabled },
+            set: { radioSession.setNoiseReductionEnabled($0) }
+          )
+        )
+
+        Toggle(
+          "iMS",
+          isOn: Binding(
+            get: { radioSession.settings.imsEnabled },
+            set: { radioSession.setIMSEnabled($0) }
+          )
+        )
+      } else {
+        Toggle(
+          "AGC",
+          isOn: Binding(
+            get: { radioSession.settings.agcEnabled },
+            set: { radioSession.setAGCEnabled($0) }
+          )
+        )
+        .accessibilityHint("Automatic gain control")
+
+        Toggle(
+          "Noise reduction",
+          isOn: Binding(
+            get: { radioSession.settings.noiseReductionEnabled },
+            set: { radioSession.setNoiseReductionEnabled($0) }
+          )
+        )
+
+        Toggle(
+          "Squelch",
+          isOn: Binding(
+            get: { radioSession.settings.squelchEnabled },
+            set: { radioSession.setSquelchEnabled($0) }
+          )
+        )
+      }
+
+      Button("Reset DSP settings") {
+        radioSession.resetDSPSettings()
+      }
+      .accessibilityHint(L10n.text("Restores demodulation mode and DSP controls to defaults"))
+    }
+    .appSectionStyle()
+  }
+
+  private func favoritesSection(presets: [FrequencyPreset]) -> some View {
+    Section("Favorites") {
+      Button {
+        beginSavingCurrentFrequency()
+      } label: {
+        Label("Save current frequency", systemImage: "star")
+      }
+      .accessibilityHint(L10n.text("Saves current frequency and mode as a favorite"))
+
+      if presets.isEmpty {
+        Text("No favorites yet. Save one to recall frequency and mode quickly.")
+          .foregroundStyle(.secondary)
+      } else {
+        ForEach(presets) { preset in
+          Button {
+            apply(preset: preset)
+          } label: {
+            VStack(alignment: .leading, spacing: 4) {
+              Text(preset.name)
+              Text("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)) - \(preset.mode.displayName)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+          }
+          .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button("Delete", role: .destructive) {
+              presetStore.removePreset(preset)
+            }
+          }
+          .accessibilityLabel(preset.name)
+          .accessibilityValue("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)), \(preset.mode.displayName)")
+          .accessibilityHint(L10n.text("Double tap to apply this favorite"))
+        }
+      }
+    }
+    .appSectionStyle()
+  }
+
+  private func audioSection() -> some View {
+    Section("Audio") {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(L10n.text("audio.volume_percent", Int((radioSession.settings.audioVolume * 100).rounded())))
+        Slider(
+          value: Binding(
+            get: { radioSession.settings.audioVolume },
+            set: { radioSession.setAudioVolume($0) }
+          ),
+          in: 0...1,
+          step: 0.01
+        )
+      }
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel(L10n.text("Audio volume"))
+      .accessibilityValue("\(Int((radioSession.settings.audioVolume * 100).rounded())) percent")
+
+      Toggle(
+        "Mute audio",
+        isOn: Binding(
+          get: { radioSession.settings.audioMuted },
+          set: { radioSession.setAudioMuted($0) }
+        )
+      )
+    }
+    .appSectionStyle()
   }
 
   private func connectionButtonTitle(for profile: SDRConnectionProfile) -> String {
