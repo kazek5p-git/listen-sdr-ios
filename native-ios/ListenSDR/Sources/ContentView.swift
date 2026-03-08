@@ -3,14 +3,14 @@ import SwiftUI
 struct ContentView: View {
   var body: some View {
     TabView {
-      RadiosView()
-        .tabItem {
-          Label("Radios", systemImage: "dot.radiowaves.left.and.right")
-        }
-
       ReceiverView()
         .tabItem {
           Label("Receiver", systemImage: "dial.high")
+        }
+
+      RadiosView()
+        .tabItem {
+          Label("Radios", systemImage: "dot.radiowaves.left.and.right")
         }
 
       DiagnosticsView()
