@@ -168,43 +168,7 @@ struct ReceiverView: View {
           )
         )
 
-        Slider(
-          value: Binding(
-            get: { Double(radioSession.settings.frequencyHz) },
-            set: { radioSession.setFrequencyHz(Int($0.rounded())) }
-          ),
-          in: Double(tuningRange.lowerBound)...Double(tuningRange.upperBound),
-          step: Double(radioSession.settings.tuneStepHz)
-        )
-        .accessibilityLabel("Frequency")
-        .accessibilityValue(
-          frequencyText(
-            fromHz: radioSession.settings.frequencyHz,
-            backend: profile.backend
-          )
-        )
-        .accessibilityHint(
-          L10n.text(
-            "receiver.frequency.swipe_and_step_hint",
-            FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
-          )
-        )
-        .accessibilityScrollAction { edge in
-          switch edge {
-          case .leading:
-            changeTuneStep(by: -1, backend: profile.backend)
-          case .trailing:
-            changeTuneStep(by: 1, backend: profile.backend)
-          default:
-            break
-          }
-        }
-        .accessibilityAction(named: Text(L10n.text("receiver.tune_step.previous_action"))) {
-          changeTuneStep(by: -1, backend: profile.backend)
-        }
-        .accessibilityAction(named: Text(L10n.text("receiver.tune_step.next_action"))) {
-          changeTuneStep(by: 1, backend: profile.backend)
-        }
+        frequencySlider(for: profile.backend, tuningRange: tuningRange)
 
         Button {
           beginFrequencyEntry()
@@ -802,6 +766,40 @@ struct ReceiverView: View {
     let nextIndex = min(max(currentIndex + offset, 0), steps.count - 1)
     guard nextIndex != currentIndex else { return }
     radioSession.setTuneStepHz(steps[nextIndex])
+  }
+
+  private func frequencySlider(for backend: SDRBackend, tuningRange: ClosedRange<Int>) -> some View {
+    let sliderBinding = Binding<Double>(
+      get: { Double(radioSession.settings.frequencyHz) },
+      set: { radioSession.setFrequencyHz(Int($0.rounded())) }
+    )
+    let frequencyValue = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
+    let tuneStepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
+
+    return Slider(
+      value: sliderBinding,
+      in: Double(tuningRange.lowerBound)...Double(tuningRange.upperBound),
+      step: Double(radioSession.settings.tuneStepHz)
+    )
+    .accessibilityLabel("Frequency")
+    .accessibilityValue(frequencyValue)
+    .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", tuneStepLabel))
+    .accessibilityScrollAction { edge in
+      switch edge {
+      case .leading:
+        changeTuneStep(by: -1, backend: backend)
+      case .trailing:
+        changeTuneStep(by: 1, backend: backend)
+      default:
+        break
+      }
+    }
+    .accessibilityAction(named: Text(L10n.text("receiver.tune_step.previous_action"))) {
+      changeTuneStep(by: -1, backend: backend)
+    }
+    .accessibilityAction(named: Text(L10n.text("receiver.tune_step.next_action"))) {
+      changeTuneStep(by: 1, backend: backend)
+    }
   }
 
   private var savePresetSheet: some View {
