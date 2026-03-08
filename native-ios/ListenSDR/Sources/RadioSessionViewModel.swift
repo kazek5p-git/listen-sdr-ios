@@ -42,6 +42,9 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxMaxFrequencyHz = 110_000_000
   private let fmDxTuneStepOptionsHz = [50_000, 100_000, 200_000]
   private let fmDxDefaultTuneStepHz = 100_000
+  private let kiwiDefaultFrequencyHz = 7_050_000
+  private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
+  private let openWebRXFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
 
   private var client: (any SDRBackendClient)?
   private var connectTask: Task<Void, Never>?
@@ -350,7 +353,8 @@ final class RadioSessionViewModel: ObservableObject {
       let roundedToKHz = Int((Double(value) / 1_000.0).rounded()) * 1_000
       settings.frequencyHz = min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
     } else {
-      settings.frequencyHz = min(max(value, 100_000), 3_000_000_000)
+      let range = frequencyRange(for: activeBackend)
+      settings.frequencyHz = min(max(value, range.lowerBound), range.upperBound)
     }
     persistSettings()
 
@@ -601,30 +605,44 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func normalizeSettingsForBackendBeforeConnect(_ backend: SDRBackend) {
-    guard backend == .fmDxWebserver else { return }
-
     var changed = false
 
-    let normalizedStep = normalizeFMDXTuneStepHz(settings.tuneStepHz)
-    if settings.tuneStepHz != normalizedStep {
-      settings.tuneStepHz = normalizedStep
-      changed = true
-    }
-
-    if !(fmDxMinFrequencyHz...fmDxMaxFrequencyHz).contains(settings.frequencyHz) {
-      settings.frequencyHz = fmDxDefaultFrequencyHz
-      changed = true
-    } else {
-      let roundedToKHz = Int((Double(settings.frequencyHz) / 1_000.0).rounded()) * 1_000
-      if roundedToKHz != settings.frequencyHz {
-        settings.frequencyHz = roundedToKHz
+    switch backend {
+    case .fmDxWebserver:
+      let normalizedStep = normalizeFMDXTuneStepHz(settings.tuneStepHz)
+      if settings.tuneStepHz != normalizedStep {
+        settings.tuneStepHz = normalizedStep
         changed = true
       }
-    }
 
-    if settings.mode != .fm && settings.mode != .nfm {
-      settings.mode = .fm
-      changed = true
+      if !(fmDxMinFrequencyHz...fmDxMaxFrequencyHz).contains(settings.frequencyHz) {
+        settings.frequencyHz = fmDxDefaultFrequencyHz
+        changed = true
+      } else {
+        let roundedToKHz = Int((Double(settings.frequencyHz) / 1_000.0).rounded()) * 1_000
+        if roundedToKHz != settings.frequencyHz {
+          settings.frequencyHz = roundedToKHz
+          changed = true
+        }
+      }
+
+      if settings.mode != .fm && settings.mode != .nfm {
+        settings.mode = .fm
+        changed = true
+      }
+
+    case .kiwiSDR:
+      if !kiwiFrequencyRangeHz.contains(settings.frequencyHz) {
+        settings.frequencyHz = kiwiDefaultFrequencyHz
+        changed = true
+      }
+
+    case .openWebRX:
+      let clamped = min(max(settings.frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
+      if settings.frequencyHz != clamped {
+        settings.frequencyHz = clamped
+        changed = true
+      }
     }
 
     if changed {
@@ -640,6 +658,17 @@ final class RadioSessionViewModel: ObservableObject {
     let hz = Int((value * 1_000_000.0).rounded())
     let roundedToKHz = Int((Double(hz) / 1_000.0).rounded()) * 1_000
     return min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
+  }
+
+  private func frequencyRange(for backend: SDRBackend?) -> ClosedRange<Int> {
+    switch backend {
+    case .fmDxWebserver:
+      return fmDxMinFrequencyHz...fmDxMaxFrequencyHz
+    case .kiwiSDR:
+      return kiwiFrequencyRangeHz
+    case .openWebRX, .none:
+      return openWebRXFrequencyRangeHz
+    }
   }
 
   private func resolveFMDXBandwidthSelectionID(from rawValue: String) -> String {
@@ -746,6 +775,21 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .openWebRXBandPlan(let bands):
       openWebRXBandPlan = bands
+
+    case .openWebRXTuning(let frequencyHz, let mode):
+      var changed = false
+      let clamped = min(max(frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
+      if settings.frequencyHz != clamped {
+        settings.frequencyHz = clamped
+        changed = true
+      }
+      if let mode, settings.mode != mode {
+        settings.mode = mode
+        changed = true
+      }
+      if changed {
+        persistSettings()
+      }
 
     case .fmdxCapabilities(let capabilities):
       fmdxCapabilities = capabilities

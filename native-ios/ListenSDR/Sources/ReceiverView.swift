@@ -34,6 +34,7 @@ struct ReceiverView: View {
   @State private var scannerHoldSeconds: Double = 4.0
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
+  private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
   private let fmDxTuneStepOptionsHz: [Int] = [50_000, 100_000, 200_000]
   private let fmDxScannerAutoStepHz = 100_000
@@ -184,6 +185,16 @@ struct ReceiverView: View {
             FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
           )
         )
+        .accessibilityAdjustableAction { direction in
+          switch direction {
+          case .increment:
+            radioSession.tune(byStepCount: 1)
+          case .decrement:
+            radioSession.tune(byStepCount: -1)
+          @unknown default:
+            break
+          }
+        }
 
         HStack {
           Button {
@@ -910,8 +921,16 @@ struct ReceiverView: View {
   }
 
   private func applyExactFrequencyInput() {
-    let parserContext: FrequencyInputParser.Context =
-      profileStore.selectedProfile?.backend == .fmDxWebserver ? .fmBroadcast : .generic
+    let parserContext: FrequencyInputParser.Context = {
+      switch profileStore.selectedProfile?.backend {
+      case .fmDxWebserver:
+        return .fmBroadcast
+      case .kiwiSDR:
+        return .shortwave
+      case .openWebRX, .none:
+        return .generic
+      }
+    }()
 
     guard let frequencyHz = FrequencyInputParser.parseHz(from: frequencyInputDraft, context: parserContext) else {
       frequencyInputError = profileStore.selectedProfile?.backend == .fmDxWebserver
@@ -1039,7 +1058,9 @@ struct ReceiverView: View {
     switch backend {
     case .fmDxWebserver:
       return fmDxFrequencyRangeHz
-    case .kiwiSDR, .openWebRX:
+    case .kiwiSDR:
+      return kiwiFrequencyRangeHz
+    case .openWebRX:
       return defaultFrequencyRangeHz
     }
   }

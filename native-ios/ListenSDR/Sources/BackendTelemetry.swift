@@ -103,6 +103,7 @@ enum BackendTelemetryEvent: Equatable {
   case openWebRXProfiles([OpenWebRXProfileOption], selectedID: String?)
   case openWebRXBookmarks([SDRServerBookmark])
   case openWebRXBandPlan([SDRBandPlanEntry])
+  case openWebRXTuning(frequencyHz: Int, mode: DemodulationMode?)
   case fmdxCapabilities(FMDXCapabilities)
   case fmdx(FMDXTelemetry)
   case kiwi(KiwiTelemetry)

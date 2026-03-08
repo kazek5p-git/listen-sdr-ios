@@ -213,6 +213,7 @@ actor KiwiSDRClient: SDRBackendClient {
   private var wfKeepAliveTask: Task<Void, Never>?
 
   private var lastServerMessage: String?
+  private var pendingStatusUpdate: String?
   private var adpcmDecoder = KiwiIMAADPCMDecoder()
   private var sampleRateHz = 12_000
 
@@ -292,6 +293,7 @@ actor KiwiSDRClient: SDRBackendClient {
     wfSocket = nil
 
     lastServerMessage = nil
+    pendingStatusUpdate = nil
     sampleRateHz = 12_000
     adpcmDecoder.reset()
     latestRSSI = nil
@@ -335,6 +337,11 @@ actor KiwiSDRClient: SDRBackendClient {
   func consumeServerError() async -> String? {
     defer { lastServerMessage = nil }
     return lastServerMessage
+  }
+
+  func consumeStatusUpdate() async -> String? {
+    defer { pendingStatusUpdate = nil }
+    return pendingStatusUpdate
   }
 
   func consumeTelemetryUpdate() async -> BackendTelemetryEvent? {
@@ -414,7 +421,7 @@ actor KiwiSDRClient: SDRBackendClient {
     case "MSG":
       let payload = Data(body.dropFirst())
       guard let text = String(data: payload, encoding: .utf8) else { return }
-      await handleKiwiMessage(text)
+      await handleKiwiMessage(text, stream: stream)
 
     case "SND":
       await handleKiwiAudio(body)
@@ -429,7 +436,7 @@ actor KiwiSDRClient: SDRBackendClient {
     }
   }
 
-  private func handleKiwiMessage(_ payload: String) async {
+  private func handleKiwiMessage(_ payload: String, stream: StreamKind) async {
     let entries = payload.split(separator: " ")
     for entry in entries {
       let parts = entry.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
@@ -449,20 +456,38 @@ actor KiwiSDRClient: SDRBackendClient {
         }
 
       case "badp":
+        let message: String
         if let value {
-          lastServerMessage = kiwiAuthenticationErrorDescription(code: value)
+          message = kiwiAuthenticationErrorDescription(code: value)
         } else {
-          lastServerMessage = "Authentication rejected by KiwiSDR."
+          message = "Authentication rejected by KiwiSDR."
         }
-        log(lastServerMessage ?? "Authentication rejected", severity: .error)
+
+        if stream == .sound {
+          lastServerMessage = message
+          log(message, severity: .error)
+        } else {
+          pendingStatusUpdate = message
+          log("Waterfall stream authentication failed: \(message)", severity: .warning)
+        }
 
       case "too_busy":
-        lastServerMessage = "KiwiSDR is currently busy (all client slots are used)."
-        log(lastServerMessage ?? "Server busy", severity: .warning)
+        let message = "KiwiSDR is currently busy (all client slots are used)."
+        if stream == .sound {
+          lastServerMessage = message
+        } else {
+          pendingStatusUpdate = message
+        }
+        log(message, severity: .warning)
 
       case "down":
-        lastServerMessage = "KiwiSDR reports that the receiver is down."
-        log(lastServerMessage ?? "Receiver down", severity: .warning)
+        let message = "KiwiSDR reports that the receiver is down."
+        if stream == .sound {
+          lastServerMessage = message
+        } else {
+          pendingStatusUpdate = message
+        }
+        log(message, severity: .warning)
 
       default:
         break
@@ -630,8 +655,10 @@ actor OpenWebRXClient: SDRBackendClient {
   private var socket: URLSessionWebSocketTask?
   private var receiveTask: Task<Void, Never>?
   private var centerFrequencyHz: Int?
+  private var sampleRateHz: Int?
   private var lastAppliedSettings: RadioSessionSettings = .default
   private var lastServerMessage: String?
+  private var pendingStatusUpdate: String?
   private var outputRateHz = 12_000
   private var hdOutputRateHz = 48_000
   private var audioCompression = "none"
@@ -642,6 +669,8 @@ actor OpenWebRXClient: SDRBackendClient {
   private var serverBookmarks: [SDRServerBookmark] = []
   private var dialBookmarks: [SDRServerBookmark] = []
   private var bandPlanLoaded = false
+  private var lastReportedFrequencyHz: Int?
+  private var lastReportedMode: DemodulationMode?
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -678,15 +707,6 @@ actor OpenWebRXClient: SDRBackendClient {
       ]
     )
     log("DSP start sent")
-    try? await sendJSON(
-      [
-        "type": "dspcontrol",
-        "params": [
-          "audio_compression": "none"
-        ]
-      ]
-    )
-    log("Requested uncompressed audio")
 
     Task {
       await self.loadBandPlanIfNeeded()
@@ -700,7 +720,9 @@ actor OpenWebRXClient: SDRBackendClient {
     socket?.cancel(with: .normalClosure, reason: nil)
     socket = nil
     centerFrequencyHz = nil
+    sampleRateHz = nil
     lastServerMessage = nil
+    pendingStatusUpdate = nil
     audioCompression = "none"
     outputRateHz = 12_000
     hdOutputRateHz = 48_000
@@ -710,6 +732,8 @@ actor OpenWebRXClient: SDRBackendClient {
     selectedProfileID = nil
     serverBookmarks = []
     dialBookmarks = []
+    lastReportedFrequencyHz = nil
+    lastReportedMode = nil
 
     await MainActor.run {
       SharedAudioOutput.engine.stop()
@@ -735,6 +759,11 @@ actor OpenWebRXClient: SDRBackendClient {
   func consumeServerError() async -> String? {
     defer { lastServerMessage = nil }
     return lastServerMessage
+  }
+
+  func consumeStatusUpdate() async -> String? {
+    defer { pendingStatusUpdate = nil }
+    return pendingStatusUpdate
   }
 
   func consumeTelemetryUpdate() async -> BackendTelemetryEvent? {
@@ -768,7 +797,7 @@ actor OpenWebRXClient: SDRBackendClient {
   private func openWebRXParams(from settings: RadioSessionSettings) -> [String: Any] {
     let mode = openWebRXMode(from: settings.mode)
     let passband = openWebRXBandpass(for: settings.mode)
-    let offset = centerFrequencyHz.map { settings.frequencyHz - $0 } ?? 0
+    let offset = boundedOpenWebRXOffset(for: settings.frequencyHz)
 
     return [
       "mod": mode,
@@ -777,6 +806,24 @@ actor OpenWebRXClient: SDRBackendClient {
       "high_cut": passband.highCut,
       "squelch_level": settings.squelchEnabled ? -95 : -150
     ]
+  }
+
+  private func boundedOpenWebRXOffset(for frequencyHz: Int) -> Int {
+    guard let centerFrequencyHz else {
+      return 0
+    }
+    let requestedOffset = frequencyHz - centerFrequencyHz
+    guard let sampleRateHz, sampleRateHz > 2_000 else {
+      return requestedOffset
+    }
+
+    // Keep offset inside currently visible baseband span.
+    let maxOffset = max((sampleRateHz / 2) - 1_000, 0)
+    let clamped = min(max(requestedOffset, -maxOffset), maxOffset)
+    if clamped != requestedOffset {
+      pendingStatusUpdate = "Frequency was clamped to receiver profile bandwidth."
+    }
+    return clamped
   }
 
   private func send(_ message: String) async throws {
@@ -826,7 +873,7 @@ actor OpenWebRXClient: SDRBackendClient {
 
     switch type {
     case "config", "update":
-      guard let value = parsed["value"] as? [String: Any] else { return }
+      let value = (parsed["value"] as? [String: Any]) ?? [:]
 
       if let compression = value["audio_compression"] as? String {
         audioCompression = compression
@@ -839,6 +886,9 @@ actor OpenWebRXClient: SDRBackendClient {
       if let hdOutputRate = extractInt(value["hd_output_rate"]) {
         hdOutputRateHz = max(8_000, hdOutputRate)
         log("HD audio output rate: \(hdOutputRateHz) Hz")
+      }
+      if let sampleRate = extractInt(value["samp_rate"]) {
+        sampleRateHz = max(2_000, sampleRate)
       }
 
       if let centerFrequency = extractInt(value["center_freq"]) {
@@ -853,6 +903,11 @@ actor OpenWebRXClient: SDRBackendClient {
             ]
           )
         }
+      }
+
+      if let tunedFrequencyHz = extractOpenWebRXTunedFrequency(from: value) {
+        let mode = DemodulationMode.fromOpenWebRX(stringify(value["mod"]))
+        emitOpenWebRXTuning(frequencyHz: tunedFrequencyHz, mode: mode)
       }
 
       if let sdrID = stringify(value["sdr_id"]),
@@ -957,6 +1012,36 @@ actor OpenWebRXClient: SDRBackendClient {
       return number.stringValue
     }
     return nil
+  }
+
+  private func extractOpenWebRXTunedFrequency(from payload: [String: Any]) -> Int? {
+    if let startFrequency = extractInt(payload["start_freq"]), startFrequency > 0 {
+      return startFrequency
+    }
+
+    let resolvedCenterFrequency: Int? = {
+      if let centerFrequency = extractInt(payload["center_freq"]), centerFrequency > 0 {
+        return centerFrequency
+      }
+      return centerFrequencyHz
+    }()
+
+    if let center = resolvedCenterFrequency, let offset = extractInt(payload["offset_freq"]) {
+      return center + offset
+    }
+    if let center = resolvedCenterFrequency, let startOffset = extractInt(payload["start_offset_freq"]) {
+      return center + startOffset
+    }
+    return nil
+  }
+
+  private func emitOpenWebRXTuning(frequencyHz: Int, mode: DemodulationMode?) {
+    if frequencyHz == lastReportedFrequencyHz, mode == lastReportedMode {
+      return
+    }
+    lastReportedFrequencyHz = frequencyHz
+    lastReportedMode = mode
+    enqueueTelemetry(.openWebRXTuning(frequencyHz: frequencyHz, mode: mode))
   }
 
   private func parseBookmarks(
