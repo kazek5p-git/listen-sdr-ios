@@ -11,6 +11,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var imsEnabled: Bool
   var noiseReductionEnabled: Bool
   var squelchEnabled: Bool
+  var showRdsErrorCounters: Bool
 
   static let supportedTuneStepsHz: [Int] = [
     10, 50, 100, 500, 1_000, 5_000, 9_000, 10_000, 12_500, 25_000,
@@ -27,7 +28,8 @@ struct RadioSessionSettings: Codable, Equatable {
     agcEnabled: true,
     imsEnabled: true,
     noiseReductionEnabled: false,
-    squelchEnabled: false
+    squelchEnabled: false,
+    showRdsErrorCounters: false
   )
 
   private enum CodingKeys: String, CodingKey {
@@ -41,6 +43,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case imsEnabled
     case noiseReductionEnabled
     case squelchEnabled
+    case showRdsErrorCounters
   }
 
   init(
@@ -53,7 +56,8 @@ struct RadioSessionSettings: Codable, Equatable {
     agcEnabled: Bool,
     imsEnabled: Bool,
     noiseReductionEnabled: Bool,
-    squelchEnabled: Bool
+    squelchEnabled: Bool,
+    showRdsErrorCounters: Bool
   ) {
     self.frequencyHz = frequencyHz
     self.tuneStepHz = Self.normalizedTuneStep(tuneStepHz)
@@ -65,6 +69,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.imsEnabled = imsEnabled
     self.noiseReductionEnabled = noiseReductionEnabled
     self.squelchEnabled = squelchEnabled
+    self.showRdsErrorCounters = showRdsErrorCounters
   }
 
   init(from decoder: Decoder) throws {
@@ -80,6 +85,7 @@ struct RadioSessionSettings: Codable, Equatable {
     imsEnabled = try container.decodeIfPresent(Bool.self, forKey: .imsEnabled) ?? Self.default.imsEnabled
     noiseReductionEnabled = try container.decodeIfPresent(Bool.self, forKey: .noiseReductionEnabled) ?? Self.default.noiseReductionEnabled
     squelchEnabled = try container.decodeIfPresent(Bool.self, forKey: .squelchEnabled) ?? Self.default.squelchEnabled
+    showRdsErrorCounters = try container.decodeIfPresent(Bool.self, forKey: .showRdsErrorCounters) ?? Self.default.showRdsErrorCounters
   }
 
   static func normalizedTuneStep(_ value: Int) -> Int {

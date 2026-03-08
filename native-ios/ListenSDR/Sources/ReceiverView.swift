@@ -19,6 +19,13 @@ private enum ScanSource: String, CaseIterable, Identifiable {
   }
 }
 
+private enum FMDXAudioModeSelection: String, CaseIterable, Identifiable {
+  case mono
+  case stereo
+
+  var id: String { rawValue }
+}
+
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -27,6 +34,7 @@ struct ReceiverView: View {
   @State private var isFrequencyEntrySheetPresented = false
   @State private var presetNameDraft = ""
   @State private var frequencyInputDraft = ""
+  @State private var frequencyInputCurrentText = ""
   @State private var frequencyInputError: String?
   @State private var scanSource: ScanSource = .favorites
   @State private var quickScanChannels: [ScanChannel] = []
@@ -36,7 +44,7 @@ struct ReceiverView: View {
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
-  private let fmDxTuneStepOptionsHz: [Int] = [50_000, 100_000, 200_000]
+  private let fmDxTuneStepOptionsHz: [Int] = [10_000, 25_000, 50_000, 100_000, 200_000]
   private let fmDxScannerAutoStepHz = 100_000
 
   var body: some View {
@@ -67,6 +75,7 @@ struct ReceiverView: View {
   private func receiverForm(for profile: SDRConnectionProfile) -> some View {
     let presets = visiblePresets(for: profile)
     let scannerChannels = scanChannels(for: profile, presets: presets)
+    let tuningRange = frequencyRange(for: profile.backend)
 
     Form {
       Section("Connection") {
@@ -151,27 +160,22 @@ struct ReceiverView: View {
       .appSectionStyle()
 
       Section("Tuning") {
-        Stepper(
+        LabeledContent(
+          "Frequency",
+          value: frequencyText(
+            fromHz: radioSession.settings.frequencyHz,
+            backend: profile.backend
+          )
+        )
+
+        Slider(
           value: Binding(
-            get: { radioSession.settings.frequencyHz },
-            set: { radioSession.setFrequencyHz($0) }
+            get: { Double(radioSession.settings.frequencyHz) },
+            set: { radioSession.setFrequencyHz(Int($0.rounded())) }
           ),
-          in: frequencyRange(for: profile.backend),
-          step: radioSession.settings.tuneStepHz
-        ) {
-          VStack(alignment: .leading, spacing: 4) {
-            Text("Frequency")
-            Text(
-              frequencyText(
-                fromHz: radioSession.settings.frequencyHz,
-                backend: profile.backend
-              )
-            )
-              .foregroundStyle(.secondary)
-              .accessibilityHidden(true)
-          }
-        }
-        .accessibilityElement(children: .ignore)
+          in: Double(tuningRange.lowerBound)...Double(tuningRange.upperBound),
+          step: Double(radioSession.settings.tuneStepHz)
+        )
         .accessibilityLabel("Frequency")
         .accessibilityValue(
           frequencyText(
@@ -185,38 +189,6 @@ struct ReceiverView: View {
             FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
           )
         )
-        .accessibilityAdjustableAction { direction in
-          switch direction {
-          case .increment:
-            radioSession.tune(byStepCount: 1)
-          case .decrement:
-            radioSession.tune(byStepCount: -1)
-          @unknown default:
-            break
-          }
-        }
-
-        HStack {
-          Button {
-            radioSession.tune(byStepCount: -1)
-          } label: {
-            Label("Step down", systemImage: "minus.circle")
-          }
-          .accessibilityLabel(L10n.text("Tune down"))
-          .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
-          .accessibilityHint(L10n.text("Decrease frequency by selected step size"))
-
-          Spacer()
-
-          Button {
-            radioSession.tune(byStepCount: 1)
-          } label: {
-            Label("Step up", systemImage: "plus.circle")
-          }
-          .accessibilityLabel(L10n.text("Tune up"))
-          .accessibilityValue(FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz))
-          .accessibilityHint(L10n.text("Increase frequency by selected step size"))
-        }
 
         Button {
           beginFrequencyEntry()
@@ -344,18 +316,24 @@ struct ReceiverView: View {
 
       if profile.backend == .fmDxWebserver {
         Section(L10n.text("fmdx.controls")) {
-          let forcedStereoEnabled = radioSession.fmdxTelemetry?.isForcedStereo ?? false
-          Button {
-            radioSession.setFMDXForcedStereoEnabled(!forcedStereoEnabled)
-          } label: {
-            LabeledContent(
-              L10n.text("fmdx.audio_mode"),
-              value: fmdxAudioModeButtonValue(for: radioSession.fmdxTelemetry)
+          Picker(
+            L10n.text("fmdx.audio_mode"),
+            selection: Binding(
+              get: {
+                (radioSession.fmdxTelemetry?.isForcedStereo ?? false) ? .stereo : .mono
+              },
+              set: { mode in
+                radioSession.setFMDXForcedStereoEnabled(mode == .stereo)
+              }
             )
+          ) {
+            Text(L10n.text("fmdx.stereo_state.mono")).tag(FMDXAudioModeSelection.mono)
+            Text(L10n.text("fmdx.stereo_state.stereo")).tag(FMDXAudioModeSelection.stereo)
           }
+          .pickerStyle(.segmented)
           .disabled(radioSession.state != .connected)
           .accessibilityLabel(L10n.text("fmdx.audio_mode"))
-          .accessibilityValue(fmdxAudioModeButtonValue(for: radioSession.fmdxTelemetry))
+          .accessibilityValue(fmdxAudioModePickerValue(for: radioSession.fmdxTelemetry))
 
           if !radioSession.fmdxCapabilities.antennas.isEmpty {
             Picker(
@@ -489,18 +467,6 @@ struct ReceiverView: View {
           if let users = telemetry.users {
             LabeledContent("Users", value: "\(users)")
           }
-          if let isStereo = telemetry.isStereo {
-            LabeledContent(
-              L10n.text("fmdx.audio_state"),
-              value: isStereo ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
-            )
-          }
-          if let isForced = telemetry.isForcedStereo {
-            LabeledContent(
-              L10n.text("fmdx.audio_mode"),
-              value: isForced ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
-            )
-          }
           if let pi = telemetry.pi, !pi.isEmpty {
             LabeledContent("PI", value: pi)
           }
@@ -557,25 +523,36 @@ struct ReceiverView: View {
               }
             }
           }
-          if let errors = telemetry.psErrors, !errors.isEmpty {
-            Text(L10n.text("fmdx.ps_errors", errors))
-              .font(.footnote)
-          }
           if let rt0 = telemetry.rt0, !rt0.isEmpty {
             Text(L10n.text("fmdx.rt0", rt0))
-              .font(.footnote)
-          }
-          if let errors = telemetry.rt0Errors, !errors.isEmpty {
-            Text(L10n.text("fmdx.rt0_errors", errors))
               .font(.footnote)
           }
           if let rt1 = telemetry.rt1, !rt1.isEmpty {
             Text(L10n.text("fmdx.rt1", rt1))
               .font(.footnote)
           }
-          if let errors = telemetry.rt1Errors, !errors.isEmpty {
-            Text(L10n.text("fmdx.rt1_errors", errors))
-              .font(.footnote)
+
+          Toggle(
+            L10n.text("fmdx.show_rds_errors"),
+            isOn: Binding(
+              get: { radioSession.settings.showRdsErrorCounters },
+              set: { radioSession.setShowRdsErrorCounters($0) }
+            )
+          )
+
+          if radioSession.settings.showRdsErrorCounters {
+            if let errors = telemetry.psErrors, !errors.isEmpty {
+              Text(L10n.text("fmdx.ps_errors", errors))
+                .font(.footnote)
+            }
+            if let errors = telemetry.rt0Errors, !errors.isEmpty {
+              Text(L10n.text("fmdx.rt0_errors", errors))
+                .font(.footnote)
+            }
+            if let errors = telemetry.rt1Errors, !errors.isEmpty {
+              Text(L10n.text("fmdx.rt1_errors", errors))
+                .font(.footnote)
+            }
           }
           if let tx = telemetry.txInfo {
             if let station = tx.station, !station.isEmpty {
@@ -846,7 +823,7 @@ struct ReceiverView: View {
 
         LabeledContent(
           "Current",
-          value: frequencyText(fromHz: radioSession.settings.frequencyHz, backend: profileStore.selectedProfile?.backend)
+          value: frequencyInputCurrentText
         )
       }
       .scrollContentBackground(.hidden)
@@ -916,6 +893,7 @@ struct ReceiverView: View {
       frequencyInputDraft = FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
         .replacingOccurrences(of: " MHz", with: "")
     }
+    frequencyInputCurrentText = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
     frequencyInputError = nil
     isFrequencyEntrySheetPresented = true
   }
@@ -1023,10 +1001,7 @@ struct ReceiverView: View {
     return "\(pty)"
   }
 
-  private func fmdxAudioModeButtonValue(for telemetry: FMDXTelemetry?) -> String {
-    if let isStereo = telemetry?.isStereo {
-      return isStereo ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
-    }
+  private func fmdxAudioModePickerValue(for telemetry: FMDXTelemetry?) -> String {
     if let isForcedStereo = telemetry?.isForcedStereo {
       return isForcedStereo ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
     }

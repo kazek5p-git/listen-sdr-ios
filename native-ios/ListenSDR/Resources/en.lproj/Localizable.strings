@@ -62,6 +62,7 @@
 "fmdx.af_list" = "AF: %@";
 "fmdx.rt0" = "RT0: %@";
 "fmdx.rt1" = "RT1: %@";
+"fmdx.show_rds_errors" = "Show RDS error counters";
 "diagnostics.entry_accessibility" = "%@, %@";
 
 "scan_source.quick_list" = "Quick list";

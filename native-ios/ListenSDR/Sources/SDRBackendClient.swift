@@ -197,6 +197,26 @@ private func kiwiAuthenticationErrorDescription(code: String) -> String {
   }
 }
 
+private func demodulationModeFromKiwi(_ rawValue: String?) -> DemodulationMode? {
+  guard let rawValue else { return nil }
+  switch rawValue.lowercased() {
+  case "am", "amn":
+    return .am
+  case "fm", "wfm":
+    return .fm
+  case "nfm", "nbfm":
+    return .nfm
+  case "usb", "usn":
+    return .usb
+  case "lsb", "lsn":
+    return .lsb
+  case "cw", "cwn":
+    return .cw
+  default:
+    return nil
+  }
+}
+
 actor KiwiSDRClient: SDRBackendClient {
   private enum StreamKind {
     case sound
@@ -222,6 +242,12 @@ actor KiwiSDRClient: SDRBackendClient {
   private var latestWaterfallBins: [UInt8] = []
   private var lastTelemetryAt: Date = .distantPast
   private var latestTelemetry: KiwiTelemetry?
+  private var latestTunedFrequencyHz: Int?
+  private var latestTunedMode: DemodulationMode?
+  private var latestBandName: String?
+  private var lastReportedTunedFrequencyHz: Int?
+  private var lastReportedTunedMode: DemodulationMode?
+  private var lastReportedBandName: String?
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -301,6 +327,12 @@ actor KiwiSDRClient: SDRBackendClient {
     telemetryQueue.removeAll()
     lastTelemetryAt = .distantPast
     latestTelemetry = nil
+    latestTunedFrequencyHz = nil
+    latestTunedMode = nil
+    latestBandName = nil
+    lastReportedTunedFrequencyHz = nil
+    lastReportedTunedMode = nil
+    lastReportedBandName = nil
 
     await MainActor.run {
       SharedAudioOutput.engine.stop()
@@ -438,6 +470,8 @@ actor KiwiSDRClient: SDRBackendClient {
 
   private func handleKiwiMessage(_ payload: String, stream: StreamKind) async {
     let entries = payload.split(separator: " ")
+    var tuningChanged = false
+
     for entry in entries {
       let parts = entry.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
       let name = String(parts[0])
@@ -453,6 +487,31 @@ actor KiwiSDRClient: SDRBackendClient {
         if let value, let sampleRate = Double(value) {
           sampleRateHz = max(8000, Int(sampleRate.rounded()))
           emitKiwiTelemetry(force: true)
+        }
+
+      case "freq":
+        if let value, let parsedFrequencyHz = parseKiwiFrequencyHz(value) {
+          latestTunedFrequencyHz = parsedFrequencyHz
+          tuningChanged = true
+        }
+
+      case "mod", "mode":
+        if let mode = demodulationModeFromKiwi(value) {
+          latestTunedMode = mode
+          tuningChanged = true
+        }
+
+      case "band":
+        if let value {
+          let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+          latestBandName = normalized.isEmpty ? nil : normalized
+          tuningChanged = true
+        }
+
+      case "load_cfg":
+        if let value {
+          let decodedValue = value.removingPercentEncoding ?? value
+          applyKiwiConfigPayload(decodedValue, tuningChanged: &tuningChanged)
         }
 
       case "badp":
@@ -492,6 +551,10 @@ actor KiwiSDRClient: SDRBackendClient {
       default:
         break
       }
+    }
+
+    if tuningChanged {
+      emitKiwiTuning()
     }
   }
 
@@ -578,6 +641,78 @@ actor KiwiSDRClient: SDRBackendClient {
     enqueueTelemetry(.kiwi(telemetry))
   }
 
+  private func emitKiwiTuning() {
+    guard
+      latestTunedFrequencyHz != lastReportedTunedFrequencyHz
+        || latestTunedMode != lastReportedTunedMode
+        || latestBandName != lastReportedBandName
+    else {
+      return
+    }
+
+    lastReportedTunedFrequencyHz = latestTunedFrequencyHz
+    lastReportedTunedMode = latestTunedMode
+    lastReportedBandName = latestBandName
+
+    guard let frequencyHz = latestTunedFrequencyHz else {
+      return
+    }
+    enqueueTelemetry(
+      .kiwiTuning(
+        frequencyHz: frequencyHz,
+        mode: latestTunedMode,
+        bandName: latestBandName
+      )
+    )
+  }
+
+  private func parseKiwiFrequencyHz(_ rawValue: String) -> Int? {
+    guard let value = Double(rawValue), value.isFinite, value > 0 else { return nil }
+    let absolute = abs(value)
+
+    if absolute >= 1_000_000 {
+      return Int(absolute.rounded())
+    }
+    if absolute >= 10_000 {
+      return Int((absolute * 1_000.0).rounded())
+    }
+    if absolute >= 100 {
+      // Kiwi frequency values are usually in kHz (e.g. 7050, 92800).
+      return Int((absolute * 1_000.0).rounded())
+    }
+    // Very small values are typically MHz with a decimal point (e.g. 7.050).
+    return Int((absolute * 1_000_000.0).rounded())
+  }
+
+  private func applyKiwiConfigPayload(_ payload: String, tuningChanged: inout Bool) {
+    guard let data = payload.data(using: .utf8) else { return }
+    guard let object = try? JSONSerialization.jsonObject(with: data, options: []) else { return }
+    guard let dictionary = object as? [String: Any] else { return }
+
+    if let rawFrequency = dictionary["freq"] as? NSNumber {
+      if let parsedFrequencyHz = parseKiwiFrequencyHz(rawFrequency.stringValue) {
+        latestTunedFrequencyHz = parsedFrequencyHz
+        tuningChanged = true
+      }
+    } else if let rawFrequencyText = dictionary["freq"] as? String,
+      let parsedFrequencyHz = parseKiwiFrequencyHz(rawFrequencyText) {
+      latestTunedFrequencyHz = parsedFrequencyHz
+      tuningChanged = true
+    }
+
+    if let modeText = dictionary["mode"] as? String,
+      let mode = demodulationModeFromKiwi(modeText) {
+      latestTunedMode = mode
+      tuningChanged = true
+    }
+
+    if let bandText = dictionary["band"] as? String {
+      let normalized = bandText.trimmingCharacters(in: .whitespacesAndNewlines)
+      latestBandName = normalized.isEmpty ? nil : normalized
+      tuningChanged = true
+    }
+  }
+
   private func enqueueTelemetry(_ event: BackendTelemetryEvent) {
     telemetryQueue.append(event)
     if telemetryQueue.count > 32 {
@@ -656,7 +791,7 @@ actor OpenWebRXClient: SDRBackendClient {
   private var receiveTask: Task<Void, Never>?
   private var centerFrequencyHz: Int?
   private var sampleRateHz: Int?
-  private var lastAppliedSettings: RadioSessionSettings = .default
+  private var lastAppliedSettings: RadioSessionSettings?
   private var lastServerMessage: String?
   private var pendingStatusUpdate: String?
   private var outputRateHz = 12_000
@@ -734,6 +869,7 @@ actor OpenWebRXClient: SDRBackendClient {
     dialBookmarks = []
     lastReportedFrequencyHz = nil
     lastReportedMode = nil
+    lastAppliedSettings = nil
 
     await MainActor.run {
       SharedAudioOutput.engine.stop()
@@ -895,11 +1031,11 @@ actor OpenWebRXClient: SDRBackendClient {
         let centerChanged = centerFrequency != centerFrequencyHz
         centerFrequencyHz = centerFrequency
 
-        if centerChanged {
+        if centerChanged, let settings = lastAppliedSettings {
           try? await sendJSON(
             [
               "type": "dspcontrol",
-              "params": openWebRXParams(from: lastAppliedSettings)
+              "params": openWebRXParams(from: settings)
             ]
           )
         }

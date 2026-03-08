@@ -40,7 +40,7 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
   private let fmDxMaxFrequencyHz = 110_000_000
-  private let fmDxTuneStepOptionsHz = [50_000, 100_000, 200_000]
+  private let fmDxTuneStepOptionsHz = [10_000, 25_000, 50_000, 100_000, 200_000]
   private let fmDxDefaultTuneStepHz = 100_000
   private let kiwiDefaultFrequencyHz = 7_050_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -96,7 +96,7 @@ final class RadioSessionViewModel: ObservableObject {
     activeBackend = nil
     normalizeSettingsForBackendBeforeConnect(profile.backend)
 
-    connectTask = Task { [settings] in
+    connectTask = Task {
       do {
         if let existingClient = client {
           await existingClient.disconnect()
@@ -104,7 +104,6 @@ final class RadioSessionViewModel: ObservableObject {
 
         let newClient = makeClient(for: profile.backend)
         try await newClient.connect(profile: profile)
-        try await newClient.apply(settings: settings)
 
         if Task.isCancelled {
           return
@@ -464,6 +463,11 @@ final class RadioSessionViewModel: ObservableObject {
     applyIfConnected()
   }
 
+  func setShowRdsErrorCounters(_ enabled: Bool) {
+    settings.showRdsErrorCounters = enabled
+    persistSettings()
+  }
+
   func resetDSPSettings() {
     settings.mode = .am
     settings.rfGain = RadioSessionSettings.default.rfGain
@@ -775,6 +779,9 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .openWebRXBandPlan(let bands):
       openWebRXBandPlan = bands
+      if activeBackend == .openWebRX {
+        backendStatusText = openWebRXStatusSummary(frequencyHz: settings.frequencyHz, mode: settings.mode)
+      }
 
     case .openWebRXTuning(let frequencyHz, let mode):
       var changed = false
@@ -790,6 +797,23 @@ final class RadioSessionViewModel: ObservableObject {
       if changed {
         persistSettings()
       }
+      backendStatusText = openWebRXStatusSummary(frequencyHz: clamped, mode: mode)
+
+    case .kiwiTuning(let frequencyHz, let mode, let bandName):
+      var changed = false
+      let clamped = min(max(frequencyHz, kiwiFrequencyRangeHz.lowerBound), kiwiFrequencyRangeHz.upperBound)
+      if settings.frequencyHz != clamped {
+        settings.frequencyHz = clamped
+        changed = true
+      }
+      if let mode, settings.mode != mode {
+        settings.mode = mode
+        changed = true
+      }
+      if changed {
+        persistSettings()
+      }
+      backendStatusText = kiwiStatusSummary(frequencyHz: clamped, mode: mode, reportedBandName: bandName)
 
     case .fmdxCapabilities(let capabilities):
       fmdxCapabilities = capabilities
@@ -849,6 +873,57 @@ final class RadioSessionViewModel: ObservableObject {
       return -95
     case .openWebRX:
       return -95
+    }
+  }
+
+  private func openWebRXStatusSummary(frequencyHz: Int, mode: DemodulationMode?) -> String {
+    var parts: [String] = [FrequencyFormatter.mhzText(fromHz: frequencyHz)]
+    if let mode {
+      parts.append(mode.displayName)
+    }
+    if let band = openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequencyHz }) {
+      parts.append(band.name)
+    }
+    return parts.joined(separator: " | ")
+  }
+
+  private func kiwiStatusSummary(
+    frequencyHz: Int,
+    mode: DemodulationMode?,
+    reportedBandName: String?
+  ) -> String {
+    var parts: [String] = [FrequencyFormatter.mhzText(fromHz: frequencyHz)]
+    if let mode {
+      parts.append(mode.displayName)
+    }
+    if let normalizedBand = normalizedBandName(reportedBandName), !normalizedBand.isEmpty {
+      parts.append(normalizedBand)
+    } else if let inferredBand = inferredKiwiBandName(for: frequencyHz) {
+      parts.append(inferredBand)
+    }
+    return parts.joined(separator: " | ")
+  }
+
+  private func normalizedBandName(_ name: String?) -> String? {
+    guard let name else { return nil }
+    let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    return normalized.isEmpty ? nil : normalized
+  }
+
+  private func inferredKiwiBandName(for frequencyHz: Int) -> String? {
+    switch frequencyHz {
+    case 150_000...299_999:
+      return "LW"
+    case 300_000...2_999_999:
+      return "MW"
+    case 3_000_000...29_999_999:
+      return "SW"
+    case 64_000_000...110_000_000:
+      return "FM"
+    case 30_000_000...299_999_999:
+      return "VHF"
+    default:
+      return nil
     }
   }
 

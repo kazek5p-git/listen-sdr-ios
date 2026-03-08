@@ -214,6 +214,7 @@
 "fmdx.af_list" = "AF: %@";
 "fmdx.rt0" = "RT0: %@";
 "fmdx.rt1" = "RT1: %@";
+"fmdx.show_rds_errors" = "Mostrar contadores de errores RDS";
 "diagnostics.entry_accessibility" = "%@, %@";
 
 "scan_source.quick_list" = "Lista rapida";
