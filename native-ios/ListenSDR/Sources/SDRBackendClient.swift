@@ -1903,19 +1903,27 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     var staticData: [String: Any]?
+    var staticPresets: [SDRServerBookmark] = []
     if let snapshot = try? await fetchStaticData(profile: profile) {
       staticData = snapshot
       if let tunerName = parseString(snapshot["tunerName"])?.trimmingCharacters(in: .whitespacesAndNewlines),
         !tunerName.isEmpty {
         pendingStatusUpdate = "Tuner: \(tunerName)"
       }
-      let presets = parsePresetBookmarks(from: snapshot)
-      if !presets.isEmpty {
-        enqueueTelemetry(.fmdxPresets(presets))
-      }
+      staticPresets = parsePresetBookmarks(from: snapshot)
     }
 
     let html = try? await fetchIndexHTML(profile: profile, basePath: activeBasePath)
+    let pluginPresets = await fetchPluginPresetBookmarks(
+      profile: profile,
+      indexHTML: html,
+      basePath: activeBasePath
+    )
+    let mergedPresets = mergeFMDXPresets(staticPresets: staticPresets, pluginPresets: pluginPresets)
+    if !mergedPresets.isEmpty {
+      enqueueTelemetry(.fmdxPresets(mergedPresets))
+    }
+
     let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
     if !capabilities.antennas.isEmpty || !capabilities.bandwidths.isEmpty {
       enqueueTelemetry(.fmdxCapabilities(capabilities))
@@ -2582,6 +2590,232 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     return bookmarks.sorted { $0.frequencyHz < $1.frequencyHz }
+  }
+
+  private func mergeFMDXPresets(
+    staticPresets: [SDRServerBookmark],
+    pluginPresets: [SDRServerBookmark]
+  ) -> [SDRServerBookmark] {
+    guard !staticPresets.isEmpty || !pluginPresets.isEmpty else { return [] }
+
+    var mergedByFrequency: [Int: SDRServerBookmark] = [:]
+    mergedByFrequency.reserveCapacity(max(staticPresets.count, pluginPresets.count))
+
+    for preset in staticPresets {
+      mergedByFrequency[preset.frequencyHz] = preset
+    }
+
+    // Plugin presets usually carry friendly station names, so they override generic F1/F2 labels.
+    for preset in pluginPresets {
+      mergedByFrequency[preset.frequencyHz] = preset
+    }
+
+    return mergedByFrequency.values.sorted { lhs, rhs in
+      if lhs.frequencyHz == rhs.frequencyHz {
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+      }
+      return lhs.frequencyHz < rhs.frequencyHz
+    }
+  }
+
+  private func fetchPluginPresetBookmarks(
+    profile: SDRConnectionProfile,
+    indexHTML: String?,
+    basePath: String
+  ) async -> [SDRServerBookmark] {
+    guard let indexHTML, !indexHTML.isEmpty else {
+      return []
+    }
+
+    guard let scriptURL = resolvePluginPresetScriptURL(
+      indexHTML: indexHTML,
+      profile: profile,
+      basePath: basePath
+    ) else {
+      return []
+    }
+
+    do {
+      let script = try await fetchRemoteText(url: scriptURL)
+      let presets = parsePluginPresetBookmarks(from: script)
+      if !presets.isEmpty {
+        log("Loaded FM-DX plugin presets (\(presets.count)) from \(scriptURL.absoluteString)")
+      }
+      return presets
+    } catch {
+      log("Unable to load FM-DX plugin presets: \(error.localizedDescription)", severity: .warning)
+      return []
+    }
+  }
+
+  private func resolvePluginPresetScriptURL(
+    indexHTML: String,
+    profile: SDRConnectionProfile,
+    basePath: String
+  ) -> URL? {
+    let patterns = [
+      #"(?is)<script[^>]+src=["']([^"']*pluginButtonPresets[^"']*)["'][^>]*>"#,
+      #"(?is)<script[^>]+src=["']([^"']*ButtonPresets[^"']*\.js[^"']*)["'][^>]*>"#
+    ]
+
+    guard let indexURL = try? makeHTTPURL(profile: profile, path: basePath) else {
+      return nil
+    }
+
+    for pattern in patterns {
+      if let relativePath = captures(for: pattern, in: indexHTML, group: 1).first,
+        let resolvedURL = URL(string: relativePath, relativeTo: indexURL)?.absoluteURL {
+        return resolvedURL
+      }
+    }
+
+    return nil
+  }
+
+  private func fetchRemoteText(url: URL) async throws -> String {
+    var request = URLRequest(url: url)
+    request.timeoutInterval = 15
+    request.setValue("text/javascript,text/plain,*/*", forHTTPHeaderField: "Accept")
+    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let httpResponse = response as? HTTPURLResponse,
+      (200...299).contains(httpResponse.statusCode) else {
+      throw SDRClientError.unsupported("FM-DX preset script is unavailable.")
+    }
+
+    if let text = String(data: data, encoding: .utf8), !text.isEmpty {
+      return text
+    }
+    if let text = String(data: data, encoding: .isoLatin1), !text.isEmpty {
+      return text
+    }
+
+    throw SDRClientError.unsupported("FM-DX preset script returned unreadable content.")
+  }
+
+  private func parsePluginPresetBookmarks(from script: String) -> [SDRServerBookmark] {
+    guard
+      let presetBlock = captures(
+        for: #"(?is)defaultPresetData\s*=\s*\{([\s\S]*?)\}"#,
+        in: script,
+        group: 1
+      ).first
+    else {
+      return []
+    }
+
+    guard
+      let valuesRaw = captures(
+        for: #"(?is)values\s*:\s*\[([\s\S]*?)\]"#,
+        in: presetBlock,
+        group: 1
+      ).first
+    else {
+      return []
+    }
+
+    let namesRaw =
+      captures(
+        for: #"(?is)names\s*:\s*\[([\s\S]*?)\]"#,
+        in: presetBlock,
+        group: 1
+      ).first
+      ?? captures(
+        for: #"(?is)ps\s*:\s*\[([\s\S]*?)\]"#,
+        in: presetBlock,
+        group: 1
+      ).first
+      ?? ""
+
+    let valuesMHz = captures(for: #"-?\d+(?:\.\d+)?"#, in: valuesRaw, group: 0).compactMap { Double($0) }
+    let names = parseQuotedStringArray(from: namesRaw)
+
+    var bookmarks: [SDRServerBookmark] = []
+    var seen = Set<Int>()
+    bookmarks.reserveCapacity(valuesMHz.count)
+
+    for (index, valueMHz) in valuesMHz.enumerated() {
+      guard valueMHz.isFinite, valueMHz > 0 else { continue }
+      let frequencyHz = normalizePresetFrequencyHz(fromMHz: valueMHz)
+      guard seen.insert(frequencyHz).inserted else { continue }
+
+      let fallbackName = FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz)
+      let resolvedName: String
+      if index < names.count {
+        let trimmed = names[index].trimmingCharacters(in: .whitespacesAndNewlines)
+        resolvedName = trimmed.isEmpty ? fallbackName : trimmed
+      } else {
+        resolvedName = fallbackName
+      }
+
+      bookmarks.append(
+        SDRServerBookmark(
+          id: "fmdx-plugin-\(index + 1)-\(frequencyHz)",
+          name: resolvedName,
+          frequencyHz: frequencyHz,
+          modulation: .fm,
+          source: "fmdx-plugin"
+        )
+      )
+    }
+
+    return bookmarks
+  }
+
+  private func parseQuotedStringArray(from raw: String) -> [String] {
+    var output: [String] = []
+    output.reserveCapacity(16)
+
+    var buffer = ""
+    var activeQuote: Character?
+    var isEscaped = false
+
+    for character in raw {
+      if let quote = activeQuote {
+        if isEscaped {
+          switch character {
+          case "n":
+            buffer.append("\n")
+          case "r":
+            buffer.append("\r")
+          case "t":
+            buffer.append("\t")
+          default:
+            buffer.append(character)
+          }
+          isEscaped = false
+          continue
+        }
+
+        if character == "\\" {
+          isEscaped = true
+          continue
+        }
+
+        if character == quote {
+          let cleaned = decodeHTMLEntities(buffer).trimmingCharacters(in: .whitespacesAndNewlines)
+          if !cleaned.isEmpty {
+            output.append(cleaned)
+          } else {
+            output.append("")
+          }
+          buffer = ""
+          activeQuote = nil
+          continue
+        }
+
+        buffer.append(character)
+        continue
+      }
+
+      if character == "'" || character == "\"" {
+        activeQuote = character
+        buffer = ""
+      }
+    }
+
+    return output
   }
 
   private func normalizePresetFrequencyHz(fromMHz value: Double) -> Int {
