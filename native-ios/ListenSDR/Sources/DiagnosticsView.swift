@@ -16,14 +16,24 @@ struct DiagnosticsView: View {
             radioSession.reconnect(to: profile)
           } label: {
             Label("Reconnect", systemImage: "arrow.clockwise")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
           }
           .disabled(profileStore.selectedProfile == nil)
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 
           Button {
             radioSession.resetDSPSettings()
           } label: {
             Label("Reset DSP", systemImage: "slider.horizontal.3")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
           }
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 
           Button {
             UIPasteboard.general.string = diagnostics.exportText()
@@ -31,8 +41,13 @@ struct DiagnosticsView: View {
             Diagnostics.log(category: "Diagnostics", message: "Diagnostics copied to clipboard")
           } label: {
             Label("Copy diagnostics", systemImage: "doc.on.doc")
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
           }
           .disabled(diagnostics.entries.isEmpty)
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
         }
 
         Section("Logs") {
@@ -58,14 +73,18 @@ struct DiagnosticsView: View {
                     .font(.caption2)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(.thinMaterial, in: Capsule())
+                    .background(AppTheme.chipFill, in: Capsule())
                 }
 
-              Text(entry.message)
+                Text(entry.message)
                   .font(.body)
                   .foregroundStyle(color(for: entry.severity))
                   .textSelection(.enabled)
               }
+              .appCardContainer()
+              .listRowBackground(Color.clear)
+              .listRowSeparator(.hidden)
+              .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
               .accessibilityElement(children: .combine)
               .accessibilityLabel(L10n.text("diagnostics.entry_accessibility", entry.category, entry.message))
             }
@@ -73,6 +92,7 @@ struct DiagnosticsView: View {
         }
       }
       .listStyle(.insetGrouped)
+      .scrollContentBackground(.hidden)
       .navigationTitle("Diagnostics")
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) {
@@ -88,6 +108,7 @@ struct DiagnosticsView: View {
       } message: {
         Text("Diagnostics were copied to the clipboard.")
       }
+      .appScreenBackground()
     }
   }
 

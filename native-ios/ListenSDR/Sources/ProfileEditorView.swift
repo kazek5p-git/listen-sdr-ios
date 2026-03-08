@@ -37,6 +37,7 @@ struct ProfileEditorView: View {
             draft.port = newBackend.defaultPort
           }
         }
+        .appSectionStyle()
 
         Section("Server") {
           TextField("Host", text: $draft.host)
@@ -56,6 +57,7 @@ struct ProfileEditorView: View {
           Toggle("Use TLS", isOn: $draft.useTLS)
             .accessibilityHint("Enable secure HTTPS or WSS transport")
         }
+        .appSectionStyle()
 
         Section("Authentication") {
           TextField("Username", text: $draft.username)
@@ -66,7 +68,9 @@ struct ProfileEditorView: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
         }
+        .appSectionStyle()
       }
+      .scrollContentBackground(.hidden)
       .navigationTitle(title)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
@@ -80,6 +84,7 @@ struct ProfileEditorView: View {
           .disabled(!isValid)
         }
       }
+      .appScreenBackground()
     }
   }
 

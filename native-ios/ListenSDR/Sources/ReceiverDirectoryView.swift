@@ -17,6 +17,7 @@ struct ReceiverDirectoryView: View {
           .pickerStyle(.segmented)
           .accessibilityLabel(L10n.text("Receiver backend list"))
         }
+        .appSectionStyle()
 
         Section {
           if let lastRefreshDate = viewModel.lastRefreshDate {
@@ -55,6 +56,7 @@ struct ReceiverDirectoryView: View {
         } footer: {
           Text("Auto-updated from FMDX.org and Receiverbook.de. Tap a receiver row to add or select it.")
         }
+        .appSectionStyle()
 
         Section("Receivers") {
           if viewModel.filteredEntries.isEmpty {
@@ -73,6 +75,7 @@ struct ReceiverDirectoryView: View {
         }
       }
       .listStyle(.insetGrouped)
+      .scrollContentBackground(.hidden)
       .navigationTitle("Receiver Directory")
       .toolbar {
         ToolbarItem(placement: .navigationBarLeading) {
@@ -114,6 +117,7 @@ struct ReceiverDirectoryView: View {
       .onChange(of: viewModel.selectedBackend) { _ in
         viewModel.scheduleStatusProbeForSelectedBackend(force: false)
       }
+      .appScreenBackground()
     }
   }
 
@@ -128,6 +132,16 @@ struct ReceiverDirectoryView: View {
       profileStore.updateSelection(storedProfile.id)
     } label: {
       HStack(alignment: .top, spacing: 12) {
+        Image(systemName: backendIconName(for: entry.backend))
+          .font(.headline)
+          .foregroundStyle(backendAccent(for: entry.backend))
+          .frame(width: 34, height: 34)
+          .background(
+            backendAccent(for: entry.backend).opacity(0.16),
+            in: Circle()
+          )
+          .accessibilityHidden(true)
+
         VStack(alignment: .leading, spacing: 4) {
           Text(entry.name)
             .font(.headline)
@@ -163,9 +177,13 @@ struct ReceiverDirectoryView: View {
           }
         }
       }
+      .appCardContainer()
     }
     .buttonStyle(.plain)
     .contentShape(Rectangle())
+    .listRowBackground(Color.clear)
+    .listRowSeparator(.hidden)
+    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     .accessibilityLabel(entry.name)
     .accessibilityValue(
       isSelected
@@ -208,6 +226,28 @@ struct ReceiverDirectoryView: View {
       return Color.red.opacity(0.15)
     case .unknown:
       return Color.secondary.opacity(0.12)
+    }
+  }
+
+  private func backendIconName(for backend: SDRBackend) -> String {
+    switch backend {
+    case .kiwiSDR:
+      return "dot.radiowaves.left.and.right"
+    case .openWebRX:
+      return "antenna.radiowaves.left.and.right"
+    case .fmDxWebserver:
+      return "dot.scope"
+    }
+  }
+
+  private func backendAccent(for backend: SDRBackend) -> Color {
+    switch backend {
+    case .kiwiSDR:
+      return AppTheme.tint
+    case .openWebRX:
+      return AppTheme.accent
+    case .fmDxWebserver:
+      return .orange
     }
   }
 }

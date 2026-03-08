@@ -57,6 +57,7 @@ struct ReceiverView: View {
       .sheet(isPresented: $isFrequencyEntrySheetPresented) {
         frequencyEntrySheet
       }
+      .appScreenBackground()
     }
   }
 
@@ -145,6 +146,7 @@ struct ReceiverView: View {
           .accessibilityHint(L10n.text("Try connecting to this receiver again"))
         }
       }
+      .appSectionStyle()
 
       Section("Tuning") {
         Stepper(
@@ -250,6 +252,7 @@ struct ReceiverView: View {
         .accessibilityLabel(L10n.text("RF gain"))
         .accessibilityValue("\(Int(radioSession.settings.rfGain))")
       }
+      .appSectionStyle()
 
       if profile.backend == .openWebRX {
         Section("Server Bookmarks") {
@@ -276,6 +279,7 @@ struct ReceiverView: View {
             }
           }
         }
+        .appSectionStyle()
 
         Section("Band Plan") {
           if radioSession.openWebRXBandPlan.isEmpty {
@@ -313,6 +317,7 @@ struct ReceiverView: View {
             }
           }
         }
+        .appSectionStyle()
       }
 
       if profile.backend == .fmDxWebserver {
@@ -376,6 +381,7 @@ struct ReceiverView: View {
             .disabled(radioSession.state != .connected)
           }
         }
+        .appSectionStyle()
       }
 
       Section("Scanner") {
@@ -444,6 +450,7 @@ struct ReceiverView: View {
             .foregroundStyle(.secondary)
         }
       }
+      .appSectionStyle()
 
       if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
         Section("FM-DX Live") {
@@ -568,6 +575,7 @@ struct ReceiverView: View {
             }
           }
         }
+        .appSectionStyle()
       }
 
       if profile.backend == .kiwiSDR, let telemetry = radioSession.kiwiTelemetry {
@@ -594,6 +602,7 @@ struct ReceiverView: View {
               .foregroundStyle(.secondary)
           }
         }
+        .appSectionStyle()
       }
 
       Section("DSP") {
@@ -654,6 +663,7 @@ struct ReceiverView: View {
         }
         .accessibilityHint(L10n.text("Restores demodulation mode and DSP controls to defaults"))
       }
+      .appSectionStyle()
 
       Section("Favorites") {
         Button {
@@ -689,6 +699,7 @@ struct ReceiverView: View {
           }
         }
       }
+      .appSectionStyle()
 
       Section("Audio") {
         VStack(alignment: .leading, spacing: 6) {
@@ -714,7 +725,9 @@ struct ReceiverView: View {
           )
         )
       }
+      .appSectionStyle()
     }
+    .scrollContentBackground(.hidden)
   }
 
   private func connectionButtonTitle(for profile: SDRConnectionProfile) -> String {
@@ -769,6 +782,7 @@ struct ReceiverView: View {
         )
         LabeledContent("Mode", value: radioSession.settings.mode.displayName)
       }
+      .scrollContentBackground(.hidden)
       .navigationTitle("Save Favorite")
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
@@ -782,6 +796,7 @@ struct ReceiverView: View {
           }
         }
       }
+      .appScreenBackground()
     }
   }
 
@@ -808,6 +823,7 @@ struct ReceiverView: View {
           value: FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
         )
       }
+      .scrollContentBackground(.hidden)
       .navigationTitle("Set Frequency")
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
@@ -822,6 +838,7 @@ struct ReceiverView: View {
           }
         }
       }
+      .appScreenBackground()
     }
   }
 

@@ -18,5 +18,9 @@ struct ContentView: View {
           Label("Diagnostics", systemImage: "waveform.path.ecg")
         }
     }
+    .tint(AppTheme.tint)
+    .toolbarBackground(.regularMaterial, for: .tabBar)
+    .toolbarBackground(.visible, for: .tabBar)
+    .appScreenBackground()
   }
 }
