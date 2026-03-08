@@ -20,22 +20,15 @@ private enum ScanSource: String, CaseIterable, Identifiable {
   }
 }
 
-private enum FMDXAudioModeSelection: String, CaseIterable, Identifiable {
-  case mono
-  case stereo
-
-  var id: String { rawValue }
-}
-
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var presetStore: FrequencyPresetStore
   @State private var isSavePresetSheetPresented = false
   @State private var isFrequencyEntrySheetPresented = false
+  @FocusState private var isFrequencyInputFocused: Bool
   @State private var presetNameDraft = ""
   @State private var frequencyInputDraft = ""
-  @State private var frequencyInputCurrentText = ""
   @State private var frequencyInputError: String?
   @State private var scanSource: ScanSource = .favorites
   @State private var quickScanChannels: [ScanChannel] = []
@@ -334,23 +327,24 @@ struct ReceiverView: View {
   }
 
   private func fmDxAudioModePicker() -> some View {
-    let selection = Binding<FMDXAudioModeSelection>(
-      get: {
-        (radioSession.fmdxTelemetry?.isForcedStereo ?? false) ? .stereo : .mono
-      },
-      set: { mode in
-        radioSession.setFMDXForcedStereoEnabled(mode == .stereo)
-      }
-    )
+    let isForcedStereo = radioSession.fmdxTelemetry?.isForcedStereo ?? false
+    let modeText = isForcedStereo
+      ? L10n.text("fmdx.stereo_state.stereo")
+      : L10n.text("fmdx.stereo_state.mono")
 
-    return Picker(L10n.text("fmdx.audio_mode"), selection: selection) {
-      Text(L10n.text("fmdx.stereo_state.mono")).tag(FMDXAudioModeSelection.mono)
-      Text(L10n.text("fmdx.stereo_state.stereo")).tag(FMDXAudioModeSelection.stereo)
+    return Button {
+      radioSession.setFMDXForcedStereoEnabled(!isForcedStereo)
+    } label: {
+      HStack {
+        Text(L10n.text("fmdx.audio_mode"))
+        Spacer()
+        Text(modeText)
+          .fontWeight(.semibold)
+      }
     }
-    .pickerStyle(.segmented)
     .disabled(radioSession.state != .connected)
     .accessibilityLabel(L10n.text("fmdx.audio_mode"))
-    .accessibilityValue(fmdxAudioModePickerValue(for: radioSession.fmdxTelemetry))
+    .accessibilityValue(modeText)
   }
 
   @ViewBuilder
@@ -902,6 +896,7 @@ struct ReceiverView: View {
           .keyboardType(.decimalPad)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
+          .focused($isFrequencyInputFocused)
           .accessibilityLabel(L10n.text("Frequency input"))
           .accessibilityHint(frequencyInputHint)
 
@@ -913,17 +908,22 @@ struct ReceiverView: View {
             .accessibilityValue(frequencyInputError)
         }
 
-        LabeledContent(
-          "Current",
-          value: frequencyInputCurrentText
-        )
       }
       .scrollContentBackground(.hidden)
       .navigationTitle("Set Frequency")
+      .onAppear {
+        DispatchQueue.main.async {
+          isFrequencyInputFocused = true
+        }
+      }
+      .onDisappear {
+        isFrequencyInputFocused = false
+      }
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") {
             frequencyInputError = nil
+            isFrequencyInputFocused = false
             isFrequencyEntrySheetPresented = false
           }
         }
@@ -985,7 +985,6 @@ struct ReceiverView: View {
       frequencyInputDraft = FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
         .replacingOccurrences(of: " MHz", with: "")
     }
-    frequencyInputCurrentText = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
     frequencyInputError = nil
     isFrequencyEntrySheetPresented = true
   }
@@ -1018,6 +1017,7 @@ struct ReceiverView: View {
     let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: profileStore.selectedProfile?.backend)
     radioSession.setFrequencyHz(normalizedFrequencyHz)
     frequencyInputError = nil
+    isFrequencyInputFocused = false
     isFrequencyEntrySheetPresented = false
   }
 
@@ -1091,13 +1091,6 @@ struct ReceiverView: View {
       }
     }
     return "\(pty)"
-  }
-
-  private func fmdxAudioModePickerValue(for telemetry: FMDXTelemetry?) -> String {
-    if let isForcedStereo = telemetry?.isForcedStereo {
-      return isForcedStereo ? L10n.text("fmdx.stereo_state.stereo") : L10n.text("fmdx.stereo_state.mono")
-    }
-    return L10n.text("fmdx.stereo_state.mono")
   }
 
   private func frequencyText(fromHz value: Int, backend: SDRBackend?) -> String {
