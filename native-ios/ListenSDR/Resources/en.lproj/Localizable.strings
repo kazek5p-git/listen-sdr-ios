@@ -94,3 +94,5 @@
 "backend.kiwi" = "KiwiSDR";
 "backend.openwebrx" = "OpenWebRX";
 "backend.fmdx" = "FM-DX Webserver";
+"directory.notification.title" = "New receivers available";
+"directory.notification.body" = "Detected: %@";

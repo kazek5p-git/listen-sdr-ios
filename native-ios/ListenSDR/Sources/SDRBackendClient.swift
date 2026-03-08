@@ -1570,6 +1570,10 @@ final class FMDXMP3AudioPlayer {
     consecutiveBufferStarvation = 0
     lastSuccessfulEnqueueAt = .distantPast
     enqueuedBuffersBeforeStart = 0
+
+    DispatchQueue.main.async {
+      NowPlayingMetadataController.shared.stopPlayback()
+    }
   }
 
   private func consumeProperty(_ propertyID: AudioFileStreamPropertyID, fileStreamID: AudioFileStreamID) {
@@ -1724,6 +1728,9 @@ final class FMDXMP3AudioPlayer {
           if startStatus == noErr {
             queueStarted = true
             log("FM-DX audio queue started with \(enqueuedBuffersBeforeStart) prebuffered chunks")
+            DispatchQueue.main.async {
+              NowPlayingMetadataController.shared.startPlayback(source: "FM-DX stream")
+            }
           } else {
             log("Unable to start audio queue (status \(startStatus))", severity: .warning)
           }

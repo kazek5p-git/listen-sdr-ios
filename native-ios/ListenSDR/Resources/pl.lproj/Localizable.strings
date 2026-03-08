@@ -246,3 +246,5 @@
 "backend.kiwi" = "KiwiSDR";
 "backend.openwebrx" = "OpenWebRX";
 "backend.fmdx" = "Serwer FM-DX";
+"directory.notification.title" = "Nowe odbiorniki w bazie";
+"directory.notification.body" = "Wykryto: %@";

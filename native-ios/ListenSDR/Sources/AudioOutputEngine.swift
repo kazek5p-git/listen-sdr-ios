@@ -55,6 +55,7 @@ final class AudioOutputEngine {
 
     if !playerNode.isPlaying {
       playerNode.play()
+      NowPlayingMetadataController.shared.startPlayback(source: "Live SDR stream")
     }
 
     queuedBuffers += 1
@@ -71,6 +72,7 @@ final class AudioOutputEngine {
     playerNode.stop()
     engine.stop()
     currentSampleRate = nil
+    NowPlayingMetadataController.shared.stopPlayback()
   }
 
   func setVolume(_ value: Double) {

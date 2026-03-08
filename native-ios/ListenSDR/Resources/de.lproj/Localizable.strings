@@ -246,3 +246,5 @@
 "backend.kiwi" = "KiwiSDR";
 "backend.openwebrx" = "OpenWebRX";
 "backend.fmdx" = "FM-DX Webserver";
+"directory.notification.title" = "Neue Empfaenger verfuegbar";
+"directory.notification.body" = "Erkannt: %@";

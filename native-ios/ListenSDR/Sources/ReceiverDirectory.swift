@@ -536,6 +536,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   let supportedBackends: [SDRBackend] = [.fmDxWebserver, .kiwiSDR, .openWebRX]
 
   private let service: ReceiverDirectoryService
+  private let notificationService: DirectoryChangeNotificationService
   private var autoRefreshTask: Task<Void, Never>?
   private var statusProbeTask: Task<Void, Never>?
   private var lastProbeDateByBackend: [SDRBackend: Date] = [:]
@@ -546,9 +547,14 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   private let staleAfterSeconds: TimeInterval = 900
   private let statusProbeIntervalSeconds: TimeInterval = 1_800
 
-  init(service: ReceiverDirectoryService = ReceiverDirectoryService()) {
+  init(
+    service: ReceiverDirectoryService = ReceiverDirectoryService(),
+    notificationService: DirectoryChangeNotificationService? = nil
+  ) {
     self.service = service
+    self.notificationService = notificationService ?? .shared
     loadCache()
+    self.notificationService.requestAuthorizationIfNeeded()
   }
 
   var filteredEntries: [ReceiverDirectoryEntry] {
@@ -617,14 +623,27 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     errorMessage = nil
 
     do {
+      let previousEntries = entries
       let fetched = try await service.fetchAllEntries()
-      entries = sortEntries(applyKnownStatuses(to: fetched))
+      let mergedEntries = sortEntries(applyKnownStatuses(to: fetched))
+      entries = mergedEntries
       lastRefreshDate = Date()
       persistCache()
       Diagnostics.log(
         category: "Directory",
         message: "Directory refreshed (\(fetched.count) receivers)"
       )
+
+      if !previousEntries.isEmpty {
+        let newlyAddedByBackend = newlyAddedReceiverCounts(previous: previousEntries, current: mergedEntries)
+        if !newlyAddedByBackend.isEmpty {
+          notificationService.notifyNewReceiversIfNeeded(groupedByBackend: newlyAddedByBackend)
+          Diagnostics.log(
+            category: "Directory",
+            message: "New receivers detected: \(newlyAddedByBackend)"
+          )
+        }
+      }
     } catch {
       errorMessage = error.localizedDescription
       Diagnostics.log(
@@ -774,6 +793,19 @@ final class ReceiverDirectoryViewModel: ObservableObject {
       return 1
     case .openWebRX:
       return 2
+    }
+  }
+
+  private func newlyAddedReceiverCounts(
+    previous: [ReceiverDirectoryEntry],
+    current: [ReceiverDirectoryEntry]
+  ) -> [SDRBackend: Int] {
+    let previousIDs = Set(previous.map(\.id))
+    let newlyAdded = current.filter { !previousIDs.contains($0.id) }
+    guard !newlyAdded.isEmpty else { return [:] }
+
+    return newlyAdded.reduce(into: [:]) { counts, entry in
+      counts[entry.backend, default: 0] += 1
     }
   }
 
