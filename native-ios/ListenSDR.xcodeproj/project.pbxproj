@@ -24,11 +24,13 @@
 		899E90DCF3F8E5489D3F5613 /* ReceiverDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */; };
 		904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */; };
 		97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */; };
+		9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */; };
 		A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */; };
 		A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8430FABA0F566E0392A547 /* L10n.swift */; };
 		A83F58F1D406EC3C8894D954 /* RadiosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC198DC08EE579F8E7D22664 /* RadiosView.swift */; };
 		D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */; };
 		E23F2265F3F9263F898DC5F4 /* SDRBackendClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */; };
+		ED24BA1B1978A1D1CA10D49A /* NowPlayingMetadataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */; };
 		ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */; };
 		F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */; };
 		F1D937053202CA81759996E2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7B8C0A52D13309CB9883A20A /* Localizable.strings */; };
@@ -54,8 +56,10 @@
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		7F806ECE48FB8AF9299DF745 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/Localizable.strings; sourceTree = "<group>"; };
 		86D584BECE59BE8BE8B2AFF1 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryChangeNotificationService.swift; sourceTree = "<group>"; };
 		9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationMode.swift; sourceTree = "<group>"; };
 		9D4640039B5A50DBCB293C69 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingMetadataController.swift; sourceTree = "<group>"; };
 		AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectoryView.swift; sourceTree = "<group>"; };
 		BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputEngine.swift; sourceTree = "<group>"; };
@@ -92,11 +96,13 @@
 				9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */,
 				DAE460852390C71A3267E19E /* DiagnosticsStore.swift */,
 				E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */,
+				88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */,
 				2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */,
 				18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */,
 				224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */,
 				CA8430FABA0F566E0392A547 /* L10n.swift */,
 				06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */,
+				A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */,
 				3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */,
 				11598D4ED736766676E23600 /* ProfileStore.swift */,
 				F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */,
@@ -212,11 +218,13 @@
 				97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */,
 				1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */,
 				D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */,
+				9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */,
 				F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */,
 				FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */,
 				904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */,
 				A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */,
 				F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */,
+				ED24BA1B1978A1D1CA10D49A /* NowPlayingMetadataController.swift in Sources */,
 				2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */,
 				048284CE689221E778C8C818 /* ProfileStore.swift in Sources */,
 				69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */,
