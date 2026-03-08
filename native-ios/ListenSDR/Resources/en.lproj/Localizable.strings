@@ -43,6 +43,8 @@
 "directory.status.unreachable" = "Unreachable";
 "directory.status.unknown" = "Unknown";
 "directory.last_update" = "Last update: %@";
+"directory.source.fmdx" = "Auto-updated from FMDX.org. Tap a receiver row to add or select it.";
+"directory.source.receiverbook" = "Auto-updated from Receiverbook.de. Tap a receiver row to add or select it.";
 
 "City" = "City";
 "ERP" = "ERP";

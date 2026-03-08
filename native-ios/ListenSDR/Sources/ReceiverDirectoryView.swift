@@ -54,7 +54,7 @@ struct ReceiverDirectoryView: View {
         } header: {
           Text("Status")
         } footer: {
-          Text("Auto-updated from FMDX.org and Receiverbook.de. Tap a receiver row to add or select it.")
+          Text(viewModel.sourceSummaryText)
         }
         .appSectionStyle()
 

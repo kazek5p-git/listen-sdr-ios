@@ -570,6 +570,15 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     }
   }
 
+  var sourceSummaryText: String {
+    switch selectedBackend {
+    case .fmDxWebserver:
+      return L10n.text("directory.source.fmdx")
+    case .kiwiSDR, .openWebRX:
+      return L10n.text("directory.source.receiverbook")
+    }
+  }
+
   func start() {
     if autoRefreshTask != nil {
       return

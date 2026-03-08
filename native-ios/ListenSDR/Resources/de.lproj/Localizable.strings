@@ -195,6 +195,8 @@
 "directory.status.unreachable" = "Nicht erreichbar";
 "directory.status.unknown" = "Unbekannt";
 "directory.last_update" = "Letzte Aktualisierung: %@";
+"directory.source.fmdx" = "Automatisch aktualisiert von FMDX.org. Tippe auf einen Empfaenger, um ihn hinzuzufuegen oder auszuwaehlen.";
+"directory.source.receiverbook" = "Automatisch aktualisiert von Receiverbook.de. Tippe auf einen Empfaenger, um ihn hinzuzufuegen oder auszuwaehlen.";
 
 "City" = "Stadt";
 "ERP" = "ERP";
