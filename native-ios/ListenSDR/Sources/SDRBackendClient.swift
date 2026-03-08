@@ -380,7 +380,8 @@ actor KiwiSDRClient: SDRBackendClient {
 
   private func keepAliveLoop(task: URLSessionWebSocketTask) async {
     while !Task.isCancelled {
-      try? await Task.sleep(nanoseconds: 1_000_000_000)
+      // A slower keepalive cadence is enough to keep the socket warm and saves background wakeups.
+      try? await Task.sleep(nanoseconds: 4_000_000_000)
       if Task.isCancelled {
         return
       }
@@ -1869,7 +1870,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func healthLoop() async {
     while !Task.isCancelled {
-      try? await Task.sleep(nanoseconds: 5_000_000_000)
+      try? await Task.sleep(nanoseconds: 7_000_000_000)
       if Task.isCancelled {
         return
       }
@@ -1881,14 +1882,19 @@ actor FMDXWebserverClient: SDRBackendClient {
       if socket == nil {
         scheduleTextReconnect()
       } else {
-        let pingOK = await pingServerIfAvailable(profile: profile, basePath: activeBasePath)
-        if pingOK {
+        let hasRecentRealtimeStatus = Date().timeIntervalSince(lastRealtimeStatusAt) < 8
+        if hasRecentRealtimeStatus {
           consecutivePingFailures = 0
         } else {
-          consecutivePingFailures += 1
-          if consecutivePingFailures >= 2 {
+          let pingOK = await pingServerIfAvailable(profile: profile, basePath: activeBasePath)
+          if pingOK {
             consecutivePingFailures = 0
-            restartTextConnection(reason: "FM-DX ping timeout. Reconnecting...")
+          } else {
+            consecutivePingFailures += 1
+            if consecutivePingFailures >= 2 {
+              consecutivePingFailures = 0
+              restartTextConnection(reason: "FM-DX ping timeout. Reconnecting...")
+            }
           }
         }
       }
@@ -1916,8 +1922,8 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func pollLoop(profile: SDRConnectionProfile) async {
     while !Task.isCancelled {
-      let hasRecentRealtimeStatus = Date().timeIntervalSince(lastRealtimeStatusAt) < 10
-      let pollIntervalNs: UInt64 = hasRecentRealtimeStatus ? 8_000_000_000 : 2_500_000_000
+      let hasRecentRealtimeStatus = Date().timeIntervalSince(lastRealtimeStatusAt) < 12
+      let pollIntervalNs: UInt64 = hasRecentRealtimeStatus ? 12_000_000_000 : 3_500_000_000
       try? await Task.sleep(nanoseconds: pollIntervalNs)
       if Task.isCancelled {
         return

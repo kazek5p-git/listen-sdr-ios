@@ -661,7 +661,7 @@ final class RadioSessionViewModel: ObservableObject {
 
     statusMonitorTask = Task {
       while !Task.isCancelled {
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        try? await Task.sleep(nanoseconds: 1_300_000_000)
         if Task.isCancelled {
           return
         }

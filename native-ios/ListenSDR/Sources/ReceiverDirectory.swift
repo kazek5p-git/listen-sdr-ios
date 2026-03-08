@@ -542,9 +542,9 @@ final class ReceiverDirectoryViewModel: ObservableObject {
 
   private let cacheEntriesKey = "ListenSDR.directory.entries.v1"
   private let cacheRefreshDateKey = "ListenSDR.directory.refreshDate.v1"
-  private let refreshIntervalSeconds: UInt64 = 300
-  private let staleAfterSeconds: TimeInterval = 300
-  private let statusProbeIntervalSeconds: TimeInterval = 600
+  private let refreshIntervalSeconds: UInt64 = 900
+  private let staleAfterSeconds: TimeInterval = 900
+  private let statusProbeIntervalSeconds: TimeInterval = 1_800
 
   init(service: ReceiverDirectoryService = ReceiverDirectoryService()) {
     self.service = service
