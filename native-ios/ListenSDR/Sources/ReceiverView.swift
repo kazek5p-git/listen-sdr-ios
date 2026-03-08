@@ -324,7 +324,7 @@ struct ReceiverView: View {
               set: { radioSession.setFMDXForcedStereoEnabled($0) }
             )
           )
-          .accessibilityValue(
+          .accessibilityLabel(
             (radioSession.fmdxTelemetry?.isForcedStereo ?? false)
               ? L10n.text("fmdx.stereo_state.stereo")
               : L10n.text("fmdx.stereo_state.mono")
