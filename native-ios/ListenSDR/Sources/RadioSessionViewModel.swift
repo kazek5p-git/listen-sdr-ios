@@ -189,6 +189,8 @@ final class RadioSessionViewModel: ObservableObject {
           self.client = newClient
           self.connectedProfileID = profile.id
           self.activeBackend = profile.backend
+          NowPlayingMetadataController.shared.setReceiverName(profile.name)
+          NowPlayingMetadataController.shared.setTitle(nil)
           self.hasInitialServerTuningSync = false
           self.initialServerTuningSyncDeadline = Date().addingTimeInterval(4.0)
           self.state = .connected
@@ -256,6 +258,8 @@ final class RadioSessionViewModel: ObservableObject {
         self.client = nil
         self.connectedProfileID = nil
         self.activeBackend = nil
+        NowPlayingMetadataController.shared.setReceiverName(nil)
+        NowPlayingMetadataController.shared.setTitle(nil)
         self.state = .disconnected
         self.statusText = L10n.text("session.status.disconnected")
         self.backendStatusText = nil
@@ -1405,6 +1409,7 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .openWebRXTuning(let frequencyHz, let mode):
       hasInitialServerTuningSync = true
+      NowPlayingMetadataController.shared.setTitle(nil)
       var changed = false
       let clamped = min(max(frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
@@ -1425,6 +1430,7 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .kiwiTuning(let frequencyHz, let mode, let bandName):
       hasInitialServerTuningSync = true
+      NowPlayingMetadataController.shared.setTitle(nil)
       var changed = false
       let clamped = min(max(frequencyHz, kiwiFrequencyRangeHz.lowerBound), kiwiFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
@@ -1463,6 +1469,7 @@ final class RadioSessionViewModel: ObservableObject {
     case .fmdx(let telemetry):
       let previousTelemetry = fmdxTelemetry
       fmdxTelemetry = telemetry
+      NowPlayingMetadataController.shared.setTitle(nowPlayingTitle(for: telemetry))
       var changedSettings = false
       if let antenna = telemetry.antenna, !antenna.isEmpty {
         selectedFMDXAntennaID = antenna
@@ -1499,6 +1506,7 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .kiwi(let telemetry):
       kiwiTelemetry = telemetry
+      NowPlayingMetadataController.shared.setTitle(nil)
     }
   }
 
@@ -1657,6 +1665,41 @@ final class RadioSessionViewModel: ObservableObject {
     initialServerTuningSyncDeadline = Date.distantPast
     lastRDSAnnouncementText = nil
     lastRDSAnnouncementAt = Date.distantPast
+    if backend != .fmDxWebserver {
+      NowPlayingMetadataController.shared.setTitle(nil)
+    }
+  }
+
+  private func nowPlayingTitle(for telemetry: FMDXTelemetry) -> String? {
+    let radioText = mergedRDSRadioText(from: telemetry)
+    if let radioText {
+      return radioText
+    }
+
+    if let programService = normalizedRDSValue(telemetry.ps) {
+      return programService
+    }
+
+    return nil
+  }
+
+  private func mergedRDSRadioText(from telemetry: FMDXTelemetry) -> String? {
+    let rt0 = normalizedRDSValue(telemetry.rt0)
+    let rt1 = normalizedRDSValue(telemetry.rt1)
+
+    switch (rt0, rt1) {
+    case let (.some(first), .some(second)):
+      if first == second {
+        return first
+      }
+      return "\(first) \(second)"
+    case let (.some(first), .none):
+      return first
+    case let (.none, .some(second)):
+      return second
+    case (.none, .none):
+      return nil
+    }
   }
 
   private func announceRDSChangeIfNeeded(previous: FMDXTelemetry?, current: FMDXTelemetry) {
