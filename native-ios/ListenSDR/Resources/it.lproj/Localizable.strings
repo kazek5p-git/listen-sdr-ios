@@ -238,6 +238,12 @@
 "fmdx.band.am" = "AM";
 "fmdx.band.am_not_supported" = "Questo server non supporta AM. FM resta attivo.";
 "fmdx.band.am_unavailable_hint" = "AM non e disponibile per questo server.";
+"fmdx.filter_profile" = "Profilo filtro";
+"fmdx.filter_profile.wide" = "Ampio";
+"fmdx.filter_profile.balanced" = "Bilanciato";
+"fmdx.filter_profile.dx" = "DX";
+"fmdx.filter_profile.custom" = "Personalizzato";
+"fmdx.filter_profile.hint" = "Applica rapidamente una combinazione filtri adatta.";
 "scanner.quick_list.clear" = "Cancella lista rapida";
 "fmdx.af.favorite" = "Preferito";
 "fmdx.af.scan" = "Scansione";

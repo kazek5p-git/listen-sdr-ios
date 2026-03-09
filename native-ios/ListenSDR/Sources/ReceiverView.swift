@@ -381,6 +381,7 @@ struct ReceiverView: View {
     if profile.backend == .fmDxWebserver {
       Section(L10n.text("fmdx.controls")) {
         fmDxAudioModePicker()
+        fmDxFilterProfilePicker()
 
         Toggle(
           "AGC",
@@ -414,6 +415,29 @@ struct ReceiverView: View {
       }
       .appSectionStyle()
     }
+  }
+
+  private func fmDxFilterProfilePicker() -> some View {
+    let currentProfile = radioSession.currentFMDXFilterProfile()
+    let selectedID = currentProfile?.rawValue ?? "custom"
+
+    return Picker(
+      L10n.text("fmdx.filter_profile"),
+      selection: Binding(
+        get: { selectedID },
+        set: { value in
+          guard let profile = FMDXFilterProfile(rawValue: value) else { return }
+          radioSession.applyFMDXFilterProfile(profile)
+        }
+      )
+    ) {
+      ForEach(FMDXFilterProfile.allCases) { profile in
+        Text(L10n.text(profile.localizationKey)).tag(profile.rawValue)
+      }
+      Text(L10n.text("fmdx.filter_profile.custom")).tag("custom")
+    }
+    .disabled(radioSession.state != .connected)
+    .accessibilityHint(L10n.text("fmdx.filter_profile.hint"))
   }
 
   @ViewBuilder

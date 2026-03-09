@@ -86,6 +86,12 @@
 "fmdx.band.am" = "AM";
 "fmdx.band.am_not_supported" = "This server does not support AM. Staying on FM.";
 "fmdx.band.am_unavailable_hint" = "AM is unavailable for this server.";
+"fmdx.filter_profile" = "Filter profile";
+"fmdx.filter_profile.wide" = "Wide";
+"fmdx.filter_profile.balanced" = "Balanced";
+"fmdx.filter_profile.dx" = "DX";
+"fmdx.filter_profile.custom" = "Custom";
+"fmdx.filter_profile.hint" = "Quickly applies a matched filter setup.";
 "scanner.quick_list.clear" = "Clear quick list";
 "fmdx.af.favorite" = "Favorite";
 "fmdx.af.scan" = "Scan";

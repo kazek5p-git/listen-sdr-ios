@@ -15,6 +15,54 @@ struct ScanChannel: Identifiable, Hashable {
   let mode: DemodulationMode?
 }
 
+enum FMDXFilterProfile: String, CaseIterable, Identifiable {
+  case wide
+  case balanced
+  case dx
+
+  var id: String { rawValue }
+
+  var localizationKey: String {
+    switch self {
+    case .wide:
+      return "fmdx.filter_profile.wide"
+    case .balanced:
+      return "fmdx.filter_profile.balanced"
+    case .dx:
+      return "fmdx.filter_profile.dx"
+    }
+  }
+
+  var eqEnabled: Bool {
+    switch self {
+    case .wide:
+      return false
+    case .balanced, .dx:
+      return true
+    }
+  }
+
+  var imsEnabled: Bool {
+    switch self {
+    case .wide:
+      return false
+    case .balanced, .dx:
+      return true
+    }
+  }
+
+  var preferredBandwidthKHz: Int? {
+    switch self {
+    case .wide:
+      return 150
+    case .balanced:
+      return 84
+    case .dx:
+      return 56
+    }
+  }
+}
+
 @MainActor
 final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var state: ConnectionState = .disconnected
@@ -479,6 +527,49 @@ final class RadioSessionViewModel: ObservableObject {
     sendFMDXControl(.setFMDXBandwidth(value: option.id, legacyValue: option.legacyValue))
   }
 
+  func currentFMDXFilterProfile() -> FMDXFilterProfile? {
+    let eq = settings.noiseReductionEnabled
+    let ims = settings.imsEnabled
+
+    if !eq && !ims {
+      return .wide
+    }
+
+    guard eq && ims else { return nil }
+
+    guard let selected = selectedFMDXBandwidthOption(),
+      let bandwidthKHz = parseBandwidthKHz(from: selected)
+    else {
+      return .balanced
+    }
+
+    if bandwidthKHz <= 64 {
+      return .dx
+    }
+    if bandwidthKHz >= 110 {
+      return .wide
+    }
+    return .balanced
+  }
+
+  func applyFMDXFilterProfile(_ profile: FMDXFilterProfile) {
+    guard activeBackend == .fmDxWebserver else { return }
+
+    settings.noiseReductionEnabled = profile.eqEnabled
+    settings.imsEnabled = profile.imsEnabled
+    persistSettings()
+    sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+
+    guard let preferredBandwidthKHz = profile.preferredBandwidthKHz,
+      let option = preferredFMDXBandwidthOption(near: preferredBandwidthKHz)
+    else {
+      return
+    }
+
+    selectedFMDXBandwidthID = option.id
+    sendFMDXControl(.setFMDXBandwidth(value: option.id, legacyValue: option.legacyValue))
+  }
+
   func setSquelchEnabled(_ enabled: Bool) {
     settings.squelchEnabled = enabled
     persistSettings()
@@ -855,6 +946,56 @@ final class RadioSessionViewModel: ObservableObject {
       return match.id
     }
     return rawValue
+  }
+
+  private func selectedFMDXBandwidthOption() -> FMDXControlOption? {
+    if let selectedFMDXBandwidthID,
+      let selected = fmdxCapabilities.bandwidths.first(where: { $0.id == selectedFMDXBandwidthID }) {
+      return selected
+    }
+    return fmdxCapabilities.bandwidths.first
+  }
+
+  private func preferredFMDXBandwidthOption(near targetKHz: Int) -> FMDXControlOption? {
+    let parsedOptions = fmdxCapabilities.bandwidths.compactMap { option -> (FMDXControlOption, Int)? in
+      guard let bandwidthKHz = parseBandwidthKHz(from: option) else { return nil }
+      return (option, bandwidthKHz)
+    }
+
+    guard !parsedOptions.isEmpty else { return nil }
+    return parsedOptions
+      .min(by: { abs($0.1 - targetKHz) < abs($1.1 - targetKHz) })?
+      .0
+  }
+
+  private func parseBandwidthKHz(from option: FMDXControlOption) -> Int? {
+    let normalized = option.label
+      .lowercased()
+      .replacingOccurrences(of: ",", with: ".")
+    guard let value = parseFirstDouble(in: normalized) else { return nil }
+
+    if normalized.contains("mhz") {
+      return Int((value * 1_000.0).rounded())
+    }
+    if normalized.contains("khz") || normalized.contains("k") {
+      return Int(value.rounded())
+    }
+    if value > 1_000 {
+      return Int((value / 1_000.0).rounded())
+    }
+    return Int(value.rounded())
+  }
+
+  private func parseFirstDouble(in text: String) -> Double? {
+    guard let regex = try? NSRegularExpression(pattern: #"([0-9]+(?:\.[0-9]+)?)"#, options: []) else {
+      return nil
+    }
+    let nsText = text as NSString
+    guard let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: nsText.length)) else {
+      return nil
+    }
+    let token = nsText.substring(with: match.range(at: 1))
+    return Double(token)
   }
 
   private func startStatusMonitor(

@@ -238,6 +238,12 @@
 "fmdx.band.am" = "AM";
 "fmdx.band.am_not_supported" = "Ten serwer nie obsluguje AM. Pozostaje FM.";
 "fmdx.band.am_unavailable_hint" = "AM jest niedostepne dla tego serwera.";
+"fmdx.filter_profile" = "Profil filtrow";
+"fmdx.filter_profile.wide" = "Szeroki";
+"fmdx.filter_profile.balanced" = "Zbalansowany";
+"fmdx.filter_profile.dx" = "DX";
+"fmdx.filter_profile.custom" = "Niestandardowy";
+"fmdx.filter_profile.hint" = "Szybko ustawia dopasowany zestaw filtrow.";
 "scanner.quick_list.clear" = "Wyczysc liste szybka";
 "fmdx.af.favorite" = "Ulubione";
 "fmdx.af.scan" = "Skan";
