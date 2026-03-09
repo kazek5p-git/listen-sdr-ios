@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 enum ConnectionState {
   case disconnected
@@ -115,6 +116,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var suppressAutoFilterUntil = Date.distantPast
   private var hasInitialServerTuningSync = false
   private var initialServerTuningSyncDeadline = Date.distantPast
+  private var lastRDSAnnouncementText: String?
+  private var lastRDSAnnouncementAt = Date.distantPast
 
   init() {
     settings = loadPersistedSettings()
@@ -704,6 +707,17 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setShowRdsErrorCounters(_ enabled: Bool) {
     settings.showRdsErrorCounters = enabled
+    persistSettings()
+  }
+
+  func setVoiceOverRDSAnnouncementsEnabled(_ enabled: Bool) {
+    settings.voiceOverAnnouncesRDSChanges = enabled
+    if enabled {
+      lastRDSAnnouncementText = nil
+      lastRDSAnnouncementAt = Date.distantPast
+    } else {
+      lastRDSAnnouncementText = nil
+    }
     persistSettings()
   }
 
@@ -1447,6 +1461,7 @@ final class RadioSessionViewModel: ObservableObject {
       }
 
     case .fmdx(let telemetry):
+      let previousTelemetry = fmdxTelemetry
       fmdxTelemetry = telemetry
       var changedSettings = false
       if let antenna = telemetry.antenna, !antenna.isEmpty {
@@ -1479,6 +1494,7 @@ final class RadioSessionViewModel: ObservableObject {
       if changedSettings {
         persistSettings()
       }
+      announceRDSChangeIfNeeded(previous: previousTelemetry, current: telemetry)
       evaluateAutoFMDXFilterProfile(using: telemetry)
 
     case .kiwi(let telemetry):
@@ -1639,6 +1655,64 @@ final class RadioSessionViewModel: ObservableObject {
     suppressAutoFilterUntil = Date.distantPast
     hasInitialServerTuningSync = false
     initialServerTuningSyncDeadline = Date.distantPast
+    lastRDSAnnouncementText = nil
+    lastRDSAnnouncementAt = Date.distantPast
+  }
+
+  private func announceRDSChangeIfNeeded(previous: FMDXTelemetry?, current: FMDXTelemetry) {
+    guard settings.voiceOverAnnouncesRDSChanges else { return }
+    guard UIAccessibility.isVoiceOverRunning else { return }
+    guard activeBackend == .fmDxWebserver else { return }
+    guard state == .connected else { return }
+
+    let now = Date()
+    if now.timeIntervalSince(lastRDSAnnouncementAt) < 1.0 {
+      return
+    }
+
+    guard let announcement = rdsAnnouncementText(previous: previous, current: current) else { return }
+    guard announcement != lastRDSAnnouncementText else { return }
+
+    lastRDSAnnouncementText = announcement
+    lastRDSAnnouncementAt = now
+    UIAccessibility.post(notification: .announcement, argument: announcement)
+  }
+
+  private func rdsAnnouncementText(previous: FMDXTelemetry?, current: FMDXTelemetry) -> String? {
+    let previousPS = normalizedRDSValue(previous?.ps)
+    let currentPS = normalizedRDSValue(current.ps)
+    if currentPS != previousPS, let currentPS {
+      return L10n.text("accessibility.rds_announcement.ps", currentPS)
+    }
+
+    let hadPreviousRDS = previousPS != nil
+      || normalizedRDSValue(previous?.rt0) != nil
+      || normalizedRDSValue(previous?.rt1) != nil
+      || normalizedRDSValue(previous?.pi) != nil
+
+    let previousRT = normalizedRDSValue(previous?.rt0) ?? normalizedRDSValue(previous?.rt1)
+    let currentRT = normalizedRDSValue(current.rt0) ?? normalizedRDSValue(current.rt1)
+    if hadPreviousRDS, currentRT != previousRT, let currentRT {
+      return L10n.text("accessibility.rds_announcement.rt", currentRT)
+    }
+
+    let previousPI = normalizedRDSValue(previous?.pi)
+    let currentPI = normalizedRDSValue(current.pi)
+    if hadPreviousRDS, currentPI != previousPI, let currentPI, currentPS == nil {
+      return L10n.text("accessibility.rds_announcement.pi", currentPI)
+    }
+
+    return nil
+  }
+
+  private func normalizedRDSValue(_ value: String?) -> String? {
+    guard let value else { return nil }
+    let normalized = value
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .replacingOccurrences(of: "\u{00a0}", with: " ")
+    guard !normalized.isEmpty else { return nil }
+    guard normalized != "?" else { return nil }
+    return normalized
   }
 
   private func canPushLocalTuningToServerYet() -> Bool {

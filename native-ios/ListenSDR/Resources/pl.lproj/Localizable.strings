@@ -363,3 +363,10 @@
 "receiver.voiceover_rotor.hint" = "Uzyj pokretla, aby wybrac Czestotliwosc lub Krok strojenia, a potem przesun w gore albo w dol.";
 "receiver.voiceover_rotor.frequency" = "Czestotliwosc";
 "receiver.voiceover_rotor.tune_step" = "Krok strojenia";
+
+"settings.accessibility.section" = "Dostepnosc";
+"settings.accessibility.voiceover_rds" = "Czytaj zmiany RDS";
+"settings.accessibility.voiceover_rds.hint" = "Gdy VoiceOver jest wlaczony, odczytuje nowa nazwe stacji lub tekst RDS po zmianie.";
+"accessibility.rds_announcement.ps" = "RDS stacja %@";
+"accessibility.rds_announcement.rt" = "RDS tekst %@";
+"accessibility.rds_announcement.pi" = "RDS P I %@";

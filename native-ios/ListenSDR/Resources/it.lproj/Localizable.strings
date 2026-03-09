@@ -356,3 +356,10 @@
 "receiver.voiceover_rotor.hint" = "Usa il rotore per scegliere Frequenza o Passo di sintonia, poi scorri verso l'alto o verso il basso.";
 "receiver.voiceover_rotor.frequency" = "Frequenza";
 "receiver.voiceover_rotor.tune_step" = "Passo di sintonia";
+
+"settings.accessibility.section" = "Accessibilita";
+"settings.accessibility.voiceover_rds" = "Annuncia cambi RDS";
+"settings.accessibility.voiceover_rds.hint" = "Quando VoiceOver e attivo, legge il nuovo nome stazione o il testo RDS dopo una modifica.";
+"accessibility.rds_announcement.ps" = "Stazione RDS %@";
+"accessibility.rds_announcement.rt" = "Testo RDS %@";
+"accessibility.rds_announcement.pi" = "RDS P I %@";

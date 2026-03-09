@@ -356,3 +356,10 @@
 "receiver.voiceover_rotor.hint" = "Usa el rotor para elegir Frecuencia o Paso de sintonia y luego desliza hacia arriba o hacia abajo.";
 "receiver.voiceover_rotor.frequency" = "Frecuencia";
 "receiver.voiceover_rotor.tune_step" = "Paso de sintonia";
+
+"settings.accessibility.section" = "Accesibilidad";
+"settings.accessibility.voiceover_rds" = "Anunciar cambios RDS";
+"settings.accessibility.voiceover_rds.hint" = "Cuando VoiceOver esta activo, lee el nuevo nombre de emisora o el texto RDS despues de un cambio.";
+"accessibility.rds_announcement.ps" = "Emisora RDS %@";
+"accessibility.rds_announcement.rt" = "Texto RDS %@";
+"accessibility.rds_announcement.pi" = "RDS P I %@";

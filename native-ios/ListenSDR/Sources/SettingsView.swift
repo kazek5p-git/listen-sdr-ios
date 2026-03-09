@@ -58,6 +58,18 @@ struct SettingsView: View {
         }
         .appSectionStyle()
 
+        Section(L10n.text("settings.accessibility.section")) {
+          Toggle(
+            L10n.text("settings.accessibility.voiceover_rds"),
+            isOn: Binding(
+              get: { radioSession.settings.voiceOverAnnouncesRDSChanges },
+              set: { radioSession.setVoiceOverRDSAnnouncementsEnabled($0) }
+            )
+          )
+          .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds.hint"))
+        }
+        .appSectionStyle()
+
         Section(L10n.text("settings.scanner.section")) {
           VStack(alignment: .leading, spacing: 6) {
             LabeledContent(

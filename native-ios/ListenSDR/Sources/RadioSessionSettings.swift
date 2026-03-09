@@ -18,6 +18,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiWaterfallMinDB: Int
   var kiwiWaterfallMaxDB: Int
   var showRdsErrorCounters: Bool
+  var voiceOverAnnouncesRDSChanges: Bool
   var dxNightModeEnabled: Bool
   var autoFilterProfileEnabled: Bool
   var adaptiveScannerEnabled: Bool
@@ -47,6 +48,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMinDB: -145,
     kiwiWaterfallMaxDB: -20,
     showRdsErrorCounters: false,
+    voiceOverAnnouncesRDSChanges: false,
     dxNightModeEnabled: false,
     autoFilterProfileEnabled: false,
     adaptiveScannerEnabled: false,
@@ -72,6 +74,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case kiwiWaterfallMinDB
     case kiwiWaterfallMaxDB
     case showRdsErrorCounters
+    case voiceOverAnnouncesRDSChanges
     case dxNightModeEnabled
     case autoFilterProfileEnabled
     case adaptiveScannerEnabled
@@ -97,6 +100,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMinDB: Int,
     kiwiWaterfallMaxDB: Int,
     showRdsErrorCounters: Bool,
+    voiceOverAnnouncesRDSChanges: Bool,
     dxNightModeEnabled: Bool,
     autoFilterProfileEnabled: Bool,
     adaptiveScannerEnabled: Bool,
@@ -123,6 +127,7 @@ struct RadioSessionSettings: Codable, Equatable {
       self.kiwiWaterfallMaxDB = min(0, self.kiwiWaterfallMinDB + 10)
     }
     self.showRdsErrorCounters = showRdsErrorCounters
+    self.voiceOverAnnouncesRDSChanges = voiceOverAnnouncesRDSChanges
     self.dxNightModeEnabled = dxNightModeEnabled
     self.autoFilterProfileEnabled = autoFilterProfileEnabled
     self.adaptiveScannerEnabled = adaptiveScannerEnabled
@@ -171,6 +176,8 @@ struct RadioSessionSettings: Codable, Equatable {
     }
 
     showRdsErrorCounters = try container.decodeIfPresent(Bool.self, forKey: .showRdsErrorCounters) ?? Self.default.showRdsErrorCounters
+    voiceOverAnnouncesRDSChanges = try container.decodeIfPresent(Bool.self, forKey: .voiceOverAnnouncesRDSChanges)
+      ?? Self.default.voiceOverAnnouncesRDSChanges
     dxNightModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxNightModeEnabled) ?? Self.default.dxNightModeEnabled
     autoFilterProfileEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoFilterProfileEnabled) ?? Self.default.autoFilterProfileEnabled
     adaptiveScannerEnabled = try container.decodeIfPresent(Bool.self, forKey: .adaptiveScannerEnabled) ?? Self.default.adaptiveScannerEnabled
