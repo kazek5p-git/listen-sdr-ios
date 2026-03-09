@@ -1907,28 +1907,25 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     var staticData: [String: Any]?
-    var staticPresets: [SDRServerBookmark] = []
     if let snapshot = try? await fetchStaticData(profile: profile) {
       staticData = snapshot
       if let tunerName = parseString(snapshot["tunerName"])?.trimmingCharacters(in: .whitespacesAndNewlines),
         !tunerName.isEmpty {
         pendingStatusUpdate = "Tuner: \(tunerName)"
       }
-      staticPresets = parsePresetBookmarks(from: snapshot)
     }
 
     let html = try? await fetchIndexHTML(profile: profile, basePath: activeBasePath)
-    let pluginPresets = await fetchPluginPresetBookmarks(
+    let stationList = await fetchStationListBookmarks(
       profile: profile,
       indexHTML: html,
       basePath: activeBasePath
     )
-    let mergedPresets = mergeFMDXPresets(staticPresets: staticPresets, pluginPresets: pluginPresets)
-    if mergedPresets != lastPublishedFMDXPresets {
-      lastPublishedFMDXPresets = mergedPresets
-      enqueueTelemetry(.fmdxPresets(mergedPresets))
+    if stationList != lastPublishedFMDXPresets {
+      lastPublishedFMDXPresets = stationList
+      enqueueTelemetry(.fmdxPresets(stationList))
     }
-    nextStationListRefreshAt = nextStationListRefreshDate(after: Date(), presets: mergedPresets)
+    nextStationListRefreshAt = nextStationListRefreshDate(after: Date(), stationList: stationList)
 
     let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
     if !capabilities.antennas.isEmpty || !capabilities.bandwidths.isEmpty {
@@ -2568,103 +2565,36 @@ actor FMDXWebserverClient: SDRBackendClient {
     return options
   }
 
-  private func parsePresetBookmarks(from staticData: [String: Any]?) -> [SDRServerBookmark] {
-    guard
-      let staticData,
-      let rawPresets = staticData["presets"] as? [Any]
-    else {
-      return []
-    }
-
-    var bookmarks: [SDRServerBookmark] = []
-    var seen = Set<Int>()
-
-    for (index, rawPreset) in rawPresets.enumerated() {
-      guard let valueMHz = parseDouble(rawPreset), valueMHz.isFinite, valueMHz > 0 else {
-        continue
-      }
-
-      let frequencyHz = normalizePresetFrequencyHz(fromMHz: valueMHz)
-      guard seen.insert(frequencyHz).inserted else { continue }
-
-      bookmarks.append(
-        SDRServerBookmark(
-          id: "fmdx-preset-\(index + 1)-\(frequencyHz)",
-          name: "F\(index + 1)",
-          frequencyHz: frequencyHz,
-          modulation: .fm,
-          source: "fmdx-static"
-        )
-      )
-    }
-
-    return bookmarks.sorted { $0.frequencyHz < $1.frequencyHz }
-  }
-
-  private func mergeFMDXPresets(
-    staticPresets: [SDRServerBookmark],
-    pluginPresets: [SDRServerBookmark]
-  ) -> [SDRServerBookmark] {
-    guard !staticPresets.isEmpty || !pluginPresets.isEmpty else { return [] }
-
-    var mergedByFrequency: [Int: SDRServerBookmark] = [:]
-    mergedByFrequency.reserveCapacity(max(staticPresets.count, pluginPresets.count))
-
-    for preset in staticPresets {
-      mergedByFrequency[preset.frequencyHz] = preset
-    }
-
-    // Plugin presets usually carry friendly station names, so they override generic F1/F2 labels.
-    for preset in pluginPresets {
-      mergedByFrequency[preset.frequencyHz] = preset
-    }
-
-    return mergedByFrequency.values.sorted { lhs, rhs in
-      if lhs.frequencyHz == rhs.frequencyHz {
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-      }
-      return lhs.frequencyHz < rhs.frequencyHz
-    }
-  }
-
   private func refreshStationListIfNeeded(profile: SDRConnectionProfile) async {
     let now = Date()
     guard now >= nextStationListRefreshAt else { return }
 
     let basePath = activeBasePath
-    let staticData = try? await fetchStaticData(profile: profile)
-    let staticPresets = parsePresetBookmarks(from: staticData)
     let html = try? await fetchIndexHTML(profile: profile, basePath: basePath)
-    let pluginPresets = await fetchPluginPresetBookmarks(
+    let stationList = await fetchStationListBookmarks(
       profile: profile,
       indexHTML: html,
       basePath: basePath
     )
-    let mergedPresets = mergeFMDXPresets(staticPresets: staticPresets, pluginPresets: pluginPresets)
-    nextStationListRefreshAt = nextStationListRefreshDate(after: now, presets: mergedPresets)
-    guard mergedPresets != lastPublishedFMDXPresets else { return }
+    nextStationListRefreshAt = nextStationListRefreshDate(after: now, stationList: stationList)
+    guard stationList != lastPublishedFMDXPresets else { return }
 
-    lastPublishedFMDXPresets = mergedPresets
-    enqueueTelemetry(.fmdxPresets(mergedPresets))
-    log("FM-DX station list refreshed (\(mergedPresets.count) entries)")
+    lastPublishedFMDXPresets = stationList
+    enqueueTelemetry(.fmdxPresets(stationList))
+    log("FM-DX station list refreshed (\(stationList.count) entries)")
   }
 
-  private func nextStationListRefreshDate(after now: Date, presets: [SDRServerBookmark]) -> Date {
-    let hasNamedStationList = presets.contains { $0.source != "fmdx-static" }
-    let interval = hasNamedStationList ? stationListRefreshInterval : stationListRetryInterval
+  private func nextStationListRefreshDate(after now: Date, stationList: [SDRServerBookmark]) -> Date {
+    let interval = stationList.isEmpty ? stationListRetryInterval : stationListRefreshInterval
     return now.addingTimeInterval(interval)
   }
 
-  private func fetchPluginPresetBookmarks(
+  private func fetchStationListBookmarks(
     profile: SDRConnectionProfile,
     indexHTML: String?,
     basePath: String
   ) async -> [SDRServerBookmark] {
-    guard let indexHTML, !indexHTML.isEmpty else {
-      return []
-    }
-
-    let scriptURLs = resolvePluginPresetScriptURLs(
+    let scriptURLs = resolveStationListScriptURLs(
       indexHTML: indexHTML,
       profile: profile,
       basePath: basePath
@@ -2673,18 +2603,31 @@ actor FMDXWebserverClient: SDRBackendClient {
       return []
     }
 
+    var best: [SDRServerBookmark] = []
+    var bestScore = Int.min
+    var bestSource: String?
     var lastError: Error?
+
     for scriptURL in scriptURLs {
       do {
         let script = try await fetchRemoteText(url: scriptURL)
-        let presets = parsePluginPresetBookmarks(from: script)
-        if !presets.isEmpty {
-          log("Loaded FM-DX station list (\(presets.count)) from \(scriptURL.absoluteString)")
-          return presets
+        let stationList = parseStationListBookmarks(from: script)
+        guard !stationList.isEmpty else { continue }
+
+        let score = stationListQualityScore(stationList)
+        if score > bestScore {
+          best = stationList
+          bestScore = score
+          bestSource = scriptURL.absoluteString
         }
       } catch {
         lastError = error
       }
+    }
+
+    if !best.isEmpty {
+      log("Loaded FM-DX station list (\(best.count)) from \(bestSource ?? "unknown source")")
+      return best
     }
 
     if let lastError {
@@ -2693,45 +2636,50 @@ actor FMDXWebserverClient: SDRBackendClient {
     return []
   }
 
-  private func resolvePluginPresetScriptURLs(
-    indexHTML: String,
+  private func resolveStationListScriptURLs(
+    indexHTML: String?,
     profile: SDRConnectionProfile,
     basePath: String
   ) -> [URL] {
-    guard let indexURL = try? makeHTTPURL(profile: profile, path: basePath) else {
-      return []
+    var scoredURLs: [String: (url: URL, score: Int)] = [:]
+
+    if let indexHTML, !indexHTML.isEmpty,
+      let indexURL = try? makeHTTPURL(profile: profile, path: basePath) {
+      let scriptPaths = captures(
+        for: #"(?is)<script[^>]+src=["']([^"']+)["'][^>]*>"#,
+        in: indexHTML,
+        group: 1
+      )
+
+      for rawPath in scriptPaths {
+        let trimmedPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else { continue }
+        guard let resolvedURL = URL(string: trimmedPath, relativeTo: indexURL)?.absoluteURL else { continue }
+
+        let score = stationScriptScore(for: trimmedPath)
+        guard score > 0 else { continue }
+        addStationScriptCandidate(resolvedURL, score: score, to: &scoredURLs)
+      }
     }
 
-    let scriptPaths = captures(
-      for: #"(?is)<script[^>]+src=["']([^"']+)["'][^>]*>"#,
-      in: indexHTML,
-      group: 1
-    )
+    let fallbackScriptPaths: [(path: String, score: Int)] = [
+      ("js/plugins/ButtonPresets/pluginButtonPresets.js", 240),
+      ("js/plugins/buttonpresets/pluginbuttonpresets.js", 220),
+      ("js/plugins/button-presets/plugin-button-presets.js", 190),
+      ("plugins/ButtonPresets/pluginButtonPresets.js", 170),
+      ("plugins/buttonpresets/pluginbuttonpresets.js", 160),
+      ("js/plugins/server-list/server-list.js", 40)
+    ]
 
-    var scoredURLs: [String: (url: URL, score: Int)] = [:]
-    scoredURLs.reserveCapacity(scriptPaths.count)
-
-    for rawPath in scriptPaths {
-      let trimmedPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !trimmedPath.isEmpty else { continue }
-      guard let resolvedURL = URL(string: trimmedPath, relativeTo: indexURL)?.absoluteURL else { continue }
-
-      let lower = trimmedPath.lowercased()
-      var score = 0
-      if lower.contains("pluginbuttonpresets") { score += 100 }
-      if lower.contains("buttonpresets") { score += 80 }
-      if lower.contains("preset") { score += 60 }
-      if lower.contains("station") { score += 40 }
-      if lower.contains("server-list") || lower.contains("serverlist") { score += 35 }
-      if lower.contains("list") { score += 20 }
-
-      guard score > 0 else { continue }
-
-      let key = resolvedURL.absoluteString
-      if let existing = scoredURLs[key], existing.score >= score {
+    for fallback in fallbackScriptPaths {
+      guard let fallbackURL = makeStationScriptURL(
+        profile: profile,
+        basePath: basePath,
+        relativePath: fallback.path
+      ) else {
         continue
       }
-      scoredURLs[key] = (resolvedURL, score)
+      addStationScriptCandidate(fallbackURL, score: fallback.score, to: &scoredURLs)
     }
 
     return scoredURLs.values
@@ -2743,6 +2691,43 @@ actor FMDXWebserverClient: SDRBackendClient {
       }
       .prefix(8)
       .map(\.url)
+  }
+
+  private func makeStationScriptURL(
+    profile: SDRConnectionProfile,
+    basePath: String,
+    relativePath: String
+  ) -> URL? {
+    let cleanedPath = relativePath.trimmingCharacters(in: .whitespacesAndNewlines)
+      .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    guard !cleanedPath.isEmpty else { return nil }
+    return try? makeHTTPURL(profile: profile, path: "\(basePath)\(cleanedPath)")
+  }
+
+  private func addStationScriptCandidate(
+    _ url: URL,
+    score: Int,
+    to scoredURLs: inout [String: (url: URL, score: Int)]
+  ) {
+    let key = url.absoluteString
+    if let existing = scoredURLs[key], existing.score >= score {
+      return
+    }
+    scoredURLs[key] = (url, score)
+  }
+
+  private func stationScriptScore(for path: String) -> Int {
+    let lower = path.lowercased()
+    var score = 0
+    if lower.contains("pluginbuttonpresets") { score += 220 }
+    if lower.contains("buttonpresets") { score += 160 }
+    if lower.contains("button-presets") { score += 120 }
+    if lower.contains("preset") { score += 70 }
+    if lower.contains("station-list") { score += 45 }
+    if lower.contains("station") { score += 20 }
+    if lower.contains("server-list") || lower.contains("serverlist") { score += 20 }
+    if lower.contains("list") { score += 10 }
+    return score
   }
 
   private func fetchRemoteText(url: URL) async throws -> String {
@@ -2767,43 +2752,143 @@ actor FMDXWebserverClient: SDRBackendClient {
     throw SDRClientError.unsupported("FM-DX station list script returned unreadable content.")
   }
 
-  private func parsePluginPresetBookmarks(from script: String) -> [SDRServerBookmark] {
-    guard
-      let presetBlock = captures(
-        for: #"(?is)defaultPresetData\s*=\s*\{([\s\S]*?)\}"#,
-        in: script,
-        group: 1
-      ).first
-    else {
-      return []
+  private func parseStationListBookmarks(from script: String) -> [SDRServerBookmark] {
+    let defaultPresetBlocks = captures(
+      for: #"(?is)defaultPresetData\s*=\s*\{([\s\S]*?)\}"#,
+      in: script,
+      group: 1
+    )
+    for block in defaultPresetBlocks {
+      let parsed = parsePresetBlockBookmarks(
+        block,
+        source: "fmdx-station-list",
+        idPrefix: "fmdx-station-default"
+      )
+      if !parsed.isEmpty {
+        return parsed
+      }
     }
 
+    let fallbackBlocks = captures(
+      for: #"(?is)JSON\.parse\([^\)]*\)\s*\|\|\s*\{([\s\S]*?)\}"#,
+      in: script,
+      group: 1
+    )
+    var bestFallback: [SDRServerBookmark] = []
+    var bestFallbackScore = Int.min
+    for block in fallbackBlocks {
+      let parsed = parsePresetBlockBookmarks(
+        block,
+        source: "fmdx-station-list",
+        idPrefix: "fmdx-station-fallback"
+      )
+      guard !parsed.isEmpty else { continue }
+
+      let score = stationListQualityScore(parsed)
+      if score > bestFallbackScore {
+        bestFallback = parsed
+        bestFallbackScore = score
+      }
+    }
+    if !bestFallback.isEmpty {
+      return bestFallback
+    }
+
+    return parseLoosePresetBookmarks(from: script)
+  }
+
+  private func parsePresetBlockBookmarks(
+    _ block: String,
+    source: String,
+    idPrefix: String
+  ) -> [SDRServerBookmark] {
     guard
       let valuesRaw = captures(
         for: #"(?is)values\s*:\s*\[([\s\S]*?)\]"#,
-        in: presetBlock,
+        in: block,
         group: 1
       ).first
     else {
       return []
     }
 
-    let namesRaw =
-      captures(
-        for: #"(?is)names\s*:\s*\[([\s\S]*?)\]"#,
-        in: presetBlock,
-        group: 1
-      ).first
-      ?? captures(
-        for: #"(?is)ps\s*:\s*\[([\s\S]*?)\]"#,
-        in: presetBlock,
-        group: 1
-      ).first
-      ?? ""
-
     let valuesMHz = captures(for: #"-?\d+(?:\.\d+)?"#, in: valuesRaw, group: 0).compactMap { Double($0) }
-    let names = parseQuotedStringArray(from: namesRaw)
+    let names = parseStationListNameArray(from: block)
+    return buildStationBookmarks(valuesMHz: valuesMHz, names: names, source: source, idPrefix: idPrefix)
+  }
 
+  private func parseStationListNameArray(from block: String) -> [String] {
+    let keys = ["names", "ps", "tooltips", "labels"]
+    for key in keys {
+      if let raw = captures(
+        for: #"(?is)\#(key)\s*:\s*\[([\s\S]*?)\]"#,
+        in: block,
+        group: 1
+      ).first {
+        let parsed = parseQuotedStringArray(from: raw)
+        if !parsed.isEmpty {
+          return parsed
+        }
+      }
+    }
+    return []
+  }
+
+  private func parseLoosePresetBookmarks(from script: String) -> [SDRServerBookmark] {
+    let valuesBlocks = captures(
+      for: #"(?is)values\s*:\s*\[([\s\S]*?)\]"#,
+      in: script,
+      group: 1
+    )
+    let nameBlocksRaw = captures(
+      for: #"(?is)(?:names|ps|tooltips|labels)\s*:\s*\[([\s\S]*?)\]"#,
+      in: script,
+      group: 1
+    )
+    let nameBlocks = nameBlocksRaw.map { parseQuotedStringArray(from: $0) }.filter { !$0.isEmpty }
+
+    var best: [SDRServerBookmark] = []
+    var bestScore = Int.min
+
+    for (index, valuesRaw) in valuesBlocks.enumerated() {
+      let valuesMHz = captures(for: #"-?\d+(?:\.\d+)?"#, in: valuesRaw, group: 0).compactMap { Double($0) }
+      guard valuesMHz.count >= 3 else { continue }
+
+      let names: [String]
+      if nameBlocks.isEmpty {
+        names = []
+      } else if index < nameBlocks.count {
+        names = nameBlocks[index]
+      } else {
+        names = nameBlocks.min(by: { lhs, rhs in
+          abs(lhs.count - valuesMHz.count) < abs(rhs.count - valuesMHz.count)
+        }) ?? []
+      }
+
+      let parsed = buildStationBookmarks(
+        valuesMHz: valuesMHz,
+        names: names,
+        source: "fmdx-station-list",
+        idPrefix: "fmdx-station-loose-\(index + 1)"
+      )
+      guard !parsed.isEmpty else { continue }
+
+      let score = stationListQualityScore(parsed)
+      if score > bestScore {
+        best = parsed
+        bestScore = score
+      }
+    }
+
+    return best
+  }
+
+  private func buildStationBookmarks(
+    valuesMHz: [Double],
+    names: [String],
+    source: String,
+    idPrefix: String
+  ) -> [SDRServerBookmark] {
     var bookmarks: [SDRServerBookmark] = []
     var seen = Set<Int>()
     bookmarks.reserveCapacity(valuesMHz.count)
@@ -2814,26 +2899,52 @@ actor FMDXWebserverClient: SDRBackendClient {
       guard seen.insert(frequencyHz).inserted else { continue }
 
       let fallbackName = FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz)
-      let resolvedName: String
+      var resolvedName = ""
       if index < names.count {
-        let trimmed = names[index].trimmingCharacters(in: .whitespacesAndNewlines)
-        resolvedName = trimmed.isEmpty ? fallbackName : trimmed
-      } else {
+        resolvedName = decodeHTMLEntities(names[index])
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+      }
+      if resolvedName.isEmpty {
         resolvedName = fallbackName
       }
 
       bookmarks.append(
         SDRServerBookmark(
-          id: "fmdx-plugin-\(index + 1)-\(frequencyHz)",
+          id: "\(idPrefix)-\(index + 1)-\(frequencyHz)",
           name: resolvedName,
           frequencyHz: frequencyHz,
           modulation: .fm,
-          source: "fmdx-plugin"
+          source: source
         )
       )
     }
 
-    return bookmarks
+    guard bookmarks.count >= 3 else { return [] }
+    return bookmarks.sorted { $0.frequencyHz < $1.frequencyHz }
+  }
+
+  private func stationListQualityScore(_ bookmarks: [SDRServerBookmark]) -> Int {
+    let namedCount = bookmarks.reduce(into: 0) { result, bookmark in
+      if !looksLikeFrequencyLabel(bookmark.name) {
+        result += 1
+      }
+    }
+    return (bookmarks.count * 10) + (namedCount * 25)
+  }
+
+  private func looksLikeFrequencyLabel(_ text: String) -> Bool {
+    let normalized = text
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+      .replacingOccurrences(of: ",", with: ".")
+
+    if normalized.contains("mhz") {
+      return true
+    }
+    if Double(normalized) != nil {
+      return true
+    }
+    return normalized.range(of: #"^\d{2,3}(?:\.\d{1,3})?$"#, options: .regularExpression) != nil
   }
 
   private func parseQuotedStringArray(from raw: String) -> [String] {

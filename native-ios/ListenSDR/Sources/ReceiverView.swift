@@ -415,7 +415,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxServerPresetsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
-      let stationList = radioSession.fmdxServerPresets.filter { $0.source != "fmdx-static" }
+      let stationList = radioSession.fmdxServerPresets
 
       Section {
         Button {
