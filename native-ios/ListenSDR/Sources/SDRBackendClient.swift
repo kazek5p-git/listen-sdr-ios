@@ -1867,6 +1867,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var consecutivePingFailures = 0
   private var lastRealtimeStatusAt = Date.distantPast
   private let stationListRefreshInterval: TimeInterval = 90
+  private let stationListRetryInterval: TimeInterval = 15
   private var nextStationListRefreshAt = Date.distantPast
   private var lastPublishedFMDXPresets: [SDRServerBookmark] = []
 
@@ -1927,7 +1928,7 @@ actor FMDXWebserverClient: SDRBackendClient {
       lastPublishedFMDXPresets = mergedPresets
       enqueueTelemetry(.fmdxPresets(mergedPresets))
     }
-    nextStationListRefreshAt = Date().addingTimeInterval(stationListRefreshInterval)
+    nextStationListRefreshAt = nextStationListRefreshDate(after: Date(), presets: mergedPresets)
 
     let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
     if !capabilities.antennas.isEmpty || !capabilities.bandwidths.isEmpty {
@@ -2629,7 +2630,6 @@ actor FMDXWebserverClient: SDRBackendClient {
   private func refreshStationListIfNeeded(profile: SDRConnectionProfile) async {
     let now = Date()
     guard now >= nextStationListRefreshAt else { return }
-    nextStationListRefreshAt = now.addingTimeInterval(stationListRefreshInterval)
 
     let basePath = activeBasePath
     let staticData = try? await fetchStaticData(profile: profile)
@@ -2641,11 +2641,18 @@ actor FMDXWebserverClient: SDRBackendClient {
       basePath: basePath
     )
     let mergedPresets = mergeFMDXPresets(staticPresets: staticPresets, pluginPresets: pluginPresets)
+    nextStationListRefreshAt = nextStationListRefreshDate(after: now, presets: mergedPresets)
     guard mergedPresets != lastPublishedFMDXPresets else { return }
 
     lastPublishedFMDXPresets = mergedPresets
     enqueueTelemetry(.fmdxPresets(mergedPresets))
     log("FM-DX station list refreshed (\(mergedPresets.count) entries)")
+  }
+
+  private func nextStationListRefreshDate(after now: Date, presets: [SDRServerBookmark]) -> Date {
+    let hasNamedStationList = presets.contains { $0.source != "fmdx-static" }
+    let interval = hasNamedStationList ? stationListRefreshInterval : stationListRetryInterval
+    return now.addingTimeInterval(interval)
   }
 
   private func fetchPluginPresetBookmarks(
@@ -2657,50 +2664,85 @@ actor FMDXWebserverClient: SDRBackendClient {
       return []
     }
 
-    guard let scriptURL = resolvePluginPresetScriptURL(
+    let scriptURLs = resolvePluginPresetScriptURLs(
       indexHTML: indexHTML,
       profile: profile,
       basePath: basePath
-    ) else {
+    )
+    guard !scriptURLs.isEmpty else {
       return []
     }
 
-    do {
-      let script = try await fetchRemoteText(url: scriptURL)
-      let presets = parsePluginPresetBookmarks(from: script)
-      if !presets.isEmpty {
-        log("Loaded FM-DX station list (\(presets.count)) from \(scriptURL.absoluteString)")
+    var lastError: Error?
+    for scriptURL in scriptURLs {
+      do {
+        let script = try await fetchRemoteText(url: scriptURL)
+        let presets = parsePluginPresetBookmarks(from: script)
+        if !presets.isEmpty {
+          log("Loaded FM-DX station list (\(presets.count)) from \(scriptURL.absoluteString)")
+          return presets
+        }
+      } catch {
+        lastError = error
       }
-      return presets
-    } catch {
-      log("Unable to load FM-DX station list: \(error.localizedDescription)", severity: .warning)
-      return []
     }
+
+    if let lastError {
+      log("Unable to load FM-DX station list: \(lastError.localizedDescription)", severity: .warning)
+    }
+    return []
   }
 
-  private func resolvePluginPresetScriptURL(
+  private func resolvePluginPresetScriptURLs(
     indexHTML: String,
     profile: SDRConnectionProfile,
     basePath: String
-  ) -> URL? {
-    let patterns = [
-      #"(?is)<script[^>]+src=["']([^"']*pluginButtonPresets[^"']*)["'][^>]*>"#,
-      #"(?is)<script[^>]+src=["']([^"']*ButtonPresets[^"']*\.js[^"']*)["'][^>]*>"#,
-      #"(?is)<script[^>]+src=["']([^"']*preset[^"']*\.js[^"']*)["'][^>]*>"#
-    ]
-
+  ) -> [URL] {
     guard let indexURL = try? makeHTTPURL(profile: profile, path: basePath) else {
-      return nil
+      return []
     }
 
-    for pattern in patterns {
-      if let relativePath = captures(for: pattern, in: indexHTML, group: 1).first,
-        let resolvedURL = URL(string: relativePath, relativeTo: indexURL)?.absoluteURL {
-        return resolvedURL
+    let scriptPaths = captures(
+      for: #"(?is)<script[^>]+src=["']([^"']+)["'][^>]*>"#,
+      in: indexHTML,
+      group: 1
+    )
+
+    var scoredURLs: [String: (url: URL, score: Int)] = [:]
+    scoredURLs.reserveCapacity(scriptPaths.count)
+
+    for rawPath in scriptPaths {
+      let trimmedPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmedPath.isEmpty else { continue }
+      guard let resolvedURL = URL(string: trimmedPath, relativeTo: indexURL)?.absoluteURL else { continue }
+
+      let lower = trimmedPath.lowercased()
+      var score = 0
+      if lower.contains("pluginbuttonpresets") { score += 100 }
+      if lower.contains("buttonpresets") { score += 80 }
+      if lower.contains("preset") { score += 60 }
+      if lower.contains("station") { score += 40 }
+      if lower.contains("server-list") || lower.contains("serverlist") { score += 35 }
+      if lower.contains("list") { score += 20 }
+
+      guard score > 0 else { continue }
+
+      let key = resolvedURL.absoluteString
+      if let existing = scoredURLs[key], existing.score >= score {
+        continue
       }
+      scoredURLs[key] = (resolvedURL, score)
     }
 
-    return nil
+    return scoredURLs.values
+      .sorted { lhs, rhs in
+        if lhs.score == rhs.score {
+          return lhs.url.absoluteString < rhs.url.absoluteString
+        }
+        return lhs.score > rhs.score
+      }
+      .prefix(8)
+      .map(\.url)
   }
 
   private func fetchRemoteText(url: URL) async throws -> String {
