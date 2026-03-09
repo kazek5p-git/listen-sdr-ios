@@ -17,6 +17,23 @@ private enum ScanSource: String, CaseIterable, Identifiable {
   }
 }
 
+private enum ReceiverSelectionPanel: String {
+  case mode
+  case openWebRXProfile
+  case tuneStep
+  case fmDxFilterProfile
+  case kiwiWaterfallSpeed
+  case fmDxAntenna
+  case fmDxBandwidth
+  case scanSource
+}
+
+private struct ReceiverSelectionOption: Identifiable {
+  let id: String
+  let title: String
+  let detail: String?
+}
+
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -25,14 +42,11 @@ struct ReceiverView: View {
   @State private var inlineFrequencyError: String?
   @State private var inlineFrequencyEditing = false
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
-  @State private var isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
-  @State private var isVoiceOverFrequencyPadPresented = false
-  @State private var voiceOverFrequencyBuffer = ""
-  @State private var voiceOverFrequencyBackend: SDRBackend = .fmDxWebserver
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var quickScanChannels: [ScanChannel] = []
   @State private var isFMDXDetailsExpanded = false
   @State private var isFMDXStationListExpanded = true
+  @State private var expandedSelectionPanel: ReceiverSelectionPanel?
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -52,12 +66,6 @@ struct ReceiverView: View {
         }
       }
       .navigationTitle("Receiver")
-      .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.voiceOverStatusDidChangeNotification)) { _ in
-        isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
-      }
-      .sheet(isPresented: $isVoiceOverFrequencyPadPresented) {
-        voiceOverFrequencyPadSheet()
-      }
       .appScreenBackground()
     }
   }
@@ -90,6 +98,7 @@ struct ReceiverView: View {
       syncInlineFrequencyInputFromSession(for: profile.backend, force: false)
     }
     .onChange(of: profile.backend) { backend in
+      expandedSelectionPanel = nil
       syncInlineFrequencyInputFromSession(for: backend, force: true)
     }
   }
@@ -160,21 +169,19 @@ struct ReceiverView: View {
       if profile.backend == .fmDxWebserver {
         fmdxBandSwitcher()
       } else {
-        Picker(
-          "Mode",
-          selection: Binding(
-            get: {
-              let allowed = availableModes(for: profile.backend)
-              return allowed.contains(radioSession.settings.mode) ? radioSession.settings.mode : allowed.first ?? .fm
-            },
-            set: { radioSession.setMode($0) }
-          )
-        ) {
-          ForEach(availableModes(for: profile.backend)) { mode in
-            Text(mode.displayName).tag(mode)
+        selectionDisclosure(
+          title: "Mode",
+          value: currentModeSelectionValue(for: profile.backend),
+          panel: .mode,
+          selectedID: currentModeSelectionID(for: profile.backend),
+          options: availableModes(for: profile.backend).map {
+            ReceiverSelectionOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
+          }
+        ) { value in
+          if let mode = modeFromSelectionID(value) {
+            radioSession.setMode(mode)
           }
         }
-        .accessibilityLabel("Demodulation mode")
       }
 
       if let tuneWarning = radioSession.fmdxTuneWarningText,
@@ -197,25 +204,20 @@ struct ReceiverView: View {
             Text(L10n.text("openwebrx.controls.waiting_profiles"))
               .foregroundStyle(.secondary)
           } else {
-            Picker(
-              L10n.text("openwebrx.server_profile"),
-              selection: Binding(
-                get: {
-                  radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? ""
-                },
-                set: { value in
-                  if !value.isEmpty {
-                    radioSession.selectOpenWebRXProfile(value)
-                  }
-                }
-              )
-            ) {
-              ForEach(radioSession.openWebRXProfiles) { profileOption in
-                Text(profileOption.name).tag(profileOption.id)
+            selectionDisclosure(
+              title: L10n.text("openwebrx.server_profile"),
+              value: selectedOpenWebRXProfileName(),
+              panel: .openWebRXProfile,
+              selectedID: radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? "",
+              options: radioSession.openWebRXProfiles.map {
+                ReceiverSelectionOption(id: $0.id, title: $0.name, detail: nil)
+              },
+              disabled: radioSession.state != .connected
+            ) { value in
+              if !value.isEmpty {
+                radioSession.selectOpenWebRXProfile(value)
               }
             }
-            .pickerStyle(.menu)
-            .accessibilityHint(L10n.text("Select SDR profile from OpenWebRX server"))
           }
         } else {
           Text(L10n.text("openwebrx.controls.connect_to_load"))
@@ -376,23 +378,17 @@ struct ReceiverView: View {
     let currentProfile = radioSession.currentFMDXFilterProfile()
     let selectedID = currentProfile?.rawValue ?? "custom"
 
-    return Picker(
-      L10n.text("fmdx.filter_profile"),
-      selection: Binding(
-        get: { selectedID },
-        set: { value in
-          guard let profile = FMDXFilterProfile(rawValue: value) else { return }
-          radioSession.applyFMDXFilterProfile(profile)
-        }
-      )
-    ) {
-      ForEach(FMDXFilterProfile.allCases) { profile in
-        Text(L10n.text(profile.localizationKey)).tag(profile.rawValue)
-      }
-      Text(L10n.text("fmdx.filter_profile.custom")).tag("custom")
+    return selectionDisclosure(
+      title: L10n.text("fmdx.filter_profile"),
+      value: currentFMDXFilterProfileName(),
+      panel: .fmDxFilterProfile,
+      selectedID: selectedID,
+      options: fmdxFilterProfileOptions(),
+      disabled: radioSession.state != .connected
+    ) { value in
+      guard let profile = FMDXFilterProfile(rawValue: value) else { return }
+      radioSession.applyFMDXFilterProfile(profile)
     }
-    .disabled(radioSession.state != .connected)
-    .accessibilityHint(L10n.text("fmdx.filter_profile.hint"))
   }
 
   @ViewBuilder
@@ -511,18 +507,20 @@ struct ReceiverView: View {
           .accessibilityValue("\(radioSession.settings.kiwiSquelchThreshold)")
         }
 
-        Picker(
-          L10n.text("kiwi.waterfall.speed"),
-          selection: Binding(
-            get: { radioSession.settings.kiwiWaterfallSpeed },
-            set: { radioSession.setKiwiWaterfallSpeed($0) }
-          )
-        ) {
-          ForEach([1, 2, 4, 8], id: \.self) { speed in
-            Text("x\(speed)").tag(speed)
+        selectionDisclosure(
+          title: L10n.text("kiwi.waterfall.speed"),
+          value: "x\(radioSession.settings.kiwiWaterfallSpeed)",
+          panel: .kiwiWaterfallSpeed,
+          selectedID: "\(radioSession.settings.kiwiWaterfallSpeed)",
+          options: [1, 2, 4, 8].map {
+            ReceiverSelectionOption(id: "\($0)", title: "x\($0)", detail: nil)
+          },
+          disabled: radioSession.state != .connected
+        ) { value in
+          if let speed = Int(value) {
+            radioSession.setKiwiWaterfallSpeed(speed)
           }
         }
-        .disabled(radioSession.state != .connected)
 
         VStack(alignment: .leading, spacing: 6) {
           LabeledContent(
@@ -609,57 +607,59 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxAntennaPicker() -> some View {
     if !radioSession.fmdxCapabilities.antennas.isEmpty {
-      let selection = Binding<String>(
-        get: {
-          radioSession.selectedFMDXAntennaID
-            ?? radioSession.fmdxCapabilities.antennas.first?.id
-            ?? ""
+      selectionDisclosure(
+        title: L10n.text("fmdx.antenna"),
+        value: currentFMDXAntennaName(),
+        panel: .fmDxAntenna,
+        selectedID: radioSession.selectedFMDXAntennaID
+          ?? radioSession.fmdxCapabilities.antennas.first?.id
+          ?? "",
+        options: radioSession.fmdxCapabilities.antennas.map {
+          ReceiverSelectionOption(id: $0.id, title: $0.label, detail: nil)
         },
-        set: { value in
-          if !value.isEmpty {
-            radioSession.setFMDXAntenna(value)
-          }
-        }
-      )
-
-      Picker(L10n.text("fmdx.antenna"), selection: selection) {
-        ForEach(radioSession.fmdxCapabilities.antennas) { option in
-          Text(option.label).tag(option.id)
+        disabled: radioSession.state != .connected
+      ) { value in
+        if !value.isEmpty {
+          radioSession.setFMDXAntenna(value)
         }
       }
-      .disabled(radioSession.state != .connected)
     }
   }
 
   @ViewBuilder
   private func fmDxBandwidthPicker() -> some View {
     if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
-      let selection = Binding<String>(
-        get: {
-          radioSession.selectedFMDXBandwidthID
-            ?? radioSession.fmdxCapabilities.bandwidths.first?.id
-            ?? ""
+      selectionDisclosure(
+        title: L10n.text("fmdx.bandwidth"),
+        value: currentFMDXBandwidthName(),
+        panel: .fmDxBandwidth,
+        selectedID: radioSession.selectedFMDXBandwidthID
+          ?? radioSession.fmdxCapabilities.bandwidths.first?.id
+          ?? "",
+        options: radioSession.fmdxCapabilities.bandwidths.map {
+          ReceiverSelectionOption(id: $0.id, title: $0.label, detail: nil)
         },
-        set: { value in
-          guard let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value }) else { return }
-          radioSession.setFMDXBandwidth(option)
-        }
-      )
-
-      Picker(L10n.text("fmdx.bandwidth"), selection: selection) {
-        ForEach(radioSession.fmdxCapabilities.bandwidths) { option in
-          Text(option.label).tag(option.id)
-        }
+        disabled: radioSession.state != .connected
+      ) { value in
+        guard let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value }) else { return }
+        radioSession.setFMDXBandwidth(option)
       }
-      .disabled(radioSession.state != .connected)
     }
   }
 
   private func scannerSection(for profile: SDRConnectionProfile, scannerChannels: [ScanChannel]) -> some View {
     Section("Scanner") {
-      Picker("Channel source", selection: $scanSource) {
-        ForEach(ScanSource.allCases) { source in
-          Text(source.displayName).tag(source)
+      selectionDisclosure(
+        title: "Channel source",
+        value: scanSource.displayName,
+        panel: .scanSource,
+        selectedID: scanSource.rawValue,
+        options: ScanSource.allCases.map {
+          ReceiverSelectionOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+        }
+      ) { value in
+        if let source = ScanSource(rawValue: value) {
+          scanSource = source
         }
       }
 
@@ -968,39 +968,44 @@ struct ReceiverView: View {
     let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
     let options = radioSession.tuneStepOptions(for: backend)
 
-    return HStack(spacing: 12) {
-      Text(L10n.text("receiver.tune_step.label"))
-      Spacer()
-
-      Button {
-        changeTuneStep(by: -1, backend: backend)
-      } label: {
-        Image(systemName: "minus.circle.fill")
-          .font(.title3)
-      }
-      .buttonStyle(.plain)
-
-      Menu {
-        ForEach(options, id: \.self) { stepHz in
-          Button(FrequencyFormatter.tuneStepText(fromHz: stepHz)) {
-            setTuneStepAndAnnounce(stepHz)
-          }
+    return VStack(alignment: .leading, spacing: 10) {
+      selectionDisclosure(
+        title: L10n.text("receiver.tune_step.label"),
+        value: stepLabel,
+        panel: .tuneStep,
+        selectedID: "\(radioSession.settings.tuneStepHz)",
+        options: options.map {
+          ReceiverSelectionOption(
+            id: "\($0)",
+            title: FrequencyFormatter.tuneStepText(fromHz: $0),
+            detail: nil
+          )
         }
-      } label: {
-        Text(stepLabel)
-          .font(.body.monospacedDigit())
-          .frame(minWidth: 70)
+      ) { value in
+        if let stepHz = Int(value) {
+          setTuneStepAndAnnounce(stepHz)
+        }
       }
 
-      Button {
-        changeTuneStep(by: 1, backend: backend)
-      } label: {
-        Image(systemName: "plus.circle.fill")
-          .font(.title3)
+      HStack(spacing: 12) {
+        Button {
+          changeTuneStep(by: -1, backend: backend)
+        } label: {
+          Label(L10n.text("receiver.tune_step.previous_action"), systemImage: "minus.circle.fill")
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+
+        Button {
+          changeTuneStep(by: 1, backend: backend)
+        } label: {
+          Label(L10n.text("receiver.tune_step.next_action"), systemImage: "plus.circle.fill")
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
       }
-      .buttonStyle(.plain)
     }
-    .accessibilityElement(children: .ignore)
+    .accessibilityElement(children: .contain)
     .accessibilityLabel(L10n.text("receiver.tune_step.label"))
     .accessibilityValue(stepLabel)
     .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", stepLabel))
@@ -1071,6 +1076,73 @@ struct ReceiverView: View {
     }
   }
 
+  private func selectionDisclosure(
+    title: String,
+    value: String,
+    panel: ReceiverSelectionPanel,
+    selectedID: String,
+    options: [ReceiverSelectionOption],
+    disabled: Bool = false,
+    onSelect: @escaping (String) -> Void
+  ) -> some View {
+    DisclosureGroup(isExpanded: selectionBinding(for: panel)) {
+      ForEach(options) { option in
+        Button {
+          onSelect(option.id)
+          collapseSelectionPanel(panel)
+        } label: {
+          HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(option.title)
+                .foregroundStyle(.primary)
+
+              if let detail = option.detail, !detail.isEmpty {
+                Text(detail)
+                  .font(.footnote)
+                  .foregroundStyle(.secondary)
+              }
+            }
+
+            Spacer()
+
+            if option.id == selectedID {
+              Image(systemName: "checkmark")
+                .foregroundStyle(.tint)
+            }
+          }
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+      }
+    } label: {
+      LabeledContent(title, value: value)
+    }
+    .disabled(disabled)
+  }
+
+  private func selectionBinding(for panel: ReceiverSelectionPanel) -> Binding<Bool> {
+    Binding(
+      get: { expandedSelectionPanel == panel },
+      set: { isExpanded in
+        withAnimation(.easeInOut(duration: 0.2)) {
+          if isExpanded {
+            expandedSelectionPanel = panel
+          } else if expandedSelectionPanel == panel {
+            expandedSelectionPanel = nil
+          }
+        }
+      }
+    )
+  }
+
+  private func collapseSelectionPanel(_ panel: ReceiverSelectionPanel) {
+    guard expandedSelectionPanel == panel else { return }
+    withAnimation(.easeInOut(duration: 0.2)) {
+      expandedSelectionPanel = nil
+    }
+  }
+
   private func availableModes(for backend: SDRBackend) -> [DemodulationMode] {
     switch backend {
     case .fmDxWebserver:
@@ -1078,6 +1150,54 @@ struct ReceiverView: View {
     case .kiwiSDR, .openWebRX:
       return DemodulationMode.allCases
     }
+  }
+
+  private func modeSelectionID(for mode: DemodulationMode) -> String {
+    switch mode {
+    case .am:
+      return "am"
+    case .fm:
+      return "fm"
+    case .nfm:
+      return "nfm"
+    case .usb:
+      return "usb"
+    case .lsb:
+      return "lsb"
+    case .cw:
+      return "cw"
+    }
+  }
+
+  private func modeFromSelectionID(_ value: String) -> DemodulationMode? {
+    switch value {
+    case "am":
+      return .am
+    case "fm":
+      return .fm
+    case "nfm":
+      return .nfm
+    case "usb":
+      return .usb
+    case "lsb":
+      return .lsb
+    case "cw":
+      return .cw
+    default:
+      return nil
+    }
+  }
+
+  private func currentModeSelectionValue(for backend: SDRBackend) -> String {
+    let allowed = availableModes(for: backend)
+    let selected = allowed.contains(radioSession.settings.mode) ? radioSession.settings.mode : allowed.first ?? .fm
+    return selected.displayName
+  }
+
+  private func currentModeSelectionID(for backend: SDRBackend) -> String {
+    let allowed = availableModes(for: backend)
+    let selected = allowed.contains(radioSession.settings.mode) ? radioSession.settings.mode : allowed.first ?? .fm
+    return modeSelectionID(for: selected)
   }
 
   private func changeTuneStep(by offset: Int, backend: SDRBackend) {
@@ -1161,51 +1281,44 @@ struct ReceiverView: View {
         .font(.footnote)
         .foregroundStyle(.secondary)
 
-      if isVoiceOverRunning {
-        Button(L10n.text("frequency_input.voiceover_button")) {
-          startVoiceOverFrequencyEntry(for: backend)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityHint(L10n.text("frequency_input.voiceover_hint"))
-      } else {
-        TextField(
-          frequencyInputPlaceholder(for: backend),
-          text: $inlineFrequencyInput,
-          onEditingChanged: { isEditing in
-            inlineFrequencyEditing = isEditing
-            if isEditing {
-              inlineFrequencyApplyTask?.cancel()
-              inlineFrequencyInput = ""
-              inlineFrequencyError = nil
-            }
-            if !isEditing {
-              submitInlineFrequencyInput(for: backend)
-            }
+      TextField(
+        frequencyInputPlaceholder(for: backend),
+        text: $inlineFrequencyInput,
+        onEditingChanged: { isEditing in
+          inlineFrequencyEditing = isEditing
+          if isEditing {
+            inlineFrequencyApplyTask?.cancel()
+            expandedSelectionPanel = nil
+            inlineFrequencyInput = ""
+            inlineFrequencyError = nil
           }
-        )
-        .keyboardType(.decimalPad)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .textFieldStyle(.roundedBorder)
-        .focused($isInlineFrequencyFocused)
-        .accessibilityLabel(L10n.text("Frequency input"))
-        .accessibilityHint(frequencyInputHint(for: backend))
-        .submitLabel(.done)
-        .onSubmit {
-          submitInlineFrequencyInput(for: backend)
-        }
-        .toolbar {
-          ToolbarItemGroup(placement: .keyboard) {
-            Spacer()
-            Button(L10n.text("Apply")) {
-              submitInlineFrequencyInput(for: backend)
-            }
+          if !isEditing {
+            submitInlineFrequencyInput(for: backend)
           }
         }
-        .onChange(of: inlineFrequencyInput) { _ in
-          inlineFrequencyError = nil
-          scheduleInlineFrequencyApply(for: backend)
+      )
+      .keyboardType(.decimalPad)
+      .textInputAutocapitalization(.never)
+      .autocorrectionDisabled()
+      .textFieldStyle(.roundedBorder)
+      .focused($isInlineFrequencyFocused)
+      .accessibilityLabel(L10n.text("Frequency input"))
+      .accessibilityHint(frequencyInputHint(for: backend))
+      .submitLabel(.done)
+      .onSubmit {
+        submitInlineFrequencyInput(for: backend)
+      }
+      .toolbar {
+        ToolbarItemGroup(placement: .keyboard) {
+          Spacer()
+          Button(L10n.text("Apply")) {
+            submitInlineFrequencyInput(for: backend)
+          }
         }
+      }
+      .onChange(of: inlineFrequencyInput) { _ in
+        inlineFrequencyError = nil
+        scheduleInlineFrequencyApply(for: backend)
       }
 
       if let inlineFrequencyError {
@@ -1215,101 +1328,6 @@ struct ReceiverView: View {
           .accessibilityLabel(L10n.text("Frequency input error"))
           .accessibilityValue(inlineFrequencyError)
       }
-    }
-  }
-
-  private func voiceOverFrequencyPadSheet() -> some View {
-    NavigationStack {
-      VStack(spacing: 14) {
-        Text(L10n.text("frequency_input.voiceover_sheet_title"))
-          .font(.headline)
-
-        Text(voiceOverFrequencyBuffer.isEmpty ? "..." : voiceOverFrequencyBuffer)
-          .font(.title2.monospacedDigit())
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(10)
-          .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-          .accessibilityLabel(L10n.text("frequency_input.voiceover_current"))
-          .accessibilityValue(voiceOverFrequencyBuffer.isEmpty ? "..." : voiceOverFrequencyBuffer)
-
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
-        LazyVGrid(columns: columns, spacing: 10) {
-          ForEach(["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"], id: \.self) { symbol in
-            Button(symbol) {
-              appendVoiceOverFrequencyCharacter(symbol)
-            }
-            .buttonStyle(.bordered)
-            .font(.title3.monospacedDigit())
-            .frame(maxWidth: .infinity, minHeight: 42)
-          }
-
-          Button(L10n.text("frequency_input.voiceover_backspace")) {
-            backspaceVoiceOverFrequencyCharacter()
-          }
-          .buttonStyle(.bordered)
-          .font(.title3)
-          .frame(maxWidth: .infinity, minHeight: 42)
-        }
-
-        HStack(spacing: 10) {
-          Button(L10n.text("frequency_input.voiceover_clear")) {
-            voiceOverFrequencyBuffer = ""
-          }
-          .buttonStyle(.bordered)
-
-          Button(L10n.text("Apply")) {
-            applyVoiceOverFrequencyEntry()
-          }
-          .buttonStyle(.borderedProminent)
-          .disabled(voiceOverFrequencyBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-      }
-      .padding(16)
-      .navigationTitle(L10n.text("frequency_input.voiceover_sheet_title"))
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button(L10n.text("Cancel")) {
-            isVoiceOverFrequencyPadPresented = false
-          }
-        }
-      }
-    }
-  }
-
-  private func startVoiceOverFrequencyEntry(for backend: SDRBackend) {
-    voiceOverFrequencyBackend = backend
-    voiceOverFrequencyBuffer = ""
-    inlineFrequencyError = nil
-    isVoiceOverFrequencyPadPresented = true
-  }
-
-  private func appendVoiceOverFrequencyCharacter(_ symbol: String) {
-    if symbol == "." {
-      guard !voiceOverFrequencyBuffer.contains(".") else { return }
-      if voiceOverFrequencyBuffer.isEmpty {
-        voiceOverFrequencyBuffer = "0."
-      } else {
-        voiceOverFrequencyBuffer.append(".")
-      }
-      return
-    }
-
-    guard symbol.allSatisfy(\.isNumber) else { return }
-    voiceOverFrequencyBuffer.append(symbol)
-  }
-
-  private func backspaceVoiceOverFrequencyCharacter() {
-    guard !voiceOverFrequencyBuffer.isEmpty else { return }
-    voiceOverFrequencyBuffer.removeLast()
-  }
-
-  private func applyVoiceOverFrequencyEntry() {
-    let trimmed = voiceOverFrequencyBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return }
-    inlineFrequencyInput = trimmed
-    if applyInlineFrequencyInput(voiceOverFrequencyBackend, commitFormatting: true, endEditing: true) {
-      voiceOverFrequencyBuffer = ""
-      isVoiceOverFrequencyPadPresented = false
     }
   }
 
@@ -1550,6 +1568,13 @@ struct ReceiverView: View {
     return radioSession.openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequency })?.name
   }
 
+  private func selectedOpenWebRXProfileName() -> String {
+    let selectedID = radioSession.selectedOpenWebRXProfileID
+    return radioSession.openWebRXProfiles.first(where: { $0.id == selectedID })?.name
+      ?? radioSession.openWebRXProfiles.first?.name
+      ?? ""
+  }
+
   private func activeOpenWebRXBandEntry() -> SDRBandPlanEntry? {
     let frequency = radioSession.settings.frequencyHz
     return radioSession.openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequency })
@@ -1559,6 +1584,39 @@ struct ReceiverView: View {
     guard let backend else { return value }
     let range = frequencyRange(for: backend)
     return min(max(value, range.lowerBound), range.upperBound)
+  }
+
+  private func currentFMDXFilterProfileName() -> String {
+    if let profile = radioSession.currentFMDXFilterProfile() {
+      return L10n.text(profile.localizationKey)
+    }
+    return L10n.text("fmdx.filter_profile.custom")
+  }
+
+  private func fmdxFilterProfileOptions() -> [ReceiverSelectionOption] {
+    FMDXFilterProfile.allCases.map {
+      ReceiverSelectionOption(id: $0.rawValue, title: L10n.text($0.localizationKey), detail: nil)
+    } + [ReceiverSelectionOption(
+      id: "custom",
+      title: L10n.text("fmdx.filter_profile.custom"),
+      detail: nil
+    )]
+  }
+
+  private func currentFMDXAntennaName() -> String {
+    let selectedID = radioSession.selectedFMDXAntennaID
+      ?? radioSession.fmdxCapabilities.antennas.first?.id
+    return radioSession.fmdxCapabilities.antennas.first(where: { $0.id == selectedID })?.label
+      ?? radioSession.fmdxCapabilities.antennas.first?.label
+      ?? ""
+  }
+
+  private func currentFMDXBandwidthName() -> String {
+    let selectedID = radioSession.selectedFMDXBandwidthID
+      ?? radioSession.fmdxCapabilities.bandwidths.first?.id
+    return radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == selectedID })?.label
+      ?? radioSession.fmdxCapabilities.bandwidths.first?.label
+      ?? ""
   }
 
   private func scanChannels(for profile: SDRConnectionProfile) -> [ScanChannel] {

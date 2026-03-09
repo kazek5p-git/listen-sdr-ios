@@ -32,6 +32,7 @@ struct ProfileEditorView: View {
               Text(backend.displayName).tag(backend)
             }
           }
+          .pickerStyle(.segmented)
           .accessibilityLabel("Receiver backend")
           .onChange(of: draft.backend) { newBackend in
             draft.port = newBackend.defaultPort
