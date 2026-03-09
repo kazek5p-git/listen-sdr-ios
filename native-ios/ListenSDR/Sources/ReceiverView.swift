@@ -939,73 +939,73 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func shazamSection(for profile: SDRConnectionProfile) -> some View {
-    guard radioSession.settings.shazamIntegrationEnabled else { return }
+    if radioSession.settings.shazamIntegrationEnabled {
+      let isConnected = radioSession.state == .connected && radioSession.connectedProfileID == profile.id
+      let isSupported = shazam.supportsRecognition(for: profile.backend)
 
-    let isConnected = radioSession.state == .connected && radioSession.connectedProfileID == profile.id
-    let isSupported = shazam.supportsRecognition(for: profile.backend)
+      Section("Shazam") {
+        if !isConnected {
+          Text(L10n.text("shazam.connect_first"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        } else if !isSupported {
+          Text(L10n.text("shazam.unsupported_stream"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        } else {
+          Button {
+            switch shazam.state {
+            case .listening, .matching:
+              shazam.cancelRecognition(clearResult: true)
+            default:
+              shazam.startRecognition(for: profile.backend, isConnected: isConnected)
+            }
+          } label: {
+            Text(shazamButtonTitle)
+              .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.borderedProminent)
 
-    Section("Shazam") {
-      if !isConnected {
-        Text(L10n.text("shazam.connect_first"))
-          .foregroundStyle(.secondary)
-          .font(.footnote)
-      } else if !isSupported {
-        Text(L10n.text("shazam.unsupported_stream"))
-          .foregroundStyle(.secondary)
-          .font(.footnote)
-      } else {
-        Button {
           switch shazam.state {
-          case .listening, .matching:
-            shazam.cancelRecognition(clearResult: true)
-          default:
-            shazam.startRecognition(for: profile.backend, isConnected: isConnected)
-          }
-        } label: {
-          Text(shazamButtonTitle)
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-
-        switch shazam.state {
-        case .idle:
-          Text(L10n.text("shazam.idle_hint"))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-
-        case .listening:
-          HStack(spacing: 10) {
-            ProgressView()
-            Text(L10n.text("shazam.listening"))
+          case .idle:
+            Text(L10n.text("shazam.idle_hint"))
+              .font(.footnote)
               .foregroundStyle(.secondary)
-          }
 
-        case .matching:
-          HStack(spacing: 10) {
-            ProgressView()
-            Text(L10n.text("shazam.matching"))
+          case .listening:
+            HStack(spacing: 10) {
+              ProgressView()
+              Text(L10n.text("shazam.listening"))
+                .foregroundStyle(.secondary)
+            }
+
+          case .matching:
+            HStack(spacing: 10) {
+              ProgressView()
+              Text(L10n.text("shazam.matching"))
+                .foregroundStyle(.secondary)
+            }
+
+          case .matched(let title, let artist):
+            LabeledContent(L10n.text("shazam.result.title"), value: title)
+            if let artist, !artist.isEmpty {
+              LabeledContent(L10n.text("shazam.result.artist"), value: artist)
+            }
+
+          case .noMatch:
+            Text(L10n.text("shazam.no_match"))
               .foregroundStyle(.secondary)
+              .font(.footnote)
+
+          case .unavailable(let message):
+            Text(message)
+              .foregroundStyle(.secondary)
+              .font(.footnote)
           }
-
-        case .matched(let title, let artist):
-          LabeledContent(L10n.text("shazam.result.title"), value: title)
-          if let artist, !artist.isEmpty {
-            LabeledContent(L10n.text("shazam.result.artist"), value: artist)
-          }
-
-        case .noMatch:
-          Text(L10n.text("shazam.no_match"))
-            .foregroundStyle(.secondary)
-            .font(.footnote)
-
-        case .unavailable(let message):
-          Text(message)
-            .foregroundStyle(.secondary)
-            .font(.footnote)
         }
       }
+      .appSectionStyle()
     }
-    .appSectionStyle()
   }
 
   private var shazamButtonTitle: String {

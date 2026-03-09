@@ -1650,6 +1650,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   private func resetRuntimeState(for backend: SDRBackend?) {
     _ = backend
+    ShazamRecognitionController.shared.cancelRecognition(clearResult: true)
     openWebRXProfiles = []
     selectedOpenWebRXProfileID = nil
     serverBookmarks = []
