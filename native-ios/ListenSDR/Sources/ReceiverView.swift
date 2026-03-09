@@ -157,10 +157,6 @@ struct ReceiverView: View {
 
       frequencySlider(for: profile.backend, tuningRange: tuningRange)
 
-      if isVoiceOverRunning {
-        voiceOverRotorSection(for: profile.backend)
-      }
-
       tuneStepControl(for: profile.backend)
 
       if profile.backend == .fmDxWebserver {
@@ -1231,25 +1227,6 @@ struct ReceiverView: View {
           .accessibilityValue(inlineFrequencyError)
       }
     }
-  }
-
-  private func voiceOverRotorSection(for backend: SDRBackend) -> some View {
-    let frequencyValue = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
-    let stepValue = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
-    let rotorValue = L10n.text("receiver.voiceover_rotor.value", frequencyValue, stepValue)
-
-    return VoiceOverRotorControl(
-      title: L10n.text("receiver.voiceover_rotor.label"),
-      value: rotorValue,
-      hint: L10n.text("receiver.voiceover_rotor.hint"),
-      frequencyRotorName: L10n.text("receiver.voiceover_rotor.frequency"),
-      tuneStepRotorName: L10n.text("receiver.voiceover_rotor.tune_step"),
-      onTuneIncrement: { radioSession.tune(byStepCount: 1) },
-      onTuneDecrement: { radioSession.tune(byStepCount: -1) },
-      onStepIncrement: { changeTuneStep(by: 1, backend: backend) },
-      onStepDecrement: { changeTuneStep(by: -1, backend: backend) }
-    )
-    .frame(maxWidth: .infinity, minHeight: 60)
   }
 
   private func voiceOverFrequencyPadSheet() -> some View {
