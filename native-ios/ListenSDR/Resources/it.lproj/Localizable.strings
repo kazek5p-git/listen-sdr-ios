@@ -291,6 +291,8 @@
 "fmdx.server_presets.section" = "Elenco stazioni del server";
 "fmdx.server_presets.empty" = "Nessun elenco stazioni dal server (o caricamento in corso).";
 "fmdx.server_slots.section" = "Slot server (F1-F4)";
+"fmdx.server_slots.expand" = "Mostra slot server (F1-F4)";
+"fmdx.server_slots.collapse" = "Nascondi slot server (F1-F4)";
 "fmdx.station_list.expand" = "Espandi elenco stazioni";
 "fmdx.station_list.collapse" = "Comprimi elenco stazioni";
 "fmdx.live.more_details" = "Altri dettagli FM-DX";

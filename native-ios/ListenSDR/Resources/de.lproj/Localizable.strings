@@ -291,6 +291,8 @@
 "fmdx.server_presets.section" = "Server-Senderliste";
 "fmdx.server_presets.empty" = "Keine Senderliste vom Server (oder wird noch geladen).";
 "fmdx.server_slots.section" = "Server-Slots (F1-F4)";
+"fmdx.server_slots.expand" = "Server-Slots anzeigen (F1-F4)";
+"fmdx.server_slots.collapse" = "Server-Slots ausblenden (F1-F4)";
 "fmdx.station_list.expand" = "Senderliste erweitern";
 "fmdx.station_list.collapse" = "Senderliste reduzieren";
 "fmdx.live.more_details" = "Weitere FM-DX-Details";

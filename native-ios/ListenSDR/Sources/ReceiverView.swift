@@ -45,6 +45,7 @@ struct ReceiverView: View {
   @State private var scannerHoldSeconds: Double = 4.0
   @State private var isFMDXDetailsExpanded = false
   @State private var isFMDXStationListExpanded = true
+  @State private var isFMDXServerSlotsExpanded = false
   @FocusState private var isFrequencyInputFocused: Bool
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
@@ -101,9 +102,6 @@ struct ReceiverView: View {
       }
       fmDxLiveSection(for: profile)
       kiwiLiveSection(for: profile)
-      if profile.backend != .fmDxWebserver {
-        favoritesSection(presets: presets)
-      }
       audioSection()
     }
     .scrollContentBackground(.hidden)
@@ -421,6 +419,23 @@ struct ReceiverView: View {
             systemImage: isFMDXStationListExpanded ? "chevron.up" : "chevron.down"
           )
         }
+
+        if !serverSlots.isEmpty {
+          Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+              isFMDXServerSlotsExpanded.toggle()
+            }
+          } label: {
+            Label(
+              L10n.text(
+                isFMDXServerSlotsExpanded
+                  ? "fmdx.server_slots.collapse"
+                  : "fmdx.server_slots.expand"
+              ),
+              systemImage: isFMDXServerSlotsExpanded ? "chevron.up" : "chevron.down"
+            )
+          }
+        }
       }
       .appSectionStyle()
 
@@ -439,7 +454,7 @@ struct ReceiverView: View {
         .appSectionStyle()
       }
 
-      if !serverSlots.isEmpty {
+      if !serverSlots.isEmpty && isFMDXServerSlotsExpanded {
         Section(L10n.text("fmdx.server_slots.section")) {
           ForEach(serverSlots) { preset in
             fmdxServerBookmarkRow(preset: preset, profile: profile)

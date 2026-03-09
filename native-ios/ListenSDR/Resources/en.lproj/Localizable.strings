@@ -139,6 +139,8 @@
 "fmdx.server_presets.section" = "Server station list";
 "fmdx.server_presets.empty" = "No station list from server yet (or still loading).";
 "fmdx.server_slots.section" = "Server slots (F1-F4)";
+"fmdx.server_slots.expand" = "Show server slots (F1-F4)";
+"fmdx.server_slots.collapse" = "Hide server slots (F1-F4)";
 "fmdx.station_list.expand" = "Expand station list";
 "fmdx.station_list.collapse" = "Collapse station list";
 "fmdx.live.more_details" = "More FM-DX details";

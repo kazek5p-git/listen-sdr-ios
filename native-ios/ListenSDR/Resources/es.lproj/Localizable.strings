@@ -291,6 +291,8 @@
 "fmdx.server_presets.section" = "Lista de emisoras del servidor";
 "fmdx.server_presets.empty" = "Sin lista de emisoras del servidor (o aun cargando).";
 "fmdx.server_slots.section" = "Slots del servidor (F1-F4)";
+"fmdx.server_slots.expand" = "Mostrar slots del servidor (F1-F4)";
+"fmdx.server_slots.collapse" = "Ocultar slots del servidor (F1-F4)";
 "fmdx.station_list.expand" = "Expandir lista de emisoras";
 "fmdx.station_list.collapse" = "Contraer lista de emisoras";
 "fmdx.live.more_details" = "Mas detalles de FM-DX";
