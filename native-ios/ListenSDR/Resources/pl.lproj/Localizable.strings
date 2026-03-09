@@ -370,3 +370,19 @@
 "accessibility.rds_announcement.ps" = "RDS stacja %@";
 "accessibility.rds_announcement.rt" = "RDS tekst %@";
 "accessibility.rds_announcement.pi" = "RDS P I %@";
+
+"settings.integrations.section" = "Integracje";
+"settings.integrations.shazam" = "Pokaz sekcje Shazam";
+"settings.integrations.shazam.hint" = "Pokazuje sekcje Shazam na dole ekranu odbiornika do szybkiego rozpoznawania utworu.";
+"shazam.start" = "Rozpoznaj biezacy utwor";
+"shazam.cancel" = "Anuluj rozpoznawanie";
+"shazam.listening" = "Nasluchiwanie biezacego audio...";
+"shazam.matching" = "Dopasowywanie utworu...";
+"shazam.no_match" = "Nie znaleziono dopasowania.";
+"shazam.idle_hint" = "Stuknij przycisk, aby rozpoznac utwor, ktory aktualnie gra.";
+"shazam.connect_first" = "Najpierw polacz sie z odbiornikiem, aby rozpoznac biezace audio.";
+"shazam.unsupported_stream" = "Ten format audio odbiornika nie jest jeszcze obslugiwany przez wbudowana integracje Shazam.";
+"shazam.error" = "Rozpoznawanie Shazam nie powiodlo sie.";
+"shazam.result.title" = "Utwor";
+"shazam.result.artist" = "Wykonawca";
+"shazam.result.unknown_title" = "Nieznany tytul";

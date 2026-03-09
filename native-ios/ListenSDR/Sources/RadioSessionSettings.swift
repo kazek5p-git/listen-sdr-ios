@@ -19,6 +19,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiWaterfallMaxDB: Int
   var showRdsErrorCounters: Bool
   var voiceOverAnnouncesRDSChanges: Bool
+  var shazamIntegrationEnabled: Bool
   var dxNightModeEnabled: Bool
   var autoFilterProfileEnabled: Bool
   var adaptiveScannerEnabled: Bool
@@ -49,6 +50,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMaxDB: -20,
     showRdsErrorCounters: false,
     voiceOverAnnouncesRDSChanges: false,
+    shazamIntegrationEnabled: false,
     dxNightModeEnabled: false,
     autoFilterProfileEnabled: false,
     adaptiveScannerEnabled: false,
@@ -75,6 +77,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case kiwiWaterfallMaxDB
     case showRdsErrorCounters
     case voiceOverAnnouncesRDSChanges
+    case shazamIntegrationEnabled
     case dxNightModeEnabled
     case autoFilterProfileEnabled
     case adaptiveScannerEnabled
@@ -101,6 +104,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMaxDB: Int,
     showRdsErrorCounters: Bool,
     voiceOverAnnouncesRDSChanges: Bool,
+    shazamIntegrationEnabled: Bool,
     dxNightModeEnabled: Bool,
     autoFilterProfileEnabled: Bool,
     adaptiveScannerEnabled: Bool,
@@ -128,6 +132,7 @@ struct RadioSessionSettings: Codable, Equatable {
     }
     self.showRdsErrorCounters = showRdsErrorCounters
     self.voiceOverAnnouncesRDSChanges = voiceOverAnnouncesRDSChanges
+    self.shazamIntegrationEnabled = shazamIntegrationEnabled
     self.dxNightModeEnabled = dxNightModeEnabled
     self.autoFilterProfileEnabled = autoFilterProfileEnabled
     self.adaptiveScannerEnabled = adaptiveScannerEnabled
@@ -178,6 +183,8 @@ struct RadioSessionSettings: Codable, Equatable {
     showRdsErrorCounters = try container.decodeIfPresent(Bool.self, forKey: .showRdsErrorCounters) ?? Self.default.showRdsErrorCounters
     voiceOverAnnouncesRDSChanges = try container.decodeIfPresent(Bool.self, forKey: .voiceOverAnnouncesRDSChanges)
       ?? Self.default.voiceOverAnnouncesRDSChanges
+    shazamIntegrationEnabled = try container.decodeIfPresent(Bool.self, forKey: .shazamIntegrationEnabled)
+      ?? Self.default.shazamIntegrationEnabled
     dxNightModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxNightModeEnabled) ?? Self.default.dxNightModeEnabled
     autoFilterProfileEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoFilterProfileEnabled) ?? Self.default.autoFilterProfileEnabled
     adaptiveScannerEnabled = try container.decodeIfPresent(Bool.self, forKey: .adaptiveScannerEnabled) ?? Self.default.adaptiveScannerEnabled

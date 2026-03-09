@@ -363,3 +363,19 @@
 "accessibility.rds_announcement.ps" = "Emisora RDS %@";
 "accessibility.rds_announcement.rt" = "Texto RDS %@";
 "accessibility.rds_announcement.pi" = "RDS P I %@";
+
+"settings.integrations.section" = "Integraciones";
+"settings.integrations.shazam" = "Mostrar seccion Shazam";
+"settings.integrations.shazam.hint" = "Muestra una seccion de Shazam al final de la pantalla del receptor para reconocer canciones rapidamente.";
+"shazam.start" = "Reconocer cancion actual";
+"shazam.cancel" = "Cancelar reconocimiento";
+"shazam.listening" = "Escuchando el audio actual...";
+"shazam.matching" = "Buscando coincidencia...";
+"shazam.no_match" = "No se encontro coincidencia.";
+"shazam.idle_hint" = "Pulsa el boton para identificar la cancion que suena ahora mismo.";
+"shazam.connect_first" = "Conectate primero a un receptor para identificar el audio actual.";
+"shazam.unsupported_stream" = "Este formato de audio del receptor todavia no es compatible con la integracion Shazam integrada.";
+"shazam.error" = "Fallo el reconocimiento con Shazam.";
+"shazam.result.title" = "Cancion";
+"shazam.result.artist" = "Artista";
+"shazam.result.unknown_title" = "Titulo desconocido";

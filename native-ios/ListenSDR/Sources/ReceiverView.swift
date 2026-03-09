@@ -37,6 +37,7 @@ private struct ReceiverSelectionOption: Identifiable {
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var shazam: ShazamRecognitionController
   @FocusState private var isInlineFrequencyFocused: Bool
   @State private var inlineFrequencyInput = ""
   @State private var inlineFrequencyError: String?
@@ -89,6 +90,7 @@ struct ReceiverView: View {
       fmDxLiveSection(for: profile)
       kiwiLiveSection(for: profile)
       audioSection()
+      shazamSection(for: profile)
     }
     .scrollContentBackground(.hidden)
     .onAppear {
@@ -933,6 +935,86 @@ struct ReceiverView: View {
       )
     }
     .appSectionStyle()
+  }
+
+  @ViewBuilder
+  private func shazamSection(for profile: SDRConnectionProfile) -> some View {
+    guard radioSession.settings.shazamIntegrationEnabled else { return }
+
+    let isConnected = radioSession.state == .connected && radioSession.connectedProfileID == profile.id
+    let isSupported = shazam.supportsRecognition(for: profile.backend)
+
+    Section("Shazam") {
+      if !isConnected {
+        Text(L10n.text("shazam.connect_first"))
+          .foregroundStyle(.secondary)
+          .font(.footnote)
+      } else if !isSupported {
+        Text(L10n.text("shazam.unsupported_stream"))
+          .foregroundStyle(.secondary)
+          .font(.footnote)
+      } else {
+        Button {
+          switch shazam.state {
+          case .listening, .matching:
+            shazam.cancelRecognition(clearResult: true)
+          default:
+            shazam.startRecognition(for: profile.backend, isConnected: isConnected)
+          }
+        } label: {
+          Text(shazamButtonTitle)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+
+        switch shazam.state {
+        case .idle:
+          Text(L10n.text("shazam.idle_hint"))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+        case .listening:
+          HStack(spacing: 10) {
+            ProgressView()
+            Text(L10n.text("shazam.listening"))
+              .foregroundStyle(.secondary)
+          }
+
+        case .matching:
+          HStack(spacing: 10) {
+            ProgressView()
+            Text(L10n.text("shazam.matching"))
+              .foregroundStyle(.secondary)
+          }
+
+        case .matched(let title, let artist):
+          LabeledContent(L10n.text("shazam.result.title"), value: title)
+          if let artist, !artist.isEmpty {
+            LabeledContent(L10n.text("shazam.result.artist"), value: artist)
+          }
+
+        case .noMatch:
+          Text(L10n.text("shazam.no_match"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+
+        case .unavailable(let message):
+          Text(message)
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        }
+      }
+    }
+    .appSectionStyle()
+  }
+
+  private var shazamButtonTitle: String {
+    switch shazam.state {
+    case .listening, .matching:
+      return L10n.text("shazam.cancel")
+    default:
+      return L10n.text("shazam.start")
+    }
   }
 
   private func connectionButtonTitle(for profile: SDRConnectionProfile) -> String {

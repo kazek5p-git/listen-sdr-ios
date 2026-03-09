@@ -131,6 +131,7 @@ final class RadioSessionViewModel: ObservableObject {
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
+    ShazamRecognitionController.shared.setIntegrationEnabled(settings.shazamIntegrationEnabled)
   }
 
   var fmdxSupportsAM: Bool {
@@ -723,6 +724,12 @@ final class RadioSessionViewModel: ObservableObject {
       lastRDSAnnouncementText = nil
     }
     persistSettings()
+  }
+
+  func setShazamIntegrationEnabled(_ enabled: Bool) {
+    settings.shazamIntegrationEnabled = enabled
+    persistSettings()
+    ShazamRecognitionController.shared.setIntegrationEnabled(enabled)
   }
 
   func setAutoFilterProfileEnabled(_ enabled: Bool) {
