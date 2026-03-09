@@ -10,6 +10,7 @@
 		015FC07CFB8D3B0FF066B3C6 /* ReceiverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4286BB33324D82C98CA59BFE /* ReceiverView.swift */; };
 		048284CE689221E778C8C818 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11598D4ED736766676E23600 /* ProfileStore.swift */; };
 		1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE460852390C71A3267E19E /* DiagnosticsStore.swift */; };
+		213C87F333FB445D3D5612BB /* VoiceOverRotorControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F51D7953819B7CA4FF071D /* VoiceOverRotorControl.swift */; };
 		217D33FBBCC6215FD86050A3 /* UnavailableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */; };
 		2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */; };
 		37A2B9CC76C458C794DECA72 /* SDRBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8D52E05033560ABC688416 /* SDRBackend.swift */; };
@@ -59,6 +60,7 @@
 		7F806ECE48FB8AF9299DF745 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/Localizable.strings; sourceTree = "<group>"; };
 		86D584BECE59BE8BE8B2AFF1 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryChangeNotificationService.swift; sourceTree = "<group>"; };
+		96F51D7953819B7CA4FF071D /* VoiceOverRotorControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOverRotorControl.swift; sourceTree = "<group>"; };
 		9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationMode.swift; sourceTree = "<group>"; };
 		9D4640039B5A50DBCB293C69 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingMetadataController.swift; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 				D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */,
 				2C1A91F49239EA191572FD45 /* SettingsView.swift */,
 				DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */,
+				96F51D7953819B7CA4FF071D /* VoiceOverRotorControl.swift */,
 			);
 			name = Sources;
 			path = ListenSDR/Sources;
@@ -241,6 +244,7 @@
 				60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */,
 				67470D4EA59E0FC4620CD74B /* SettingsView.swift in Sources */,
 				217D33FBBCC6215FD86050A3 /* UnavailableContentView.swift in Sources */,
+				213C87F333FB445D3D5612BB /* VoiceOverRotorControl.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
