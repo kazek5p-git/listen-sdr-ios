@@ -295,7 +295,7 @@
 "fmdx.server_slots.collapse" = "Nascondi slot server (F1-F4)";
 "fmdx.station_list.expand" = "Espandi elenco stazioni";
 "fmdx.station_list.collapse" = "Comprimi elenco stazioni";
-"fmdx.live.more_details" = "Altri dettagli FM-DX";
+"fmdx.live.more_details" = "Altri dettagli RDS";
 "fmdx.user_presets.import_server" = "Importa elenco stazioni nei miei preset";
 "fmdx.user_presets.importing" = "Importazione elenco stazioni...";
 "fmdx.user_presets.imported_none" = "Nessuna stazione da importare trovata su questo server.";

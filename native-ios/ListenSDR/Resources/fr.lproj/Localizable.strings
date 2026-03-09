@@ -295,7 +295,7 @@
 "fmdx.server_slots.collapse" = "Masquer les slots serveur (F1-F4)";
 "fmdx.station_list.expand" = "Developper la liste des stations";
 "fmdx.station_list.collapse" = "Reduire la liste des stations";
-"fmdx.live.more_details" = "Plus de details FM-DX";
+"fmdx.live.more_details" = "Plus de details RDS";
 "fmdx.user_presets.import_server" = "Importer la liste des stations dans mes presets";
 "fmdx.user_presets.importing" = "Import de la liste des stations...";
 "fmdx.user_presets.imported_none" = "Aucune station a importer trouvee sur ce serveur.";
