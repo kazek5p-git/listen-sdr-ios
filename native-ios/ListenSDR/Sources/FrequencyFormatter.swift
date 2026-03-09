@@ -5,6 +5,21 @@ enum FrequencyFormatter {
     String(format: "%.3f MHz", Double(value) / 1_000_000.0)
   }
 
+  static func editableMHzText(fromHz value: Int, maxFractionDigits: Int = 5) -> String {
+    let formatter = NumberFormatter()
+    formatter.locale = Locale.current
+    formatter.numberStyle = .decimal
+    formatter.usesGroupingSeparator = false
+    formatter.minimumFractionDigits = 0
+    formatter.maximumFractionDigits = max(1, maxFractionDigits)
+
+    let mhz = Double(value) / 1_000_000.0
+    if let text = formatter.string(from: NSNumber(value: mhz)) {
+      return text
+    }
+    return String(format: "%.5f", mhz)
+  }
+
   static func fmDxMHzText(fromHz value: Int) -> String {
     fmDxMHzText(fromMHz: Double(value) / 1_000_000.0)
   }

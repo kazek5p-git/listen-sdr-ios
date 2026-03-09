@@ -25,6 +25,10 @@ struct ReceiverView: View {
   @State private var inlineFrequencyError: String?
   @State private var inlineFrequencyEditing = false
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
+  @State private var isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
+  @State private var isVoiceOverFrequencyPadPresented = false
+  @State private var voiceOverFrequencyBuffer = ""
+  @State private var voiceOverFrequencyBackend: SDRBackend = .fmDxWebserver
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var quickScanChannels: [ScanChannel] = []
   @State private var isFMDXDetailsExpanded = false
@@ -50,6 +54,12 @@ struct ReceiverView: View {
         }
       }
       .navigationTitle("Receiver")
+      .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.voiceOverStatusDidChangeNotification)) { _ in
+        isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
+      }
+      .sheet(isPresented: $isVoiceOverFrequencyPadPresented) {
+        voiceOverFrequencyPadSheet()
+      }
       .appScreenBackground()
     }
   }
@@ -143,60 +153,13 @@ struct ReceiverView: View {
 
   private func tuningSection(for profile: SDRConnectionProfile, tuningRange: ClosedRange<Int>) -> some View {
     Section("Tuning") {
-      VStack(alignment: .leading, spacing: 6) {
-        TextField(
-          frequencyInputPlaceholder(for: profile.backend),
-          text: $inlineFrequencyInput,
-          onEditingChanged: { isEditing in
-            inlineFrequencyEditing = isEditing
-            if isEditing {
-              inlineFrequencyApplyTask?.cancel()
-              inlineFrequencyInput = ""
-              inlineFrequencyError = nil
-            }
-            if !isEditing {
-              submitInlineFrequencyInput(for: profile.backend)
-            }
-          }
-        )
-        .keyboardType(.decimalPad)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .textFieldStyle(.roundedBorder)
-        .focused($isInlineFrequencyFocused)
-        .accessibilityLabel(L10n.text("Frequency input"))
-        .accessibilityHint(frequencyInputHint(for: profile.backend))
-        .submitLabel(.done)
-        .onSubmit {
-          submitInlineFrequencyInput(for: profile.backend)
-        }
-        .toolbar {
-          ToolbarItemGroup(placement: .keyboard) {
-            Spacer()
-            Button(L10n.text("Apply")) {
-              submitInlineFrequencyInput(for: profile.backend)
-            }
-          }
-        }
-        .onChange(of: inlineFrequencyInput) { _ in
-          inlineFrequencyError = nil
-          scheduleInlineFrequencyApply(for: profile.backend)
-        }
-
-        Text(frequencyInputHint(for: profile.backend))
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-
-        if let inlineFrequencyError {
-          Text(inlineFrequencyError)
-            .foregroundStyle(.red)
-            .font(.footnote)
-            .accessibilityLabel(L10n.text("Frequency input error"))
-            .accessibilityValue(inlineFrequencyError)
-        }
-      }
+      frequencyInputSection(for: profile.backend)
 
       frequencySlider(for: profile.backend, tuningRange: tuningRange)
+
+      if isVoiceOverRunning {
+        voiceOverRotorSection(for: profile.backend)
+      }
 
       tuneStepControl(for: profile.backend)
 
@@ -1206,6 +1169,184 @@ struct ReceiverView: View {
     }
   }
 
+  @ViewBuilder
+  private func frequencyInputSection(for backend: SDRBackend) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(frequencyInputHint(for: backend))
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+
+      if isVoiceOverRunning {
+        Button(L10n.text("frequency_input.voiceover_button")) {
+          startVoiceOverFrequencyEntry(for: backend)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityHint(L10n.text("frequency_input.voiceover_hint"))
+      } else {
+        TextField(
+          frequencyInputPlaceholder(for: backend),
+          text: $inlineFrequencyInput,
+          onEditingChanged: { isEditing in
+            inlineFrequencyEditing = isEditing
+            if isEditing {
+              inlineFrequencyApplyTask?.cancel()
+              inlineFrequencyInput = ""
+              inlineFrequencyError = nil
+            }
+            if !isEditing {
+              submitInlineFrequencyInput(for: backend)
+            }
+          }
+        )
+        .keyboardType(.decimalPad)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .textFieldStyle(.roundedBorder)
+        .focused($isInlineFrequencyFocused)
+        .accessibilityLabel(L10n.text("Frequency input"))
+        .accessibilityHint(frequencyInputHint(for: backend))
+        .submitLabel(.done)
+        .onSubmit {
+          submitInlineFrequencyInput(for: backend)
+        }
+        .toolbar {
+          ToolbarItemGroup(placement: .keyboard) {
+            Spacer()
+            Button(L10n.text("Apply")) {
+              submitInlineFrequencyInput(for: backend)
+            }
+          }
+        }
+        .onChange(of: inlineFrequencyInput) { _ in
+          inlineFrequencyError = nil
+          scheduleInlineFrequencyApply(for: backend)
+        }
+      }
+
+      if let inlineFrequencyError {
+        Text(inlineFrequencyError)
+          .foregroundStyle(.red)
+          .font(.footnote)
+          .accessibilityLabel(L10n.text("Frequency input error"))
+          .accessibilityValue(inlineFrequencyError)
+      }
+    }
+  }
+
+  private func voiceOverRotorSection(for backend: SDRBackend) -> some View {
+    let frequencyValue = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
+    let stepValue = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
+    let rotorValue = L10n.text("receiver.voiceover_rotor.value", frequencyValue, stepValue)
+
+    return VoiceOverRotorControl(
+      title: L10n.text("receiver.voiceover_rotor.label"),
+      value: rotorValue,
+      hint: L10n.text("receiver.voiceover_rotor.hint"),
+      frequencyRotorName: L10n.text("receiver.voiceover_rotor.frequency"),
+      tuneStepRotorName: L10n.text("receiver.voiceover_rotor.tune_step"),
+      onTuneIncrement: { radioSession.tune(byStepCount: 1) },
+      onTuneDecrement: { radioSession.tune(byStepCount: -1) },
+      onStepIncrement: { changeTuneStep(by: 1, backend: backend) },
+      onStepDecrement: { changeTuneStep(by: -1, backend: backend) }
+    )
+    .frame(maxWidth: .infinity, minHeight: 60)
+  }
+
+  private func voiceOverFrequencyPadSheet() -> some View {
+    NavigationStack {
+      VStack(spacing: 14) {
+        Text(L10n.text("frequency_input.voiceover_sheet_title"))
+          .font(.headline)
+
+        Text(voiceOverFrequencyBuffer.isEmpty ? "..." : voiceOverFrequencyBuffer)
+          .font(.title2.monospacedDigit())
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(10)
+          .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+          .accessibilityLabel(L10n.text("frequency_input.voiceover_current"))
+          .accessibilityValue(voiceOverFrequencyBuffer.isEmpty ? "..." : voiceOverFrequencyBuffer)
+
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
+        LazyVGrid(columns: columns, spacing: 10) {
+          ForEach(["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"], id: \.self) { symbol in
+            Button(symbol) {
+              appendVoiceOverFrequencyCharacter(symbol)
+            }
+            .buttonStyle(.bordered)
+            .font(.title3.monospacedDigit())
+            .frame(maxWidth: .infinity, minHeight: 42)
+          }
+
+          Button(L10n.text("frequency_input.voiceover_backspace")) {
+            backspaceVoiceOverFrequencyCharacter()
+          }
+          .buttonStyle(.bordered)
+          .font(.title3)
+          .frame(maxWidth: .infinity, minHeight: 42)
+        }
+
+        HStack(spacing: 10) {
+          Button(L10n.text("frequency_input.voiceover_clear")) {
+            voiceOverFrequencyBuffer = ""
+          }
+          .buttonStyle(.bordered)
+
+          Button(L10n.text("Apply")) {
+            applyVoiceOverFrequencyEntry()
+          }
+          .buttonStyle(.borderedProminent)
+          .disabled(voiceOverFrequencyBuffer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+      }
+      .padding(16)
+      .navigationTitle(L10n.text("frequency_input.voiceover_sheet_title"))
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button(L10n.text("Cancel")) {
+            isVoiceOverFrequencyPadPresented = false
+          }
+        }
+      }
+    }
+  }
+
+  private func startVoiceOverFrequencyEntry(for backend: SDRBackend) {
+    voiceOverFrequencyBackend = backend
+    voiceOverFrequencyBuffer = ""
+    inlineFrequencyError = nil
+    isVoiceOverFrequencyPadPresented = true
+  }
+
+  private func appendVoiceOverFrequencyCharacter(_ symbol: String) {
+    if symbol == "." {
+      guard !voiceOverFrequencyBuffer.contains(".") else { return }
+      if voiceOverFrequencyBuffer.isEmpty {
+        voiceOverFrequencyBuffer = "0."
+      } else {
+        voiceOverFrequencyBuffer.append(".")
+      }
+      return
+    }
+
+    guard symbol.allSatisfy(\.isNumber) else { return }
+    voiceOverFrequencyBuffer.append(symbol)
+  }
+
+  private func backspaceVoiceOverFrequencyCharacter() {
+    guard !voiceOverFrequencyBuffer.isEmpty else { return }
+    voiceOverFrequencyBuffer.removeLast()
+  }
+
+  private func applyVoiceOverFrequencyEntry() {
+    let trimmed = voiceOverFrequencyBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    inlineFrequencyInput = trimmed
+    if applyInlineFrequencyInput(voiceOverFrequencyBackend, commitFormatting: true, endEditing: true) {
+      voiceOverFrequencyBuffer = ""
+      isVoiceOverFrequencyPadPresented = false
+    }
+  }
+
   private func syncInlineFrequencyInputFromSession(for backend: SDRBackend, force: Bool) {
     if !force && (inlineFrequencyEditing || isInlineFrequencyFocused) {
       return
@@ -1223,8 +1364,18 @@ struct ReceiverView: View {
     if backend == .fmDxWebserver {
       return FrequencyFormatter.fmDxEntryText(fromHz: value)
     }
-    return FrequencyFormatter.mhzText(fromHz: value)
-      .replacingOccurrences(of: " MHz", with: "")
+    let inputProfile = frequencyInputProfile(for: backend)
+    if value < 1_000_000 {
+      let kilohertz = Double(value) / 1_000.0
+      if abs(kilohertz.rounded() - kilohertz) < 0.0001 {
+        return String(Int(kilohertz.rounded()))
+      }
+      return String(format: "%.3f", kilohertz)
+    }
+    return FrequencyFormatter.editableMHzText(
+      fromHz: value,
+      maxFractionDigits: inputProfile.maxFractionDigits
+    )
   }
 
   private func scheduleInlineFrequencyApply(for backend: SDRBackend) {
@@ -1254,12 +1405,22 @@ struct ReceiverView: View {
 
   @discardableResult
   private func applyInlineFrequencyInput(_ backend: SDRBackend, commitFormatting: Bool, endEditing: Bool = false) -> Bool {
+    if (backend == .openWebRX || backend == .kiwiSDR) && radioSession.isAwaitingInitialServerTuningSync {
+      inlineFrequencyError = L10n.text("session.status.sync_tuning")
+      return false
+    }
+
     guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else {
       return false
     }
 
     let parserContext = parserContext(for: backend)
-    guard let frequencyHz = FrequencyInputParser.parseHz(from: inlineFrequencyInput, context: parserContext) else {
+    let inputProfile = frequencyInputProfile(for: backend)
+    guard let frequencyHz = FrequencyInputParser.parseHz(
+      from: inlineFrequencyInput,
+      context: parserContext,
+      preferredRangeHz: inputProfile.preferredRangeHz
+    ) else {
       inlineFrequencyError = backend == .fmDxWebserver
         ? L10n.text("frequency_input.invalid_fm")
         : L10n.text("frequency_input.invalid_generic")
@@ -1390,17 +1551,21 @@ struct ReceiverView: View {
   }
 
   private func frequencyInputHint(for backend: SDRBackend?) -> String {
-    if backend == .fmDxWebserver {
-      return L10n.text("frequency_input.hint_fmdx")
+    guard let backend else {
+      return L10n.text("frequency_input.hint_generic")
     }
-    return L10n.text("frequency_input.hint_generic")
+    let inputProfile = frequencyInputProfile(for: backend)
+    if let alternateExample = inputProfile.alternateExample {
+      return L10n.text("frequency_input.dynamic_hint", inputProfile.primaryExample, alternateExample)
+    }
+    return L10n.text("frequency_input.dynamic_hint_single", inputProfile.primaryExample)
   }
 
   private func frequencyInputPlaceholder(for backend: SDRBackend?) -> String {
-    if backend == .fmDxWebserver {
-      return L10n.text("frequency_input.placeholder_fmdx")
+    guard let backend else {
+      return L10n.text("frequency_input.placeholder_generic")
     }
-    return L10n.text("frequency_input.placeholder_generic")
+    return frequencyInputProfile(for: backend).placeholder
   }
 
   private func frequencyRange(for backend: SDRBackend) -> ClosedRange<Int> {
@@ -1417,6 +1582,11 @@ struct ReceiverView: View {
   private func activeOpenWebRXBandName() -> String? {
     let frequency = radioSession.settings.frequencyHz
     return radioSession.openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequency })?.name
+  }
+
+  private func activeOpenWebRXBandEntry() -> SDRBandPlanEntry? {
+    let frequency = radioSession.settings.frequencyHz
+    return radioSession.openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequency })
   }
 
   private func normalizeFrequencyHz(_ value: Int, for backend: SDRBackend?) -> Int {
@@ -1474,6 +1644,318 @@ struct ReceiverView: View {
     return normalized.sorted { $0.frequencyHz < $1.frequencyHz }
   }
 
+  private func frequencyInputProfile(for backend: SDRBackend) -> FrequencyInputProfileSpec {
+    switch backend {
+    case .fmDxWebserver:
+      return .init(
+        preferredRangeHz: fmDxFrequencyRangeHz,
+        primaryExample: "98.5",
+        alternateExample: "985",
+        placeholder: "98.5",
+        maxFractionDigits: 3
+      )
+
+    case .kiwiSDR:
+      return kiwiFrequencyInputProfile()
+
+    case .openWebRX:
+      return openWebRXFrequencyInputProfile()
+    }
+  }
+
+  private func kiwiFrequencyInputProfile() -> FrequencyInputProfileSpec {
+    let frequencyHz = radioSession.settings.frequencyHz
+
+    switch frequencyHz {
+    case ..<300_000:
+      return .init(
+        preferredRangeHz: 150_000...299_999,
+        primaryExample: "198",
+        alternateExample: "198000",
+        placeholder: "198",
+        maxFractionDigits: 0
+      )
+
+    case 300_000..<3_000_000:
+      return .init(
+        preferredRangeHz: 300_000...2_999_999,
+        primaryExample: "999",
+        alternateExample: "999000",
+        placeholder: "999",
+        maxFractionDigits: 0
+      )
+
+    case 3_400_000..<4_100_000:
+      return .init(
+        preferredRangeHz: 3_500_000...4_000_000,
+        primaryExample: "3.650",
+        alternateExample: "3650",
+        placeholder: "3.650",
+        maxFractionDigits: 3
+      )
+
+    case 5_700_000..<6_400_000:
+      return .init(
+        preferredRangeHz: 5_900_000...6_300_000,
+        primaryExample: "6.070",
+        alternateExample: "6070",
+        placeholder: "6.070",
+        maxFractionDigits: 3
+      )
+
+    case 6_900_000..<7_400_000:
+      return .init(
+        preferredRangeHz: 7_000_000...7_300_000,
+        primaryExample: "7.050",
+        alternateExample: "7050",
+        placeholder: "7.050",
+        maxFractionDigits: 3
+      )
+
+    case 13_900_000..<14_500_000:
+      return .init(
+        preferredRangeHz: 14_000_000...14_350_000,
+        primaryExample: "14.074",
+        alternateExample: "14074",
+        placeholder: "14.074",
+        maxFractionDigits: 3
+      )
+
+    case 18_000_000..<18_300_000:
+      return .init(
+        preferredRangeHz: 18_068_000...18_168_000,
+        primaryExample: "18.100",
+        alternateExample: "18100",
+        placeholder: "18.100",
+        maxFractionDigits: 3
+      )
+
+    case 24_700_000..<25_100_000:
+      return .init(
+        preferredRangeHz: 24_890_000...24_990_000,
+        primaryExample: "24.940",
+        alternateExample: "24940",
+        placeholder: "24.940",
+        maxFractionDigits: 3
+      )
+
+    default:
+      return .init(
+        preferredRangeHz: 28_000_000...29_700_000,
+        primaryExample: "28.400",
+        alternateExample: "28400",
+        placeholder: "28.400",
+        maxFractionDigits: 3
+      )
+    }
+  }
+
+  private func openWebRXFrequencyInputProfile() -> FrequencyInputProfileSpec {
+    if let band = activeOpenWebRXBandEntry() {
+      if let mappedProfile = mappedOpenWebRXInputProfile(forBandName: band.name) {
+        return mappedProfile
+      }
+      if let suggestedFrequencyHz = band.frequencies.first?.frequencyHz {
+        return inferredInputProfile(
+          sampleFrequencyHz: suggestedFrequencyHz,
+          preferredRangeHz: band.lowerBoundHz...band.upperBoundHz
+        )
+      }
+      return inferredInputProfile(
+        sampleFrequencyHz: band.centerFrequencyHz,
+        preferredRangeHz: band.lowerBoundHz...band.upperBoundHz
+      )
+    }
+
+    return inferredInputProfile(
+      sampleFrequencyHz: radioSession.settings.frequencyHz,
+      preferredRangeHz: inferredWidebandRange(for: radioSession.settings.frequencyHz)
+    )
+  }
+
+  private func mappedOpenWebRXInputProfile(forBandName bandName: String) -> FrequencyInputProfileSpec? {
+    let normalized = bandName.lowercased()
+
+    if normalized.contains("70cm") || normalized.contains("pmr") {
+      return vhfUhfInputProfile(
+        preferredRangeHz: 430_000_000...470_000_000,
+        exampleHz: 446_156_250
+      )
+    }
+
+    if normalized.contains("2m") || normalized.contains("144") {
+      return vhfUhfInputProfile(
+        preferredRangeHz: 144_000_000...148_000_000,
+        exampleHz: 144_950_250
+      )
+    }
+
+    if normalized.contains("23cm") || normalized.contains("1296") {
+      return vhfUhfInputProfile(
+        preferredRangeHz: 1_240_000_000...1_300_000_000,
+        exampleHz: 1_296_500_000
+      )
+    }
+
+    if normalized.contains("6m") || normalized.contains("50 mhz") || normalized.contains("50mhz") {
+      return inferredInputProfile(
+        sampleFrequencyHz: 50_150_000,
+        preferredRangeHz: 50_000_000...54_000_000
+      )
+    }
+
+    if normalized.contains("4m") || normalized.contains("70 mhz") || normalized.contains("70mhz") {
+      return inferredInputProfile(
+        sampleFrequencyHz: 70_200_000,
+        preferredRangeHz: 70_000_000...71_000_000
+      )
+    }
+
+    if normalized.contains("air") {
+      return inferredInputProfile(
+        sampleFrequencyHz: 118_300_000,
+        preferredRangeHz: 118_000_000...136_975_000
+      )
+    }
+
+    if normalized.contains("cb") || normalized.contains("11m") {
+      return inferredInputProfile(
+        sampleFrequencyHz: 27_180_000,
+        preferredRangeHz: 26_965_000...27_405_000
+      )
+    }
+
+    if normalized.contains("10m") {
+      return inferredInputProfile(
+        sampleFrequencyHz: 28_400_000,
+        preferredRangeHz: 28_000_000...29_700_000
+      )
+    }
+
+    if normalized.contains("20m") {
+      return inferredInputProfile(
+        sampleFrequencyHz: 14_074_000,
+        preferredRangeHz: 14_000_000...14_350_000
+      )
+    }
+
+    if normalized.contains("fm") || normalized.contains("broadcast") {
+      return .init(
+        preferredRangeHz: 87_500_000...108_000_000,
+        primaryExample: "98.5",
+        alternateExample: "985",
+        placeholder: "98.5",
+        maxFractionDigits: 3
+      )
+    }
+
+    return nil
+  }
+
+  private func inferredWidebandRange(for frequencyHz: Int) -> ClosedRange<Int> {
+    switch frequencyHz {
+    case 144_000_000...148_000_000:
+      return 144_000_000...148_000_000
+    case 430_000_000...470_000_000:
+      return 430_000_000...470_000_000
+    case 1_240_000_000...1_300_000_000:
+      return 1_240_000_000...1_300_000_000
+    case 118_000_000...136_975_000:
+      return 118_000_000...136_975_000
+    case 64_000_000...110_000_000:
+      return 64_000_000...110_000_000
+    case 300_000...2_999_999:
+      return 300_000...2_999_999
+    case 3_000_000...32_000_000:
+      return 3_000_000...32_000_000
+    default:
+      return defaultFrequencyRangeHz
+    }
+  }
+
+  private func inferredInputProfile(
+    sampleFrequencyHz: Int,
+    preferredRangeHz: ClosedRange<Int>
+  ) -> FrequencyInputProfileSpec {
+    if sampleFrequencyHz < 1_000_000 {
+      let primaryExample = "\(Int((Double(sampleFrequencyHz) / 1_000.0).rounded()))"
+      return .init(
+        preferredRangeHz: preferredRangeHz,
+        primaryExample: primaryExample,
+        alternateExample: "\(sampleFrequencyHz)",
+        placeholder: primaryExample,
+        maxFractionDigits: 0
+      )
+    }
+
+    let maxFractionDigits = sampleFrequencyHz >= 100_000_000 ? 5 : 3
+    let primaryExample = dottedExampleText(fromHz: sampleFrequencyHz, maxFractionDigits: maxFractionDigits)
+    return .init(
+      preferredRangeHz: preferredRangeHz,
+      primaryExample: primaryExample,
+      alternateExample: compactExampleText(from: primaryExample),
+      placeholder: primaryExample,
+      maxFractionDigits: maxFractionDigits
+    )
+  }
+
+  private func vhfUhfInputProfile(
+    preferredRangeHz: ClosedRange<Int>,
+    exampleHz: Int
+  ) -> FrequencyInputProfileSpec {
+    let primaryExample = dottedExampleText(fromHz: exampleHz, maxFractionDigits: 5)
+    return .init(
+      preferredRangeHz: preferredRangeHz,
+      primaryExample: primaryExample,
+      alternateExample: compactExampleText(from: primaryExample),
+      placeholder: primaryExample,
+      maxFractionDigits: 5
+    )
+  }
+
+  private func dottedExampleText(fromHz value: Int, maxFractionDigits: Int) -> String {
+    if value < 1_000_000 {
+      return "\(Int((Double(value) / 1_000.0).rounded()))"
+    }
+
+    var raw = String(format: "%.\(maxFractionDigits)f", Double(value) / 1_000_000.0)
+    while raw.contains(".") && raw.last == "0" {
+      raw.removeLast()
+    }
+    if raw.last == "." {
+      raw.removeLast()
+    }
+
+    guard let separatorIndex = raw.firstIndex(of: ".") else {
+      return raw
+    }
+
+    let integerPart = String(raw[..<separatorIndex])
+    let fractionPart = String(raw[raw.index(after: separatorIndex)...])
+    guard fractionPart.count > 3 else { return raw }
+
+    let splitIndex = fractionPart.index(fractionPart.startIndex, offsetBy: 3)
+    let leading = String(fractionPart[..<splitIndex])
+    let trailing = String(fractionPart[splitIndex...])
+    guard !trailing.isEmpty else { return raw }
+    return "\(integerPart).\(leading).\(trailing)"
+  }
+
+  private func compactExampleText(from dottedExample: String) -> String {
+    dottedExample
+      .replacingOccurrences(of: ".", with: "")
+      .replacingOccurrences(of: ",", with: "")
+      .replacingOccurrences(of: " ", with: "")
+  }
+
+}
+
+private struct FrequencyInputProfileSpec {
+  let preferredRangeHz: ClosedRange<Int>
+  let primaryExample: String
+  let alternateExample: String?
+  let placeholder: String
+  let maxFractionDigits: Int
 }
 
 struct WaterfallStripView: View {

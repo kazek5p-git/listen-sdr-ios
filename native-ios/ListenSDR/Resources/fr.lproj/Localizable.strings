@@ -337,3 +337,17 @@
 "settings.diagnostics.section" = "Diagnostic";
 "settings.diagnostics.open" = "Ouvrir le diagnostic";
 "settings.diagnostics.entries" = "Entrees de log";
+"session.status.sync_tuning" = "Synchronisation de l'accord depuis le recepteur...";
+"frequency_input.dynamic_hint" = "Exemples : %@ ou %@";
+"frequency_input.dynamic_hint_single" = "Exemple : %@";
+"frequency_input.voiceover_button" = "Entrer la frequence exacte";
+"frequency_input.voiceover_hint" = "Ouvre un pave numerique simple pour une saisie de frequence sure avec VoiceOver.";
+"frequency_input.voiceover_sheet_title" = "Frequence exacte";
+"frequency_input.voiceover_current" = "Frequence saisie";
+"frequency_input.voiceover_backspace" = "Effacer";
+"frequency_input.voiceover_clear" = "Vider";
+"receiver.voiceover_rotor.label" = "Rotor VoiceOver";
+"receiver.voiceover_rotor.value" = "Frequence %@, pas d'accord %@";
+"receiver.voiceover_rotor.hint" = "Utilisez le rotor pour choisir Frequence ou Pas d'accord, puis balayez vers le haut ou le bas.";
+"receiver.voiceover_rotor.frequency" = "Frequence";
+"receiver.voiceover_rotor.tune_step" = "Pas d'accord";

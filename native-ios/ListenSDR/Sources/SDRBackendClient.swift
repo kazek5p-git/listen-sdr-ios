@@ -837,6 +837,7 @@ actor OpenWebRXClient: SDRBackendClient {
   private var bandPlanLoaded = false
   private var lastReportedFrequencyHz: Int?
   private var lastReportedMode: DemodulationMode?
+  private var hasReceivedInitialServerTuning = false
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -900,6 +901,7 @@ actor OpenWebRXClient: SDRBackendClient {
     dialBookmarks = []
     lastReportedFrequencyHz = nil
     lastReportedMode = nil
+    hasReceivedInitialServerTuning = false
     lastAppliedSettings = nil
 
     await MainActor.run {
@@ -1076,7 +1078,7 @@ actor OpenWebRXClient: SDRBackendClient {
         let centerChanged = centerFrequency != centerFrequencyHz
         centerFrequencyHz = centerFrequency
 
-        if centerChanged, let settings = lastAppliedSettings {
+        if centerChanged, hasReceivedInitialServerTuning, let settings = lastAppliedSettings {
           try? await sendJSON(
             [
               "type": "dspcontrol",
@@ -1176,11 +1178,25 @@ actor OpenWebRXClient: SDRBackendClient {
     if let intValue = value as? Int {
       return intValue
     }
+    if let doubleValue = value as? Double, doubleValue.isFinite {
+      return Int(doubleValue.rounded())
+    }
+    if let floatValue = value as? Float, floatValue.isFinite {
+      return Int(floatValue.rounded())
+    }
     if let number = value as? NSNumber {
       return number.intValue
     }
-    if let text = value as? String, let intValue = Int(text) {
-      return intValue
+    if let text = value as? String {
+      let normalized = text
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .replacingOccurrences(of: ",", with: ".")
+      if let intValue = Int(normalized) {
+        return intValue
+      }
+      if let doubleValue = Double(normalized), doubleValue.isFinite {
+        return Int(doubleValue.rounded())
+      }
     }
     return nil
   }
@@ -1196,8 +1212,18 @@ actor OpenWebRXClient: SDRBackendClient {
   }
 
   private func extractOpenWebRXTunedFrequency(from payload: [String: Any]) -> Int? {
-    if let startFrequency = extractInt(payload["start_freq"]), startFrequency > 0 {
-      return startFrequency
+    let directKeys = [
+      "start_freq",
+      "freq",
+      "frequency",
+      "rx_freq",
+      "tuned_freq",
+      "vfo_freq"
+    ]
+    for key in directKeys {
+      if let value = extractInt(payload[key]), value > 0 {
+        return value
+      }
     }
 
     let resolvedCenterFrequency: Int? = {
@@ -1210,13 +1236,23 @@ actor OpenWebRXClient: SDRBackendClient {
     if let center = resolvedCenterFrequency, let offset = extractInt(payload["offset_freq"]) {
       return center + offset
     }
+    if let center = resolvedCenterFrequency, let offset = extractInt(payload["offset_frequency"]) {
+      return center + offset
+    }
     if let center = resolvedCenterFrequency, let startOffset = extractInt(payload["start_offset_freq"]) {
       return center + startOffset
+    }
+    if let center = resolvedCenterFrequency, let startOffset = extractInt(payload["start_offset_frequency"]) {
+      return center + startOffset
+    }
+    if let center = resolvedCenterFrequency {
+      return center
     }
     return nil
   }
 
   private func emitOpenWebRXTuning(frequencyHz: Int, mode: DemodulationMode?) {
+    hasReceivedInitialServerTuning = true
     if frequencyHz == lastReportedFrequencyHz, mode == lastReportedMode {
       return
     }

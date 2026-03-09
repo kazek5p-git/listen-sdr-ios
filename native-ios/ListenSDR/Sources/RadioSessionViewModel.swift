@@ -115,6 +115,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var autoFilterStableSamples = 0
   private var autoFilterLastAppliedAt = Date.distantPast
   private var suppressAutoFilterUntil = Date.distantPast
+  private var hasInitialServerTuningSync = false
+  private var initialServerTuningSyncDeadline = Date.distantPast
 
   init() {
     settings = loadPersistedSettings()
@@ -132,6 +134,10 @@ final class RadioSessionViewModel: ObservableObject {
 
   var fmdxSupportsAM: Bool {
     fmdxCapabilities.supportsAM
+  }
+
+  var isAwaitingInitialServerTuningSync: Bool {
+    isWaitingForInitialServerTuningSync()
   }
 
   func connect(to profile: SDRConnectionProfile) {
@@ -182,9 +188,13 @@ final class RadioSessionViewModel: ObservableObject {
           self.client = newClient
           self.connectedProfileID = profile.id
           self.activeBackend = profile.backend
+          self.hasInitialServerTuningSync = false
+          self.initialServerTuningSyncDeadline = Date().addingTimeInterval(4.0)
           self.state = .connected
           self.statusText = L10n.text("session.status.connected_to", profile.name)
-          self.backendStatusText = nil
+          self.backendStatusText = (profile.backend == .openWebRX || profile.backend == .kiwiSDR)
+            ? L10n.text("session.status.sync_tuning")
+            : nil
           self.lastError = nil
           self.startStatusMonitor(
             profileName: profile.name,
@@ -436,6 +446,11 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setFrequencyHz(_ value: Int) {
+    if isWaitingForInitialServerTuningSync() {
+      backendStatusText = L10n.text("session.status.sync_tuning")
+      return
+    }
+
     if activeBackend == .fmDxWebserver {
       let roundedToKHz = Int((Double(value) / 1_000.0).rounded()) * 1_000
       settings.frequencyHz = min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
@@ -765,6 +780,10 @@ final class RadioSessionViewModel: ObservableObject {
 
   private func applyIfConnected() {
     guard state == .connected, let client else { return }
+    if isWaitingForInitialServerTuningSync() {
+      backendStatusText = L10n.text("session.status.sync_tuning")
+      return
+    }
     let snapshot = settings
 
     Task {
@@ -1347,6 +1366,7 @@ final class RadioSessionViewModel: ObservableObject {
       }
 
     case .openWebRXTuning(let frequencyHz, let mode):
+      hasInitialServerTuningSync = true
       var changed = false
       let clamped = min(max(frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
@@ -1363,6 +1383,7 @@ final class RadioSessionViewModel: ObservableObject {
       backendStatusText = openWebRXStatusSummary(frequencyHz: clamped, mode: mode)
 
     case .kiwiTuning(let frequencyHz, let mode, let bandName):
+      hasInitialServerTuningSync = true
       var changed = false
       let clamped = min(max(frequencyHz, kiwiFrequencyRangeHz.lowerBound), kiwiFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
@@ -1584,5 +1605,20 @@ final class RadioSessionViewModel: ObservableObject {
     autoFilterPendingProfile = nil
     autoFilterStableSamples = 0
     suppressAutoFilterUntil = Date.distantPast
+    hasInitialServerTuningSync = false
+    initialServerTuningSyncDeadline = Date.distantPast
+  }
+
+  private func canPushLocalTuningToServerYet() -> Bool {
+    if hasInitialServerTuningSync {
+      return true
+    }
+    return Date() >= initialServerTuningSyncDeadline
+  }
+
+  private func isWaitingForInitialServerTuningSync() -> Bool {
+    guard state == .connected else { return false }
+    guard activeBackend == .openWebRX || activeBackend == .kiwiSDR else { return false }
+    return !canPushLocalTuningToServerYet()
   }
 }

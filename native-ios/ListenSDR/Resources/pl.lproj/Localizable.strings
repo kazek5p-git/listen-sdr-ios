@@ -344,3 +344,17 @@
 "settings.diagnostics.section" = "Diagnostyka";
 "settings.diagnostics.open" = "Otworz diagnostyke";
 "settings.diagnostics.entries" = "Wpisy logu";
+"session.status.sync_tuning" = "Synchronizacja strojenia z odbiornika...";
+"frequency_input.dynamic_hint" = "Przyklady: %@ lub %@";
+"frequency_input.dynamic_hint_single" = "Przyklad: %@";
+"frequency_input.voiceover_button" = "Wpisz dokladna czestotliwosc";
+"frequency_input.voiceover_hint" = "Otwiera prosty panel numeryczny do bezpiecznego wpisywania czestotliwosci w VoiceOver.";
+"frequency_input.voiceover_sheet_title" = "Dokladna czestotliwosc";
+"frequency_input.voiceover_current" = "Wpisana czestotliwosc";
+"frequency_input.voiceover_backspace" = "Cofnij";
+"frequency_input.voiceover_clear" = "Wyczysc";
+"receiver.voiceover_rotor.label" = "Pokretlo VoiceOver";
+"receiver.voiceover_rotor.value" = "Czestotliwosc %@, krok strojenia %@";
+"receiver.voiceover_rotor.hint" = "Uzyj pokretla, aby wybrac Czestotliwosc lub Krok strojenia, a potem przesun w gore albo w dol.";
+"receiver.voiceover_rotor.frequency" = "Czestotliwosc";
+"receiver.voiceover_rotor.tune_step" = "Krok strojenia";

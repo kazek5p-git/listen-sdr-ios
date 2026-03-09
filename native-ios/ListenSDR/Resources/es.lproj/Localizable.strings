@@ -337,3 +337,17 @@
 "settings.diagnostics.section" = "Diagnostico";
 "settings.diagnostics.open" = "Abrir diagnostico";
 "settings.diagnostics.entries" = "Entradas de log";
+"session.status.sync_tuning" = "Sincronizando la sintonia desde el receptor...";
+"frequency_input.dynamic_hint" = "Ejemplos: %@ o %@";
+"frequency_input.dynamic_hint_single" = "Ejemplo: %@";
+"frequency_input.voiceover_button" = "Introducir frecuencia exacta";
+"frequency_input.voiceover_hint" = "Abre un teclado numerico sencillo para introducir la frecuencia de forma segura con VoiceOver.";
+"frequency_input.voiceover_sheet_title" = "Frecuencia exacta";
+"frequency_input.voiceover_current" = "Frecuencia introducida";
+"frequency_input.voiceover_backspace" = "Borrar";
+"frequency_input.voiceover_clear" = "Limpiar";
+"receiver.voiceover_rotor.label" = "Rotor de VoiceOver";
+"receiver.voiceover_rotor.value" = "Frecuencia %@, paso de sintonia %@";
+"receiver.voiceover_rotor.hint" = "Usa el rotor para elegir Frecuencia o Paso de sintonia y luego desliza hacia arriba o hacia abajo.";
+"receiver.voiceover_rotor.frequency" = "Frecuencia";
+"receiver.voiceover_rotor.tune_step" = "Paso de sintonia";

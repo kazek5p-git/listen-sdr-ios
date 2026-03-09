@@ -337,3 +337,17 @@
 "settings.diagnostics.section" = "Diagnose";
 "settings.diagnostics.open" = "Diagnose offnen";
 "settings.diagnostics.entries" = "Log-Eintrage";
+"session.status.sync_tuning" = "Abstimmung wird vom Empfaenger synchronisiert...";
+"frequency_input.dynamic_hint" = "Beispiele: %@ oder %@";
+"frequency_input.dynamic_hint_single" = "Beispiel: %@";
+"frequency_input.voiceover_button" = "Exakte Frequenz eingeben";
+"frequency_input.voiceover_hint" = "Offnet ein einfaches Zahlenfeld fur eine VoiceOver-sichere Frequenzeingabe.";
+"frequency_input.voiceover_sheet_title" = "Exakte Frequenz";
+"frequency_input.voiceover_current" = "Eingegebene Frequenz";
+"frequency_input.voiceover_backspace" = "Loschen";
+"frequency_input.voiceover_clear" = "Leeren";
+"receiver.voiceover_rotor.label" = "VoiceOver-Rotor";
+"receiver.voiceover_rotor.value" = "Frequenz %@, Abstimmraster %@";
+"receiver.voiceover_rotor.hint" = "Wahle im Rotor Frequenz oder Abstimmraster und streiche dann nach oben oder unten.";
+"receiver.voiceover_rotor.frequency" = "Frequenz";
+"receiver.voiceover_rotor.tune_step" = "Abstimmraster";

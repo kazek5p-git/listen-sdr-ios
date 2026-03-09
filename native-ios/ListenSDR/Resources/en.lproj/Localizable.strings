@@ -192,3 +192,17 @@
 "settings.diagnostics.section" = "Diagnostics";
 "settings.diagnostics.open" = "Open diagnostics";
 "settings.diagnostics.entries" = "Log entries";
+"session.status.sync_tuning" = "Synchronizing tuning from the receiver...";
+"frequency_input.dynamic_hint" = "Examples: %@ or %@";
+"frequency_input.dynamic_hint_single" = "Example: %@";
+"frequency_input.voiceover_button" = "Enter exact frequency";
+"frequency_input.voiceover_hint" = "Opens a simple numeric pad for VoiceOver-safe frequency entry.";
+"frequency_input.voiceover_sheet_title" = "Exact frequency";
+"frequency_input.voiceover_current" = "Entered frequency";
+"frequency_input.voiceover_backspace" = "Backspace";
+"frequency_input.voiceover_clear" = "Clear";
+"receiver.voiceover_rotor.label" = "VoiceOver rotor";
+"receiver.voiceover_rotor.value" = "Frequency %@, tune step %@";
+"receiver.voiceover_rotor.hint" = "Use the rotor to choose Frequency or Tune step, then swipe up or down.";
+"receiver.voiceover_rotor.frequency" = "Frequency";
+"receiver.voiceover_rotor.tune_step" = "Tune step";
