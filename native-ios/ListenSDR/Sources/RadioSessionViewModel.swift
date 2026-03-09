@@ -91,9 +91,6 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
   private let fmDxMaxFrequencyHz = 110_000_000
-  private let fmDxFMTuneStepOptionsHz = [50_000, 100_000, 200_000]
-  private let fmDxAMTuneStepOptionsHz = [9_000, 10_000]
-  private let fmDxDefaultTuneStepHz = 100_000
   private let kiwiDefaultFrequencyHz = 7_050_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let openWebRXFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
@@ -1149,13 +1146,17 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
-  private func fmDxTuneStepOptions(for mode: DemodulationMode) -> [Int] {
-    mode == .am ? fmDxAMTuneStepOptionsHz : fmDxFMTuneStepOptionsHz
-  }
-
   private func normalizeFMDXTuneStepHz(_ value: Int, mode: DemodulationMode) -> Int {
-    let options = fmDxTuneStepOptions(for: mode)
-    return options.min(by: { abs($0 - value) < abs($1 - value) }) ?? fmDxDefaultTuneStepHz
+    let profile = BandTuningProfiles.resolve(
+      for: BandTuningContext(
+        backend: .fmDxWebserver,
+        frequencyHz: settings.frequencyHz,
+        mode: mode,
+        bandName: nil,
+        bandTags: []
+      )
+    )
+    return profile.stepOptionsHz.min(by: { abs($0 - value) < abs($1 - value) }) ?? profile.defaultStepHz
   }
 
   private func normalizeFMDXFrequencyHz(fromMHz value: Double) -> Int {
@@ -1354,14 +1355,16 @@ final class RadioSessionViewModel: ObservableObject {
           }
         }
 
-        var latestTelemetryEvent: BackendTelemetryEvent?
+        var telemetryEvents: [BackendTelemetryEvent] = []
         while let telemetryEvent = await client.consumeTelemetryUpdate() {
-          latestTelemetryEvent = telemetryEvent
+          telemetryEvents.append(telemetryEvent)
         }
-        if let latestTelemetryEvent {
+        if !telemetryEvents.isEmpty {
           await MainActor.run {
             guard self.connectedProfileID == profileID else { return }
-            self.apply(telemetryEvent: latestTelemetryEvent)
+            for telemetryEvent in telemetryEvents {
+              self.apply(telemetryEvent: telemetryEvent)
+            }
           }
         }
       }

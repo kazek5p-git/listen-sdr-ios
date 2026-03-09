@@ -901,6 +901,7 @@ actor OpenWebRXClient: SDRBackendClient {
     selectedProfileID = nil
     serverBookmarks = []
     dialBookmarks = []
+    bandPlanLoaded = false
     officialBandPlan = []
     serverBandPlan = []
     lastReportedFrequencyHz = nil

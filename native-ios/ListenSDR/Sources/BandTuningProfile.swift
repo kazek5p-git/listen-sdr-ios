@@ -18,22 +18,61 @@ enum BandTuningProfiles {
   static func resolve(for context: BandTuningContext) -> BandTuningProfile {
     switch context.backend {
     case .fmDxWebserver:
-      if context.mode == .am {
-        return BandTuningProfile(
-          id: "fmdx-am",
-          stepOptionsHz: [9_000, 10_000],
-          defaultStepHz: 9_000
-        )
-      }
-      return BandTuningProfile(
-        id: "fmdx-fm",
-        stepOptionsHz: [50_000, 100_000, 200_000],
-        defaultStepHz: 100_000
-      )
+      return resolveFMDXProfile(for: context)
 
     case .openWebRX, .kiwiSDR:
       return resolveWidebandProfile(for: context)
     }
+  }
+
+  private static func resolveFMDXProfile(for context: BandTuningContext) -> BandTuningProfile {
+    let frequencyHz = context.frequencyHz
+
+    if frequencyHz < 520_000 {
+      return BandTuningProfile(
+        id: "fmdx-lw",
+        stepOptionsHz: [9_000],
+        defaultStepHz: 9_000
+      )
+    }
+
+    if frequencyHz < 1_710_000 {
+      return BandTuningProfile(
+        id: "fmdx-mw",
+        stepOptionsHz: [9_000, 10_000],
+        defaultStepHz: 9_000
+      )
+    }
+
+    if frequencyHz < 29_600_000 {
+      return BandTuningProfile(
+        id: "fmdx-sw",
+        stepOptionsHz: [5_000, 10_000],
+        defaultStepHz: 5_000
+      )
+    }
+
+    if (65_900_000..<74_000_000).contains(frequencyHz) {
+      return BandTuningProfile(
+        id: "fmdx-oirt-fm",
+        stepOptionsHz: [10_000, 30_000, 50_000, 100_000],
+        defaultStepHz: 30_000
+      )
+    }
+
+    if context.mode == .am {
+      return BandTuningProfile(
+        id: "fmdx-am-wide",
+        stepOptionsHz: [9_000, 10_000],
+        defaultStepHz: 9_000
+      )
+    }
+
+    return BandTuningProfile(
+      id: "fmdx-fm",
+      stepOptionsHz: [50_000, 100_000, 200_000],
+      defaultStepHz: 100_000
+    )
   }
 
   private static func resolveWidebandProfile(for context: BandTuningContext) -> BandTuningProfile {
@@ -41,6 +80,14 @@ enum BandTuningProfiles {
     let tags = Set(context.bandTags.map { $0.lowercased() })
     let frequencyHz = context.frequencyHz
     let fineTuningMode = isFineTuningMode(context.mode)
+
+    if isOIRTFMBand(name: normalizedBandName, frequencyHz: frequencyHz) {
+      return BandTuningProfile(
+        id: "fm-broadcast-oirt",
+        stepOptionsHz: [10_000, 30_000, 50_000, 100_000],
+        defaultStepHz: 30_000
+      )
+    }
 
     if isFMBroadcastBand(name: normalizedBandName, tags: tags, frequencyHz: frequencyHz) {
       return BandTuningProfile(
@@ -61,7 +108,7 @@ enum BandTuningProfiles {
     if isMarineBand(name: normalizedBandName) {
       return BandTuningProfile(
         id: "marine",
-        stepOptionsHz: [25_000],
+        stepOptionsHz: [12_500, 25_000],
         defaultStepHz: 25_000
       )
     }
@@ -108,7 +155,7 @@ enum BandTuningProfiles {
       }
       return BandTuningProfile(
         id: "ham-vhf-uhf-channel",
-        stepOptionsHz: [5_000, 6_250, 10_000, 12_500, 25_000],
+        stepOptionsHz: [6_250, 10_000, 12_500, 25_000],
         defaultStepHz: 12_500
       )
     }
@@ -153,7 +200,7 @@ enum BandTuningProfiles {
 
     return BandTuningProfile(
       id: "wideband-channel",
-      stepOptionsHz: [5_000, 10_000, 12_500, 25_000],
+      stepOptionsHz: [6_250, 8_330, 10_000, 12_500, 25_000],
       defaultStepHz: 12_500
     )
   }
@@ -183,6 +230,13 @@ enum BandTuningProfiles {
     return name.contains("fmbroadcast")
       || name == "fm"
       || name.contains("broadcastfm")
+  }
+
+  private static func isOIRTFMBand(name: String, frequencyHz: Int) -> Bool {
+    if name.contains("oirt") {
+      return true
+    }
+    return (65_900_000..<74_000_000).contains(frequencyHz)
   }
 
   private static func isAirband(name: String, frequencyHz: Int) -> Bool {
