@@ -2,7 +2,6 @@ import SwiftUI
 import UIKit
 
 private enum ScanSource: String, CaseIterable, Identifiable {
-  case favorites
   case serverBookmarks
   case quickList
 
@@ -10,8 +9,6 @@ private enum ScanSource: String, CaseIterable, Identifiable {
 
   var displayName: String {
     switch self {
-    case .favorites:
-      return L10n.text("scan_source.favorites")
     case .serverBookmarks:
       return L10n.text("scan_source.server_list")
     case .quickList:
@@ -23,34 +20,22 @@ private enum ScanSource: String, CaseIterable, Identifiable {
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
-  @EnvironmentObject private var presetStore: FrequencyPresetStore
-  @State private var isSavePresetSheetPresented = false
-  @State private var isManualPresetSheetPresented = false
   @State private var isFrequencyEntrySheetPresented = false
-  @State private var presetNameDraft = ""
-  @State private var manualPresetNameDraft = ""
-  @State private var manualPresetFrequencyDraft = ""
-  @State private var manualPresetModeDraft: DemodulationMode = .fm
-  @State private var manualPresetError: String?
   @State private var frequencyEntryInitialValue = ""
   @State private var frequencyInputHintText = ""
   @State private var frequencyInputPlaceholderText = ""
-  @State private var fmdxPresetImportStatusText: String?
-  @State private var autoImportedFMDXProfileIDs: Set<UUID> = []
-  @State private var scanSource: ScanSource = .favorites
+  @State private var scanSource: ScanSource = .serverBookmarks
   @State private var quickScanChannels: [ScanChannel] = []
   @State private var scannerDwellSeconds: Double = 1.5
   @State private var scannerHoldSeconds: Double = 4.0
   @State private var isFMDXDetailsExpanded = false
   @State private var isFMDXStationListExpanded = true
-  @State private var isFMDXServerSlotsExpanded = false
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
   private let fmDxFMTuneStepOptionsHz: [Int] = [25_000, 50_000, 100_000, 200_000]
   private let fmDxAMTuneStepOptionsHz: [Int] = [9_000, 10_000, 25_000, 50_000]
-  private let fmDxScannerAutoStepHz = 100_000
 
   var body: some View {
     NavigationStack {
@@ -66,12 +51,6 @@ struct ReceiverView: View {
         }
       }
       .navigationTitle("Receiver")
-      .sheet(isPresented: $isSavePresetSheetPresented) {
-        savePresetSheet
-      }
-      .sheet(isPresented: $isManualPresetSheetPresented) {
-        manualPresetSheet
-      }
       .sheet(isPresented: $isFrequencyEntrySheetPresented) {
         frequencyEntrySheet
       }
@@ -80,8 +59,7 @@ struct ReceiverView: View {
   }
 
   private func receiverForm(for profile: SDRConnectionProfile) -> some View {
-    let presets = visiblePresets(for: profile)
-    let scannerChannels = scanChannels(for: profile, presets: presets)
+    let scannerChannels = scanChannels(for: profile)
     let tuningRange = frequencyRange(for: profile.backend)
 
     return Form {
@@ -93,7 +71,6 @@ struct ReceiverView: View {
       kiwiControlsSection(for: profile)
       fmDxControlsSection(for: profile)
       fmDxServerPresetsSection(for: profile)
-      fmDxUserPresetsSection(for: profile, presets: presets)
       if profile.backend != .fmDxWebserver {
         scannerSection(for: profile, scannerChannels: scannerChannels)
       }
@@ -300,11 +277,6 @@ struct ReceiverView: View {
                   .foregroundStyle(.secondary)
               }
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-              Button("Save") {
-                saveBookmarkAsPreset(bookmark, profile: profile)
-              }
-            }
           }
         }
       }
@@ -399,7 +371,6 @@ struct ReceiverView: View {
   private func fmDxServerPresetsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
       let stationList = radioSession.fmdxServerPresets.filter { $0.source != "fmdx-static" }
-      let serverSlots = radioSession.fmdxServerPresets.filter { $0.source == "fmdx-static" }
 
       Section {
         Button {
@@ -416,23 +387,6 @@ struct ReceiverView: View {
             systemImage: isFMDXStationListExpanded ? "chevron.up" : "chevron.down"
           )
         }
-
-        if !serverSlots.isEmpty {
-          Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-              isFMDXServerSlotsExpanded.toggle()
-            }
-          } label: {
-            Label(
-              L10n.text(
-                isFMDXServerSlotsExpanded
-                  ? "fmdx.server_slots.collapse"
-                  : "fmdx.server_slots.expand"
-              ),
-              systemImage: isFMDXServerSlotsExpanded ? "chevron.up" : "chevron.down"
-            )
-          }
-        }
       }
       .appSectionStyle()
 
@@ -444,17 +398,8 @@ struct ReceiverView: View {
               .font(.footnote)
           } else {
             ForEach(stationList) { preset in
-              fmdxServerBookmarkRow(preset: preset, profile: profile)
+              fmdxServerBookmarkRow(preset: preset)
             }
-          }
-        }
-        .appSectionStyle()
-      }
-
-      if !serverSlots.isEmpty && isFMDXServerSlotsExpanded {
-        Section(L10n.text("fmdx.server_slots.section")) {
-          ForEach(serverSlots) { preset in
-            fmdxServerBookmarkRow(preset: preset, profile: profile)
           }
         }
         .appSectionStyle()
@@ -462,10 +407,7 @@ struct ReceiverView: View {
     }
   }
 
-  private func fmdxServerBookmarkRow(
-    preset: SDRServerBookmark,
-    profile: SDRConnectionProfile
-  ) -> some View {
+  private func fmdxServerBookmarkRow(preset: SDRServerBookmark) -> some View {
     Button {
       radioSession.setFrequencyHz(preset.frequencyHz)
     } label: {
@@ -474,73 +416,6 @@ struct ReceiverView: View {
         Spacer()
         Text(FrequencyFormatter.fmDxMHzText(fromHz: preset.frequencyHz))
           .foregroundStyle(.secondary)
-      }
-    }
-    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      Button(L10n.text("fmdx.af.favorite")) {
-        saveAFAsPreset(preset.frequencyHz, profile: profile)
-      }
-    }
-  }
-
-  @ViewBuilder
-  private func fmDxUserPresetsSection(for profile: SDRConnectionProfile, presets: [FrequencyPreset]) -> some View {
-    if profile.backend == .fmDxWebserver {
-      Section(L10n.text("fmdx.user_presets.section")) {
-        Button {
-          beginSavingCurrentFrequency()
-        } label: {
-          Label(L10n.text("fmdx.user_presets.add_current"), systemImage: "plus.circle")
-        }
-
-        Button {
-          beginManualPresetEntry(for: profile)
-        } label: {
-          Label(L10n.text("fmdx.user_presets.add_manual"), systemImage: "square.and.pencil")
-        }
-
-        Button {
-          importFMDXPluginPresets(from: profile)
-        } label: {
-          Label(L10n.text("fmdx.user_presets.import_server"), systemImage: "arrow.down.circle")
-        }
-
-        if let statusText = fmdxPresetImportStatusText, !statusText.isEmpty {
-          Text(statusText)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-
-        if presets.isEmpty {
-          Text(L10n.text("fmdx.user_presets.empty"))
-            .foregroundStyle(.secondary)
-            .font(.footnote)
-        } else {
-          ForEach(presets) { preset in
-            Button {
-              apply(preset: preset)
-            } label: {
-              VStack(alignment: .leading, spacing: 4) {
-                Text(preset.name)
-                Text("\(frequencyText(fromHz: preset.frequencyHz, backend: profile.backend)) - \(preset.mode.displayName)")
-                  .font(.footnote)
-                  .foregroundStyle(.secondary)
-              }
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              Button("Delete", role: .destructive) {
-                presetStore.removePreset(preset)
-              }
-            }
-          }
-        }
-      }
-      .appSectionStyle()
-      .onAppear {
-        autoImportFMDXPluginPresetsIfNeeded(for: profile)
-      }
-      .onChange(of: radioSession.fmdxServerPresets) { _ in
-        autoImportFMDXPluginPresetsIfNeeded(for: profile)
       }
     }
   }
@@ -858,11 +733,6 @@ struct ReceiverView: View {
 
               Spacer()
 
-              Button(L10n.text("fmdx.af.favorite")) {
-                saveAFAsPreset(afHz, profile: profile)
-              }
-              .buttonStyle(.borderless)
-
               Button(L10n.text("fmdx.af.scan")) {
                 addQuickScanChannel(frequencyHz: afHz)
               }
@@ -985,44 +855,6 @@ struct ReceiverView: View {
       }
       .appSectionStyle()
     }
-  }
-
-  private func favoritesSection(presets: [FrequencyPreset]) -> some View {
-    Section("Favorites") {
-      Button {
-        beginSavingCurrentFrequency()
-      } label: {
-        Label("Save current frequency", systemImage: "star")
-      }
-      .accessibilityHint(L10n.text("Saves current frequency and mode as a favorite"))
-
-      if presets.isEmpty {
-        Text("No favorites yet. Save one to recall frequency and mode quickly.")
-          .foregroundStyle(.secondary)
-      } else {
-        ForEach(presets) { preset in
-          Button {
-            apply(preset: preset)
-          } label: {
-            VStack(alignment: .leading, spacing: 4) {
-              Text(preset.name)
-              Text("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)) - \(preset.mode.displayName)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
-          }
-          .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button("Delete", role: .destructive) {
-              presetStore.removePreset(preset)
-            }
-          }
-          .accessibilityLabel(preset.name)
-          .accessibilityValue("\(FrequencyFormatter.mhzText(fromHz: preset.frequencyHz)), \(preset.mode.displayName)")
-          .accessibilityHint(L10n.text("Double tap to apply this favorite"))
-        }
-      }
-    }
-    .appSectionStyle()
   }
 
   private func audioSection() -> some View {
@@ -1236,84 +1068,6 @@ struct ReceiverView: View {
     }
   }
 
-  private var savePresetSheet: some View {
-    NavigationStack {
-      Form {
-        TextField("Preset name", text: $presetNameDraft)
-          .textInputAutocapitalization(.words)
-          .autocorrectionDisabled()
-          .accessibilityLabel(L10n.text("Preset name"))
-
-        LabeledContent(
-          "Frequency",
-          value: frequencyText(fromHz: radioSession.settings.frequencyHz, backend: profileStore.selectedProfile?.backend)
-        )
-        LabeledContent("Mode", value: radioSession.settings.mode.displayName)
-      }
-      .scrollContentBackground(.hidden)
-      .navigationTitle("Save Favorite")
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
-            isSavePresetSheetPresented = false
-          }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Save") {
-            saveCurrentFrequencyAsPreset()
-          }
-        }
-      }
-      .appScreenBackground()
-    }
-  }
-
-  private var manualPresetSheet: some View {
-    NavigationStack {
-      Form {
-        TextField("Preset name", text: $manualPresetNameDraft)
-          .textInputAutocapitalization(.words)
-          .autocorrectionDisabled()
-          .accessibilityLabel(L10n.text("Preset name"))
-
-        TextField(L10n.text("fmdx.user_presets.manual_frequency"), text: $manualPresetFrequencyDraft)
-          .keyboardType(.decimalPad)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .accessibilityLabel(L10n.text("fmdx.user_presets.manual_frequency"))
-
-        Picker(L10n.text("fmdx.user_presets.manual_mode"), selection: $manualPresetModeDraft) {
-          ForEach(availableModes(for: .fmDxWebserver)) { mode in
-            Text(mode.displayName).tag(mode)
-          }
-        }
-        .accessibilityLabel(L10n.text("fmdx.user_presets.manual_mode"))
-
-        if let manualPresetError {
-          Text(manualPresetError)
-            .foregroundStyle(.red)
-            .font(.footnote)
-        }
-      }
-      .scrollContentBackground(.hidden)
-      .navigationTitle(L10n.text("fmdx.user_presets.manual_sheet_title"))
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
-            manualPresetError = nil
-            isManualPresetSheetPresented = false
-          }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Save") {
-            saveManualPreset()
-          }
-        }
-      }
-      .appScreenBackground()
-    }
-  }
-
   private var frequencyEntrySheet: some View {
     FrequencyEntrySheetView(
       placeholder: frequencyInputPlaceholderText,
@@ -1326,164 +1080,6 @@ struct ReceiverView: View {
         isFrequencyEntrySheetPresented = false
       }
     )
-    .appScreenBackground()
-  }
-
-  private func beginSavingCurrentFrequency() {
-    presetNameDraft = presetStore.defaultName(
-      for: radioSession.settings.frequencyHz,
-      mode: radioSession.settings.mode
-    )
-    isSavePresetSheetPresented = true
-  }
-
-  private func beginManualPresetEntry(for profile: SDRConnectionProfile) {
-    manualPresetNameDraft = ""
-    manualPresetFrequencyDraft = FrequencyFormatter.fmDxEntryText(fromHz: radioSession.settings.frequencyHz)
-    manualPresetModeDraft = availableModes(for: profile.backend).contains(radioSession.settings.mode)
-      ? radioSession.settings.mode
-      : .fm
-    manualPresetError = nil
-    isManualPresetSheetPresented = true
-  }
-
-  private func saveCurrentFrequencyAsPreset() {
-    guard let profile = profileStore.selectedProfile else {
-      isSavePresetSheetPresented = false
-      return
-    }
-
-    presetStore.addPreset(
-      name: presetNameDraft,
-      frequencyHz: radioSession.settings.frequencyHz,
-      mode: radioSession.settings.mode,
-      profileID: profile.id,
-      profileName: profile.name
-    )
-    isSavePresetSheetPresented = false
-  }
-
-  private func saveManualPreset() {
-    guard let profile = profileStore.selectedProfile else {
-      isManualPresetSheetPresented = false
-      return
-    }
-
-    let parserContext: FrequencyInputParser.Context = {
-      switch profile.backend {
-      case .fmDxWebserver:
-        return .fmBroadcast
-      case .kiwiSDR:
-        return .shortwave
-      case .openWebRX:
-        return .generic
-      }
-    }()
-
-    guard let frequencyHz = FrequencyInputParser.parseHz(from: manualPresetFrequencyDraft, context: parserContext) else {
-      manualPresetError = profile.backend == .fmDxWebserver
-        ? L10n.text("frequency_input.invalid_fm")
-        : L10n.text("frequency_input.invalid_generic")
-      return
-    }
-
-    let allowedRange = frequencyRange(for: profile.backend)
-    guard allowedRange.contains(frequencyHz) else {
-      manualPresetError = profile.backend == .fmDxWebserver
-        ? L10n.text("frequency_input.fmdx_range")
-        : L10n.text("frequency_input.invalid_generic")
-      return
-    }
-
-    let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: profile.backend)
-    let allowedModes = availableModes(for: profile.backend)
-    let resolvedMode = allowedModes.contains(manualPresetModeDraft)
-      ? manualPresetModeDraft
-      : (allowedModes.first ?? .fm)
-
-    presetStore.addPreset(
-      name: manualPresetNameDraft,
-      frequencyHz: normalizedFrequencyHz,
-      mode: resolvedMode,
-      profileID: profile.id,
-      profileName: profile.name
-    )
-
-    manualPresetError = nil
-    isManualPresetSheetPresented = false
-  }
-
-  private func importFMDXPluginPresets(from profile: SDRConnectionProfile, automatic: Bool = false) {
-    guard profile.backend == .fmDxWebserver else { return }
-    if !automatic {
-      fmdxPresetImportStatusText = nil
-    }
-
-    let stationList = radioSession.fmdxServerPresets.filter { $0.source != "fmdx-static" }
-    guard !stationList.isEmpty else {
-      if !automatic {
-        fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_none")
-      }
-      return
-    }
-
-    var existingKeys = Set(
-      visiblePresets(for: profile).map { "\($0.frequencyHz)|\($0.mode.rawValue)" }
-    )
-    var addedCount = 0
-
-    for station in stationList {
-      let mode = station.modulation ?? .fm
-      let key = "\(station.frequencyHz)|\(mode.rawValue)"
-      guard existingKeys.contains(key) == false else { continue }
-
-      presetStore.addPreset(
-        name: station.name,
-        frequencyHz: station.frequencyHz,
-        mode: mode,
-        profileID: profile.id,
-        profileName: profile.name
-      )
-      existingKeys.insert(key)
-      addedCount += 1
-    }
-
-    if automatic {
-      if addedCount > 0 {
-        fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_count", addedCount)
-      }
-    } else {
-      if addedCount == 0 {
-        fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_already")
-      } else {
-        fmdxPresetImportStatusText = L10n.text("fmdx.user_presets.imported_count", addedCount)
-      }
-    }
-  }
-
-  private func autoImportFMDXPluginPresetsIfNeeded(for profile: SDRConnectionProfile) {
-    guard profile.backend == .fmDxWebserver else { return }
-    guard autoImportedFMDXProfileIDs.contains(profile.id) == false else { return }
-    let stationList = radioSession.fmdxServerPresets.filter { $0.source != "fmdx-static" }
-    guard !stationList.isEmpty else { return }
-    autoImportedFMDXProfileIDs.insert(profile.id)
-    importFMDXPluginPresets(from: profile, automatic: true)
-  }
-
-  private func saveBookmarkAsPreset(_ bookmark: SDRServerBookmark, profile: SDRConnectionProfile) {
-    presetStore.addPreset(
-      name: bookmark.name,
-      frequencyHz: bookmark.frequencyHz,
-      mode: bookmark.modulation ?? radioSession.settings.mode,
-      profileID: profile.id,
-      profileName: profile.name
-    )
-  }
-
-  private func apply(preset: FrequencyPreset) {
-    radioSession.setMode(preset.mode)
-    let normalizedFrequencyHz = normalizeFrequencyHz(preset.frequencyHz, for: profileStore.selectedProfile?.backend)
-    radioSession.setFrequencyHz(normalizedFrequencyHz)
   }
 
   private func beginFrequencyEntry() {
@@ -1536,17 +1132,6 @@ struct ReceiverView: View {
       return min(max(rounded, fmDxFrequencyRangeHz.lowerBound), fmDxFrequencyRangeHz.upperBound)
     }
     return hz
-  }
-
-  private func saveAFAsPreset(_ frequencyHz: Int, profile: SDRConnectionProfile) {
-    let name = L10n.text("fmdx.af_preset_name", FrequencyFormatter.mhzText(fromHz: frequencyHz))
-    presetStore.addPreset(
-      name: name,
-      frequencyHz: frequencyHz,
-      mode: .fm,
-      profileID: profile.id,
-      profileName: profile.name
-    )
   }
 
   private func addQuickScanChannel(frequencyHz: Int) {
@@ -1644,25 +1229,9 @@ struct ReceiverView: View {
     return min(max(value, range.lowerBound), range.upperBound)
   }
 
-  private func visiblePresets(for profile: SDRConnectionProfile) -> [FrequencyPreset] {
-    presetStore.presets(for: profile.id)
-  }
-
-  private func scanChannels(
-    for profile: SDRConnectionProfile,
-    presets: [FrequencyPreset]
-  ) -> [ScanChannel] {
+  private func scanChannels(for profile: SDRConnectionProfile) -> [ScanChannel] {
     let channels: [ScanChannel]
     switch scanSource {
-    case .favorites:
-      channels = presets.map { preset in
-        ScanChannel(
-          id: "preset|\(preset.id.uuidString)",
-          name: preset.name,
-          frequencyHz: preset.frequencyHz,
-          mode: preset.mode
-        )
-      }
     case .serverBookmarks:
       channels = radioSession.serverBookmarks.map { bookmark in
         ScanChannel(
@@ -1680,12 +1249,7 @@ struct ReceiverView: View {
       return channels
     }
 
-    let normalized = normalizeFMDXScanChannels(channels)
-    if scanSource == .favorites, normalized.isEmpty {
-      // For FM-DX, make scanner usable immediately even with empty favorites.
-      return defaultFMDXScanChannels()
-    }
-    return normalized
+    return normalizeFMDXScanChannels(channels)
   }
 
   private func normalizeFMDXScanChannels(_ channels: [ScanChannel]) -> [ScanChannel] {
@@ -1714,24 +1278,6 @@ struct ReceiverView: View {
     return normalized.sorted { $0.frequencyHz < $1.frequencyHz }
   }
 
-  private func defaultFMDXScanChannels() -> [ScanChannel] {
-    var generated: [ScanChannel] = []
-    var frequencyHz = fmDxFrequencyRangeHz.lowerBound
-
-    while frequencyHz <= fmDxFrequencyRangeHz.upperBound {
-      generated.append(
-        ScanChannel(
-          id: "fmdx-auto|\(frequencyHz)",
-          name: FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz),
-          frequencyHz: frequencyHz,
-          mode: .fm
-        )
-      )
-      frequencyHz += fmDxScannerAutoStepHz
-    }
-
-    return generated
-  }
 }
 
 private struct FrequencyEntrySheetView: View {
@@ -1742,7 +1288,6 @@ private struct FrequencyEntrySheetView: View {
 
   @State private var draft: String
   @State private var errorText: String?
-  @FocusState private var isInputFocused: Bool
 
   init(
     placeholder: String,
@@ -1760,12 +1305,12 @@ private struct FrequencyEntrySheetView: View {
 
   var body: some View {
     NavigationStack {
-      Form {
+      VStack(alignment: .leading, spacing: 12) {
         TextField(placeholder, text: $draft)
           .keyboardType(.decimalPad)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
-          .focused($isInputFocused)
+          .textFieldStyle(.roundedBorder)
           .accessibilityLabel(L10n.text("Frequency input"))
           .accessibilityHint(hint)
 
@@ -1780,9 +1325,12 @@ private struct FrequencyEntrySheetView: View {
             .accessibilityLabel(L10n.text("Frequency input error"))
             .accessibilityValue(errorText)
         }
+
+        Spacer(minLength: 0)
       }
-      .scrollContentBackground(.hidden)
+      .padding()
       .navigationTitle("Set Frequency")
+      .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") {
@@ -1793,11 +1341,6 @@ private struct FrequencyEntrySheetView: View {
           Button("Apply") {
             submit()
           }
-        }
-      }
-      .onAppear {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-          isInputFocused = true
         }
       }
     }
