@@ -27,8 +27,6 @@ struct ReceiverView: View {
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var quickScanChannels: [ScanChannel] = []
-  @State private var scannerDwellSeconds: Double = 1.5
-  @State private var scannerHoldSeconds: Double = 4.0
   @State private var isFMDXDetailsExpanded = false
   @State private var isFMDXStationListExpanded = true
 
@@ -393,7 +391,7 @@ struct ReceiverView: View {
         .disabled(radioSession.state != .connected)
 
         Toggle(
-          "cEQ Filter",
+          L10n.text("fmdx.eq_filter"),
           isOn: Binding(
             get: { radioSession.settings.noiseReductionEnabled },
             set: { radioSession.setNoiseReductionEnabled($0) }
@@ -402,7 +400,7 @@ struct ReceiverView: View {
         .disabled(radioSession.state != .connected)
 
         Toggle(
-          "iMS+ Filter",
+          L10n.text("fmdx.ims_filter"),
           isOn: Binding(
             get: { radioSession.settings.imsEnabled },
             set: { radioSession.setIMSEnabled($0) }
@@ -728,13 +726,27 @@ struct ReceiverView: View {
       )
 
       VStack(alignment: .leading, spacing: 6) {
-        LabeledContent("Dwell", value: "\(String(format: "%.1f", scannerDwellSeconds)) s")
-        Slider(value: $scannerDwellSeconds, in: 0.5...6, step: 0.1)
+        LabeledContent("Dwell", value: "\(String(format: "%.1f", radioSession.settings.scannerDwellSeconds)) s")
+        Slider(
+          value: Binding(
+            get: { radioSession.settings.scannerDwellSeconds },
+            set: { radioSession.setScannerDwellSeconds($0) }
+          ),
+          in: 0.5...6,
+          step: 0.1
+        )
       }
 
       VStack(alignment: .leading, spacing: 6) {
-        LabeledContent("Hold on hit", value: "\(String(format: "%.1f", scannerHoldSeconds)) s")
-        Slider(value: $scannerHoldSeconds, in: 0.5...12, step: 0.1)
+        LabeledContent("Hold on hit", value: "\(String(format: "%.1f", radioSession.settings.scannerHoldSeconds)) s")
+        Slider(
+          value: Binding(
+            get: { radioSession.settings.scannerHoldSeconds },
+            set: { radioSession.setScannerHoldSeconds($0) }
+          ),
+          in: 0.5...12,
+          step: 0.1
+        )
       }
 
       if radioSession.isScannerRunning {
@@ -747,8 +759,8 @@ struct ReceiverView: View {
           radioSession.startScanner(
             channels: scannerChannels,
             backend: profile.backend,
-            dwellSeconds: scannerDwellSeconds,
-            holdSeconds: scannerHoldSeconds
+            dwellSeconds: radioSession.settings.scannerDwellSeconds,
+            holdSeconds: radioSession.settings.scannerHoldSeconds
           )
         }
         .buttonStyle(.borderedProminent)
@@ -766,6 +778,14 @@ struct ReceiverView: View {
           .font(.footnote)
           .foregroundStyle(.secondary)
       }
+
+      LabeledContent(
+        L10n.text("settings.dx.adaptive_scan"),
+        value: radioSession.settings.adaptiveScannerEnabled
+          ? L10n.text("scanner.mode.adaptive")
+          : L10n.text("scanner.mode.fixed")
+      )
+      .font(.footnote)
     }
     .appSectionStyle()
   }

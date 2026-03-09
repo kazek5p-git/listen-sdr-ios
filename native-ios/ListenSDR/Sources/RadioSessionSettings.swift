@@ -18,6 +18,11 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiWaterfallMinDB: Int
   var kiwiWaterfallMaxDB: Int
   var showRdsErrorCounters: Bool
+  var dxNightModeEnabled: Bool
+  var autoFilterProfileEnabled: Bool
+  var adaptiveScannerEnabled: Bool
+  var scannerDwellSeconds: Double
+  var scannerHoldSeconds: Double
 
   static let supportedTuneStepsHz: [Int] = [
     10, 50, 100, 500, 1_000, 5_000, 9_000, 10_000, 12_500, 25_000,
@@ -41,7 +46,12 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallZoom: 0,
     kiwiWaterfallMinDB: -145,
     kiwiWaterfallMaxDB: -20,
-    showRdsErrorCounters: false
+    showRdsErrorCounters: false,
+    dxNightModeEnabled: false,
+    autoFilterProfileEnabled: false,
+    adaptiveScannerEnabled: false,
+    scannerDwellSeconds: 1.5,
+    scannerHoldSeconds: 4.0
   )
 
   private enum CodingKeys: String, CodingKey {
@@ -62,6 +72,11 @@ struct RadioSessionSettings: Codable, Equatable {
     case kiwiWaterfallMinDB
     case kiwiWaterfallMaxDB
     case showRdsErrorCounters
+    case dxNightModeEnabled
+    case autoFilterProfileEnabled
+    case adaptiveScannerEnabled
+    case scannerDwellSeconds
+    case scannerHoldSeconds
   }
 
   init(
@@ -81,7 +96,12 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallZoom: Int,
     kiwiWaterfallMinDB: Int,
     kiwiWaterfallMaxDB: Int,
-    showRdsErrorCounters: Bool
+    showRdsErrorCounters: Bool,
+    dxNightModeEnabled: Bool,
+    autoFilterProfileEnabled: Bool,
+    adaptiveScannerEnabled: Bool,
+    scannerDwellSeconds: Double,
+    scannerHoldSeconds: Double
   ) {
     self.frequencyHz = frequencyHz
     self.tuneStepHz = Self.normalizedTuneStep(tuneStepHz)
@@ -103,6 +123,11 @@ struct RadioSessionSettings: Codable, Equatable {
       self.kiwiWaterfallMaxDB = min(0, self.kiwiWaterfallMinDB + 10)
     }
     self.showRdsErrorCounters = showRdsErrorCounters
+    self.dxNightModeEnabled = dxNightModeEnabled
+    self.autoFilterProfileEnabled = autoFilterProfileEnabled
+    self.adaptiveScannerEnabled = adaptiveScannerEnabled
+    self.scannerDwellSeconds = Self.clampedScannerDwellSeconds(scannerDwellSeconds)
+    self.scannerHoldSeconds = Self.clampedScannerHoldSeconds(scannerHoldSeconds)
   }
 
   init(from decoder: Decoder) throws {
@@ -146,6 +171,17 @@ struct RadioSessionSettings: Codable, Equatable {
     }
 
     showRdsErrorCounters = try container.decodeIfPresent(Bool.self, forKey: .showRdsErrorCounters) ?? Self.default.showRdsErrorCounters
+    dxNightModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxNightModeEnabled) ?? Self.default.dxNightModeEnabled
+    autoFilterProfileEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoFilterProfileEnabled) ?? Self.default.autoFilterProfileEnabled
+    adaptiveScannerEnabled = try container.decodeIfPresent(Bool.self, forKey: .adaptiveScannerEnabled) ?? Self.default.adaptiveScannerEnabled
+
+    let rawScannerDwellSeconds = try container.decodeIfPresent(Double.self, forKey: .scannerDwellSeconds)
+      ?? Self.default.scannerDwellSeconds
+    scannerDwellSeconds = Self.clampedScannerDwellSeconds(rawScannerDwellSeconds)
+
+    let rawScannerHoldSeconds = try container.decodeIfPresent(Double.self, forKey: .scannerHoldSeconds)
+      ?? Self.default.scannerHoldSeconds
+    scannerHoldSeconds = Self.clampedScannerHoldSeconds(rawScannerHoldSeconds)
   }
 
   static func normalizedTuneStep(_ value: Int) -> Int {
@@ -181,5 +217,13 @@ struct RadioSessionSettings: Codable, Equatable {
 
   static func clampedKiwiWaterfallMaxDB(_ value: Int) -> Int {
     min(max(value, -120), 30)
+  }
+
+  static func clampedScannerDwellSeconds(_ value: Double) -> Double {
+    min(max(value, 0.5), 6.0)
+  }
+
+  static func clampedScannerHoldSeconds(_ value: Double) -> Double {
+    min(max(value, 0.5), 12.0)
   }
 }

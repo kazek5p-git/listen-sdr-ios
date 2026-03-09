@@ -313,3 +313,27 @@
 "fmdx.user_presets.imported_already" = "Tutte le stazioni importate sono gia salvate.";
 "fmdx.user_presets.imported_count" = "Importate %d stazioni.";
 "fmdx.user_presets.import_error" = "Import elenco stazioni non riuscito: %@";
+
+"Settings" = "Impostazioni";
+"fmdx.eq_filter" = "EQ filter";
+"fmdx.ims_filter" = "iMS+ Filter";
+"scanner.mode.adaptive" = "Adattivo";
+"scanner.mode.fixed" = "Fisso";
+"settings.session.section" = "Snapshot sessione";
+"settings.session.save_snapshot" = "Salva impostazioni correnti";
+"settings.session.restore_snapshot" = "Ripristina impostazioni salvate";
+"settings.session.no_snapshot" = "Nessuno snapshot salvato.";
+"settings.session.has_snapshot" = "Snapshot salvato disponibile.";
+"settings.dx.section" = "Opzioni DX";
+"settings.dx.night_mode" = "Modalita notte DX";
+"settings.dx.night_mode.hint" = "Applica un profilo DX piu aggressivo con audio piu basso e minore uso CPU.";
+"settings.dx.auto_filter" = "Profilo filtro automatico (segnale/SNR)";
+"settings.dx.auto_filter.hint" = "Cambia automaticamente il profilo filtro FM-DX in base alla qualita del segnale.";
+"settings.dx.adaptive_scan" = "Scanner DX adattivo";
+"settings.dx.adaptive_scan.hint" = "Adatta automaticamente i tempi di scansione e mantenimento alla qualita del segnale.";
+"settings.scanner.section" = "Predefiniti scanner";
+"settings.scanner.dwell" = "Dwell";
+"settings.scanner.hold" = "Mantieni su rilevamento";
+"settings.diagnostics.section" = "Diagnostica";
+"settings.diagnostics.open" = "Apri diagnostica";
+"settings.diagnostics.entries" = "Voci log";

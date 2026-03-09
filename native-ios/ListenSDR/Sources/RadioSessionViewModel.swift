@@ -85,6 +85,7 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var isScannerRunning = false
   @Published private(set) var scannerStatusText: String?
   @Published var scannerThreshold: Double = -95
+  @Published private(set) var hasSavedSettingsSnapshot = false
 
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
@@ -106,10 +107,23 @@ final class RadioSessionViewModel: ObservableObject {
   private var hasFMDXCapabilitySnapshot = false
   private var activeBackend: SDRBackend?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
+  private let nightModeSnapshotKey = "ListenSDR.nightModeSnapshot.v1"
+  private let manualSettingsSnapshotKey = "ListenSDR.manualSettingsSnapshot.v1"
+  private var nightModeSnapshot: RadioSessionSettings?
+  private var manualSettingsSnapshot: RadioSessionSettings?
+  private var autoFilterPendingProfile: FMDXFilterProfile?
+  private var autoFilterStableSamples = 0
+  private var autoFilterLastAppliedAt = Date.distantPast
+  private var suppressAutoFilterUntil = Date.distantPast
 
   init() {
     settings = loadPersistedSettings()
     settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.tuneStepHz)
+    settings.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(settings.scannerDwellSeconds)
+    settings.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(settings.scannerHoldSeconds)
+    nightModeSnapshot = loadPersistedSnapshot(forKey: nightModeSnapshotKey)
+    manualSettingsSnapshot = loadPersistedSnapshot(forKey: manualSettingsSnapshotKey)
+    hasSavedSettingsSnapshot = manualSettingsSnapshot != nil
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
@@ -313,8 +327,8 @@ final class RadioSessionViewModel: ObservableObject {
   func startScanner(
     channels: [ScanChannel],
     backend: SDRBackend,
-    dwellSeconds: Double = 1.5,
-    holdSeconds: Double = 4.0
+    dwellSeconds: Double? = nil,
+    holdSeconds: Double? = nil
   ) {
     guard state == .connected, !channels.isEmpty else { return }
 
@@ -328,8 +342,8 @@ final class RadioSessionViewModel: ObservableObject {
 
     scannerTask = Task {
       var index = 0
-      let dwellNanos = UInt64(max(0.4, dwellSeconds) * 1_000_000_000)
-      let holdNanos = UInt64(max(0.5, holdSeconds) * 1_000_000_000)
+      let baseDwellSeconds = max(0.4, dwellSeconds ?? settings.scannerDwellSeconds)
+      let baseHoldSeconds = max(0.5, holdSeconds ?? settings.scannerHoldSeconds)
 
       while !Task.isCancelled {
         let channel = channels[index]
@@ -345,6 +359,18 @@ final class RadioSessionViewModel: ObservableObject {
             FrequencyFormatter.mhzText(fromHz: channel.frequencyHz)
           )
         }
+
+        let threshold = await MainActor.run { self.scannerThreshold }
+        let preTuneSignal = await MainActor.run { self.currentScannerSignal(for: backend) }
+        let adaptiveScanner = await MainActor.run { self.settings.adaptiveScannerEnabled }
+        let dwellNanos = UInt64(
+          adaptiveDwellSeconds(
+            baseDwellSeconds,
+            adaptive: adaptiveScanner,
+            signal: preTuneSignal,
+            threshold: threshold
+          ) * 1_000_000_000
+        )
 
         try? await Task.sleep(nanoseconds: dwellNanos)
         if Task.isCancelled { break }
@@ -364,7 +390,6 @@ final class RadioSessionViewModel: ObservableObject {
           }
         }
 
-        let threshold = await MainActor.run { self.scannerThreshold }
         let signal = await MainActor.run { self.currentScannerSignal(for: backend) }
         if let signal, signal >= threshold {
           await MainActor.run {
@@ -378,6 +403,14 @@ final class RadioSessionViewModel: ObservableObject {
           Diagnostics.log(
             category: "Scanner",
             message: "Signal found on \(channel.name) at \(signal) \(self.scannerSignalUnit(for: backend))"
+          )
+          let holdNanos = UInt64(
+            adaptiveHoldSeconds(
+              baseHoldSeconds,
+              adaptive: adaptiveScanner,
+              signal: signal,
+              threshold: threshold
+            ) * 1_000_000_000
           )
           try? await Task.sleep(nanoseconds: holdNanos)
           if Task.isCancelled { break }
@@ -492,6 +525,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setNoiseReductionEnabled(_ enabled: Bool) {
     settings.noiseReductionEnabled = enabled
+    markAutoFilterManuallyOverridden()
     persistSettings()
     if activeBackend == .fmDxWebserver {
       sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
@@ -502,6 +536,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setIMSEnabled(_ enabled: Bool) {
     settings.imsEnabled = enabled
+    markAutoFilterManuallyOverridden()
     persistSettings()
     if activeBackend == .fmDxWebserver {
       sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
@@ -553,12 +588,20 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func applyFMDXFilterProfile(_ profile: FMDXFilterProfile) {
+    markAutoFilterManuallyOverridden()
+    applyFMDXFilterProfile(profile, isAutomatic: false)
+  }
+
+  private func applyFMDXFilterProfile(_ profile: FMDXFilterProfile, isAutomatic: Bool) {
     guard activeBackend == .fmDxWebserver else { return }
 
     settings.noiseReductionEnabled = profile.eqEnabled
     settings.imsEnabled = profile.imsEnabled
     persistSettings()
     sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+    if isAutomatic {
+      autoFilterLastAppliedAt = Date()
+    }
 
     guard let preferredBandwidthKHz = profile.preferredBandwidthKHz,
       let option = preferredFMDXBandwidthOption(near: preferredBandwidthKHz)
@@ -632,6 +675,71 @@ final class RadioSessionViewModel: ObservableObject {
   func setShowRdsErrorCounters(_ enabled: Bool) {
     settings.showRdsErrorCounters = enabled
     persistSettings()
+  }
+
+  func setAutoFilterProfileEnabled(_ enabled: Bool) {
+    settings.autoFilterProfileEnabled = enabled
+    persistSettings()
+    autoFilterPendingProfile = nil
+    autoFilterStableSamples = 0
+    suppressAutoFilterUntil = Date()
+  }
+
+  func setAdaptiveScannerEnabled(_ enabled: Bool) {
+    settings.adaptiveScannerEnabled = enabled
+    persistSettings()
+  }
+
+  func setScannerDwellSeconds(_ value: Double) {
+    settings.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(value)
+    persistSettings()
+  }
+
+  func setScannerHoldSeconds(_ value: Double) {
+    settings.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(value)
+    persistSettings()
+  }
+
+  func saveCurrentSettingsSnapshot() {
+    var snapshot = settings
+    snapshot.dxNightModeEnabled = false
+    manualSettingsSnapshot = snapshot
+    hasSavedSettingsSnapshot = true
+    persistSnapshot(snapshot, forKey: manualSettingsSnapshotKey)
+    Diagnostics.log(category: "Session", message: "Settings snapshot saved")
+  }
+
+  func restoreSavedSettingsSnapshot() {
+    guard let snapshot = manualSettingsSnapshot else { return }
+    applySettingsSnapshot(snapshot, includeFrequency: true)
+    Diagnostics.log(category: "Session", message: "Settings snapshot restored")
+  }
+
+  func setDXNightModeEnabled(_ enabled: Bool) {
+    if enabled {
+      guard settings.dxNightModeEnabled == false else { return }
+      var snapshot = settings
+      snapshot.dxNightModeEnabled = false
+      nightModeSnapshot = snapshot
+      persistSnapshot(snapshot, forKey: nightModeSnapshotKey)
+      applyNightDXProfile()
+      settings.dxNightModeEnabled = true
+      persistSettings()
+      Diagnostics.log(category: "Session", message: "Night DX mode enabled")
+      return
+    }
+
+    guard settings.dxNightModeEnabled else { return }
+    settings.dxNightModeEnabled = false
+    if let snapshot = nightModeSnapshot {
+      applySettingsSnapshot(snapshot, includeFrequency: false)
+    } else {
+      persistSettings()
+      applyCurrentSettingsToConnectedBackend()
+    }
+    nightModeSnapshot = nil
+    clearPersistedSnapshot(forKey: nightModeSnapshotKey)
+    Diagnostics.log(category: "Session", message: "Night DX mode disabled")
   }
 
   func resetDSPSettings() {
@@ -827,8 +935,100 @@ final class RadioSessionViewModel: ObservableObject {
     UserDefaults.standard.set(encoded, forKey: settingsKey)
   }
 
+  private func loadPersistedSnapshot(forKey key: String) -> RadioSessionSettings? {
+    guard let raw = UserDefaults.standard.data(forKey: key),
+      let decoded = try? JSONDecoder().decode(RadioSessionSettings.self, from: raw) else {
+      return nil
+    }
+    return decoded
+  }
+
+  private func persistSnapshot(_ snapshot: RadioSessionSettings, forKey key: String) {
+    guard let encoded = try? JSONEncoder().encode(snapshot) else { return }
+    UserDefaults.standard.set(encoded, forKey: key)
+  }
+
+  private func clearPersistedSnapshot(forKey key: String) {
+    UserDefaults.standard.removeObject(forKey: key)
+  }
+
+  private func markAutoFilterManuallyOverridden() {
+    autoFilterPendingProfile = nil
+    autoFilterStableSamples = 0
+    suppressAutoFilterUntil = Date().addingTimeInterval(3.0)
+  }
+
+  private func applyNightDXProfile() {
+    settings.audioVolume = min(settings.audioVolume, 0.42)
+    settings.audioMuted = false
+    settings.agcEnabled = true
+    settings.noiseReductionEnabled = true
+    settings.imsEnabled = true
+    settings.showRdsErrorCounters = false
+    settings.autoFilterProfileEnabled = true
+    settings.adaptiveScannerEnabled = true
+    settings.scannerDwellSeconds = 1.1
+    settings.scannerHoldSeconds = 5.5
+    settings.kiwiWaterfallSpeed = 1
+    settings.kiwiWaterfallZoom = 0
+    if activeBackend == .fmDxWebserver {
+      settings.mode = .fm
+      settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: .fm)
+    }
+    persistSettings()
+    applyCurrentSettingsToConnectedBackend()
+  }
+
+  private func applySettingsSnapshot(_ snapshot: RadioSessionSettings, includeFrequency: Bool) {
+    let previousFrequency = settings.frequencyHz
+    var merged = snapshot
+    merged.dxNightModeEnabled = settings.dxNightModeEnabled
+    if !includeFrequency {
+      merged.frequencyHz = previousFrequency
+    }
+    merged.tuneStepHz = RadioSessionSettings.normalizedTuneStep(merged.tuneStepHz)
+    merged.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(merged.scannerDwellSeconds)
+    merged.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(merged.scannerHoldSeconds)
+    settings = merged
+    if let backend = activeBackend {
+      normalizeSettingsForBackendBeforeConnect(backend)
+    } else {
+      persistSettings()
+    }
+    applyCurrentSettingsToConnectedBackend()
+  }
+
+  private func applyCurrentSettingsToConnectedBackend() {
+    SharedAudioOutput.engine.setVolume(settings.audioVolume)
+    SharedAudioOutput.engine.setMuted(settings.audioMuted)
+    FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
+    FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
+
+    if activeBackend == .fmDxWebserver {
+      queueFMDXFrequencySend(settings.frequencyHz)
+      sendFMDXControl(.setFMDXAGC(settings.agcEnabled))
+      sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+      if let profile = currentFMDXFilterProfile() {
+        applyFMDXFilterProfile(profile, isAutomatic: true)
+      }
+      return
+    }
+    applyIfConnected()
+  }
+
   private func normalizeSettingsForBackendBeforeConnect(_ backend: SDRBackend) {
     var changed = false
+
+    let clampedDwell = RadioSessionSettings.clampedScannerDwellSeconds(settings.scannerDwellSeconds)
+    if settings.scannerDwellSeconds != clampedDwell {
+      settings.scannerDwellSeconds = clampedDwell
+      changed = true
+    }
+    let clampedHold = RadioSessionSettings.clampedScannerHoldSeconds(settings.scannerHoldSeconds)
+    if settings.scannerHoldSeconds != clampedHold {
+      settings.scannerHoldSeconds = clampedHold
+      changed = true
+    }
 
     switch backend {
     case .fmDxWebserver:
@@ -998,6 +1198,56 @@ final class RadioSessionViewModel: ObservableObject {
     return Double(token)
   }
 
+  private func parseFMDXToggleState(_ raw: String?) -> Bool? {
+    guard let raw else { return nil }
+    let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    if ["1", "on", "true", "enabled", "yes"].contains(normalized) {
+      return true
+    }
+    if ["0", "off", "false", "disabled", "no"].contains(normalized) {
+      return false
+    }
+    return nil
+  }
+
+  private func evaluateAutoFMDXFilterProfile(using telemetry: FMDXTelemetry) {
+    guard settings.autoFilterProfileEnabled else { return }
+    guard activeBackend == .fmDxWebserver else { return }
+    guard state == .connected else { return }
+    guard Date() >= suppressAutoFilterUntil else { return }
+    guard let signal = telemetry.signal else { return }
+
+    let candidate: FMDXFilterProfile
+    switch signal {
+    case ..<22:
+      candidate = .dx
+    case 22..<40:
+      candidate = .balanced
+    default:
+      candidate = .wide
+    }
+
+    if autoFilterPendingProfile == candidate {
+      autoFilterStableSamples += 1
+    } else {
+      autoFilterPendingProfile = candidate
+      autoFilterStableSamples = 1
+      return
+    }
+
+    guard autoFilterStableSamples >= 3 else { return }
+    guard Date().timeIntervalSince(autoFilterLastAppliedAt) >= 2.5 else { return }
+    if currentFMDXFilterProfile() == candidate {
+      return
+    }
+
+    applyFMDXFilterProfile(candidate, isAutomatic: true)
+    Diagnostics.log(
+      category: "FM-DX",
+      message: "Auto filter profile applied: \(candidate.rawValue) (signal \(String(format: "%.1f", signal)) dBf)"
+    )
+  }
+
   private func startStatusMonitor(
     profileName: String,
     profileID: UUID,
@@ -1146,11 +1396,22 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .fmdx(let telemetry):
       fmdxTelemetry = telemetry
+      var changedSettings = false
       if let antenna = telemetry.antenna, !antenna.isEmpty {
         selectedFMDXAntennaID = antenna
       }
       if let bandwidth = telemetry.bandwidth, !bandwidth.isEmpty {
         selectedFMDXBandwidthID = resolveFMDXBandwidthSelectionID(from: bandwidth)
+      }
+      if let eqEnabled = parseFMDXToggleState(telemetry.eq),
+        settings.noiseReductionEnabled != eqEnabled {
+        settings.noiseReductionEnabled = eqEnabled
+        changedSettings = true
+      }
+      if let imsEnabled = parseFMDXToggleState(telemetry.ims),
+        settings.imsEnabled != imsEnabled {
+        settings.imsEnabled = imsEnabled
+        changedSettings = true
       }
       if let frequencyMHz = telemetry.frequencyMHz {
         let backendFrequencyHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
@@ -1160,9 +1421,13 @@ final class RadioSessionViewModel: ObservableObject {
         }
         if abs(backendFrequencyHz - settings.frequencyHz) >= 1_000 {
           settings.frequencyHz = backendFrequencyHz
-          persistSettings()
+          changedSettings = true
         }
       }
+      if changedSettings {
+        persistSettings()
+      }
+      evaluateAutoFMDXFilterProfile(using: telemetry)
 
     case .kiwi(let telemetry):
       kiwiTelemetry = telemetry
@@ -1200,6 +1465,53 @@ final class RadioSessionViewModel: ObservableObject {
     case .openWebRX:
       return -95
     }
+  }
+
+  private func adaptiveDwellSeconds(
+    _ base: Double,
+    adaptive: Bool,
+    signal: Double?,
+    threshold: Double
+  ) -> Double {
+    guard adaptive else { return base }
+    guard let signal else { return max(0.5, base * 0.75) }
+
+    let margin = signal - threshold
+    if margin >= 10 {
+      return min(6.0, base * 1.45)
+    }
+    if margin >= 4 {
+      return min(6.0, base * 1.15)
+    }
+    if margin <= -8 {
+      return max(0.5, base * 0.58)
+    }
+    if margin <= -4 {
+      return max(0.5, base * 0.72)
+    }
+    return base
+  }
+
+  private func adaptiveHoldSeconds(
+    _ base: Double,
+    adaptive: Bool,
+    signal: Double?,
+    threshold: Double
+  ) -> Double {
+    guard adaptive else { return base }
+    guard let signal else { return max(0.5, base * 0.7) }
+
+    let margin = signal - threshold
+    if margin >= 12 {
+      return min(20.0, base * 2.6)
+    }
+    if margin >= 6 {
+      return min(16.0, base * 1.8)
+    }
+    if margin <= 2 {
+      return max(0.5, base * 0.78)
+    }
+    return base
   }
 
   private func openWebRXStatusSummary(frequencyHz: Int, mode: DemodulationMode?) -> String {
@@ -1269,5 +1581,8 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneDebounceTask?.cancel()
     fmDxTuneDebounceTask = nil
     clearFMDXTuneConfirmationState()
+    autoFilterPendingProfile = nil
+    autoFilterStableSamples = 0
+    suppressAutoFilterUntil = Date.distantPast
   }
 }

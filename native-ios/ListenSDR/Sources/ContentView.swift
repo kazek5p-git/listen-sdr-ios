@@ -13,9 +13,9 @@ struct ContentView: View {
           Label("Radios", systemImage: "dot.radiowaves.left.and.right")
         }
 
-      DiagnosticsView()
+      SettingsView()
         .tabItem {
-          Label("Diagnostics", systemImage: "waveform.path.ecg")
+          Label("Settings", systemImage: "gearshape")
         }
     }
     .tint(AppTheme.tint)

@@ -168,3 +168,27 @@
 "fmdx.user_presets.imported_already" = "All imported stations are already saved.";
 "fmdx.user_presets.imported_count" = "Imported %d stations.";
 "fmdx.user_presets.import_error" = "Station list import failed: %@";
+
+"Settings" = "Settings";
+"fmdx.eq_filter" = "EQ filter";
+"fmdx.ims_filter" = "iMS+ Filter";
+"scanner.mode.adaptive" = "Adaptive";
+"scanner.mode.fixed" = "Fixed";
+"settings.session.section" = "Session snapshot";
+"settings.session.save_snapshot" = "Save current settings";
+"settings.session.restore_snapshot" = "Restore saved settings";
+"settings.session.no_snapshot" = "No saved snapshot yet.";
+"settings.session.has_snapshot" = "Saved snapshot is available.";
+"settings.dx.section" = "DX options";
+"settings.dx.night_mode" = "Night DX mode";
+"settings.dx.night_mode.hint" = "Applies more aggressive DX profile with quieter audio and lower CPU load.";
+"settings.dx.auto_filter" = "Auto filter profile (signal/SNR)";
+"settings.dx.auto_filter.hint" = "Automatically switches FM-DX filter profile based on live signal quality.";
+"settings.dx.adaptive_scan" = "Adaptive DX scanner";
+"settings.dx.adaptive_scan.hint" = "Automatically adjusts scanner dwell and hold times based on signal quality.";
+"settings.scanner.section" = "Scanner defaults";
+"settings.scanner.dwell" = "Dwell";
+"settings.scanner.hold" = "Hold on hit";
+"settings.diagnostics.section" = "Diagnostics";
+"settings.diagnostics.open" = "Open diagnostics";
+"settings.diagnostics.entries" = "Log entries";
