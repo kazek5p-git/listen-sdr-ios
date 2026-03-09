@@ -20,10 +20,10 @@ private enum ScanSource: String, CaseIterable, Identifiable {
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
-  @State private var isFrequencyEntrySheetPresented = false
-  @State private var frequencyEntryInitialValue = ""
-  @State private var frequencyInputHintText = ""
-  @State private var frequencyInputPlaceholderText = ""
+  @State private var inlineFrequencyInput = ""
+  @State private var inlineFrequencyError: String?
+  @State private var inlineFrequencyEditing = false
+  @State private var inlineFrequencyApplyTask: Task<Void, Never>?
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var quickScanChannels: [ScanChannel] = []
   @State private var scannerDwellSeconds: Double = 1.5
@@ -51,9 +51,6 @@ struct ReceiverView: View {
         }
       }
       .navigationTitle("Receiver")
-      .sheet(isPresented: $isFrequencyEntrySheetPresented) {
-        frequencyEntrySheet
-      }
       .appScreenBackground()
     }
   }
@@ -79,6 +76,15 @@ struct ReceiverView: View {
       audioSection()
     }
     .scrollContentBackground(.hidden)
+    .onAppear {
+      syncInlineFrequencyInputFromSession(for: profile.backend, force: true)
+    }
+    .onChange(of: radioSession.settings.frequencyHz) { _ in
+      syncInlineFrequencyInputFromSession(for: profile.backend, force: false)
+    }
+    .onChange(of: profile.backend) { backend in
+      syncInlineFrequencyInputFromSession(for: backend, force: true)
+    }
   }
 
   private func connectionSection(for profile: SDRConnectionProfile) -> some View {
@@ -138,22 +144,46 @@ struct ReceiverView: View {
 
   private func tuningSection(for profile: SDRConnectionProfile, tuningRange: ClosedRange<Int>) -> some View {
     Section("Tuning") {
-      LabeledContent(
-        "Frequency",
-        value: frequencyText(
-          fromHz: radioSession.settings.frequencyHz,
-          backend: profile.backend
+      VStack(alignment: .leading, spacing: 6) {
+        TextField(
+          frequencyInputPlaceholder(for: profile.backend),
+          text: $inlineFrequencyInput,
+          onEditingChanged: { isEditing in
+            inlineFrequencyEditing = isEditing
+            if !isEditing {
+              _ = applyInlineFrequencyInput(profile.backend, commitFormatting: true)
+            }
+          }
         )
-      )
+        .keyboardType(.decimalPad)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .textFieldStyle(.roundedBorder)
+        .accessibilityLabel(L10n.text("Frequency input"))
+        .accessibilityHint(frequencyInputHint(for: profile.backend))
+        .submitLabel(.done)
+        .onSubmit {
+          _ = applyInlineFrequencyInput(profile.backend, commitFormatting: true)
+        }
+        .onChange(of: inlineFrequencyInput) { _ in
+          inlineFrequencyError = nil
+          scheduleInlineFrequencyApply(for: profile.backend)
+        }
+
+        Text(frequencyInputHint(for: profile.backend))
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+
+        if let inlineFrequencyError {
+          Text(inlineFrequencyError)
+            .foregroundStyle(.red)
+            .font(.footnote)
+            .accessibilityLabel(L10n.text("Frequency input error"))
+            .accessibilityValue(inlineFrequencyError)
+        }
+      }
 
       frequencySlider(for: profile.backend, tuningRange: tuningRange)
-
-      Button {
-        beginFrequencyEntry()
-      } label: {
-        Label("Set exact frequency", systemImage: "number")
-      }
-      .accessibilityHint(L10n.text("Enter frequency in hertz, kilohertz or megahertz"))
 
       tuneStepControl(for: profile.backend)
 
@@ -1068,61 +1098,103 @@ struct ReceiverView: View {
     }
   }
 
-  private var frequencyEntrySheet: some View {
-    FrequencyEntrySheetView(
-      placeholder: frequencyInputPlaceholderText,
-      hint: frequencyInputHintText,
-      initialValue: frequencyEntryInitialValue,
-      apply: { input in
-        validateAndApplyExactFrequencyInput(input)
-      },
-      cancel: {
-        isFrequencyEntrySheetPresented = false
-      }
-    )
-  }
-
-  private func beginFrequencyEntry() {
-    let backend = profileStore.selectedProfile?.backend
-    frequencyInputHintText = frequencyInputHint(for: backend)
-    frequencyInputPlaceholderText = frequencyInputPlaceholder(for: backend)
-
-    if backend == .fmDxWebserver {
-      frequencyEntryInitialValue = FrequencyFormatter.fmDxEntryText(fromHz: radioSession.settings.frequencyHz)
-    } else {
-      frequencyEntryInitialValue = FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
-        .replacingOccurrences(of: " MHz", with: "")
+  private func syncInlineFrequencyInputFromSession(for backend: SDRBackend, force: Bool) {
+    if !force && inlineFrequencyEditing {
+      return
     }
-    isFrequencyEntrySheetPresented = true
+    let formatted = inlineFrequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
+    if inlineFrequencyInput != formatted {
+      inlineFrequencyInput = formatted
+    }
+    if force {
+      inlineFrequencyError = nil
+    }
   }
 
-  private func validateAndApplyExactFrequencyInput(_ input: String) -> String? {
-    let parserContext: FrequencyInputParser.Context = {
-      switch profileStore.selectedProfile?.backend {
-      case .fmDxWebserver:
-        return .fmBroadcast
-      case .kiwiSDR:
-        return .shortwave
-      case .openWebRX, .none:
-        return .generic
-      }
-    }()
+  private func inlineFrequencyText(fromHz value: Int, backend: SDRBackend) -> String {
+    if backend == .fmDxWebserver {
+      return FrequencyFormatter.fmDxEntryText(fromHz: value)
+    }
+    return FrequencyFormatter.mhzText(fromHz: value)
+      .replacingOccurrences(of: " MHz", with: "")
+  }
 
-    guard let frequencyHz = FrequencyInputParser.parseHz(from: input, context: parserContext) else {
-      return profileStore.selectedProfile?.backend == .fmDxWebserver
+  private func scheduleInlineFrequencyApply(for backend: SDRBackend) {
+    guard inlineFrequencyEditing else { return }
+    inlineFrequencyApplyTask?.cancel()
+    inlineFrequencyApplyTask = Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 450_000_000)
+      if Task.isCancelled { return }
+      guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else { return }
+      _ = applyInlineFrequencyInput(backend, commitFormatting: true)
+    }
+  }
+
+  @discardableResult
+  private func applyInlineFrequencyInput(_ backend: SDRBackend, commitFormatting: Bool) -> Bool {
+    guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else {
+      return false
+    }
+
+    let parserContext = parserContext(for: backend)
+    guard let frequencyHz = FrequencyInputParser.parseHz(from: inlineFrequencyInput, context: parserContext) else {
+      inlineFrequencyError = backend == .fmDxWebserver
         ? L10n.text("frequency_input.invalid_fm")
         : L10n.text("frequency_input.invalid_generic")
+      return false
     }
 
-    if profileStore.selectedProfile?.backend == .fmDxWebserver &&
-      !fmDxFrequencyRangeHz.contains(frequencyHz) {
-      return L10n.text("frequency_input.fmdx_range")
+    let range = frequencyRange(for: backend)
+    guard range.contains(frequencyHz) else {
+      inlineFrequencyError = backend == .fmDxWebserver
+        ? L10n.text("frequency_input.fmdx_range")
+        : L10n.text("frequency_input.invalid_generic")
+      return false
     }
 
-    let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: profileStore.selectedProfile?.backend)
+    let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: backend)
     radioSession.setFrequencyHz(normalizedFrequencyHz)
-    isFrequencyEntrySheetPresented = false
-    return nil
+    inlineFrequencyError = nil
+
+    if commitFormatting {
+      inlineFrequencyInput = inlineFrequencyText(fromHz: normalizedFrequencyHz, backend: backend)
+      inlineFrequencyEditing = false
+    }
+
+    return true
+  }
+
+  private func parserContext(for backend: SDRBackend) -> FrequencyInputParser.Context {
+    switch backend {
+    case .fmDxWebserver:
+      return .fmBroadcast
+    case .kiwiSDR:
+      return .shortwave
+    case .openWebRX:
+      return .generic
+    }
+  }
+
+  private func shouldAttemptInlineFrequencyApply(_ input: String, backend: SDRBackend) -> Bool {
+    let normalized = input
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+      .replacingOccurrences(of: " ", with: "")
+
+    guard !normalized.isEmpty else { return false }
+    if normalized.hasSuffix(".") || normalized.hasSuffix(",") {
+      return false
+    }
+
+    if normalized.hasSuffix("mhz") || normalized.hasSuffix("khz") || normalized.hasSuffix("hz") {
+      return true
+    }
+
+    let digitCount = normalized.filter(\.isNumber).count
+    if backend == .fmDxWebserver {
+      return digitCount >= 3
+    }
+    return digitCount >= 2
   }
 
   private func frequencyHz(fromMHz value: Double) -> Int {
@@ -1278,81 +1350,6 @@ struct ReceiverView: View {
     return normalized.sorted { $0.frequencyHz < $1.frequencyHz }
   }
 
-}
-
-private struct FrequencyEntrySheetView: View {
-  let placeholder: String
-  let hint: String
-  let apply: (String) -> String?
-  let cancel: () -> Void
-
-  @State private var draft: String
-  @State private var errorText: String?
-
-  init(
-    placeholder: String,
-    hint: String,
-    initialValue: String,
-    apply: @escaping (String) -> String?,
-    cancel: @escaping () -> Void
-  ) {
-    self.placeholder = placeholder
-    self.hint = hint
-    self.apply = apply
-    self.cancel = cancel
-    _draft = State(initialValue: initialValue)
-  }
-
-  var body: some View {
-    NavigationStack {
-      VStack(alignment: .leading, spacing: 12) {
-        TextField(placeholder, text: $draft)
-          .keyboardType(.decimalPad)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .textFieldStyle(.roundedBorder)
-          .accessibilityLabel(L10n.text("Frequency input"))
-          .accessibilityHint(hint)
-
-        Text(hint)
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-
-        if let errorText {
-          Text(errorText)
-            .foregroundStyle(.red)
-            .font(.footnote)
-            .accessibilityLabel(L10n.text("Frequency input error"))
-            .accessibilityValue(errorText)
-        }
-
-        Spacer(minLength: 0)
-      }
-      .padding()
-      .navigationTitle("Set Frequency")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
-            cancel()
-          }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Apply") {
-            submit()
-          }
-        }
-      }
-    }
-  }
-
-  private func submit() {
-    if let message = apply(draft) {
-      errorText = message
-      return
-    }
-    errorText = nil
-  }
 }
 
 struct WaterfallStripView: View {
