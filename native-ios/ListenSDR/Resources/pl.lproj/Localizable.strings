@@ -184,12 +184,12 @@
 "receiver.tune_step.changed" = "Krok strojenia: %@";
 
 "frequency_input.invalid_fm" = "Nieprawidłowa częstotliwość FM. Spróbuj: 102.3, 1023 lub 102300.";
-"frequency_input.invalid_generic" = "Nieprawidłowa częstotliwość. Użyj np. 7.050 MHz, 7050 kHz lub 7050000.";
+"frequency_input.invalid_generic" = "Nieprawidłowa częstotliwość. Użyj np. 7.050 MHz lub 7050000.";
 "frequency_input.fmdx_range" = "FM-DX obsługuje zakres 64.000 do 110.000 MHz.";
-"frequency_input.hint_fmdx" = "Przykłady: 102.3 MHz, 1023 (czyli 102.3 MHz) albo 102300 kHz";
-"frequency_input.hint_generic" = "Przykłady: siedem przecinek zero pięć megaherca lub siedem tysięcy pięćdziesiąt kiloherców";
+"frequency_input.hint_fmdx" = "Przykłady: 102.3 MHz albo 1023 (czyli 102.3 MHz)";
+"frequency_input.hint_generic" = "Przykłady: 7.050 MHz lub 7050000 Hz";
 "frequency_input.placeholder_fmdx" = "102.3 MHz lub 1023";
-"frequency_input.placeholder_generic" = "7.050 MHz lub 7050 kHz";
+"frequency_input.placeholder_generic" = "7.050 MHz";
 
 "scan_source.favorites" = "Ulubione";
 "scan_source.server_list" = "Lista serwera";
@@ -295,7 +295,7 @@
 "fmdx.server_slots.collapse" = "Ukryj sloty serwera (F1-F4)";
 "fmdx.station_list.expand" = "Rozwin liste stacji";
 "fmdx.station_list.collapse" = "Zwin liste stacji";
-"fmdx.live.more_details" = "Wiecej szczegolow FM-DX";
+"fmdx.live.more_details" = "Więcej szczegółów RDS";
 "fmdx.user_presets.section" = "Moje presety";
 "fmdx.user_presets.add_current" = "Zapisz biezaca jako preset";
 "fmdx.user_presets.add_manual" = "Dodaj preset recznie";

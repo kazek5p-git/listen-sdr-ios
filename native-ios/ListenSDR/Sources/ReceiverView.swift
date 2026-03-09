@@ -20,6 +20,7 @@ private enum ScanSource: String, CaseIterable, Identifiable {
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @FocusState private var isInlineFrequencyFocused: Bool
   @State private var inlineFrequencyInput = ""
   @State private var inlineFrequencyError: String?
   @State private var inlineFrequencyEditing = false
@@ -150,8 +151,13 @@ struct ReceiverView: View {
           text: $inlineFrequencyInput,
           onEditingChanged: { isEditing in
             inlineFrequencyEditing = isEditing
+            if isEditing {
+              inlineFrequencyApplyTask?.cancel()
+              inlineFrequencyInput = ""
+              inlineFrequencyError = nil
+            }
             if !isEditing {
-              _ = applyInlineFrequencyInput(profile.backend, commitFormatting: true)
+              submitInlineFrequencyInput(for: profile.backend)
             }
           }
         )
@@ -159,11 +165,20 @@ struct ReceiverView: View {
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .textFieldStyle(.roundedBorder)
+        .focused($isInlineFrequencyFocused)
         .accessibilityLabel(L10n.text("Frequency input"))
         .accessibilityHint(frequencyInputHint(for: profile.backend))
         .submitLabel(.done)
         .onSubmit {
-          _ = applyInlineFrequencyInput(profile.backend, commitFormatting: true)
+          submitInlineFrequencyInput(for: profile.backend)
+        }
+        .toolbar {
+          ToolbarItemGroup(placement: .keyboard) {
+            Spacer()
+            Button(L10n.text("Apply")) {
+              submitInlineFrequencyInput(for: profile.backend)
+            }
+          }
         }
         .onChange(of: inlineFrequencyInput) { _ in
           inlineFrequencyError = nil
@@ -1130,8 +1145,14 @@ struct ReceiverView: View {
     }
   }
 
+  private func submitInlineFrequencyInput(for backend: SDRBackend) {
+    inlineFrequencyApplyTask?.cancel()
+    _ = applyInlineFrequencyInput(backend, commitFormatting: true, endEditing: true)
+    isInlineFrequencyFocused = false
+  }
+
   @discardableResult
-  private func applyInlineFrequencyInput(_ backend: SDRBackend, commitFormatting: Bool) -> Bool {
+  private func applyInlineFrequencyInput(_ backend: SDRBackend, commitFormatting: Bool, endEditing: Bool = false) -> Bool {
     guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else {
       return false
     }
@@ -1158,6 +1179,8 @@ struct ReceiverView: View {
 
     if commitFormatting {
       inlineFrequencyInput = inlineFrequencyText(fromHz: normalizedFrequencyHz, backend: backend)
+    }
+    if endEditing {
       inlineFrequencyEditing = false
     }
 

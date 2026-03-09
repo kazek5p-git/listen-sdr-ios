@@ -32,12 +32,12 @@
 "receiver.tune_step.changed" = "Tune step set to %@";
 
 "frequency_input.invalid_fm" = "Invalid FM frequency. Try 102.3, 1023 or 102300.";
-"frequency_input.invalid_generic" = "Invalid frequency. Use values like 7.050 MHz, 7050 kHz or 7050000.";
+"frequency_input.invalid_generic" = "Invalid frequency. Use values like 7.050 MHz or 7050000.";
 "frequency_input.fmdx_range" = "FM-DX supports 64.000 to 110.000 MHz.";
-"frequency_input.hint_fmdx" = "Examples: 102.3 MHz, 1023 (for 102.3 MHz), or 102300 kHz";
-"frequency_input.hint_generic" = "Examples: seven point zero five megahertz or seven thousand fifty kilohertz";
+"frequency_input.hint_fmdx" = "Examples: 102.3 MHz or 1023 (for 102.3 MHz)";
+"frequency_input.hint_generic" = "Examples: 7.050 MHz or 7050000 Hz";
 "frequency_input.placeholder_fmdx" = "102.3 MHz or 1023";
-"frequency_input.placeholder_generic" = "7.050 MHz or 7050 kHz";
+"frequency_input.placeholder_generic" = "7.050 MHz";
 
 "scan_source.favorites" = "Favorites";
 "scan_source.server_list" = "Server list";
