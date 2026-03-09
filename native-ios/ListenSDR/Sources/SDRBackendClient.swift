@@ -1928,9 +1928,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     nextStationListRefreshAt = nextStationListRefreshDate(after: Date(), stationList: stationList)
 
     let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
-    if !capabilities.antennas.isEmpty || !capabilities.bandwidths.isEmpty {
-      enqueueTelemetry(.fmdxCapabilities(capabilities))
-    }
+    enqueueTelemetry(.fmdxCapabilities(capabilities))
   }
 
   func disconnect() async {
@@ -2483,7 +2481,8 @@ actor FMDXWebserverClient: SDRBackendClient {
   ) -> FMDXCapabilities {
     let antennas = parseAntennaOptions(from: staticData)
     let bandwidths = parseBandwidthOptions(from: indexHTML)
-    return FMDXCapabilities(antennas: antennas, bandwidths: bandwidths)
+    let supportsAM = parseAMSupport(staticData: staticData, indexHTML: indexHTML)
+    return FMDXCapabilities(antennas: antennas, bandwidths: bandwidths, supportsAM: supportsAM)
   }
 
   private func parseAntennaOptions(from staticData: [String: Any]?) -> [FMDXControlOption] {
@@ -2563,6 +2562,126 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     return options
+  }
+
+  private func parseAMSupport(staticData: [String: Any]?, indexHTML: String?) -> Bool {
+    if let staticData {
+      // Explicit capability flags (if provided by server/custom builds).
+      let explicitTrueKeys = [
+        "supportsAM",
+        "supportAM",
+        "amEnabled",
+        "enableAM",
+        "allowAM",
+        "mwEnabled",
+        "lwEnabled",
+        "swEnabled"
+      ]
+
+      for key in explicitTrueKeys {
+        if let value = staticData[key], parseBool(value) == true {
+          return true
+        }
+      }
+
+      // Some FM-DX instances expose server-side station presets in static_data.
+      // Any preset below FM broadcast range strongly indicates AM/LW/MW/SW support.
+      if let presets = staticData["presets"] as? [Any] {
+        for item in presets {
+          guard let dictionary = item as? [String: Any] else { continue }
+          if let lowBandFrequency = parsePresetFrequencyHz(from: dictionary), lowBandFrequency < 64_000_000 {
+            return true
+          }
+        }
+      }
+
+      let descriptionFields = [
+        parseString(staticData["tunerDesc"]),
+        parseString(staticData["tunerName"])
+      ]
+      .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
+
+      for field in descriptionFields {
+        if indicatesFMOnlyRange(field) {
+          return false
+        }
+        if containsAMHint(field) {
+          return true
+        }
+      }
+    }
+
+    if let indexHTML, !indexHTML.isEmpty {
+      if indicatesFMOnlyRange(indexHTML) {
+        return false
+      }
+      if containsAMHint(indexHTML) {
+        return true
+      }
+    }
+
+    // FM-only is the safest fallback when server does not advertise AM capabilities.
+    return false
+  }
+
+  private func parsePresetFrequencyHz(from preset: [String: Any]) -> Int? {
+    let candidateKeys = ["frequencyHz", "frequency", "freq", "f"]
+    for key in candidateKeys {
+      guard let raw = preset[key] else { continue }
+      if let value = parseDouble(raw), value.isFinite, value > 0 {
+        // Frequency values below 1_000 are usually MHz, below 1_000_000 often kHz.
+        if value < 1_000 {
+          return Int((value * 1_000_000.0).rounded())
+        }
+        if value < 1_000_000 {
+          return Int((value * 1_000.0).rounded())
+        }
+        return Int(value.rounded())
+      }
+    }
+    return nil
+  }
+
+  private func containsAMHint(_ text: String) -> Bool {
+    let lowered = text.lowercased()
+    let tokens = [" am ", " am/", "/am", " lw ", " mw ", " sw ", "shortwave", "medium wave", "long wave"]
+    if tokens.contains(where: { lowered.contains($0) }) {
+      return true
+    }
+
+    // Handle boundary cases (e.g. beginning/end of string).
+    if lowered.hasPrefix("am ") || lowered.hasSuffix(" am") {
+      return true
+    }
+    if lowered.contains("(am)") || lowered.contains("[am]") {
+      return true
+    }
+
+    return false
+  }
+
+  private func indicatesFMOnlyRange(_ text: String) -> Bool {
+    // Matches limits/ranges such as "64-108 MHz" or "65.0 to 108.0 MHz".
+    guard let regex = try? NSRegularExpression(
+      pattern: #"(?i)(?:limit|range|zakres)?[^0-9]{0,20}([0-9]{2,3}(?:[.,][0-9]+)?)\s*(?:mhz|m)?\s*(?:-|to|do)\s*([0-9]{2,3}(?:[.,][0-9]+)?)\s*(?:mhz|m)"#,
+      options: []
+    ) else {
+      return false
+    }
+
+    let nsText = text as NSString
+    let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsText.length))
+    for match in matches {
+      guard match.numberOfRanges >= 3 else { continue }
+      let lowerRaw = nsText.substring(with: match.range(at: 1)).replacingOccurrences(of: ",", with: ".")
+      let upperRaw = nsText.substring(with: match.range(at: 2)).replacingOccurrences(of: ",", with: ".")
+      guard let lower = Double(lowerRaw), let upper = Double(upperRaw) else { continue }
+      if lower >= 60, lower <= 76, upper >= 87, upper <= 120 {
+        return true
+      }
+    }
+    return false
   }
 
   private func refreshStationListIfNeeded(profile: SDRConnectionProfile) async {

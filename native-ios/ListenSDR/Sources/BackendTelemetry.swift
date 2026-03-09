@@ -57,8 +57,9 @@ struct FMDXControlOption: Identifiable, Hashable {
 struct FMDXCapabilities: Equatable {
   let antennas: [FMDXControlOption]
   let bandwidths: [FMDXControlOption]
+  let supportsAM: Bool
 
-  static let empty = FMDXCapabilities(antennas: [], bandwidths: [])
+  static let empty = FMDXCapabilities(antennas: [], bandwidths: [], supportsAM: false)
 }
 
 struct FMDXTelemetry: Equatable {

@@ -202,21 +202,25 @@ struct ReceiverView: View {
 
       tuneStepControl(for: profile.backend)
 
-      Picker(
-        "Mode",
-        selection: Binding(
-          get: {
-            let allowed = availableModes(for: profile.backend)
-            return allowed.contains(radioSession.settings.mode) ? radioSession.settings.mode : allowed.first ?? .fm
-          },
-          set: { radioSession.setMode($0) }
-        )
-      ) {
-        ForEach(availableModes(for: profile.backend)) { mode in
-          Text(mode.displayName).tag(mode)
+      if profile.backend == .fmDxWebserver {
+        fmdxBandSwitcher()
+      } else {
+        Picker(
+          "Mode",
+          selection: Binding(
+            get: {
+              let allowed = availableModes(for: profile.backend)
+              return allowed.contains(radioSession.settings.mode) ? radioSession.settings.mode : allowed.first ?? .fm
+            },
+            set: { radioSession.setMode($0) }
+          )
+        ) {
+          ForEach(availableModes(for: profile.backend)) { mode in
+            Text(mode.displayName).tag(mode)
+          }
         }
+        .accessibilityLabel("Demodulation mode")
       }
-      .accessibilityLabel("Demodulation mode")
 
       if let tuneWarning = radioSession.fmdxTuneWarningText,
         profile.backend == .fmDxWebserver {
@@ -1021,6 +1025,51 @@ struct ReceiverView: View {
     }
   }
 
+  private func fmdxBandSwitcher() -> some View {
+    let selectedBand: DemodulationMode = radioSession.settings.mode == .am ? .am : .fm
+    let supportsAM = radioSession.fmdxSupportsAM
+
+    return VStack(alignment: .leading, spacing: 8) {
+      Text(L10n.text("fmdx.band"))
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      HStack(spacing: 10) {
+        fmdxBandButton(title: L10n.text("fmdx.band.fm"), mode: .fm, isSelected: selectedBand == .fm)
+        fmdxBandButton(title: L10n.text("fmdx.band.am"), mode: .am, isSelected: selectedBand == .am)
+      }
+      .accessibilityElement(children: .contain)
+      .accessibilityLabel(L10n.text("fmdx.band"))
+
+      if !supportsAM {
+        Text(L10n.text("fmdx.band.am_unavailable_hint"))
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func fmdxBandButton(title: String, mode: DemodulationMode, isSelected: Bool) -> some View {
+    if isSelected {
+      Button {
+        radioSession.setMode(mode)
+      } label: {
+        Text(title)
+          .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.borderedProminent)
+    } else {
+      Button {
+        radioSession.setMode(mode)
+      } label: {
+        Text(title)
+          .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.bordered)
+    }
+  }
+
   private func tuneStepOptions(for backend: SDRBackend) -> [Int] {
     switch backend {
     case .fmDxWebserver:
@@ -1114,7 +1163,7 @@ struct ReceiverView: View {
   }
 
   private func syncInlineFrequencyInputFromSession(for backend: SDRBackend, force: Bool) {
-    if !force && inlineFrequencyEditing {
+    if !force && (inlineFrequencyEditing || isInlineFrequencyFocused) {
       return
     }
     let formatted = inlineFrequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
@@ -1138,15 +1187,23 @@ struct ReceiverView: View {
     guard inlineFrequencyEditing else { return }
     inlineFrequencyApplyTask?.cancel()
     inlineFrequencyApplyTask = Task { @MainActor in
-      try? await Task.sleep(nanoseconds: 450_000_000)
+      try? await Task.sleep(nanoseconds: 1_000_000_000)
       if Task.isCancelled { return }
       guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else { return }
-      _ = applyInlineFrequencyInput(backend, commitFormatting: true)
+      _ = applyInlineFrequencyInput(backend, commitFormatting: false)
     }
   }
 
   private func submitInlineFrequencyInput(for backend: SDRBackend) {
     inlineFrequencyApplyTask?.cancel()
+    let trimmed = inlineFrequencyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.isEmpty {
+      inlineFrequencyEditing = false
+      inlineFrequencyError = nil
+      syncInlineFrequencyInputFromSession(for: backend, force: true)
+      isInlineFrequencyFocused = false
+      return
+    }
     _ = applyInlineFrequencyInput(backend, commitFormatting: true, endEditing: true)
     isInlineFrequencyFocused = false
   }

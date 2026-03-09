@@ -233,6 +233,11 @@
 "fmdx.stereo_state.mono" = "Mono";
 "fmdx.antenna" = "Antenne";
 "fmdx.bandwidth" = "Bandbreite";
+"fmdx.band" = "Band";
+"fmdx.band.fm" = "FM";
+"fmdx.band.am" = "AM";
+"fmdx.band.am_not_supported" = "Dieser Server unterstuetzt kein AM. FM bleibt aktiv.";
+"fmdx.band.am_unavailable_hint" = "AM ist fuer diesen Server nicht verfuegbar.";
 "scanner.quick_list.clear" = "Schnellliste loeschen";
 "fmdx.af.favorite" = "Favorit";
 "fmdx.af.scan" = "Scan";

@@ -55,6 +55,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var fmDxTuneDebounceTask: Task<Void, Never>?
   private var fmDxTuneConfirmTask: Task<Void, Never>?
   private var pendingFMDXTuneFrequencyHz: Int?
+  private var hasFMDXCapabilitySnapshot = false
   private var activeBackend: SDRBackend?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
 
@@ -65,6 +66,10 @@ final class RadioSessionViewModel: ObservableObject {
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
+  }
+
+  var fmdxSupportsAM: Bool {
+    fmdxCapabilities.supportsAM
   }
 
   func connect(to profile: SDRConnectionProfile) {
@@ -386,7 +391,15 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setMode(_ mode: DemodulationMode) {
     if activeBackend == .fmDxWebserver {
-      settings.mode = (mode == .fm || mode == .am) ? mode : .fm
+      let amUnsupportedWarning = L10n.text("fmdx.band.am_not_supported")
+      var resolvedMode: DemodulationMode = (mode == .fm || mode == .am) ? mode : .fm
+      if resolvedMode == .am && hasFMDXCapabilitySnapshot && !fmdxCapabilities.supportsAM {
+        resolvedMode = .fm
+        fmdxTuneWarningText = amUnsupportedWarning
+      } else if resolvedMode == .fm && fmdxTuneWarningText == amUnsupportedWarning {
+        fmdxTuneWarningText = nil
+      }
+      settings.mode = resolvedMode
       settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: settings.mode)
       persistSettings()
       return
@@ -976,6 +989,13 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .fmdxCapabilities(let capabilities):
       fmdxCapabilities = capabilities
+      hasFMDXCapabilitySnapshot = true
+      if settings.mode == .am && !capabilities.supportsAM {
+        settings.mode = .fm
+        settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: .fm)
+        fmdxTuneWarningText = L10n.text("fmdx.band.am_not_supported")
+        persistSettings()
+      }
 
     case .fmdxPresets(let presets):
       fmdxServerPresets = presets
@@ -1100,6 +1120,7 @@ final class RadioSessionViewModel: ObservableObject {
     openWebRXBandPlan = []
     fmdxTelemetry = nil
     fmdxCapabilities = .empty
+    hasFMDXCapabilitySnapshot = false
     fmdxServerPresets = []
     selectedFMDXAntennaID = nil
     selectedFMDXBandwidthID = nil
