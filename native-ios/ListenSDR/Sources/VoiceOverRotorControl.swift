@@ -31,7 +31,7 @@ struct VoiceOverRotorControl: UIViewRepresentable {
   }
 }
 
-private final class VoiceOverRotorAnchorView: UIControl {
+final class VoiceOverRotorAnchorView: UIControl {
   private let titleLabel = UILabel()
   private let valueLabel = UILabel()
 
