@@ -340,6 +340,11 @@
 "session.status.sync_tuning" = "Abstimmung wird vom Empfaenger synchronisiert...";
 "frequency_input.dynamic_hint" = "Beispiele: %@ oder %@";
 "frequency_input.dynamic_hint_single" = "Beispiel: %@";
+"openwebrx.bookmarks_section" = "Server-Lesezeichen";
+"openwebrx.bookmarks_empty" = "Noch keine OpenWebRX-Lesezeichen.";
+"openwebrx.band_plan_section" = "Bandplan";
+"openwebrx.band_plan_loading" = "Bandplan wird geladen...";
+"receiver.tune_step.label" = "Abstimmschritt";
 "frequency_input.voiceover_button" = "Exakte Frequenz eingeben";
 "frequency_input.voiceover_hint" = "Offnet ein einfaches Zahlenfeld fur eine VoiceOver-sichere Frequenzeingabe.";
 "frequency_input.voiceover_sheet_title" = "Exakte Frequenz";

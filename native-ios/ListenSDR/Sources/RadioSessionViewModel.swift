@@ -75,6 +75,7 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var selectedOpenWebRXProfileID: String?
   @Published private(set) var serverBookmarks: [SDRServerBookmark] = []
   @Published private(set) var openWebRXBandPlan: [SDRBandPlanEntry] = []
+  @Published private(set) var currentKiwiBandName: String?
   @Published private(set) var fmdxTelemetry: FMDXTelemetry?
   @Published private(set) var fmdxCapabilities: FMDXCapabilities = .empty
   @Published private(set) var fmdxServerPresets: [SDRServerBookmark] = []
@@ -90,8 +91,8 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
   private let fmDxMaxFrequencyHz = 110_000_000
-  private let fmDxFMTuneStepOptionsHz = [25_000, 50_000, 100_000, 200_000]
-  private let fmDxAMTuneStepOptionsHz = [9_000, 10_000, 25_000, 50_000]
+  private let fmDxFMTuneStepOptionsHz = [50_000, 100_000, 200_000]
+  private let fmDxAMTuneStepOptionsHz = [9_000, 10_000]
   private let fmDxDefaultTuneStepHz = 100_000
   private let kiwiDefaultFrequencyHz = 7_050_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -334,6 +335,10 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
+  func tuneStepOptions(for backend: SDRBackend) -> [Int] {
+    tuningBandProfile(for: backend).stepOptionsHz
+  }
+
   func startScanner(
     channels: [ScanChannel],
     backend: SDRBackend,
@@ -458,7 +463,18 @@ final class RadioSessionViewModel: ObservableObject {
       let range = frequencyRange(for: activeBackend)
       settings.frequencyHz = min(max(value, range.lowerBound), range.upperBound)
     }
+    let tuneStepChanged = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
+    if tuneStepChanged, activeBackend == .openWebRX {
+      backendStatusText = openWebRXStatusSummary(frequencyHz: settings.frequencyHz, mode: settings.mode)
+    }
+    if tuneStepChanged, activeBackend == .kiwiSDR {
+      backendStatusText = kiwiStatusSummary(
+        frequencyHz: settings.frequencyHz,
+        mode: settings.mode,
+        reportedBandName: currentKiwiBandName
+      )
+    }
 
     guard activeBackend == .fmDxWebserver else {
       applyIfConnected()
@@ -501,6 +517,7 @@ final class RadioSessionViewModel: ObservableObject {
       return
     }
     settings.mode = mode
+    _ = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     applyIfConnected()
   }
@@ -525,6 +542,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.audioMuted = muted
     SharedAudioOutput.engine.setMuted(muted)
     FMDXMP3AudioPlayer.shared.setMuted(muted)
+    NowPlayingMetadataController.shared.setMuted(muted)
     persistSettings()
   }
 
@@ -1361,6 +1379,9 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .openWebRXBandPlan(let bands):
       openWebRXBandPlan = bands
+      if syncTuneStepToCurrentBandIfNeeded() {
+        persistSettings()
+      }
       if activeBackend == .openWebRX {
         backendStatusText = openWebRXStatusSummary(frequencyHz: settings.frequencyHz, mode: settings.mode)
       }
@@ -1375,6 +1396,9 @@ final class RadioSessionViewModel: ObservableObject {
       }
       if let mode, settings.mode != mode {
         settings.mode = mode
+        changed = true
+      }
+      if syncTuneStepToCurrentBandIfNeeded() {
         changed = true
       }
       if changed {
@@ -1392,6 +1416,10 @@ final class RadioSessionViewModel: ObservableObject {
       }
       if let mode, settings.mode != mode {
         settings.mode = mode
+        changed = true
+      }
+      currentKiwiBandName = normalizedBandName(bandName)
+      if syncTuneStepToCurrentBandIfNeeded() {
         changed = true
       }
       if changed {
@@ -1540,7 +1568,7 @@ final class RadioSessionViewModel: ObservableObject {
     if let mode {
       parts.append(mode.displayName)
     }
-    if let band = openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequencyHz }) {
+    if let band = openWebRXBandEntry(for: frequencyHz) {
       parts.append(band.name)
     }
     return parts.joined(separator: " | ")
@@ -1592,6 +1620,7 @@ final class RadioSessionViewModel: ObservableObject {
     selectedOpenWebRXProfileID = nil
     serverBookmarks = []
     openWebRXBandPlan = []
+    currentKiwiBandName = nil
     fmdxTelemetry = nil
     fmdxCapabilities = .empty
     hasFMDXCapabilitySnapshot = false
@@ -1620,5 +1649,39 @@ final class RadioSessionViewModel: ObservableObject {
     guard state == .connected else { return false }
     guard activeBackend == .openWebRX || activeBackend == .kiwiSDR else { return false }
     return !canPushLocalTuningToServerYet()
+  }
+
+  private func tuningBandProfile(for backend: SDRBackend) -> BandTuningProfile {
+    BandTuningProfiles.resolve(for: tuningBandContext(for: backend))
+  }
+
+  private func tuningBandContext(for backend: SDRBackend) -> BandTuningContext {
+    let bandEntry = backend == .openWebRX ? openWebRXBandEntry(for: settings.frequencyHz) : nil
+    let inferredKiwiBandName = backend == .kiwiSDR ? (currentKiwiBandName ?? inferredKiwiBandName(for: settings.frequencyHz)) : nil
+
+    return BandTuningContext(
+      backend: backend,
+      frequencyHz: settings.frequencyHz,
+      mode: settings.mode,
+      bandName: bandEntry?.name ?? inferredKiwiBandName,
+      bandTags: bandEntry?.tags ?? []
+    )
+  }
+
+  private func openWebRXBandEntry(for frequencyHz: Int) -> SDRBandPlanEntry? {
+    openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequencyHz })
+  }
+
+  private func syncTuneStepToCurrentBandIfNeeded() -> Bool {
+    guard let backend = activeBackend else { return false }
+    let profile = tuningBandProfile(for: backend)
+    guard settings.tuneStepHz != profile.defaultStepHz else { return false }
+    guard !profile.stepOptionsHz.contains(settings.tuneStepHz) else { return false }
+    settings.tuneStepHz = profile.defaultStepHz
+    Diagnostics.log(
+      category: "Session",
+      message: "Tune step auto-adjusted to \(profile.defaultStepHz) Hz for band profile \(profile.id)"
+    )
+    return true
   }
 }

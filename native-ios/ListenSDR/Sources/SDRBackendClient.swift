@@ -835,6 +835,8 @@ actor OpenWebRXClient: SDRBackendClient {
   private var serverBookmarks: [SDRServerBookmark] = []
   private var dialBookmarks: [SDRServerBookmark] = []
   private var bandPlanLoaded = false
+  private var officialBandPlan: [SDRBandPlanEntry] = []
+  private var serverBandPlan: [SDRBandPlanEntry] = []
   private var lastReportedFrequencyHz: Int?
   private var lastReportedMode: DemodulationMode?
   private var hasReceivedInitialServerTuning = false
@@ -899,6 +901,8 @@ actor OpenWebRXClient: SDRBackendClient {
     selectedProfileID = nil
     serverBookmarks = []
     dialBookmarks = []
+    officialBandPlan = []
+    serverBandPlan = []
     lastReportedFrequencyHz = nil
     lastReportedMode = nil
     hasReceivedInitialServerTuning = false
@@ -1116,15 +1120,22 @@ actor OpenWebRXClient: SDRBackendClient {
       emitProfiles()
 
     case "bookmarks":
-      if let value = parsed["value"] as? [[String: Any]] {
+      if let value = extractJSONObjectArray(parsed["value"]) {
         serverBookmarks = parseBookmarks(from: value, source: "server")
         emitBookmarks()
       }
 
     case "dial_frequencies":
-      if let value = parsed["value"] as? [[String: Any]] {
+      if let value = extractJSONObjectArray(parsed["value"]) {
         dialBookmarks = parseBookmarks(from: value, source: "dial")
         emitBookmarks()
+      }
+
+    case "bands":
+      if let value = extractJSONObjectArray(parsed["value"]) {
+        serverBandPlan = parseBandPlanEntries(from: value)
+        emitBandPlan()
+        log("Loaded server band plan (\(serverBandPlan.count) bands)")
       }
 
     case "sdr_error", "demodulator_error":
@@ -1211,6 +1222,31 @@ actor OpenWebRXClient: SDRBackendClient {
     return nil
   }
 
+  private func extractJSONObjectArray(_ value: Any?) -> [[String: Any]]? {
+    if let dictionaries = value as? [[String: Any]] {
+      return dictionaries
+    }
+    if let values = value as? [Any] {
+      let dictionaries = values.compactMap { $0 as? [String: Any] }
+      return dictionaries.isEmpty ? nil : dictionaries
+    }
+    if let dictionary = value as? [String: Any] {
+      let nestedArrays = dictionary.values.compactMap { nested -> [[String: Any]]? in
+        if let direct = nested as? [[String: Any]] {
+          return direct
+        }
+        if let raw = nested as? [Any] {
+          let mapped = raw.compactMap { $0 as? [String: Any] }
+          return mapped.isEmpty ? nil : mapped
+        }
+        return nil
+      }
+      let flattened = nestedArrays.flatMap { $0 }
+      return flattened.isEmpty ? nil : flattened
+    }
+    return nil
+  }
+
   private func extractOpenWebRXTunedFrequency(from payload: [String: Any]) -> Int? {
     let directKeys = [
       "start_freq",
@@ -1226,11 +1262,23 @@ actor OpenWebRXClient: SDRBackendClient {
       }
     }
 
+    let explicitCenterFrequency = extractInt(payload["center_freq"])
+    let offsetKeys = [
+      "offset_freq",
+      "offset_frequency",
+      "start_offset_freq",
+      "start_offset_frequency"
+    ]
+    let containsOffset = offsetKeys.contains { extractInt(payload[$0]) != nil }
+
     let resolvedCenterFrequency: Int? = {
-      if let centerFrequency = extractInt(payload["center_freq"]), centerFrequency > 0 {
+      if let centerFrequency = explicitCenterFrequency, centerFrequency > 0 {
         return centerFrequency
       }
-      return centerFrequencyHz
+      if containsOffset {
+        return centerFrequencyHz
+      }
+      return nil
     }()
 
     if let center = resolvedCenterFrequency, let offset = extractInt(payload["offset_freq"]) {
@@ -1245,7 +1293,7 @@ actor OpenWebRXClient: SDRBackendClient {
     if let center = resolvedCenterFrequency, let startOffset = extractInt(payload["start_offset_frequency"]) {
       return center + startOffset
     }
-    if let center = resolvedCenterFrequency {
+    if let center = explicitCenterFrequency, center > 0 {
       return center
     }
     return nil
@@ -1301,6 +1349,97 @@ actor OpenWebRXClient: SDRBackendClient {
     }
   }
 
+  private func parseBandPlanEntries(from entries: [[String: Any]]) -> [SDRBandPlanEntry] {
+    var output: [SDRBandPlanEntry] = []
+    output.reserveCapacity(entries.count)
+
+    for entry in entries {
+      guard
+        let name = stringify(entry["name"])?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !name.isEmpty
+      else {
+        continue
+      }
+
+      let lowerBoundHz = extractInt(entry["lower_bound"]) ?? extractInt(entry["low_bound"]) ?? 0
+      let upperBoundHz = extractInt(entry["upper_bound"]) ?? extractInt(entry["high_bound"]) ?? 0
+      guard lowerBoundHz > 0, upperBoundHz > lowerBoundHz else { continue }
+
+      let tags = (entry["tags"] as? [String]) ?? []
+      let frequencies = parseBandFrequencies(from: entry["frequencies"], bandName: name)
+
+      output.append(
+        SDRBandPlanEntry(
+          id: name.lowercased().replacingOccurrences(of: " ", with: "-"),
+          name: name,
+          lowerBoundHz: lowerBoundHz,
+          upperBoundHz: upperBoundHz,
+          tags: tags,
+          frequencies: frequencies
+        )
+      )
+    }
+
+    return output.sorted { $0.lowerBoundHz < $1.lowerBoundHz }
+  }
+
+  private func parseBandFrequencies(from rawValue: Any?, bandName: String) -> [SDRBandFrequency] {
+    guard let map = rawValue as? [String: Any] else { return [] }
+
+    var frequencies: [SDRBandFrequency] = []
+    for (modeName, modeValue) in map {
+      switch modeValue {
+      case let single as Int:
+        frequencies.append(
+          SDRBandFrequency(
+            id: "\(bandName)|\(modeName)|\(single)",
+            name: modeName.uppercased(),
+            frequencyHz: single
+          )
+        )
+      case let single as Double where single.isFinite:
+        let hz = Int(single.rounded())
+        frequencies.append(
+          SDRBandFrequency(
+            id: "\(bandName)|\(modeName)|\(hz)",
+            name: modeName.uppercased(),
+            frequencyHz: hz
+          )
+        )
+      case let list as [Int]:
+        for hz in list {
+          frequencies.append(
+            SDRBandFrequency(
+              id: "\(bandName)|\(modeName)|\(hz)",
+              name: modeName.uppercased(),
+              frequencyHz: hz
+            )
+          )
+        }
+      case let list as [Double]:
+        for rawHz in list where rawHz.isFinite {
+          let hz = Int(rawHz.rounded())
+          frequencies.append(
+            SDRBandFrequency(
+              id: "\(bandName)|\(modeName)|\(hz)",
+              name: modeName.uppercased(),
+              frequencyHz: hz
+            )
+          )
+        }
+      default:
+        continue
+      }
+    }
+
+    return frequencies.sorted {
+      if $0.frequencyHz != $1.frequencyHz {
+        return $0.frequencyHz < $1.frequencyHz
+      }
+      return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+    }
+  }
+
   private func emitProfiles() {
     guard !knownProfiles.isEmpty else { return }
     enqueueTelemetry(.openWebRXProfiles(knownProfiles, selectedID: selectedProfileID))
@@ -1318,6 +1457,80 @@ actor OpenWebRXClient: SDRBackendClient {
       return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
     }
     enqueueTelemetry(.openWebRXBookmarks(sorted))
+  }
+
+  private func emitBandPlan() {
+    let effectivePlan: [SDRBandPlanEntry]
+    if serverBandPlan.isEmpty {
+      effectivePlan = officialBandPlan
+    } else {
+      effectivePlan = mergeBandPlans(serverBandPlan, with: officialBandPlan)
+    }
+
+    guard !effectivePlan.isEmpty else { return }
+    enqueueTelemetry(.openWebRXBandPlan(effectivePlan))
+  }
+
+  private func mergeBandPlans(
+    _ serverEntries: [SDRBandPlanEntry],
+    with officialEntries: [SDRBandPlanEntry]
+  ) -> [SDRBandPlanEntry] {
+    guard !officialEntries.isEmpty else { return serverEntries }
+
+    return serverEntries.map { serverEntry in
+      guard let officialMatch = bestOfficialBandMatch(for: serverEntry, in: officialEntries) else {
+        return serverEntry
+      }
+
+      let mergedTags = Array(Set(serverEntry.tags + officialMatch.tags)).sorted()
+      let mergedFrequencies = serverEntry.frequencies.isEmpty
+        ? officialMatch.frequencies.filter { frequency in
+          (serverEntry.lowerBoundHz...serverEntry.upperBoundHz).contains(frequency.frequencyHz)
+        }
+        : serverEntry.frequencies
+
+      return SDRBandPlanEntry(
+        id: serverEntry.id,
+        name: serverEntry.name,
+        lowerBoundHz: serverEntry.lowerBoundHz,
+        upperBoundHz: serverEntry.upperBoundHz,
+        tags: mergedTags,
+        frequencies: mergedFrequencies
+      )
+    }
+  }
+
+  private func bestOfficialBandMatch(
+    for serverEntry: SDRBandPlanEntry,
+    in officialEntries: [SDRBandPlanEntry]
+  ) -> SDRBandPlanEntry? {
+    let normalizedServerName = serverEntry.name
+      .lowercased()
+      .replacingOccurrences(of: " ", with: "")
+      .replacingOccurrences(of: "-", with: "")
+
+    if let exactNameMatch = officialEntries.first(where: {
+      $0.name
+        .lowercased()
+        .replacingOccurrences(of: " ", with: "")
+        .replacingOccurrences(of: "-", with: "") == normalizedServerName
+    }) {
+      return exactNameMatch
+    }
+
+    let overlappingEntries = officialEntries
+      .map { entry in (entry: entry, overlap: overlapWidth(entry, with: serverEntry)) }
+      .filter { $0.overlap > 0 }
+
+    return overlappingEntries.max { lhs, rhs in
+      lhs.overlap < rhs.overlap
+    }?.entry
+  }
+
+  private func overlapWidth(_ lhs: SDRBandPlanEntry, with rhs: SDRBandPlanEntry) -> Int {
+    let lower = max(lhs.lowerBoundHz, rhs.lowerBoundHz)
+    let upper = min(lhs.upperBoundHz, rhs.upperBoundHz)
+    return max(0, upper - lower)
   }
 
   private func loadBandPlanIfNeeded() async {
@@ -1381,7 +1594,8 @@ actor OpenWebRXClient: SDRBackendClient {
       }
       .sorted { $0.lowerBoundHz < $1.lowerBoundHz }
 
-      enqueueTelemetry(.openWebRXBandPlan(entries))
+      officialBandPlan = entries
+      emitBandPlan()
       log("Loaded OpenWebRX band plan (\(entries.count) bands)")
     } catch {
       log("Band plan load failed: \(error.localizedDescription)", severity: .warning)

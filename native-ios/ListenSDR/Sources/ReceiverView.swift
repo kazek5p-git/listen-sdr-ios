@@ -37,8 +37,6 @@ struct ReceiverView: View {
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
-  private let fmDxFMTuneStepOptionsHz: [Int] = [25_000, 50_000, 100_000, 200_000]
-  private let fmDxAMTuneStepOptionsHz: [Int] = [9_000, 10_000, 25_000, 50_000]
 
   var body: some View {
     NavigationStack {
@@ -267,9 +265,9 @@ struct ReceiverView: View {
   @ViewBuilder
   private func openWebRXServerBookmarksSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .openWebRX {
-      Section("Server Bookmarks") {
+      Section(L10n.text("openwebrx.bookmarks_section")) {
         if radioSession.serverBookmarks.isEmpty {
-          Text("No OpenWebRX bookmarks yet.")
+          Text(L10n.text("openwebrx.bookmarks_empty"))
             .foregroundStyle(.secondary)
         } else {
           ForEach(radioSession.serverBookmarks) { bookmark in
@@ -293,9 +291,9 @@ struct ReceiverView: View {
   @ViewBuilder
   private func openWebRXBandPlanSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .openWebRX {
-      Section("Band Plan") {
+      Section(L10n.text("openwebrx.band_plan_section")) {
         if radioSession.openWebRXBandPlan.isEmpty {
-          Text("Band plan is loading...")
+          Text(L10n.text("openwebrx.band_plan_loading"))
             .foregroundStyle(.secondary)
         } else {
           ForEach(radioSession.openWebRXBandPlan) { band in
@@ -968,10 +966,10 @@ struct ReceiverView: View {
 
   private func tuneStepControl(for backend: SDRBackend) -> some View {
     let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
-    let options = tuneStepOptions(for: backend)
+    let options = radioSession.tuneStepOptions(for: backend)
 
     return HStack(spacing: 12) {
-      Text("Tune step")
+      Text(L10n.text("receiver.tune_step.label"))
       Spacer()
 
       Button {
@@ -1003,7 +1001,7 @@ struct ReceiverView: View {
       .buttonStyle(.plain)
     }
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("Tune step")
+    .accessibilityLabel(L10n.text("receiver.tune_step.label"))
     .accessibilityValue(stepLabel)
     .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", stepLabel))
     .accessibilityAdjustableAction { direction in
@@ -1073,15 +1071,6 @@ struct ReceiverView: View {
     }
   }
 
-  private func tuneStepOptions(for backend: SDRBackend) -> [Int] {
-    switch backend {
-    case .fmDxWebserver:
-      return radioSession.settings.mode == .am ? fmDxAMTuneStepOptionsHz : fmDxFMTuneStepOptionsHz
-    case .kiwiSDR, .openWebRX:
-      return RadioSessionSettings.supportedTuneStepsHz
-    }
-  }
-
   private func availableModes(for backend: SDRBackend) -> [DemodulationMode] {
     switch backend {
     case .fmDxWebserver:
@@ -1092,7 +1081,7 @@ struct ReceiverView: View {
   }
 
   private func changeTuneStep(by offset: Int, backend: SDRBackend) {
-    let steps = tuneStepOptions(for: backend)
+    let steps = radioSession.tuneStepOptions(for: backend)
     guard !steps.isEmpty else { return }
 
     let currentStep = radioSession.settings.tuneStepHz

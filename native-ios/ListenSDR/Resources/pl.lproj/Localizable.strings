@@ -347,6 +347,11 @@
 "session.status.sync_tuning" = "Synchronizacja strojenia z odbiornika...";
 "frequency_input.dynamic_hint" = "Przyklady: %@ lub %@";
 "frequency_input.dynamic_hint_single" = "Przyklad: %@";
+"openwebrx.bookmarks_section" = "Zakladki serwera";
+"openwebrx.bookmarks_empty" = "Brak zakladek OpenWebRX.";
+"openwebrx.band_plan_section" = "Plan pasm";
+"openwebrx.band_plan_loading" = "Plan pasm jest ladowany...";
+"receiver.tune_step.label" = "Krok strojenia";
 "frequency_input.voiceover_button" = "Wpisz dokladna czestotliwosc";
 "frequency_input.voiceover_hint" = "Otwiera prosty panel numeryczny do bezpiecznego wpisywania czestotliwosci w VoiceOver.";
 "frequency_input.voiceover_sheet_title" = "Dokladna czestotliwosc";

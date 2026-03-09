@@ -340,6 +340,11 @@
 "session.status.sync_tuning" = "Sincronizzazione della sintonia dal ricevitore...";
 "frequency_input.dynamic_hint" = "Esempi: %@ o %@";
 "frequency_input.dynamic_hint_single" = "Esempio: %@";
+"openwebrx.bookmarks_section" = "Segnalibri del server";
+"openwebrx.bookmarks_empty" = "Nessun segnalibro OpenWebRX disponibile.";
+"openwebrx.band_plan_section" = "Piano di banda";
+"openwebrx.band_plan_loading" = "Caricamento del piano di banda...";
+"receiver.tune_step.label" = "Passo di sintonia";
 "frequency_input.voiceover_button" = "Inserisci frequenza esatta";
 "frequency_input.voiceover_hint" = "Apre un tastierino numerico semplice per inserire la frequenza in modo sicuro con VoiceOver.";
 "frequency_input.voiceover_sheet_title" = "Frequenza esatta";

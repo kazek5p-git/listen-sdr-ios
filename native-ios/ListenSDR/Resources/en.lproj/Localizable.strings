@@ -195,6 +195,11 @@
 "session.status.sync_tuning" = "Synchronizing tuning from the receiver...";
 "frequency_input.dynamic_hint" = "Examples: %@ or %@";
 "frequency_input.dynamic_hint_single" = "Example: %@";
+"openwebrx.bookmarks_section" = "Server bookmarks";
+"openwebrx.bookmarks_empty" = "No OpenWebRX bookmarks yet.";
+"openwebrx.band_plan_section" = "Band plan";
+"openwebrx.band_plan_loading" = "Band plan is loading...";
+"receiver.tune_step.label" = "Tune step";
 "frequency_input.voiceover_button" = "Enter exact frequency";
 "frequency_input.voiceover_hint" = "Opens a simple numeric pad for VoiceOver-safe frequency entry.";
 "frequency_input.voiceover_sheet_title" = "Exact frequency";

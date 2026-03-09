@@ -25,7 +25,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var scannerHoldSeconds: Double
 
   static let supportedTuneStepsHz: [Int] = [
-    10, 50, 100, 500, 1_000, 5_000, 9_000, 10_000, 12_500, 25_000,
+    10, 50, 100, 500, 1_000, 5_000, 6_250, 8_330, 9_000, 10_000, 12_500, 25_000,
     50_000, 100_000, 200_000
   ]
 

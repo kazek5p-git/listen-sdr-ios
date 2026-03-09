@@ -4,9 +4,6 @@ struct ContentView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
 
-  private let fmDxFMTuneStepOptionsHz: [Int] = [25_000, 50_000, 100_000, 200_000]
-  private let fmDxAMTuneStepOptionsHz: [Int] = [9_000, 10_000, 25_000, 50_000]
-
   var body: some View {
     TabView {
       ReceiverView()
@@ -28,6 +25,9 @@ struct ContentView: View {
     .toolbarBackground(.regularMaterial, for: .tabBar)
     .toolbarBackground(.visible, for: .tabBar)
     .background(globalVoiceOverRotorBridge())
+    .onAppear {
+      SystemRemoteCommandController.shared.bind(radioSession: radioSession)
+    }
     .appScreenBackground()
   }
 
@@ -65,7 +65,7 @@ struct ContentView: View {
   }
 
   private func cycleTuneStep(by offset: Int, backend: SDRBackend) {
-    let steps = tuneStepOptions(for: backend)
+    let steps = radioSession.tuneStepOptions(for: backend)
     guard !steps.isEmpty else { return }
 
     let currentStep = radioSession.settings.tuneStepHz
@@ -87,15 +87,6 @@ struct ContentView: View {
       notification: .announcement,
       argument: L10n.text("receiver.tune_step.changed", stepText)
     )
-  }
-
-  private func tuneStepOptions(for backend: SDRBackend) -> [Int] {
-    switch backend {
-    case .fmDxWebserver:
-      return radioSession.settings.mode == .am ? fmDxAMTuneStepOptionsHz : fmDxFMTuneStepOptionsHz
-    case .kiwiSDR, .openWebRX:
-      return RadioSessionSettings.supportedTuneStepsHz
-    }
   }
 
   private func announceFrequency(for backend: SDRBackend) {
