@@ -186,6 +186,10 @@ final class RadioSessionViewModel: ObservableObject {
     isWaitingForInitialServerTuningSync()
   }
 
+  var currentTuningBackend: SDRBackend? {
+    activeBackend
+  }
+
   var currentFMDXAudioPreset: FMDXAudioTuningPreset {
     FMDXAudioTuningPreset.matching(
       startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds,

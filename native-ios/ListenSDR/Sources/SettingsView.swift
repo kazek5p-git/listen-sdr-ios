@@ -77,14 +77,14 @@ struct SettingsView: View {
           NavigationLink {
             SelectionListView(
               title: L10n.text("settings.tuning.global_step"),
-              options: RadioSessionSettings.supportedTuneStepsHz.map { stepHz in
+              options: tuningStepOptions.map { stepHz in
                 SelectionListOption(
                   id: "\(stepHz)",
                   title: FrequencyFormatter.tuneStepText(fromHz: stepHz),
                   detail: nil
                 )
               },
-              selectedID: "\(radioSession.settings.preferredTuneStepHz)"
+              selectedID: "\(selectedTuneStepID)"
             ) { value in
               if let stepHz = Int(value) {
                 radioSession.setTuneStepHz(stepHz)
@@ -93,10 +93,11 @@ struct SettingsView: View {
           } label: {
             LabeledContent(
               L10n.text("settings.tuning.global_step"),
-              value: FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.preferredTuneStepHz)
+              value: FrequencyFormatter.tuneStepText(fromHz: selectedTuneStepID)
             )
           }
           .accessibilityHint(L10n.text("settings.tuning.global_step.hint"))
+          .disabled(tuningStepOptions.isEmpty)
         }
         .appSectionStyle()
 
@@ -393,5 +394,17 @@ struct SettingsView: View {
     case .critical:
       return "xmark.octagon.fill"
     }
+  }
+
+  private var tuningStepOptions: [Int] {
+    guard let backend = radioSession.currentTuningBackend ?? profileStore.selectedProfile?.backend else { return [] }
+    return radioSession.tuneStepOptions(for: backend)
+  }
+
+  private var selectedTuneStepID: Int {
+    if tuningStepOptions.contains(radioSession.settings.tuneStepHz) {
+      return radioSession.settings.tuneStepHz
+    }
+    return tuningStepOptions.first ?? radioSession.settings.tuneStepHz
   }
 }
