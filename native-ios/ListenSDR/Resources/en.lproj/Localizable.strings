@@ -216,6 +216,12 @@
 
 "settings.accessibility.voiceover_rds" = "Announce RDS changes";
 "settings.accessibility.voiceover_rds.hint" = "When VoiceOver is active, reads a new station name or RDS text after it changes.";
+"settings.accessibility.voiceover_rds_mode" = "VoiceOver RDS reading";
+"settings.accessibility.voiceover_rds_mode.hint" = "Choose whether VoiceOver reads only station information or full RDS updates.";
+"settings.accessibility.voiceover_rds_mode.off" = "Off";
+"settings.accessibility.voiceover_rds_mode.station_only" = "Station only";
+"settings.accessibility.voiceover_rds_mode.full" = "Full RDS";
+"accessibility.rds_announcement.station" = "Station %@";
 "accessibility.rds_announcement.ps" = "RDS station %@";
 "accessibility.rds_announcement.rt" = "RDS text %@";
 "accessibility.rds_announcement.pi" = "RDS P I %@";

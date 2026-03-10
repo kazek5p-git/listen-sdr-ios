@@ -367,6 +367,12 @@
 "settings.accessibility.section" = "Dostepnosc";
 "settings.accessibility.voiceover_rds" = "Czytaj zmiany RDS";
 "settings.accessibility.voiceover_rds.hint" = "Gdy VoiceOver jest wlaczony, odczytuje nowa nazwe stacji lub tekst RDS po zmianie.";
+"settings.accessibility.voiceover_rds_mode" = "Odczyt RDS przez VoiceOver";
+"settings.accessibility.voiceover_rds_mode.hint" = "Wybiera, czy VoiceOver ma czytac tylko informacje o stacji, czy pelny RDS.";
+"settings.accessibility.voiceover_rds_mode.off" = "Wylaczone";
+"settings.accessibility.voiceover_rds_mode.station_only" = "Tylko stacja";
+"settings.accessibility.voiceover_rds_mode.full" = "Pelny RDS";
+"accessibility.rds_announcement.station" = "Stacja %@";
 "accessibility.rds_announcement.ps" = "RDS stacja %@";
 "accessibility.rds_announcement.rt" = "RDS tekst %@";
 "accessibility.rds_announcement.pi" = "RDS P I %@";

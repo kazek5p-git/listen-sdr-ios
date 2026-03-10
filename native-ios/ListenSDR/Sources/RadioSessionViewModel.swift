@@ -64,6 +64,12 @@ enum FMDXFilterProfile: String, CaseIterable, Identifiable {
   }
 }
 
+private enum RDSAnnouncementKind {
+  case station
+  case radioText
+  case pi
+}
+
 @MainActor
 final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var state: ConnectionState = .disconnected
@@ -118,6 +124,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var initialServerTuningSyncDeadline = Date.distantPast
   private var lastRDSAnnouncementText: String?
   private var lastRDSAnnouncementAt = Date.distantPast
+  private var lastRDSAnnouncementKind: RDSAnnouncementKind?
 
   init() {
     settings = loadPersistedSettings()
@@ -721,15 +728,16 @@ final class RadioSessionViewModel: ObservableObject {
     persistSettings()
   }
 
-  func setVoiceOverRDSAnnouncementsEnabled(_ enabled: Bool) {
-    settings.voiceOverAnnouncesRDSChanges = enabled
-    if enabled {
-      lastRDSAnnouncementText = nil
-      lastRDSAnnouncementAt = Date.distantPast
-    } else {
-      lastRDSAnnouncementText = nil
-    }
+  func setVoiceOverRDSAnnouncementMode(_ mode: VoiceOverRDSAnnouncementMode) {
+    settings.voiceOverRDSAnnouncementMode = mode
+    lastRDSAnnouncementText = nil
+    lastRDSAnnouncementAt = .distantPast
+    lastRDSAnnouncementKind = nil
     persistSettings()
+  }
+
+  func setVoiceOverRDSAnnouncementsEnabled(_ enabled: Bool) {
+    setVoiceOverRDSAnnouncementMode(enabled ? .full : .off)
   }
 
   func setShazamIntegrationEnabled(_ _: Bool) {
@@ -1687,6 +1695,7 @@ final class RadioSessionViewModel: ObservableObject {
     initialServerTuningSyncDeadline = Date.distantPast
     lastRDSAnnouncementText = nil
     lastRDSAnnouncementAt = Date.distantPast
+    lastRDSAnnouncementKind = nil
     if backend != .fmDxWebserver {
       NowPlayingMetadataController.shared.setTitle(nil)
     }
@@ -1730,49 +1739,92 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func announceRDSChangeIfNeeded(previous: FMDXTelemetry?, current: FMDXTelemetry) {
-    guard settings.voiceOverAnnouncesRDSChanges else { return }
+    guard settings.voiceOverRDSAnnouncementMode != .off else { return }
     guard UIAccessibility.isVoiceOverRunning else { return }
     guard activeBackend == .fmDxWebserver else { return }
     guard state == .connected else { return }
 
     let now = Date()
-    if now.timeIntervalSince(lastRDSAnnouncementAt) < 1.0 {
+    guard let announcement = rdsAnnouncement(previous: previous, current: current) else { return }
+    if now.timeIntervalSince(lastRDSAnnouncementAt) < minimumAnnouncementInterval(for: announcement.kind) {
       return
     }
+    guard announcement.text != lastRDSAnnouncementText || announcement.kind != lastRDSAnnouncementKind else { return }
 
-    guard let announcement = rdsAnnouncementText(previous: previous, current: current) else { return }
-    guard announcement != lastRDSAnnouncementText else { return }
-
-    lastRDSAnnouncementText = announcement
+    lastRDSAnnouncementText = announcement.text
     lastRDSAnnouncementAt = now
-    UIAccessibility.post(notification: .announcement, argument: announcement)
+    lastRDSAnnouncementKind = announcement.kind
+    UIAccessibility.post(notification: .announcement, argument: announcement.text)
   }
 
-  private func rdsAnnouncementText(previous: FMDXTelemetry?, current: FMDXTelemetry) -> String? {
+  private func rdsAnnouncement(
+    previous: FMDXTelemetry?,
+    current: FMDXTelemetry
+  ) -> (kind: RDSAnnouncementKind, text: String)? {
+    let mode = settings.voiceOverRDSAnnouncementMode
     let previousPS = normalizedRDSValue(previous?.ps)
     let currentPS = normalizedRDSValue(current.ps)
-    if currentPS != previousPS, let currentPS {
-      return L10n.text("accessibility.rds_announcement.ps", currentPS)
+    let previousStation = preferredRDSStationName(from: previous)
+    let currentStation = preferredRDSStationName(from: current)
+
+    if currentStation != previousStation, let currentStation {
+      return (.station, L10n.text("accessibility.rds_announcement.station", currentStation))
     }
+    if currentPS != previousPS, let currentPS, mode == .full {
+      return (.station, L10n.text("accessibility.rds_announcement.ps", currentPS))
+    }
+
+    guard mode == .full else { return nil }
 
     let hadPreviousRDS = previousPS != nil
       || normalizedRDSValue(previous?.rt0) != nil
       || normalizedRDSValue(previous?.rt1) != nil
       || normalizedRDSValue(previous?.pi) != nil
 
-    let previousRT = normalizedRDSValue(previous?.rt0) ?? normalizedRDSValue(previous?.rt1)
-    let currentRT = normalizedRDSValue(current.rt0) ?? normalizedRDSValue(current.rt1)
+    let previousRT = stableRDSRadioText(from: previous)
+    let currentRT = stableRDSRadioText(from: current)
     if hadPreviousRDS, currentRT != previousRT, let currentRT {
-      return L10n.text("accessibility.rds_announcement.rt", currentRT)
+      return (.radioText, L10n.text("accessibility.rds_announcement.rt", currentRT))
     }
 
     let previousPI = normalizedRDSValue(previous?.pi)
     let currentPI = normalizedRDSValue(current.pi)
     if hadPreviousRDS, currentPI != previousPI, let currentPI, currentPS == nil {
-      return L10n.text("accessibility.rds_announcement.pi", currentPI)
+      return (.pi, L10n.text("accessibility.rds_announcement.pi", currentPI))
     }
 
     return nil
+  }
+
+  private func minimumAnnouncementInterval(for kind: RDSAnnouncementKind) -> TimeInterval {
+    switch kind {
+    case .station:
+      return 1.2
+    case .radioText:
+      return 4.0
+    case .pi:
+      return 2.0
+    }
+  }
+
+  private func preferredRDSStationName(from telemetry: FMDXTelemetry?) -> String? {
+    if let station = normalizedRDSValue(telemetry?.txInfo?.station) {
+      return station
+    }
+    return normalizedRDSValue(telemetry?.ps)
+  }
+
+  private func stableRDSRadioText(from telemetry: FMDXTelemetry?) -> String? {
+    guard let telemetry else { return nil }
+    guard let text = mergedRDSRadioText(from: telemetry) else { return nil }
+
+    let normalized = text
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    guard normalized.count >= 8 else { return nil }
+    guard normalized != preferredRDSStationName(from: telemetry) else { return nil }
+    return normalized
   }
 
   private func normalizedRDSValue(_ value: String?) -> String? {

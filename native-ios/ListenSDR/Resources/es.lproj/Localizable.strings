@@ -360,6 +360,12 @@
 "settings.accessibility.section" = "Accesibilidad";
 "settings.accessibility.voiceover_rds" = "Anunciar cambios RDS";
 "settings.accessibility.voiceover_rds.hint" = "Cuando VoiceOver esta activo, lee el nuevo nombre de emisora o el texto RDS despues de un cambio.";
+"settings.accessibility.voiceover_rds_mode" = "Lectura RDS con VoiceOver";
+"settings.accessibility.voiceover_rds_mode.hint" = "Elige si VoiceOver debe leer solo la informacion de la emisora o tambien las actualizaciones completas de RDS.";
+"settings.accessibility.voiceover_rds_mode.off" = "Desactivado";
+"settings.accessibility.voiceover_rds_mode.station_only" = "Solo emisora";
+"settings.accessibility.voiceover_rds_mode.full" = "RDS completo";
+"accessibility.rds_announcement.station" = "Emisora %@";
 "accessibility.rds_announcement.ps" = "Emisora RDS %@";
 "accessibility.rds_announcement.rt" = "Texto RDS %@";
 "accessibility.rds_announcement.pi" = "RDS P I %@";

@@ -59,14 +59,19 @@ struct SettingsView: View {
         .appSectionStyle()
 
         Section(L10n.text("settings.accessibility.section")) {
-          Toggle(
-            L10n.text("settings.accessibility.voiceover_rds"),
-            isOn: Binding(
-              get: { radioSession.settings.voiceOverAnnouncesRDSChanges },
-              set: { radioSession.setVoiceOverRDSAnnouncementsEnabled($0) }
+          Picker(
+            L10n.text("settings.accessibility.voiceover_rds_mode"),
+            selection: Binding(
+              get: { radioSession.settings.voiceOverRDSAnnouncementMode },
+              set: { radioSession.setVoiceOverRDSAnnouncementMode($0) }
             )
-          )
-          .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds.hint"))
+          ) {
+            ForEach(VoiceOverRDSAnnouncementMode.allCases) { mode in
+              Text(mode.localizedTitle)
+                .tag(mode)
+            }
+          }
+          .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds_mode.hint"))
         }
         .appSectionStyle()
 

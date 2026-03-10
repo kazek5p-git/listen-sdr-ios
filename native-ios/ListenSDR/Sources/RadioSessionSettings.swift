@@ -1,5 +1,24 @@
 import Foundation
 
+enum VoiceOverRDSAnnouncementMode: String, Codable, CaseIterable, Identifiable {
+  case off
+  case stationOnly
+  case full
+
+  var id: String { rawValue }
+
+  var localizedTitle: String {
+    switch self {
+    case .off:
+      return L10n.text("settings.accessibility.voiceover_rds_mode.off")
+    case .stationOnly:
+      return L10n.text("settings.accessibility.voiceover_rds_mode.station_only")
+    case .full:
+      return L10n.text("settings.accessibility.voiceover_rds_mode.full")
+    }
+  }
+}
+
 struct RadioSessionSettings: Codable, Equatable {
   var frequencyHz: Int
   var tuneStepHz: Int
@@ -18,13 +37,18 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiWaterfallMinDB: Int
   var kiwiWaterfallMaxDB: Int
   var showRdsErrorCounters: Bool
-  var voiceOverAnnouncesRDSChanges: Bool
+  var voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode
   var shazamIntegrationEnabled: Bool
   var dxNightModeEnabled: Bool
   var autoFilterProfileEnabled: Bool
   var adaptiveScannerEnabled: Bool
   var scannerDwellSeconds: Double
   var scannerHoldSeconds: Double
+
+  var voiceOverAnnouncesRDSChanges: Bool {
+    get { voiceOverRDSAnnouncementMode != .off }
+    set { voiceOverRDSAnnouncementMode = newValue ? .full : .off }
+  }
 
   static let supportedTuneStepsHz: [Int] = [
     10, 50, 100, 500, 1_000, 5_000, 6_250, 8_330, 9_000, 10_000, 12_500, 25_000,
@@ -49,7 +73,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMinDB: -145,
     kiwiWaterfallMaxDB: -20,
     showRdsErrorCounters: false,
-    voiceOverAnnouncesRDSChanges: false,
+    voiceOverRDSAnnouncementMode: .off,
     shazamIntegrationEnabled: false,
     dxNightModeEnabled: false,
     autoFilterProfileEnabled: false,
@@ -76,6 +100,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case kiwiWaterfallMinDB
     case kiwiWaterfallMaxDB
     case showRdsErrorCounters
+    case voiceOverRDSAnnouncementMode
     case voiceOverAnnouncesRDSChanges
     case shazamIntegrationEnabled
     case dxNightModeEnabled
@@ -103,7 +128,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMinDB: Int,
     kiwiWaterfallMaxDB: Int,
     showRdsErrorCounters: Bool,
-    voiceOverAnnouncesRDSChanges: Bool,
+    voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode,
     shazamIntegrationEnabled: Bool,
     dxNightModeEnabled: Bool,
     autoFilterProfileEnabled: Bool,
@@ -131,7 +156,7 @@ struct RadioSessionSettings: Codable, Equatable {
       self.kiwiWaterfallMaxDB = min(0, self.kiwiWaterfallMinDB + 10)
     }
     self.showRdsErrorCounters = showRdsErrorCounters
-    self.voiceOverAnnouncesRDSChanges = voiceOverAnnouncesRDSChanges
+    self.voiceOverRDSAnnouncementMode = voiceOverRDSAnnouncementMode
     self.shazamIntegrationEnabled = shazamIntegrationEnabled
     self.dxNightModeEnabled = dxNightModeEnabled
     self.autoFilterProfileEnabled = autoFilterProfileEnabled
@@ -181,8 +206,13 @@ struct RadioSessionSettings: Codable, Equatable {
     }
 
     showRdsErrorCounters = try container.decodeIfPresent(Bool.self, forKey: .showRdsErrorCounters) ?? Self.default.showRdsErrorCounters
-    voiceOverAnnouncesRDSChanges = try container.decodeIfPresent(Bool.self, forKey: .voiceOverAnnouncesRDSChanges)
-      ?? Self.default.voiceOverAnnouncesRDSChanges
+    voiceOverRDSAnnouncementMode =
+      try container.decodeIfPresent(VoiceOverRDSAnnouncementMode.self, forKey: .voiceOverRDSAnnouncementMode)
+      ?? (
+        (try container.decodeIfPresent(Bool.self, forKey: .voiceOverAnnouncesRDSChanges) ?? false)
+          ? .full
+          : Self.default.voiceOverRDSAnnouncementMode
+      )
     shazamIntegrationEnabled = try container.decodeIfPresent(Bool.self, forKey: .shazamIntegrationEnabled)
       ?? Self.default.shazamIntegrationEnabled
     dxNightModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxNightModeEnabled) ?? Self.default.dxNightModeEnabled
@@ -196,6 +226,34 @@ struct RadioSessionSettings: Codable, Equatable {
     let rawScannerHoldSeconds = try container.decodeIfPresent(Double.self, forKey: .scannerHoldSeconds)
       ?? Self.default.scannerHoldSeconds
     scannerHoldSeconds = Self.clampedScannerHoldSeconds(rawScannerHoldSeconds)
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(frequencyHz, forKey: .frequencyHz)
+    try container.encode(tuneStepHz, forKey: .tuneStepHz)
+    try container.encode(mode, forKey: .mode)
+    try container.encode(rfGain, forKey: .rfGain)
+    try container.encode(audioVolume, forKey: .audioVolume)
+    try container.encode(audioMuted, forKey: .audioMuted)
+    try container.encode(agcEnabled, forKey: .agcEnabled)
+    try container.encode(imsEnabled, forKey: .imsEnabled)
+    try container.encode(noiseReductionEnabled, forKey: .noiseReductionEnabled)
+    try container.encode(squelchEnabled, forKey: .squelchEnabled)
+    try container.encode(openWebRXSquelchLevel, forKey: .openWebRXSquelchLevel)
+    try container.encode(kiwiSquelchThreshold, forKey: .kiwiSquelchThreshold)
+    try container.encode(kiwiWaterfallSpeed, forKey: .kiwiWaterfallSpeed)
+    try container.encode(kiwiWaterfallZoom, forKey: .kiwiWaterfallZoom)
+    try container.encode(kiwiWaterfallMinDB, forKey: .kiwiWaterfallMinDB)
+    try container.encode(kiwiWaterfallMaxDB, forKey: .kiwiWaterfallMaxDB)
+    try container.encode(showRdsErrorCounters, forKey: .showRdsErrorCounters)
+    try container.encode(voiceOverRDSAnnouncementMode, forKey: .voiceOverRDSAnnouncementMode)
+    try container.encode(shazamIntegrationEnabled, forKey: .shazamIntegrationEnabled)
+    try container.encode(dxNightModeEnabled, forKey: .dxNightModeEnabled)
+    try container.encode(autoFilterProfileEnabled, forKey: .autoFilterProfileEnabled)
+    try container.encode(adaptiveScannerEnabled, forKey: .adaptiveScannerEnabled)
+    try container.encode(scannerDwellSeconds, forKey: .scannerDwellSeconds)
+    try container.encode(scannerHoldSeconds, forKey: .scannerHoldSeconds)
   }
 
   static func normalizedTuneStep(_ value: Int) -> Int {
