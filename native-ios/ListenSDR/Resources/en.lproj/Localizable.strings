@@ -368,3 +368,12 @@
 "history.clear_listening" = "Clear listening history";
 "history.last_used" = "Last used: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+
+"history.filters.section" = "History filters";
+"history.filter.scope" = "History section";
+"history.filter.scope.all" = "Everything";
+"history.filter.scope.receivers" = "Recent receivers";
+"history.filter.scope.listening" = "Recently heard";
+"history.filter.backend" = "Receiver type";
+"history.filter.backend.all" = "All receiver types";
+"history.empty_filtered" = "No history items match the current filter.";

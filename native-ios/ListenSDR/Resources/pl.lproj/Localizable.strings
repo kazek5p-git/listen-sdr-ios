@@ -519,3 +519,12 @@
 "history.clear_listening" = "Wyczy?? histori? ods?uchu";
 "history.last_used" = "Ostatnio u?ywany: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+
+"history.filters.section" = "Filtry historii";
+"history.filter.scope" = "Zakres historii";
+"history.filter.scope.all" = "Wszystko";
+"history.filter.scope.receivers" = "Ostatnie odbiorniki";
+"history.filter.scope.listening" = "Ostatnio s?uchane";
+"history.filter.backend" = "Typ odbiornika";
+"history.filter.backend.all" = "Wszystkie typy odbiornik?w";
+"history.empty_filtered" = "Brak element?w historii dla bie??cego filtra.";

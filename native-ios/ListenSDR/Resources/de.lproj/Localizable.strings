@@ -512,3 +512,12 @@
 "history.clear_listening" = "H?rverlauf l?schen";
 "history.last_used" = "Zuletzt verwendet: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+
+"history.filters.section" = "Verlaufsfilter";
+"history.filter.scope" = "Verlaufsbereich";
+"history.filter.scope.all" = "Alles";
+"history.filter.scope.receivers" = "Letzte Empf?nger";
+"history.filter.scope.listening" = "Zuletzt geh?rt";
+"history.filter.backend" = "Empf?ngertyp";
+"history.filter.backend.all" = "Alle Empf?ngertypen";
+"history.empty_filtered" = "Keine Verlaufseintr?ge passen zum aktuellen Filter.";

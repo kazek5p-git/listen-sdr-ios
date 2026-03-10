@@ -512,3 +512,12 @@
 "history.clear_listening" = "Borrar historial de escucha";
 "history.last_used" = "?ltimo uso: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+
+"history.filters.section" = "Filtros del historial";
+"history.filter.scope" = "Secci?n del historial";
+"history.filter.scope.all" = "Todo";
+"history.filter.scope.receivers" = "Receptores recientes";
+"history.filter.scope.listening" = "Escuchado recientemente";
+"history.filter.backend" = "Tipo de receptor";
+"history.filter.backend.all" = "Todos los tipos de receptor";
+"history.empty_filtered" = "Ning?n elemento del historial coincide con el filtro actual.";

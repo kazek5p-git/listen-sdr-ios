@@ -7,6 +7,60 @@ private struct ProfileEditorContext: Identifiable {
   let isNew: Bool
 }
 
+private enum HistorySectionFilter: String, CaseIterable, Identifiable {
+  case all
+  case receivers
+  case listening
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .all:
+      return L10n.text("history.filter.scope.all")
+    case .receivers:
+      return L10n.text("history.filter.scope.receivers")
+    case .listening:
+      return L10n.text("history.filter.scope.listening")
+    }
+  }
+}
+
+private enum HistoryBackendFilter: String, CaseIterable, Identifiable {
+  case all
+  case fmdx
+  case kiwi
+  case openWebRX
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .all:
+      return L10n.text("history.filter.backend.all")
+    case .fmdx:
+      return SDRBackend.fmDxWebserver.displayName
+    case .kiwi:
+      return SDRBackend.kiwiSDR.displayName
+    case .openWebRX:
+      return SDRBackend.openWebRX.displayName
+    }
+  }
+
+  func matches(_ backend: SDRBackend) -> Bool {
+    switch self {
+    case .all:
+      return true
+    case .fmdx:
+      return backend == .fmDxWebserver
+    case .kiwi:
+      return backend == .kiwiSDR
+    case .openWebRX:
+      return backend == .openWebRX
+    }
+  }
+}
+
 struct RadiosView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -14,6 +68,8 @@ struct RadiosView: View {
   @EnvironmentObject private var historyStore: ListeningHistoryStore
   @State private var editorContext: ProfileEditorContext?
   @State private var isDirectoryPresented = false
+  @State private var historySectionFilter: HistorySectionFilter = .all
+  @State private var historyBackendFilter: HistoryBackendFilter = .all
 
   var body: some View {
     NavigationStack {
@@ -31,10 +87,67 @@ struct RadiosView: View {
             let favoriteProfiles = favoritesStore.favoriteProfiles(in: profileStore.profiles)
             let favoriteIDs = Set(favoriteProfiles.map(\.id))
             let otherProfiles = profileStore.profiles.filter { !favoriteIDs.contains($0.id) }
+            let filteredRecentReceivers = historyStore.recentReceivers.filter {
+              historyBackendFilter.matches($0.backend)
+            }
+            let filteredRecentListening = historyStore.recentListening.filter {
+              historyBackendFilter.matches($0.backend)
+            }
+            let showsReceiversHistory =
+              historySectionFilter == .all || historySectionFilter == .receivers
+            let showsListeningHistory =
+              historySectionFilter == .all || historySectionFilter == .listening
+            let hasAnyHistory = !historyStore.recentReceivers.isEmpty || !historyStore.recentListening.isEmpty
+            let noHistoryMatchesFilter =
+              (showsReceiversHistory ? filteredRecentReceivers.isEmpty : true)
+              && (showsListeningHistory ? filteredRecentListening.isEmpty : true)
 
-            if !historyStore.recentReceivers.isEmpty {
+            if hasAnyHistory {
+              Section(L10n.text("history.filters.section")) {
+                NavigationLink {
+                  SelectionListView(
+                    title: L10n.text("history.filter.scope"),
+                    options: HistorySectionFilter.allCases.map {
+                      SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+                    },
+                    selectedID: historySectionFilter.rawValue
+                  ) { value in
+                    if let filter = HistorySectionFilter(rawValue: value) {
+                      historySectionFilter = filter
+                    }
+                  }
+                } label: {
+                  LabeledContent(
+                    L10n.text("history.filter.scope"),
+                    value: historySectionFilter.displayName
+                  )
+                }
+
+                NavigationLink {
+                  SelectionListView(
+                    title: L10n.text("history.filter.backend"),
+                    options: HistoryBackendFilter.allCases.map {
+                      SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+                    },
+                    selectedID: historyBackendFilter.rawValue
+                  ) { value in
+                    if let filter = HistoryBackendFilter(rawValue: value) {
+                      historyBackendFilter = filter
+                    }
+                  }
+                } label: {
+                  LabeledContent(
+                    L10n.text("history.filter.backend"),
+                    value: historyBackendFilter.displayName
+                  )
+                }
+              }
+              .appSectionStyle()
+            }
+
+            if showsReceiversHistory && !filteredRecentReceivers.isEmpty {
               Section(L10n.text("history.recent_receivers.section")) {
-                ForEach(historyStore.recentReceivers) { record in
+                ForEach(filteredRecentReceivers) { record in
                   recentReceiverRow(for: record)
                 }
 
@@ -46,9 +159,9 @@ struct RadiosView: View {
               }
             }
 
-            if !historyStore.recentListening.isEmpty {
+            if showsListeningHistory && !filteredRecentListening.isEmpty {
               Section(L10n.text("history.recent_listening.section")) {
-                ForEach(historyStore.recentListening) { record in
+                ForEach(filteredRecentListening) { record in
                   recentListeningRow(for: record)
                 }
 
@@ -58,6 +171,14 @@ struct RadiosView: View {
                   Text(L10n.text("history.clear_listening"))
                 }
               }
+            }
+
+            if hasAnyHistory && noHistoryMatchesFilter {
+              Section {
+                Text(L10n.text("history.empty_filtered"))
+                  .foregroundStyle(.secondary)
+              }
+              .appSectionStyle()
             }
 
             if !favoriteProfiles.isEmpty {

@@ -512,3 +512,12 @@
 "history.clear_listening" = "Cancella cronologia di ascolto";
 "history.last_used" = "Ultimo utilizzo: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+
+"history.filters.section" = "Filtri cronologia";
+"history.filter.scope" = "Sezione cronologia";
+"history.filter.scope.all" = "Tutto";
+"history.filter.scope.receivers" = "Ricevitori recenti";
+"history.filter.scope.listening" = "Ascoltati di recente";
+"history.filter.backend" = "Tipo di ricevitore";
+"history.filter.backend.all" = "Tutti i tipi di ricevitore";
+"history.empty_filtered" = "Nessun elemento della cronologia corrisponde al filtro attuale.";

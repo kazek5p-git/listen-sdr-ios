@@ -512,3 +512,12 @@
 "history.clear_listening" = "Effacer l'historique d'?coute";
 "history.last_used" = "Derni?re utilisation : %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+
+"history.filters.section" = "Filtres d'historique";
+"history.filter.scope" = "Section de l'historique";
+"history.filter.scope.all" = "Tout";
+"history.filter.scope.receivers" = "R?cepteurs r?cents";
+"history.filter.scope.listening" = "?cout? r?cemment";
+"history.filter.backend" = "Type de r?cepteur";
+"history.filter.backend.all" = "Tous les types de r?cepteur";
+"history.empty_filtered" = "Aucun ?l?ment d'historique ne correspond au filtre actuel.";
