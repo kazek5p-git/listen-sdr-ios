@@ -120,6 +120,7 @@ final class RadioSessionViewModel: ObservableObject {
   private let settingsKey = "ListenSDR.sessionSettings.v1"
   private let nightModeSnapshotKey = "ListenSDR.nightModeSnapshot.v1"
   private let manualSettingsSnapshotKey = "ListenSDR.manualSettingsSnapshot.v1"
+  private let receiverDataCache = ReceiverDataCache.shared
   private var nightModeSnapshot: RadioSessionSettings?
   private var manualSettingsSnapshot: RadioSessionSettings?
   private var autoFilterPendingProfile: FMDXFilterProfile?
@@ -136,6 +137,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var lastFMDXAudioQualitySampleAt = Date.distantPast
   private let fmdxAudioQualityTrendWindowSeconds: TimeInterval = 60
   private let fmdxAudioQualitySampleIntervalSeconds: TimeInterval = 5
+  private var activeProfileCacheKey: String?
   private let autoReconnectDelaySeconds: [UInt64] = [1, 2, 3, 5, 8, 12]
   private let autoReconnectWindowSeconds: TimeInterval = 75
 
@@ -232,7 +234,9 @@ final class RadioSessionViewModel: ObservableObject {
     resetRuntimeState(for: profile.backend)
     scannerThreshold = defaultScannerThreshold(for: profile.backend)
     activeBackend = nil
+    activeProfileCacheKey = ReceiverIdentity.key(for: profile)
     normalizeSettingsForBackendBeforeConnect(profile.backend)
+    hydrateCachedReceiverData(for: profile)
 
     connectTask = Task {
       do {
@@ -251,6 +255,7 @@ final class RadioSessionViewModel: ObservableObject {
           self.client = newClient
           self.connectedProfileID = profile.id
           self.activeBackend = profile.backend
+          self.activeProfileCacheKey = ReceiverIdentity.key(for: profile)
           NowPlayingMetadataController.shared.setReceiverName(profile.name)
           NowPlayingMetadataController.shared.setTitle(nil)
           self.hasInitialServerTuningSync = false
@@ -281,6 +286,7 @@ final class RadioSessionViewModel: ObservableObject {
           self.client = nil
           self.connectedProfileID = nil
           self.activeBackend = nil
+          self.activeProfileCacheKey = nil
           self.state = .failed
           self.statusText = L10n.text("session.status.connection_failed")
           self.backendStatusText = nil
@@ -322,6 +328,7 @@ final class RadioSessionViewModel: ObservableObject {
         self.client = nil
         self.connectedProfileID = nil
         self.activeBackend = nil
+        self.activeProfileCacheKey = nil
         NowPlayingMetadataController.shared.setReceiverName(nil)
         NowPlayingMetadataController.shared.setTitle(nil)
         self.state = .disconnected
@@ -1618,6 +1625,7 @@ final class RadioSessionViewModel: ObservableObject {
     stopScanner()
     self.client = nil
     activeBackend = profile.backend
+    activeProfileCacheKey = ReceiverIdentity.key(for: profile)
     state = .connecting
     statusText = L10n.text("session.status.reconnecting_to", profile.name)
     updateBackendStatusText(L10n.text("session.status.reconnecting_wait"))
@@ -1653,6 +1661,7 @@ final class RadioSessionViewModel: ObservableObject {
             self.client = newClient
             self.connectedProfileID = profile.id
             self.activeBackend = profile.backend
+            self.activeProfileCacheKey = ReceiverIdentity.key(for: profile)
             NowPlayingMetadataController.shared.setReceiverName(profile.name)
             NowPlayingMetadataController.shared.setTitle(nil)
             self.hasInitialServerTuningSync = false
@@ -1692,6 +1701,7 @@ final class RadioSessionViewModel: ObservableObject {
         self.client = nil
         self.connectedProfileID = nil
         self.activeBackend = nil
+        self.activeProfileCacheKey = nil
         self.state = .failed
         self.statusText = L10n.text("session.status.connection_lost")
         self.backendStatusText = nil
@@ -1716,12 +1726,22 @@ final class RadioSessionViewModel: ObservableObject {
     case .openWebRXProfiles(let profiles, let selectedID):
       openWebRXProfiles = profiles
       selectedOpenWebRXProfileID = selectedID
+      persistCachedReceiverData { cached in
+        cached.openWebRXProfiles = profiles
+        cached.selectedOpenWebRXProfileID = selectedID
+      }
 
     case .openWebRXBookmarks(let bookmarks):
       serverBookmarks = bookmarks
+      persistCachedReceiverData { cached in
+        cached.serverBookmarks = bookmarks
+      }
 
     case .openWebRXBandPlan(let bands):
       openWebRXBandPlan = bands
+      persistCachedReceiverData { cached in
+        cached.openWebRXBandPlan = bands
+      }
       if syncTuneStepToCurrentBandIfNeeded() {
         persistSettings()
       }
@@ -1789,6 +1809,9 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .fmdxPresets(let presets):
       fmdxServerPresets = presets
+      persistCachedReceiverData { cached in
+        cached.fmdxServerPresets = presets
+      }
       if activeBackend == .fmDxWebserver {
         serverBookmarks = presets
       }
@@ -1962,6 +1985,31 @@ final class RadioSessionViewModel: ObservableObject {
     let finalValue = (normalized?.isEmpty == false) ? normalized : nil
     guard backendStatusText != finalValue else { return }
     backendStatusText = finalValue
+  }
+
+  private func hydrateCachedReceiverData(for profile: SDRConnectionProfile) {
+    guard let cached = receiverDataCache.cachedData(for: ReceiverIdentity.key(for: profile)) else {
+      return
+    }
+
+    switch profile.backend {
+    case .openWebRX:
+      openWebRXProfiles = cached.openWebRXProfiles
+      selectedOpenWebRXProfileID = cached.selectedOpenWebRXProfileID
+      serverBookmarks = cached.serverBookmarks
+      openWebRXBandPlan = cached.openWebRXBandPlan
+
+    case .fmDxWebserver:
+      fmdxServerPresets = cached.fmdxServerPresets
+
+    case .kiwiSDR:
+      break
+    }
+  }
+
+  private func persistCachedReceiverData(_ mutate: (inout CachedReceiverData) -> Void) {
+    guard let activeProfileCacheKey else { return }
+    receiverDataCache.update(receiverID: activeProfileCacheKey, mutate: mutate)
   }
 
   private func inferredKiwiBandName(for frequencyHz: Int) -> String? {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReceiverDirectoryView: View {
   @EnvironmentObject private var profileStore: ProfileStore
+  @EnvironmentObject private var favoritesStore: FavoritesStore
   @Environment(\.dismiss) private var dismiss
   @StateObject private var viewModel = ReceiverDirectoryViewModel()
 
@@ -16,6 +17,74 @@ struct ReceiverDirectoryView: View {
           }
           .pickerStyle(.segmented)
           .accessibilityLabel(L10n.text("Receiver backend list"))
+        }
+        .appSectionStyle()
+
+        Section(L10n.text("directory.filters.section")) {
+          NavigationLink {
+            SelectionListView(
+              title: L10n.text("directory.filters.status"),
+              options: ReceiverDirectoryStatusFilter.allCases.map {
+                SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+              },
+              selectedID: viewModel.statusFilter.rawValue
+            ) { value in
+              if let filter = ReceiverDirectoryStatusFilter(rawValue: value) {
+                viewModel.statusFilter = filter
+              }
+            }
+          } label: {
+            LabeledContent(
+              L10n.text("directory.filters.status"),
+              value: viewModel.statusFilter.displayName
+            )
+          }
+
+          NavigationLink {
+            SelectionListView(
+              title: L10n.text("directory.filters.sort"),
+              options: ReceiverDirectorySortOption.allCases.map {
+                SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+              },
+              selectedID: viewModel.sortOption.rawValue
+            ) { value in
+              if let sortOption = ReceiverDirectorySortOption(rawValue: value) {
+                viewModel.sortOption = sortOption
+              }
+            }
+          } label: {
+            LabeledContent(
+              L10n.text("directory.filters.sort"),
+              value: viewModel.sortOption.displayName
+            )
+          }
+
+          if !viewModel.availableCountries.isEmpty {
+            NavigationLink {
+              SelectionListView(
+                title: L10n.text("directory.filters.country"),
+                options: [SelectionListOption(id: "", title: L10n.text("directory.filter.country.all"), detail: nil)]
+                  + viewModel.availableCountries.map { country in
+                    SelectionListOption(id: country, title: country, detail: nil)
+                  },
+                selectedID: viewModel.selectedCountry
+              ) { value in
+                viewModel.selectedCountry = value
+              }
+            } label: {
+              LabeledContent(
+                L10n.text("directory.filters.country"),
+                value: viewModel.selectedCountry.isEmpty
+                  ? L10n.text("directory.filter.country.all")
+                  : viewModel.selectedCountry
+              )
+            }
+          }
+
+          Toggle(
+            L10n.text("directory.filters.favorites_only"),
+            isOn: $viewModel.favoritesOnly
+          )
         }
         .appSectionStyle()
 
@@ -42,6 +111,12 @@ struct ReceiverDirectoryView: View {
               .accessibilityLabel(L10n.text("Directory error"))
           }
 
+          if let cacheStatusText = viewModel.cacheStatusText {
+            Text(cacheStatusText)
+              .foregroundStyle(.secondary)
+              .font(.footnote)
+          }
+
           if viewModel.isProbingStatus {
             HStack(spacing: 8) {
               ProgressView()
@@ -59,7 +134,9 @@ struct ReceiverDirectoryView: View {
         .appSectionStyle()
 
         Section("Receivers") {
-          if viewModel.filteredEntries.isEmpty {
+          let filteredEntries = viewModel.filteredEntries(favoriteReceiverIDs: favoritesStore.favoriteReceiverIDs)
+
+          if filteredEntries.isEmpty {
             if viewModel.isLoading {
               ProgressView("Refreshing directory...")
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -68,7 +145,7 @@ struct ReceiverDirectoryView: View {
                 .foregroundStyle(.secondary)
             }
           } else {
-            ForEach(viewModel.filteredEntries) { entry in
+            ForEach(filteredEntries) { entry in
               directoryRow(for: entry)
             }
           }
@@ -115,6 +192,7 @@ struct ReceiverDirectoryView: View {
         viewModel.stop()
       }
       .onChange(of: viewModel.selectedBackend) { _ in
+        viewModel.selectedCountry = ""
         viewModel.scheduleStatusProbeForSelectedBackend(force: false)
       }
       .appScreenBackground()
@@ -126,6 +204,7 @@ struct ReceiverDirectoryView: View {
     let candidateProfile = entry.makeProfile()
     let existingProfile = profileStore.matchingProfile(for: candidateProfile)
     let isSelected = existingProfile?.id == profileStore.selectedProfileID
+    let isFavorite = favoritesStore.isFavoriteReceiver(entry)
 
     Button {
       let storedProfile = profileStore.upsertImportedProfile(candidateProfile)
@@ -160,6 +239,12 @@ struct ReceiverDirectoryView: View {
         Spacer(minLength: 8)
 
         VStack(alignment: .trailing, spacing: 8) {
+          if isFavorite {
+            Image(systemName: "star.fill")
+              .imageScale(.medium)
+              .foregroundStyle(.yellow)
+          }
+
           statusBadge(for: entry.status)
 
           if existingProfile == nil {
@@ -184,6 +269,23 @@ struct ReceiverDirectoryView: View {
     .listRowBackground(Color.clear)
     .listRowSeparator(.hidden)
     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+      Button {
+        favoritesStore.toggleReceiver(entry)
+      } label: {
+        Label(
+          isFavorite ? L10n.text("favorites.receiver.remove") : L10n.text("favorites.receiver.add"),
+          systemImage: isFavorite ? "star.slash" : "star"
+        )
+      }
+      .tint(.yellow)
+    }
+    .accessibilityCustomAction(
+      isFavorite ? L10n.text("favorites.receiver.remove") : L10n.text("favorites.receiver.add")
+    ) {
+      favoritesStore.toggleReceiver(entry)
+      return true
+    }
     .accessibilityLabel(entry.name)
     .accessibilityValue(
       isSelected

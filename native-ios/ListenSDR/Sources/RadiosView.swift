@@ -9,6 +9,7 @@ private struct ProfileEditorContext: Identifiable {
 
 struct RadiosView: View {
   @EnvironmentObject private var profileStore: ProfileStore
+  @EnvironmentObject private var favoritesStore: FavoritesStore
   @State private var editorContext: ProfileEditorContext?
   @State private var isDirectoryPresented = false
 
@@ -23,8 +24,24 @@ struct RadiosView: View {
           )
         } else {
           List {
-            ForEach(profileStore.profiles) { profile in
-              profileRow(for: profile)
+            let favoriteProfiles = favoritesStore.favoriteProfiles(in: profileStore.profiles)
+            let favoriteIDs = Set(favoriteProfiles.map(\.id))
+            let otherProfiles = profileStore.profiles.filter { !favoriteIDs.contains($0.id) }
+
+            if !favoriteProfiles.isEmpty {
+              Section(L10n.text("favorites.receivers.section")) {
+                ForEach(favoriteProfiles) { profile in
+                  profileRow(for: profile, isFavorite: true)
+                }
+              }
+            }
+
+            if !otherProfiles.isEmpty {
+              Section(L10n.text("Radios")) {
+                ForEach(otherProfiles) { profile in
+                  profileRow(for: profile, isFavorite: false)
+                }
+              }
             }
           }
           .listStyle(.insetGrouped)
@@ -77,7 +94,7 @@ struct RadiosView: View {
   }
 
   @ViewBuilder
-  private func profileRow(for profile: SDRConnectionProfile) -> some View {
+  private func profileRow(for profile: SDRConnectionProfile, isFavorite: Bool) -> some View {
     Button {
       profileStore.updateSelection(profile.id)
     } label: {
@@ -110,10 +127,18 @@ struct RadiosView: View {
 
         Spacer()
 
-        if profileStore.selectedProfileID == profile.id {
-          Image(systemName: "checkmark.circle.fill")
-            .foregroundStyle(.green)
-            .accessibilityHidden(true)
+        VStack(alignment: .trailing, spacing: 10) {
+          if isFavorite {
+            Image(systemName: "star.fill")
+              .foregroundStyle(.yellow)
+              .accessibilityHidden(true)
+          }
+
+          if profileStore.selectedProfileID == profile.id {
+            Image(systemName: "checkmark.circle.fill")
+              .foregroundStyle(.green)
+              .accessibilityHidden(true)
+          }
         }
       }
       .appCardContainer()
@@ -124,6 +149,18 @@ struct RadiosView: View {
     .listRowSeparator(.hidden)
     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+      Button {
+        favoritesStore.toggleReceiver(profile)
+      } label: {
+        Label(
+          favoritesStore.isFavoriteReceiver(profile)
+            ? L10n.text("favorites.receiver.remove")
+            : L10n.text("favorites.receiver.add"),
+          systemImage: favoritesStore.isFavoriteReceiver(profile) ? "star.slash" : "star"
+        )
+      }
+      .tint(.yellow)
+
       Button("Edit") {
         editorContext = ProfileEditorContext(
           title: L10n.text("Edit Radio"),

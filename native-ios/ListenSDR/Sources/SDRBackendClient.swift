@@ -2655,6 +2655,7 @@ actor FMDXWebserverClient: SDRBackendClient {
         case .data(let data):
           lastAudioPacketAt = Date()
           FMDXMP3AudioPlayer.shared.append(data)
+          AudioRecordingController.shared.consumeMP3(data: data)
         case .string(let text):
           await handleAudioControlText(text)
         @unknown default:

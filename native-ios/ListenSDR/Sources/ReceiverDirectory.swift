@@ -34,6 +34,53 @@ enum ReceiverDirectoryStatus: String, Codable, CaseIterable {
   }
 }
 
+enum ReceiverDirectoryStatusFilter: String, CaseIterable, Identifiable {
+  case all
+  case online
+  case availableOnly
+  case unavailable
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .all:
+      return L10n.text("directory.filter.status.all")
+    case .online:
+      return L10n.text("directory.filter.status.online")
+    case .availableOnly:
+      return L10n.text("directory.filter.status.available_only")
+    case .unavailable:
+      return L10n.text("directory.filter.status.unavailable")
+    }
+  }
+}
+
+enum ReceiverDirectorySortOption: String, CaseIterable, Identifiable {
+  case recommended
+  case name
+  case location
+  case status
+  case source
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .recommended:
+      return L10n.text("directory.sort.recommended")
+    case .name:
+      return L10n.text("directory.sort.name")
+    case .location:
+      return L10n.text("directory.sort.location")
+    case .status:
+      return L10n.text("directory.sort.status")
+    case .source:
+      return L10n.text("directory.sort.source")
+    }
+  }
+}
+
 struct ReceiverDirectoryEntry: Identifiable, Codable, Hashable {
   let id: String
   let backend: SDRBackend
@@ -45,6 +92,8 @@ struct ReceiverDirectoryEntry: Identifiable, Codable, Hashable {
   let endpointURL: String
   let sourceName: String
   let status: ReceiverDirectoryStatus
+  let cityLabel: String?
+  let countryLabel: String?
   let locationLabel: String?
   let softwareVersion: String?
   let latitude: Double?
@@ -88,6 +137,8 @@ struct ReceiverDirectoryEntry: Identifiable, Codable, Hashable {
       endpointURL: endpointURL,
       sourceName: sourceName,
       status: updatedStatus,
+      cityLabel: cityLabel,
+      countryLabel: countryLabel,
       locationLabel: locationLabel,
       softwareVersion: softwareVersion,
       latitude: latitude,
@@ -208,7 +259,9 @@ actor ReceiverDirectoryService {
 
       let trimmedName = row.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
       let displayName = trimmedName.isEmpty ? endpoint.host : trimmedName
-      let location = locationLabel(city: row.city, country: row.countryName)
+      let city = normalizedLabel(row.city)
+      let country = normalizedLabel(row.countryName)
+      let location = locationLabel(city: city, country: country)
       let status = fmdxStatus(from: row.status)
 
       let entry = ReceiverDirectoryEntry(
@@ -222,6 +275,8 @@ actor ReceiverDirectoryService {
         endpointURL: endpoint.absoluteURL,
         sourceName: "FMDX.org",
         status: status,
+        cityLabel: city,
+        countryLabel: country,
         locationLabel: location,
         softwareVersion: row.version,
         latitude: nil,
@@ -265,6 +320,7 @@ actor ReceiverDirectoryService {
 
         let nameCandidate = receiver.label?.trimmingCharacters(in: .whitespacesAndNewlines)
         let displayName = (nameCandidate?.isEmpty == false ? nameCandidate : groupLabel) ?? endpoint.host
+        let country = inferCountry(from: groupLabel)
 
         let entry = ReceiverDirectoryEntry(
           id: entryID(backend: backend, endpoint: endpoint),
@@ -277,6 +333,8 @@ actor ReceiverDirectoryService {
           endpointURL: endpoint.absoluteURL,
           sourceName: "Receiverbook.de",
           status: .unknown,
+          cityLabel: nil,
+          countryLabel: country,
           locationLabel: groupLabel,
           softwareVersion: receiver.version,
           latitude: latitude,
@@ -386,6 +444,21 @@ actor ReceiverDirectoryService {
       return trimmedCountry
     }
     return nil
+  }
+
+  private func normalizedLabel(_ value: String?) -> String? {
+    let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return normalized.isEmpty ? nil : normalized
+  }
+
+  private func inferCountry(from locationLabel: String?) -> String? {
+    guard let locationLabel else { return nil }
+    let parts = locationLabel
+      .split(separator: ",")
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
+    guard let last = parts.last else { return nil }
+    return last.count >= 3 ? last : nil
   }
 
   private func fmdxStatus(from raw: Int?) -> ReceiverDirectoryStatus {
@@ -527,11 +600,16 @@ actor ReceiverDirectoryService {
 final class ReceiverDirectoryViewModel: ObservableObject {
   @Published var selectedBackend: SDRBackend = .fmDxWebserver
   @Published var searchText: String = ""
+  @Published var statusFilter: ReceiverDirectoryStatusFilter = .all
+  @Published var sortOption: ReceiverDirectorySortOption = .recommended
+  @Published var selectedCountry: String = ""
+  @Published var favoritesOnly = false
   @Published private(set) var entries: [ReceiverDirectoryEntry] = []
   @Published private(set) var isLoading = false
   @Published private(set) var isProbingStatus = false
   @Published private(set) var lastRefreshDate: Date?
   @Published private(set) var errorMessage: String?
+  @Published private(set) var isUsingCachedData = false
 
   let supportedBackends: [SDRBackend] = [.fmDxWebserver, .kiwiSDR, .openWebRX]
 
@@ -557,22 +635,99 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     self.notificationService.requestAuthorizationIfNeeded()
   }
 
-  var filteredEntries: [ReceiverDirectoryEntry] {
-    let selected = entries.filter { $0.backend == selectedBackend }
-    let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    guard !query.isEmpty else { return selected }
+  var availableCountries: [String] {
+    Array(
+      Set(
+        entries
+          .filter { $0.backend == selectedBackend }
+          .compactMap(\.countryLabel)
+          .filter { !$0.isEmpty }
+      )
+    )
+    .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+  }
 
-    return selected.filter { entry in
-      if entry.name.lowercased().contains(query) {
+  var cacheStatusText: String? {
+    guard isUsingCachedData else { return nil }
+    if let lastRefreshDate {
+      return L10n.text(
+        "directory.cache.using_cached_with_date",
+        lastRefreshDate.formatted(date: .abbreviated, time: .shortened)
+      )
+    }
+    return L10n.text("directory.cache.using_cached")
+  }
+
+  func filteredEntries(favoriteReceiverIDs: Set<String> = []) -> [ReceiverDirectoryEntry] {
+    var selected = entries.filter { $0.backend == selectedBackend }
+
+    if favoritesOnly {
+      selected = selected.filter { favoriteReceiverIDs.contains(ReceiverIdentity.key(for: $0)) }
+    }
+
+    if !selectedCountry.isEmpty {
+      selected = selected.filter { $0.countryLabel == selectedCountry }
+    }
+
+    selected = selected.filter { entry in
+      switch statusFilter {
+      case .all:
         return true
+      case .online:
+        return entry.status == .available || entry.status == .limited
+      case .availableOnly:
+        return entry.status == .available
+      case .unavailable:
+        return entry.status == .unreachable
       }
-      if entry.host.lowercased().contains(query) {
-        return true
+    }
+
+    let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    if !query.isEmpty {
+      selected = selected.filter { entry in
+        if entry.name.lowercased().contains(query) {
+          return true
+        }
+        if entry.host.lowercased().contains(query) {
+          return true
+        }
+        if let location = entry.locationLabel?.lowercased(), location.contains(query) {
+          return true
+        }
+        if entry.sourceName.lowercased().contains(query) {
+          return true
+        }
+        if let country = entry.countryLabel?.lowercased(), country.contains(query) {
+          return true
+        }
+        return false
       }
-      if let location = entry.locationLabel?.lowercased(), location.contains(query) {
-        return true
+    }
+
+    return selected.sorted { lhs, rhs in
+      switch sortOption {
+      case .recommended:
+        return compareRecommended(lhs: lhs, rhs: rhs)
+      case .name:
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+      case .location:
+        let lhsLocation = lhs.locationLabel ?? lhs.countryLabel ?? lhs.name
+        let rhsLocation = rhs.locationLabel ?? rhs.countryLabel ?? rhs.name
+        if lhsLocation.localizedCaseInsensitiveCompare(rhsLocation) != .orderedSame {
+          return lhsLocation.localizedCaseInsensitiveCompare(rhsLocation) == .orderedAscending
+        }
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+      case .status:
+        if lhs.status.sortRank != rhs.status.sortRank {
+          return lhs.status.sortRank < rhs.status.sortRank
+        }
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+      case .source:
+        if lhs.sourceName.localizedCaseInsensitiveCompare(rhs.sourceName) != .orderedSame {
+          return lhs.sourceName.localizedCaseInsensitiveCompare(rhs.sourceName) == .orderedAscending
+        }
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
       }
-      return false
     }
   }
 
@@ -630,6 +785,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
       let mergedEntries = sortEntries(applyKnownStatuses(to: fetched))
       entries = mergedEntries
       lastRefreshDate = Date()
+      isUsingCachedData = false
       persistCache()
       Diagnostics.log(
         category: "Directory",
@@ -648,6 +804,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
       }
     } catch {
       errorMessage = error.localizedDescription
+      isUsingCachedData = !entries.isEmpty
       Diagnostics.log(
         severity: .warning,
         category: "Directory",
@@ -828,6 +985,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     if let raw = defaults.data(forKey: cacheEntriesKey),
       let decoded = try? JSONDecoder().decode([ReceiverDirectoryEntry].self, from: raw) {
       entries = decoded
+      isUsingCachedData = !decoded.isEmpty
     }
 
     if let cachedDate = defaults.object(forKey: cacheRefreshDateKey) as? Date {
@@ -840,5 +998,15 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     let defaults = UserDefaults.standard
     defaults.set(encoded, forKey: cacheEntriesKey)
     defaults.set(lastRefreshDate, forKey: cacheRefreshDateKey)
+  }
+
+  private func compareRecommended(lhs: ReceiverDirectoryEntry, rhs: ReceiverDirectoryEntry) -> Bool {
+    if lhs.backend != rhs.backend {
+      return backendSortRank(lhs.backend) < backendSortRank(rhs.backend)
+    }
+    if lhs.status.sortRank != rhs.status.sortRank {
+      return lhs.status.sortRank < rhs.status.sortRank
+    }
+    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
   }
 }

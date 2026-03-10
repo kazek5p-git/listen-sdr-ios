@@ -1,11 +1,11 @@
 import Foundation
 
-struct OpenWebRXProfileOption: Identifiable, Hashable {
+struct OpenWebRXProfileOption: Identifiable, Hashable, Codable {
   let id: String
   let name: String
 }
 
-struct SDRServerBookmark: Identifiable, Hashable {
+struct SDRServerBookmark: Identifiable, Hashable, Codable {
   let id: String
   let name: String
   let frequencyHz: Int
@@ -13,13 +13,13 @@ struct SDRServerBookmark: Identifiable, Hashable {
   let source: String
 }
 
-struct SDRBandFrequency: Identifiable, Hashable {
+struct SDRBandFrequency: Identifiable, Hashable, Codable {
   let id: String
   let name: String
   let frequencyHz: Int
 }
 
-struct SDRBandPlanEntry: Identifiable, Hashable {
+struct SDRBandPlanEntry: Identifiable, Hashable, Codable {
   let id: String
   let name: String
   let lowerBoundHz: Int

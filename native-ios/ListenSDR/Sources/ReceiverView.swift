@@ -25,6 +25,8 @@ private enum ReceiverAccessibilityFocus: Hashable {
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var favoritesStore: FavoritesStore
+  @EnvironmentObject private var recordingStore: RecordingStore
   @FocusState private var isInlineFrequencyFocused: Bool
   @AccessibilityFocusState private var accessibilityFocus: ReceiverAccessibilityFocus?
   @State private var inlineFrequencyInput = ""
@@ -63,6 +65,7 @@ struct ReceiverView: View {
     return Form {
       connectionSection(for: profile)
       tuningSection(for: profile)
+      favoritesSection(for: profile)
       openWebRXControlsSection(for: profile)
       openWebRXServerBookmarksSection(for: profile)
       openWebRXBandPlanSection(for: profile)
@@ -74,7 +77,7 @@ struct ReceiverView: View {
       }
       fmDxLiveSection(for: profile)
       kiwiLiveSection(for: profile)
-      audioSection()
+      audioSection(for: profile)
     }
     .scrollContentBackground(.hidden)
     .onAppear {
@@ -83,6 +86,65 @@ struct ReceiverView: View {
     .onChange(of: profile.backend) { _ in
       resetInlineFrequencyInput()
     }
+  }
+
+  private func favoritesSection(for profile: SDRConnectionProfile) -> some View {
+    let favoriteStations = favoritesStore.stations(for: profile)
+
+    return Section(L10n.text("favorites.section")) {
+      Button {
+        favoritesStore.toggleReceiver(profile)
+      } label: {
+        Label(
+          favoritesStore.isFavoriteReceiver(profile)
+            ? L10n.text("favorites.receiver.remove")
+            : L10n.text("favorites.receiver.add"),
+          systemImage: favoritesStore.isFavoriteReceiver(profile) ? "star.slash" : "star"
+        )
+      }
+
+      Button {
+        favoritesStore.toggleStation(
+          profile: profile,
+          title: currentFavoriteStationTitle(for: profile),
+          frequencyHz: radioSession.settings.frequencyHz,
+          mode: radioSession.settings.mode
+        )
+      } label: {
+        Label(
+          isCurrentFrequencyFavorite(for: profile)
+            ? L10n.text("favorites.station.remove_current")
+            : L10n.text("favorites.station.add_current"),
+          systemImage: isCurrentFrequencyFavorite(for: profile) ? "star.slash" : "star.circle"
+        )
+      }
+
+      if !favoriteStations.isEmpty {
+        ForEach(favoriteStations) { station in
+          Button {
+            if station.mode != nil {
+              radioSession.setMode(station.mode ?? radioSession.settings.mode)
+            }
+            radioSession.setFrequencyHz(station.frequencyHz)
+          } label: {
+            VStack(alignment: .leading, spacing: 4) {
+              Text(station.title)
+              Text(FrequencyFormatter.mhzText(fromHz: station.frequencyHz))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+          }
+          .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+              favoritesStore.removeStation(station)
+            } label: {
+              Label(L10n.text("Delete"), systemImage: "trash")
+            }
+          }
+        }
+      }
+    }
+    .appSectionStyle()
   }
 
   private func connectionSection(for profile: SDRConnectionProfile) -> some View {
@@ -825,7 +887,7 @@ struct ReceiverView: View {
     }
   }
 
-  private func audioSection() -> some View {
+  private func audioSection(for profile: SDRConnectionProfile) -> some View {
     Section("Audio") {
       VStack(alignment: .leading, spacing: 6) {
         Text(L10n.text("audio.volume_percent", Int((radioSession.settings.audioVolume * 100).rounded())))
@@ -849,6 +911,45 @@ struct ReceiverView: View {
           set: { radioSession.setAudioMuted($0) }
         )
       )
+
+      if recordingStore.isRecording {
+        LabeledContent(
+          L10n.text("recordings.active"),
+          value: [
+            recordingStore.activeReceiverName ?? profile.name,
+            recordingStore.activeFormat?.localizedTitle ?? ""
+          ]
+            .filter { !$0.isEmpty }
+            .joined(separator: " | ")
+        )
+
+        Button(role: .destructive) {
+          recordingStore.stopRecording()
+        } label: {
+          Label(L10n.text("recordings.stop"), systemImage: "stop.circle")
+        }
+      } else {
+        Button {
+          recordingStore.startRecording(
+            receiverName: profile.name,
+            backend: profile.backend,
+            frequencyHz: radioSession.settings.frequencyHz,
+            mode: radioSession.settings.mode
+          )
+        } label: {
+          Label(L10n.text("recordings.start"), systemImage: "record.circle")
+        }
+        .disabled(radioSession.state != .connected || radioSession.connectedProfileID != profile.id)
+      }
+
+      NavigationLink {
+        RecordingsView()
+      } label: {
+        LabeledContent(
+          L10n.text("recordings.section"),
+          value: "\(recordingStore.recordings.count)"
+        )
+      }
     }
     .appSectionStyle()
   }
@@ -1194,6 +1295,37 @@ struct ReceiverView: View {
   private func tuneFrequency(byStepCount stepCount: Int) {
     radioSession.tune(byStepCount: stepCount)
     focusFrequencyControl()
+  }
+
+  private func currentFavoriteStationTitle(for profile: SDRConnectionProfile) -> String {
+    switch profile.backend {
+    case .fmDxWebserver:
+      if let station = radioSession.fmdxTelemetry?.txInfo?.station?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !station.isEmpty {
+        return station
+      }
+      if let ps = radioSession.fmdxTelemetry?.ps?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !ps.isEmpty {
+        return ps
+      }
+    case .kiwiSDR:
+      if let band = radioSession.currentKiwiBandName?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !band.isEmpty {
+        return band
+      }
+    case .openWebRX:
+      if let bookmark = radioSession.serverBookmarks.first(where: { $0.frequencyHz == radioSession.settings.frequencyHz }) {
+        return bookmark.name
+      }
+    }
+
+    return FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+  }
+
+  private func isCurrentFrequencyFavorite(for profile: SDRConnectionProfile) -> Bool {
+    favoritesStore.stations(for: profile).contains {
+      $0.frequencyHz == radioSession.settings.frequencyHz && $0.mode == radioSession.settings.mode
+    }
   }
 
   private func frequencyAdjustmentStepCount(forIncrement isIncrement: Bool) -> Int {
