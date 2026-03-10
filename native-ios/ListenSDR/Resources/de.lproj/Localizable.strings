@@ -395,3 +395,15 @@
 "settings.audio.packet_hold.hint" = "Niedrigere Werte verringern die Verzoegerung, hoehere helfen bei instabilen Streams.";
 "settings.audio.reset" = "Audio-Tuning zuruecksetzen";
 "settings.audio.footer" = "Diese Regler betreffen nur die FM-DX-Audiowiedergabe.";
+"settings.audio.preset" = "Audio-Preset";
+"settings.audio.preset.hint" = "Waehle ein fertiges FM-DX-Audioprofil oder nutze die manuelle Abstimmung darunter.";
+"settings.audio.preset.low_latency" = "Niedrige Verzoegerung";
+"settings.audio.preset.low_latency.detail" = "Kleiner Puffer, schnellste Reaktion, aber mehr Aussetzer-Risiko.";
+"settings.audio.preset.balanced" = "Ausgewogen";
+"settings.audio.preset.balanced.detail" = "Standardprofil mit Balance zwischen Verzoegerung und Stabilitaet.";
+"settings.audio.preset.stable" = "Stabiler Stream";
+"settings.audio.preset.stable.detail" = "Groesserer Puffer fuer laengeres Hoeren mit weniger Aussetzern.";
+"settings.audio.preset.weak_server" = "Schwacher Server";
+"settings.audio.preset.weak_server.detail" = "Groesste Sicherheitsreserve fuer instabile oder ueberlastete Server.";
+"settings.audio.preset.custom" = "Benutzerdefiniert";
+"settings.audio.preset.custom.detail" = "Manuelle Werte, die von fertigen Presets abweichen.";

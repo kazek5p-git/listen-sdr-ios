@@ -19,6 +19,87 @@ enum VoiceOverRDSAnnouncementMode: String, Codable, CaseIterable, Identifiable {
   }
 }
 
+enum FMDXAudioTuningPreset: String, CaseIterable, Identifiable {
+  case lowLatency
+  case balanced
+  case stable
+  case weakServer
+  case custom
+
+  var id: String { rawValue }
+
+  static var selectableCases: [FMDXAudioTuningPreset] {
+    [.lowLatency, .balanced, .stable, .weakServer]
+  }
+
+  var localizedTitle: String {
+    switch self {
+    case .lowLatency:
+      return L10n.text("settings.audio.preset.low_latency")
+    case .balanced:
+      return L10n.text("settings.audio.preset.balanced")
+    case .stable:
+      return L10n.text("settings.audio.preset.stable")
+    case .weakServer:
+      return L10n.text("settings.audio.preset.weak_server")
+    case .custom:
+      return L10n.text("settings.audio.preset.custom")
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .lowLatency:
+      return L10n.text("settings.audio.preset.low_latency.detail")
+    case .balanced:
+      return L10n.text("settings.audio.preset.balanced.detail")
+    case .stable:
+      return L10n.text("settings.audio.preset.stable.detail")
+    case .weakServer:
+      return L10n.text("settings.audio.preset.weak_server.detail")
+    case .custom:
+      return L10n.text("settings.audio.preset.custom.detail")
+    }
+  }
+
+  var tuningValues: (startupBufferSeconds: Double, maxLatencySeconds: Double, packetHoldSeconds: Double)? {
+    switch self {
+    case .lowLatency:
+      return (0.35, 1.10, 0.08)
+    case .balanced:
+      return (
+        RadioSessionSettings.default.fmdxAudioStartupBufferSeconds,
+        RadioSessionSettings.default.fmdxAudioMaxLatencySeconds,
+        RadioSessionSettings.default.fmdxAudioPacketHoldSeconds
+      )
+    case .stable:
+      return (0.80, 2.20, 0.20)
+    case .weakServer:
+      return (1.10, 2.80, 0.28)
+    case .custom:
+      return nil
+    }
+  }
+
+  static func matching(
+    startupBufferSeconds: Double,
+    maxLatencySeconds: Double,
+    packetHoldSeconds: Double
+  ) -> FMDXAudioTuningPreset {
+    let tolerance = 0.0001
+    for preset in selectableCases {
+      guard let values = preset.tuningValues else { continue }
+      let startupMatches = abs(values.startupBufferSeconds - startupBufferSeconds) < tolerance
+      let latencyMatches = abs(values.maxLatencySeconds - maxLatencySeconds) < tolerance
+      let holdMatches = abs(values.packetHoldSeconds - packetHoldSeconds) < tolerance
+      if startupMatches && latencyMatches && holdMatches {
+        return preset
+      }
+    }
+    return .custom
+  }
+}
+
 struct RadioSessionSettings: Codable, Equatable {
   var frequencyHz: Int
   var tuneStepHz: Int

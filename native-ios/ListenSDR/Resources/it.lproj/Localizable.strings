@@ -395,3 +395,15 @@
 "settings.audio.packet_hold.hint" = "Valori piu bassi riducono il ritardo, valori piu alti aiutano con stream instabili.";
 "settings.audio.reset" = "Ripristina audio";
 "settings.audio.footer" = "Questi controlli influenzano solo l'audio FM-DX.";
+"settings.audio.preset" = "Preset audio";
+"settings.audio.preset.hint" = "Scegli un profilo audio FM-DX pronto oppure usa la regolazione manuale sotto.";
+"settings.audio.preset.low_latency" = "Bassa latenza";
+"settings.audio.preset.low_latency.detail" = "Buffer piccolo, risposta piu rapida, ma piu rischio di scatti.";
+"settings.audio.preset.balanced" = "Bilanciato";
+"settings.audio.preset.balanced.detail" = "Profilo predefinito con equilibrio tra ritardo e stabilita.";
+"settings.audio.preset.stable" = "Stream stabile";
+"settings.audio.preset.stable.detail" = "Buffer piu grande per ascolto prolungato con meno interruzioni.";
+"settings.audio.preset.weak_server" = "Server debole";
+"settings.audio.preset.weak_server.detail" = "Massimo margine di sicurezza per server instabili o sovraccarichi.";
+"settings.audio.preset.custom" = "Personalizzato";
+"settings.audio.preset.custom.detail" = "Valori manuali diversi dai preset pronti.";

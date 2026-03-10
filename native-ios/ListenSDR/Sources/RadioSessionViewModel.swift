@@ -177,6 +177,14 @@ final class RadioSessionViewModel: ObservableObject {
     isWaitingForInitialServerTuningSync()
   }
 
+  var currentFMDXAudioPreset: FMDXAudioTuningPreset {
+    FMDXAudioTuningPreset.matching(
+      startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds,
+      maxLatencySeconds: settings.fmdxAudioMaxLatencySeconds,
+      packetHoldSeconds: settings.fmdxAudioPacketHoldSeconds
+    )
+  }
+
   func connect(to profile: SDRConnectionProfile) {
     if state == .connecting {
       return
@@ -850,9 +858,14 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func resetFMDXAudioTuning() {
-    settings.fmdxAudioStartupBufferSeconds = RadioSessionSettings.default.fmdxAudioStartupBufferSeconds
-    settings.fmdxAudioMaxLatencySeconds = RadioSessionSettings.default.fmdxAudioMaxLatencySeconds
-    settings.fmdxAudioPacketHoldSeconds = RadioSessionSettings.default.fmdxAudioPacketHoldSeconds
+    applyFMDXAudioPreset(.balanced)
+  }
+
+  func applyFMDXAudioPreset(_ preset: FMDXAudioTuningPreset) {
+    guard let values = preset.tuningValues else { return }
+    settings.fmdxAudioStartupBufferSeconds = values.startupBufferSeconds
+    settings.fmdxAudioMaxLatencySeconds = values.maxLatencySeconds
+    settings.fmdxAudioPacketHoldSeconds = values.packetHoldSeconds
     persistSettings()
     applyFMDXAudioTuning()
   }

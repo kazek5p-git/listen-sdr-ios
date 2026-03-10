@@ -106,6 +106,30 @@ struct SettingsView: View {
         .appSectionStyle()
 
         Section {
+          NavigationLink {
+            SelectionListView(
+              title: L10n.text("settings.audio.preset"),
+              options: FMDXAudioTuningPreset.selectableCases.map { preset in
+                SelectionListOption(
+                  id: preset.rawValue,
+                  title: preset.localizedTitle,
+                  detail: preset.localizedDetail
+                )
+              },
+              selectedID: radioSession.currentFMDXAudioPreset.rawValue
+            ) { value in
+              if let preset = FMDXAudioTuningPreset(rawValue: value) {
+                radioSession.applyFMDXAudioPreset(preset)
+              }
+            }
+          } label: {
+            LabeledContent(
+              L10n.text("settings.audio.preset"),
+              value: radioSession.currentFMDXAudioPreset.localizedTitle
+            )
+          }
+          .accessibilityHint(L10n.text("settings.audio.preset.hint"))
+
           audioSlider(
             title: L10n.text("settings.audio.startup_buffer"),
             value: radioSession.settings.fmdxAudioStartupBufferSeconds,

@@ -402,3 +402,15 @@
 "settings.audio.packet_hold.hint" = "Mniejsza wartosc zmniejsza opoznienie, wieksza moze pomoc przy niestabilnym strumieniu.";
 "settings.audio.reset" = "Przywroc domyslne audio";
 "settings.audio.footer" = "Te ustawienia dzialaja tylko dla toru audio FM-DX.";
+"settings.audio.preset" = "Preset audio";
+"settings.audio.preset.hint" = "Wybierz gotowy profil audio FM-DX albo zostaw reczne strojenie ponizej.";
+"settings.audio.preset.low_latency" = "Niskie opoznienie";
+"settings.audio.preset.low_latency.detail" = "Maly bufor, najszybsza reakcja, ale wieksze ryzyko przyciec.";
+"settings.audio.preset.balanced" = "Zbalansowany";
+"settings.audio.preset.balanced.detail" = "Domyslny profil z kompromisem miedzy opoznieniem a stabilnoscia.";
+"settings.audio.preset.stable" = "Stabilny stream";
+"settings.audio.preset.stable.detail" = "Wiekszy bufor do dluzszego sluchania z mniejsza liczba dropow.";
+"settings.audio.preset.weak_server" = "Slaby serwer";
+"settings.audio.preset.weak_server.detail" = "Najwiekszy zapas bezpieczenstwa dla niestabilnych lub przeciazonych serwerow.";
+"settings.audio.preset.custom" = "Niestandardowy";
+"settings.audio.preset.custom.detail" = "Reczne wartosci rozne od gotowych presetow.";
