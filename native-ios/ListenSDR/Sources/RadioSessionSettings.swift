@@ -139,6 +139,44 @@ struct FMDXAudioPresetSuggestion {
   }
 }
 
+enum FMDXAudioQualityLevel: String {
+  case excellent
+  case good
+  case fair
+  case poor
+  case critical
+
+  var localizedTitle: String {
+    switch self {
+    case .excellent:
+      return L10n.text("diagnostics.audio_quality.level.excellent")
+    case .good:
+      return L10n.text("diagnostics.audio_quality.level.good")
+    case .fair:
+      return L10n.text("diagnostics.audio_quality.level.fair")
+    case .poor:
+      return L10n.text("diagnostics.audio_quality.level.poor")
+    case .critical:
+      return L10n.text("diagnostics.audio_quality.level.critical")
+    }
+  }
+}
+
+struct FMDXAudioQualityReport {
+  let score: Int
+  let level: FMDXAudioQualityLevel
+  let summaryKey: String
+  let queuedDurationSeconds: Double
+  let queuedBufferCount: Int
+  let outputGapSeconds: Double
+  let latencyTrimAgeSeconds: Double?
+  let signalDBf: Double?
+
+  var localizedSummary: String {
+    L10n.text(summaryKey)
+  }
+}
+
 struct RadioSessionSettings: Codable, Equatable {
   var frequencyHz: Int
   var tuneStepHz: Int

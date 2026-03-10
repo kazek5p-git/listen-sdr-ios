@@ -16,6 +16,14 @@ struct DiagnosticsView: View {
     )
   }
 
+  private var generalLogEntries: [DiagnosticLogEntry] {
+    Array(
+      diagnostics.entries
+        .filter { $0.category != "Audio Suggestion" }
+        .reversed()
+    )
+  }
+
   var body: some View {
     List {
       Section("Quick Actions") {
@@ -91,8 +99,60 @@ struct DiagnosticsView: View {
         }
       }
 
+      if let quality = radioSession.fmdxAudioQualityReport {
+        Section(L10n.text("diagnostics.audio_quality.section")) {
+          LabeledContent(
+            L10n.text("diagnostics.audio_quality.score"),
+            value: "\(quality.score)/100"
+          )
+
+          LabeledContent(
+            L10n.text("diagnostics.audio_quality.level"),
+            value: quality.level.localizedTitle
+          )
+
+          Text(quality.localizedSummary)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+          LabeledContent(
+            L10n.text("diagnostics.audio_quality.queue"),
+            value: "\(String(format: "%.2f", quality.queuedDurationSeconds)) s"
+          )
+
+          LabeledContent(
+            L10n.text("diagnostics.audio_quality.buffers"),
+            value: "\(quality.queuedBufferCount)"
+          )
+
+          LabeledContent(
+            L10n.text("diagnostics.audio_quality.output_gap"),
+            value: "\(String(format: "%.2f", quality.outputGapSeconds)) s"
+          )
+
+          if let trimAge = quality.latencyTrimAgeSeconds {
+            LabeledContent(
+              L10n.text("diagnostics.audio_quality.last_trim"),
+              value: "\(String(format: "%.1f", trimAge)) s"
+            )
+          } else {
+            LabeledContent(
+              L10n.text("diagnostics.audio_quality.last_trim"),
+              value: L10n.text("diagnostics.audio_quality.no_trim")
+            )
+          }
+
+          if let signal = quality.signalDBf {
+            LabeledContent(
+              L10n.text("diagnostics.audio_quality.signal"),
+              value: "\(String(format: "%.1f", signal)) dBf"
+            )
+          }
+        }
+      }
+
       Section("Logs") {
-        if diagnostics.entries.isEmpty {
+        if generalLogEntries.isEmpty {
           UnavailableContentView(
             title: L10n.text("No Diagnostics Yet"),
             systemImage: "doc.text.magnifyingglass",
@@ -101,7 +161,7 @@ struct DiagnosticsView: View {
           .listRowInsets(EdgeInsets())
           .listRowBackground(Color.clear)
         } else {
-          ForEach(Array(diagnostics.entries.reversed())) { entry in
+          ForEach(generalLogEntries) { entry in
             VStack(alignment: .leading, spacing: 4) {
               HStack {
                 Text(timeText(entry.date))
