@@ -710,10 +710,10 @@ struct RadiosView: View {
     let storedProfile = profileStore.upsertImportedProfile(record.makeProfile())
     profileStore.updateSelection(storedProfile.id)
     if radioSession.state == .connected && radioSession.connectedProfileID == storedProfile.id {
-      if let mode = record.mode {
-        radioSession.setMode(mode)
-      }
-      radioSession.setFrequencyHz(record.frequencyHz)
+      radioSession.restoreCurrentSession(
+        frequencyHz: record.frequencyHz,
+        mode: record.mode
+      )
       openReceiverTabAfterHistoryActionIfNeeded()
       return
     }

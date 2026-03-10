@@ -213,7 +213,10 @@ final class RadioSessionViewModel: ObservableObject {
     mode restoringMode: DemodulationMode? = nil
   ) {
     if state == .connecting && sessionRecoveryTask == nil {
-      return
+      Diagnostics.log(
+        category: "Session",
+        message: "Superseding in-flight connection with \(profile.name)"
+      )
     }
 
     cancelAutomaticRecovery()
@@ -625,6 +628,29 @@ final class RadioSessionViewModel: ObservableObject {
     guard settings.openReceiverAfterHistoryRestore != enabled else { return }
     settings.openReceiverAfterHistoryRestore = enabled
     persistSettings()
+  }
+
+  func restoreCurrentSession(
+    frequencyHz: Int?,
+    mode: DemodulationMode?
+  ) {
+    guard state == .connected, let profileID = connectedProfileID else { return }
+
+    if isWaitingForInitialServerTuningSync() {
+      scheduleRestoreAfterConnection(
+        profileID: profileID,
+        frequencyHz: frequencyHz,
+        mode: mode
+      )
+      return
+    }
+
+    if let mode {
+      setMode(mode)
+    }
+    if let frequencyHz {
+      setFrequencyHz(frequencyHz)
+    }
   }
 
   func tune(byStepCount stepCount: Int) {
