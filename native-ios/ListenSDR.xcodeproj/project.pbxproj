@@ -9,9 +9,11 @@
 /* Begin PBXBuildFile section */
 		015FC07CFB8D3B0FF066B3C6 /* ReceiverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4286BB33324D82C98CA59BFE /* ReceiverView.swift */; };
 		048284CE689221E778C8C818 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11598D4ED736766676E23600 /* ProfileStore.swift */; };
+		106F02F6EE5D195101DB9119 /* FavoritesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 051509F0C3FD9100CF44E653 /* FavoritesStore.swift */; };
 		1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE460852390C71A3267E19E /* DiagnosticsStore.swift */; };
 		213C87F333FB445D3D5612BB /* VoiceOverRotorControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F51D7953819B7CA4FF071D /* VoiceOverRotorControl.swift */; };
 		217D33FBBCC6215FD86050A3 /* UnavailableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */; };
+		2923CE16937A6A7AE87483FB /* AudioRecordingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93986B585C4FB7BCA27AF6F /* AudioRecordingStore.swift */; };
 		2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */; };
 		37A2B9CC76C458C794DECA72 /* SDRBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8D52E05033560ABC688416 /* SDRBackend.swift */; };
 		39AB7F078B8E0DF8C6A8ECA6 /* BandTuningProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */; };
@@ -21,6 +23,7 @@
 		5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */; };
 		5B6794859996E3232249EE49 /* BackendTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C372985075C01F819DD5C32F /* BackendTelemetry.swift */; };
 		60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */; };
+		658BC2FBCD202B84E793D6DD /* ReceiverDataCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6294264E832985350801F669 /* ReceiverDataCache.swift */; };
 		67470D4EA59E0FC4620CD74B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A91F49239EA191572FD45 /* SettingsView.swift */; };
 		69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */; };
 		71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8CEEFF5137077F585714EE /* AudioDecoders.swift */; };
@@ -30,7 +33,9 @@
 		899E90DCF3F8E5489D3F5613 /* ReceiverDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */; };
 		904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */; };
 		97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */; };
+		99B848C6E7F71B573709D3C3 /* RecordingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6867FB3EC2B87AF1C82B810 /* RecordingsView.swift */; };
 		9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */; };
+		9F264E92F61C2DCB0DEC868D /* ReceiverIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 538629FD19959273EAEB0434 /* ReceiverIdentity.swift */; };
 		A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */; };
 		A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8430FABA0F566E0392A547 /* L10n.swift */; };
 		A83F58F1D406EC3C8894D954 /* RadiosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC198DC08EE579F8E7D22664 /* RadiosView.swift */; };
@@ -45,6 +50,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		051509F0C3FD9100CF44E653 /* FavoritesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesStore.swift; sourceTree = "<group>"; };
 		06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRApp.swift; sourceTree = "<group>"; };
 		1030E7AA0B8CC314535900F8 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		11598D4ED736766676E23600 /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
@@ -60,8 +66,10 @@
 		4286BB33324D82C98CA59BFE /* ReceiverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverView.swift; sourceTree = "<group>"; };
 		4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemRemoteCommandController.swift; sourceTree = "<group>"; };
 		530A6B024830FC4082BDBF66 /* ListenSDR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ListenSDR.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		538629FD19959273EAEB0434 /* ReceiverIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverIdentity.swift; sourceTree = "<group>"; };
 		53C8E30919D0CCF77C1D172C /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
 		5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectory.swift; sourceTree = "<group>"; };
+		6294264E832985350801F669 /* ReceiverDataCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDataCache.swift; sourceTree = "<group>"; };
 		72C5938E7A8C2B5768343F49 /* FMDXMP3RecognitionDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXMP3RecognitionDecoder.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		7F806ECE48FB8AF9299DF745 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -71,11 +79,13 @@
 		9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationMode.swift; sourceTree = "<group>"; };
 		9D4640039B5A50DBCB293C69 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingMetadataController.swift; sourceTree = "<group>"; };
+		A93986B585C4FB7BCA27AF6F /* AudioRecordingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingStore.swift; sourceTree = "<group>"; };
 		AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectoryView.swift; sourceTree = "<group>"; };
 		BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputEngine.swift; sourceTree = "<group>"; };
 		C372985075C01F819DD5C32F /* BackendTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendTelemetry.swift; sourceTree = "<group>"; };
 		C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionViewModel.swift; sourceTree = "<group>"; };
+		C6867FB3EC2B87AF1C82B810 /* RecordingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingsView.swift; sourceTree = "<group>"; };
 		C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandTuningProfile.swift; sourceTree = "<group>"; };
 		CA8430FABA0F566E0392A547 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRConnectionProfile.swift; sourceTree = "<group>"; };
@@ -103,6 +113,7 @@
 				1030E7AA0B8CC314535900F8 /* AppTheme.swift */,
 				FF8CEEFF5137077F585714EE /* AudioDecoders.swift */,
 				BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */,
+				A93986B585C4FB7BCA27AF6F /* AudioRecordingStore.swift */,
 				C372985075C01F819DD5C32F /* BackendTelemetry.swift */,
 				C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */,
 				AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */,
@@ -110,6 +121,7 @@
 				DAE460852390C71A3267E19E /* DiagnosticsStore.swift */,
 				E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */,
 				88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */,
+				051509F0C3FD9100CF44E653 /* FavoritesStore.swift */,
 				72C5938E7A8C2B5768343F49 /* FMDXMP3RecognitionDecoder.swift */,
 				2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */,
 				18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */,
@@ -122,9 +134,12 @@
 				F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */,
 				C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */,
 				DC198DC08EE579F8E7D22664 /* RadiosView.swift */,
+				6294264E832985350801F669 /* ReceiverDataCache.swift */,
 				5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */,
 				BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */,
+				538629FD19959273EAEB0434 /* ReceiverIdentity.swift */,
 				4286BB33324D82C98CA59BFE /* ReceiverView.swift */,
+				C6867FB3EC2B87AF1C82B810 /* RecordingsView.swift */,
 				7A8D52E05033560ABC688416 /* SDRBackend.swift */,
 				3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */,
 				D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */,
@@ -231,6 +246,7 @@
 				4D7ABA4F816056972029EBCC /* AppTheme.swift in Sources */,
 				71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */,
 				A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */,
+				2923CE16937A6A7AE87483FB /* AudioRecordingStore.swift in Sources */,
 				5B6794859996E3232249EE49 /* BackendTelemetry.swift in Sources */,
 				39AB7F078B8E0DF8C6A8ECA6 /* BandTuningProfile.swift in Sources */,
 				ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */,
@@ -239,6 +255,7 @@
 				D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */,
 				9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */,
 				5967771C17B99BA4D3D3DA7C /* FMDXMP3RecognitionDecoder.swift in Sources */,
+				106F02F6EE5D195101DB9119 /* FavoritesStore.swift in Sources */,
 				F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */,
 				FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */,
 				904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */,
@@ -250,9 +267,12 @@
 				69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */,
 				5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */,
 				A83F58F1D406EC3C8894D954 /* RadiosView.swift in Sources */,
+				658BC2FBCD202B84E793D6DD /* ReceiverDataCache.swift in Sources */,
 				899E90DCF3F8E5489D3F5613 /* ReceiverDirectory.swift in Sources */,
 				817BC8EE996142812994AAA3 /* ReceiverDirectoryView.swift in Sources */,
+				9F264E92F61C2DCB0DEC868D /* ReceiverIdentity.swift in Sources */,
 				015FC07CFB8D3B0FF066B3C6 /* ReceiverView.swift in Sources */,
+				99B848C6E7F71B573709D3C3 /* RecordingsView.swift in Sources */,
 				37A2B9CC76C458C794DECA72 /* SDRBackend.swift in Sources */,
 				E23F2265F3F9263F898DC5F4 /* SDRBackendClient.swift in Sources */,
 				60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */,
@@ -351,7 +371,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -427,7 +447,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
