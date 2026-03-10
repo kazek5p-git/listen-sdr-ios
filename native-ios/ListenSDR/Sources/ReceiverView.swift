@@ -333,12 +333,7 @@ struct ReceiverView: View {
       }
 
       Button(action: {
-        if radioSession.state == .connected &&
-          radioSession.connectedProfileID == profile.id {
-          radioSession.disconnect()
-        } else {
-          radioSession.connect(to: profile)
-        }
+        handleConnectionButtonTap(for: profile)
       }) {
         Text(connectionButtonTitle(for: profile))
           .frame(maxWidth: .infinity)
@@ -1202,6 +1197,21 @@ struct ReceiverView: View {
       return L10n.text("connection.disconnect")
     }
     return L10n.text("connection.connect")
+  }
+
+  private func handleConnectionButtonTap(for profile: SDRConnectionProfile) {
+    if radioSession.state == .connected &&
+      radioSession.connectedProfileID == profile.id {
+      radioSession.disconnect()
+      return
+    }
+
+    if radioSession.state == .connecting {
+      radioSession.reconnect(to: profile)
+      return
+    }
+
+    radioSession.connect(to: profile)
   }
 
   private func thresholdRange(for backend: SDRBackend) -> ClosedRange<Double> {
