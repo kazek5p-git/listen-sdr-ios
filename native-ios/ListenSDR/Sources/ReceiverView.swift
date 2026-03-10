@@ -86,20 +86,20 @@ struct ReceiverView: View {
   }
 
   private func connectionSection(for profile: SDRConnectionProfile) -> some View {
-    Section("Connection") {
-      LabeledContent("Profile", value: profile.name)
+    Section(L10n.text("Connection")) {
+      LabeledContent(L10n.text("Profile"), value: profile.name)
         .accessibilityLabel(L10n.text("Selected profile"))
         .accessibilityValue(profile.name)
 
-      LabeledContent("Backend", value: profile.backend.displayName)
-      LabeledContent("Endpoint", value: profile.endpointDescription)
+      LabeledContent(L10n.text("Backend"), value: profile.backend.displayName)
+      LabeledContent(L10n.text("Endpoint"), value: profile.endpointDescription)
 
-      LabeledContent("Status", value: radioSession.statusText)
+      LabeledContent(L10n.text("Status"), value: radioSession.statusText)
         .accessibilityLabel(L10n.text("Connection status"))
         .accessibilityValue(radioSession.statusText)
 
       if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
-        LabeledContent("Receiver data", value: backendStatus)
+        LabeledContent(L10n.text("Receiver data"), value: backendStatus)
           .accessibilityLabel(L10n.text("Receiver live data"))
           .accessibilityValue(backendStatus)
       }
@@ -130,7 +130,7 @@ struct ReceiverView: View {
         Button {
           radioSession.reconnect(to: profile)
         } label: {
-          Text("Reconnect")
+          Text(L10n.text("Reconnect"))
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
@@ -308,8 +308,8 @@ struct ReceiverView: View {
   private func fmDxControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
       Section(L10n.text("fmdx.controls")) {
-        fmDxAudioModePicker()
-        fmDxFilterToggleRow()
+        fmDxPrimaryToggleRow()
+        fmDxAGCToggleRow()
 
         fmDxAntennaPicker()
         fmDxBandwidthPicker()
@@ -318,61 +318,52 @@ struct ReceiverView: View {
     }
   }
 
-  private func fmDxFilterProfilePicker() -> some View {
-    let currentProfile = radioSession.currentFMDXFilterProfile()
-    let selectedID = currentProfile?.rawValue ?? "custom"
-    let isProfileAvailable = radioSession.fmdxSupportsFilterControls || !radioSession.fmdxCapabilities.bandwidths.isEmpty
-
-    return selectionNavigationLink(
-      title: L10n.text("fmdx.filter_profile"),
-      value: currentFMDXFilterProfileName(),
-      selectedID: selectedID,
-      options: fmdxFilterProfileOptions(),
-      disabled: radioSession.state != .connected || !isProfileAvailable
-    ) { value in
-      guard let profile = FMDXFilterProfile(rawValue: value) else { return }
-      radioSession.applyFMDXFilterProfile(profile)
-    }
-  }
-
   @ViewBuilder
-  private func fmDxFilterToggleRow() -> some View {
-    let showsAGC = radioSession.fmdxSupportsAGCControl
+  private func fmDxPrimaryToggleRow() -> some View {
     let showsFilterControls = radioSession.fmdxSupportsFilterControls
     let controlsEnabled = radioSession.state == .connected
 
-    if showsAGC || showsFilterControls {
+    HStack(spacing: 8) {
+      fmDxAudioModeChip(isEnabled: controlsEnabled)
+
+      if showsFilterControls {
+        fmdxToggleChip(
+          title: L10n.text("fmdx.eq_filter"),
+          accessibilityTitle: L10n.text("fmdx.eq_filter"),
+          isOn: radioSession.settings.noiseReductionEnabled,
+          isEnabled: controlsEnabled
+        ) {
+          radioSession.setNoiseReductionEnabled(!radioSession.settings.noiseReductionEnabled)
+        }
+
+        fmdxToggleChip(
+          title: L10n.text("fmdx.ims_filter"),
+          accessibilityTitle: L10n.text("fmdx.ims_filter"),
+          isOn: radioSession.settings.imsEnabled,
+          isEnabled: controlsEnabled
+        ) {
+          radioSession.setIMSEnabled(!radioSession.settings.imsEnabled)
+        }
+      }
+    }
+    .accessibilityElement(children: .contain)
+  }
+
+  @ViewBuilder
+  private func fmDxAGCToggleRow() -> some View {
+    let controlsEnabled = radioSession.state == .connected
+
+    if radioSession.fmdxSupportsAGCControl {
       HStack(spacing: 8) {
-        if showsAGC {
-          fmdxToggleChip(
-            title: "AGC",
-            accessibilityTitle: "AGC",
-            isOn: radioSession.settings.agcEnabled,
-            isEnabled: controlsEnabled
-          ) {
-            radioSession.setAGCEnabled(!radioSession.settings.agcEnabled)
-          }
+        fmdxToggleChip(
+          title: "AGC",
+          accessibilityTitle: "AGC",
+          isOn: radioSession.settings.agcEnabled,
+          isEnabled: controlsEnabled
+        ) {
+          radioSession.setAGCEnabled(!radioSession.settings.agcEnabled)
         }
-
-        if showsFilterControls {
-          fmdxToggleChip(
-            title: L10n.text("fmdx.eq_filter"),
-            accessibilityTitle: L10n.text("fmdx.eq_filter"),
-            isOn: radioSession.settings.noiseReductionEnabled,
-            isEnabled: controlsEnabled
-          ) {
-            radioSession.setNoiseReductionEnabled(!radioSession.settings.noiseReductionEnabled)
-          }
-
-          fmdxToggleChip(
-            title: L10n.text("fmdx.ims_filter"),
-            accessibilityTitle: L10n.text("fmdx.ims_filter"),
-            isOn: radioSession.settings.imsEnabled,
-            isEnabled: controlsEnabled
-          ) {
-            radioSession.setIMSEnabled(!radioSession.settings.imsEnabled)
-          }
-        }
+        Spacer(minLength: 0)
       }
       .accessibilityElement(children: .contain)
     }
@@ -569,25 +560,20 @@ struct ReceiverView: View {
     }
   }
 
-  private func fmDxAudioModePicker() -> some View {
+  private func fmDxAudioModeChip(isEnabled: Bool) -> some View {
     let isForcedStereo = radioSession.fmdxTelemetry?.isForcedStereo ?? false
     let modeText = isForcedStereo
       ? L10n.text("fmdx.stereo_state.stereo")
       : L10n.text("fmdx.stereo_state.mono")
 
-    return Button {
+    return fmdxToggleChip(
+      title: modeText,
+      accessibilityTitle: L10n.text("fmdx.audio_mode"),
+      isOn: isForcedStereo,
+      isEnabled: isEnabled
+    ) {
       radioSession.setFMDXForcedStereoEnabled(!isForcedStereo)
-    } label: {
-      HStack {
-        Text(L10n.text("fmdx.audio_mode"))
-        Spacer()
-        Text(modeText)
-          .fontWeight(.semibold)
-      }
     }
-    .disabled(radioSession.state != .connected)
-    .accessibilityLabel(L10n.text("fmdx.audio_mode"))
-    .accessibilityValue(modeText)
   }
 
   @ViewBuilder
@@ -746,9 +732,6 @@ struct ReceiverView: View {
         }
         if let countryName = telemetry.countryName, !countryName.isEmpty {
           LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
-        }
-        if let countryISO = telemetry.countryISO, !countryISO.isEmpty {
-          LabeledContent("ISO", value: countryISO)
         }
         if !telemetry.afMHz.isEmpty {
           ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
@@ -1009,10 +992,17 @@ struct ReceiverView: View {
       Button {
         radioSession.setMode(mode)
       } label: {
-        Text(title)
-          .frame(maxWidth: .infinity)
+        HStack(spacing: 6) {
+          Image(systemName: "checkmark.circle.fill")
+            .accessibilityHidden(true)
+          Text(title)
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity)
       }
       .buttonStyle(.borderedProminent)
+      .accessibilityAddTraits(.isSelected)
+      .accessibilityValue(L10n.text("common.selected"))
     } else {
       Button {
         radioSession.setMode(mode)
@@ -1138,10 +1128,6 @@ struct ReceiverView: View {
     let tuneStepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
 
     return VStack(alignment: .leading, spacing: 10) {
-      Text(L10n.text("fmdx.field.frequency"))
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
       HStack(spacing: 12) {
         Button {
           tuneFrequency(byStepCount: -1)
@@ -1351,24 +1337,6 @@ struct ReceiverView: View {
     isInlineFrequencyFocused = false
   }
 
-  private func inlineFrequencyText(fromHz value: Int, backend: SDRBackend) -> String {
-    if backend == .fmDxWebserver {
-      return FrequencyFormatter.fmDxEntryText(fromHz: value)
-    }
-    let inputProfile = frequencyInputProfile(for: backend)
-    if value < 1_000_000 {
-      let kilohertz = Double(value) / 1_000.0
-      if abs(kilohertz.rounded() - kilohertz) < 0.0001 {
-        return String(Int(kilohertz.rounded()))
-      }
-      return String(format: "%.3f", kilohertz)
-    }
-    return FrequencyFormatter.editableMHzText(
-      fromHz: value,
-      maxFractionDigits: inputProfile.maxFractionDigits
-    )
-  }
-
   private func scheduleInlineFrequencyApply(for backend: SDRBackend) {
     guard inlineFrequencyEditing else { return }
     inlineFrequencyApplyTask?.cancel()
@@ -1376,7 +1344,7 @@ struct ReceiverView: View {
       try? await Task.sleep(nanoseconds: 1_000_000_000)
       if Task.isCancelled { return }
       guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else { return }
-      _ = applyInlineFrequencyInput(backend, commitFormatting: false)
+      _ = applyInlineFrequencyInput(backend)
     }
   }
 
@@ -1387,12 +1355,12 @@ struct ReceiverView: View {
       resetInlineFrequencyInput()
       return
     }
-    _ = applyInlineFrequencyInput(backend, commitFormatting: true, endEditing: true)
+    _ = applyInlineFrequencyInput(backend, endEditing: true)
     isInlineFrequencyFocused = false
   }
 
   @discardableResult
-  private func applyInlineFrequencyInput(_ backend: SDRBackend, commitFormatting: Bool, endEditing: Bool = false) -> Bool {
+  private func applyInlineFrequencyInput(_ backend: SDRBackend, endEditing: Bool = false) -> Bool {
     if (backend == .openWebRX || backend == .kiwiSDR) && radioSession.isAwaitingInitialServerTuningSync {
       inlineFrequencyError = L10n.text("session.status.sync_tuning")
       return false
@@ -1426,12 +1394,10 @@ struct ReceiverView: View {
     let normalizedFrequencyHz = normalizeFrequencyHz(frequencyHz, for: backend)
     radioSession.setFrequencyHz(normalizedFrequencyHz)
     inlineFrequencyError = nil
+    inlineFrequencyInput = ""
 
     if endEditing {
-      inlineFrequencyInput = ""
       inlineFrequencyEditing = false
-    } else if commitFormatting {
-      inlineFrequencyInput = inlineFrequencyText(fromHz: normalizedFrequencyHz, backend: backend)
     }
 
     return true
@@ -1551,23 +1517,6 @@ struct ReceiverView: View {
     guard let backend else { return value }
     let range = frequencyRange(for: backend)
     return min(max(value, range.lowerBound), range.upperBound)
-  }
-
-  private func currentFMDXFilterProfileName() -> String {
-    if let profile = radioSession.currentFMDXFilterProfile() {
-      return L10n.text(profile.localizationKey)
-    }
-    return L10n.text("fmdx.filter_profile.custom")
-  }
-
-  private func fmdxFilterProfileOptions() -> [SelectionListOption] {
-    FMDXFilterProfile.allCases.map {
-      SelectionListOption(id: $0.rawValue, title: L10n.text($0.localizationKey), detail: nil)
-    } + [SelectionListOption(
-      id: "custom",
-      title: L10n.text("fmdx.filter_profile.custom"),
-      detail: nil
-    )]
   }
 
   private func currentFMDXAntennaName() -> String {
@@ -2077,6 +2026,9 @@ private struct FMDXRDSDetailsView: View {
         }
         if let rbds = telemetry.rbds {
           LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let countryISO = telemetry.countryISO, !countryISO.isEmpty, countryISO != "UN" {
+          LabeledContent("ISO", value: countryISO)
         }
         if let agc = telemetry.agc, !agc.isEmpty {
           LabeledContent("AGC", value: agc)

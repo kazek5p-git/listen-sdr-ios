@@ -3220,7 +3220,6 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func refreshStationListIfNeeded(profile: SDRConnectionProfile) async {
     let now = Date()
-    guard !stationListUnavailable else { return }
     guard now >= nextStationListRefreshAt else { return }
 
     let basePath = activeBasePath
@@ -3790,15 +3789,6 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
     if let ps = telemetry.ps, !ps.isEmpty, ps != "?" {
       parts.append("PS \(ps)")
-    }
-    if let signal = telemetry.signal {
-      parts.append(String(format: "S %.1f", signal))
-    }
-    if let users = telemetry.users {
-      parts.append("U \(users)")
-    }
-    if let countryISO = telemetry.countryISO, !countryISO.isEmpty, countryISO != "UN" {
-      parts.append(countryISO)
     }
 
     return parts.joined(separator: " | ")

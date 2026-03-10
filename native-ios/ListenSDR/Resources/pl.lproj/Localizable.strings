@@ -64,7 +64,7 @@
 "Connection" = "Połączenie";
 "Profile" = "Profil";
 "Selected profile" = "Wybrany profil";
-"Endpoint" = "Endpoint";
+"Endpoint" = "Adres serwera";
 "Connection status" = "Status połączenia";
 "Receiver data" = "Dane odbiornika";
 "Receiver live data" = "Dane odbiornika na żywo";

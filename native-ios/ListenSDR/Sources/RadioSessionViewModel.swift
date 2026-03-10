@@ -252,9 +252,11 @@ final class RadioSessionViewModel: ObservableObject {
           self.initialServerTuningSyncDeadline = Date().addingTimeInterval(4.0)
           self.state = .connected
           self.statusText = L10n.text("session.status.connected_to", profile.name)
-          self.backendStatusText = (profile.backend == .openWebRX || profile.backend == .kiwiSDR)
-            ? L10n.text("session.status.sync_tuning")
-            : nil
+          self.updateBackendStatusText(
+            (profile.backend == .openWebRX || profile.backend == .kiwiSDR)
+              ? L10n.text("session.status.sync_tuning")
+              : nil
+          )
           self.lastError = nil
           self.startStatusMonitor(
             profileName: profile.name,
@@ -513,7 +515,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setFrequencyHz(_ value: Int) {
     if isWaitingForInitialServerTuningSync() {
-      backendStatusText = L10n.text("session.status.sync_tuning")
+      updateBackendStatusText(L10n.text("session.status.sync_tuning"))
       return
     }
 
@@ -529,14 +531,14 @@ final class RadioSessionViewModel: ObservableObject {
     let tuneStepChanged = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     if tuneStepChanged, activeBackend == .openWebRX {
-      backendStatusText = openWebRXStatusSummary(frequencyHz: settings.frequencyHz, mode: settings.mode)
+      updateBackendStatusText(openWebRXStatusSummary(frequencyHz: settings.frequencyHz, mode: settings.mode))
     }
     if tuneStepChanged, activeBackend == .kiwiSDR {
-      backendStatusText = kiwiStatusSummary(
+      updateBackendStatusText(kiwiStatusSummary(
         frequencyHz: settings.frequencyHz,
         mode: settings.mode,
         reportedBandName: currentKiwiBandName
-      )
+      ))
     }
 
     guard activeBackend == .fmDxWebserver else {
@@ -976,7 +978,7 @@ final class RadioSessionViewModel: ObservableObject {
   private func applyIfConnected() {
     guard state == .connected, let client else { return }
     if isWaitingForInitialServerTuningSync() {
-      backendStatusText = L10n.text("session.status.sync_tuning")
+      updateBackendStatusText(L10n.text("session.status.sync_tuning"))
       return
     }
     let snapshot = settings
@@ -1584,7 +1586,7 @@ final class RadioSessionViewModel: ObservableObject {
         if let latestBackendStatus {
           await MainActor.run {
             guard self.connectedProfileID == profileID else { return }
-            self.backendStatusText = latestBackendStatus
+            self.updateBackendStatusText(latestBackendStatus)
           }
         }
 
@@ -1624,7 +1626,7 @@ final class RadioSessionViewModel: ObservableObject {
         persistSettings()
       }
       if activeBackend == .openWebRX {
-        backendStatusText = openWebRXStatusSummary(frequencyHz: settings.frequencyHz, mode: settings.mode)
+        updateBackendStatusText(openWebRXStatusSummary(frequencyHz: settings.frequencyHz, mode: settings.mode))
       }
 
     case .openWebRXTuning(let frequencyHz, let mode):
@@ -1647,7 +1649,7 @@ final class RadioSessionViewModel: ObservableObject {
       if changed {
         persistSettings()
       }
-      backendStatusText = openWebRXStatusSummary(frequencyHz: clamped, mode: mode)
+      updateBackendStatusText(openWebRXStatusSummary(frequencyHz: clamped, mode: mode))
 
     case .kiwiTuning(let frequencyHz, let mode, let bandName):
       hasInitialServerTuningSync = true
@@ -1670,7 +1672,7 @@ final class RadioSessionViewModel: ObservableObject {
       if changed {
         persistSettings()
       }
-      backendStatusText = kiwiStatusSummary(frequencyHz: clamped, mode: mode, reportedBandName: bandName)
+      updateBackendStatusText(kiwiStatusSummary(frequencyHz: clamped, mode: mode, reportedBandName: bandName))
 
     case .fmdxCapabilities(let capabilities):
       fmdxCapabilities = capabilities
@@ -1853,6 +1855,13 @@ final class RadioSessionViewModel: ObservableObject {
     guard let name else { return nil }
     let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
     return normalized.isEmpty ? nil : normalized
+  }
+
+  private func updateBackendStatusText(_ value: String?) {
+    let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let finalValue = (normalized?.isEmpty == false) ? normalized : nil
+    guard backendStatusText != finalValue else { return }
+    backendStatusText = finalValue
   }
 
   private func inferredKiwiBandName(for frequencyHz: Int) -> String? {
