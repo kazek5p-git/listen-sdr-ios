@@ -26,6 +26,7 @@
 		658BC2FBCD202B84E793D6DD /* ReceiverDataCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6294264E832985350801F669 /* ReceiverDataCache.swift */; };
 		67470D4EA59E0FC4620CD74B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A91F49239EA191572FD45 /* SettingsView.swift */; };
 		69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */; };
+		69F0FB74D682EA07F95087E3 /* ListeningHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */; };
 		71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8CEEFF5137077F585714EE /* AudioDecoders.swift */; };
 		721B688F74C2905447CF723D /* SystemRemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */; };
 		817BC8EE996142812994AAA3 /* ReceiverDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */; };
@@ -93,6 +94,7 @@
 		DAE460852390C71A3267E19E /* DiagnosticsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsStore.swift; sourceTree = "<group>"; };
 		DC198DC08EE579F8E7D22664 /* RadiosView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadiosView.swift; sourceTree = "<group>"; };
 		DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnavailableContentView.swift; sourceTree = "<group>"; };
+		E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningHistoryStore.swift; sourceTree = "<group>"; };
 		E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
 		F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettings.swift; sourceTree = "<group>"; };
 		FF8CEEFF5137077F585714EE /* AudioDecoders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDecoders.swift; sourceTree = "<group>"; };
@@ -127,6 +129,7 @@
 				18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */,
 				224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */,
 				CA8430FABA0F566E0392A547 /* L10n.swift */,
+				E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */,
 				06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */,
 				A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */,
 				3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */,
@@ -261,6 +264,7 @@
 				904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */,
 				A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */,
 				F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */,
+				69F0FB74D682EA07F95087E3 /* ListeningHistoryStore.swift in Sources */,
 				ED24BA1B1978A1D1CA10D49A /* NowPlayingMetadataController.swift in Sources */,
 				2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */,
 				048284CE689221E778C8C818 /* ProfileStore.swift in Sources */,
@@ -371,7 +375,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -447,7 +451,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
