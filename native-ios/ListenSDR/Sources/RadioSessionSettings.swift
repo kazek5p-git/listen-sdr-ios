@@ -177,6 +177,13 @@ struct FMDXAudioQualityReport {
   }
 }
 
+struct FMDXAudioQualitySample: Identifiable {
+  let id: UUID
+  let date: Date
+  let score: Int
+  let level: FMDXAudioQualityLevel
+}
+
 struct RadioSessionSettings: Codable, Equatable {
   var frequencyHz: Int
   var tuneStepHz: Int

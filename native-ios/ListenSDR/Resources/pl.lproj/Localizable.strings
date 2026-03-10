@@ -454,3 +454,14 @@
 "diagnostics.audio_quality.summary.fair" = "Strumien audio jest uzywalny, ale buforowanie jest wieksze niz idealne.";
 "diagnostics.audio_quality.summary.poor" = "Strumien audio ma wyrazne opoznienie albo niestabilnosc.";
 "diagnostics.audio_quality.summary.critical" = "Strumien audio jest zdegradowany i wymaga bezpieczniejszego buforowania.";
+"settings.audio.quality" = "Jakosc audio";
+"settings.audio.quality.accessibility" = "Jakosc audio: %@, ocena %d na 100";
+"diagnostics.audio_quality.trend" = "Trend";
+"diagnostics.audio_quality.trend.accessibility" = "Trend z ostatnich 60 sekund. Srednia %d na 100. Zakres %@. Zmiana %@.";
+"diagnostics.audio_quality.trend_window" = "Okno";
+"diagnostics.audio_quality.trend_average" = "Srednia";
+"diagnostics.audio_quality.trend_range" = "Zakres";
+"diagnostics.audio_quality.trend_change" = "Zmiana";
+"diagnostics.audio_quality.trend_change.up" = "w gore o %d";
+"diagnostics.audio_quality.trend_change.down" = "w dol o %d";
+"diagnostics.audio_quality.trend_change.flat" = "stabilnie";

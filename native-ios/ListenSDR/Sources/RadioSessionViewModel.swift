@@ -98,6 +98,7 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var hasSavedSettingsSnapshot = false
   @Published private(set) var audioPresetSuggestion: FMDXAudioPresetSuggestion?
   @Published private(set) var fmdxAudioQualityReport: FMDXAudioQualityReport?
+  @Published private(set) var fmdxAudioQualityTrend: [FMDXAudioQualitySample] = []
 
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
@@ -130,6 +131,9 @@ final class RadioSessionViewModel: ObservableObject {
   private var lastRDSAnnouncementAt = Date.distantPast
   private var lastRDSAnnouncementKind: RDSAnnouncementKind?
   private var lastLoggedAudioSuggestionPreset: FMDXAudioTuningPreset?
+  private var lastFMDXAudioQualitySampleAt = Date.distantPast
+  private let fmdxAudioQualityTrendWindowSeconds: TimeInterval = 60
+  private let fmdxAudioQualitySampleIntervalSeconds: TimeInterval = 5
 
   init() {
     settings = loadPersistedSettings()
@@ -1873,8 +1877,10 @@ final class RadioSessionViewModel: ObservableObject {
     lastRDSAnnouncementAt = Date.distantPast
     lastRDSAnnouncementKind = nil
     fmdxAudioQualityReport = nil
+    fmdxAudioQualityTrend = []
     audioPresetSuggestion = nil
     lastLoggedAudioSuggestionPreset = nil
+    lastFMDXAudioQualitySampleAt = .distantPast
     if backend != .fmDxWebserver {
       NowPlayingMetadataController.shared.setTitle(nil)
     }
@@ -1883,6 +1889,7 @@ final class RadioSessionViewModel: ObservableObject {
   private func refreshFMDXAudioAnalysis(forceLog: Bool) {
     let qualityReport = makeFMDXAudioQualityReport()
     fmdxAudioQualityReport = qualityReport
+    updateFMDXAudioQualityTrend(with: qualityReport)
 
     let suggestion = makeFMDXAudioPresetSuggestion(from: qualityReport)
     audioPresetSuggestion = suggestion
@@ -1983,6 +1990,36 @@ final class RadioSessionViewModel: ObservableObject {
       latencyTrimAgeSeconds: snapshot.secondsSinceLastLatencyTrim,
       signalDBf: signal
     )
+  }
+
+  private func updateFMDXAudioQualityTrend(with qualityReport: FMDXAudioQualityReport?) {
+    let cutoffDate = Date().addingTimeInterval(-fmdxAudioQualityTrendWindowSeconds)
+    fmdxAudioQualityTrend.removeAll { $0.date < cutoffDate }
+
+    guard let qualityReport else { return }
+
+    let now = Date()
+    let shouldAppend: Bool
+    if let lastSample = fmdxAudioQualityTrend.last {
+      let enoughTimePassed = now.timeIntervalSince(lastFMDXAudioQualitySampleAt) >= fmdxAudioQualitySampleIntervalSeconds
+      let scoreChanged = abs(lastSample.score - qualityReport.score) >= 5
+      let levelChanged = lastSample.level != qualityReport.level
+      shouldAppend = enoughTimePassed || scoreChanged || levelChanged
+    } else {
+      shouldAppend = true
+    }
+
+    guard shouldAppend else { return }
+
+    fmdxAudioQualityTrend.append(
+      FMDXAudioQualitySample(
+        id: UUID(),
+        date: now,
+        score: qualityReport.score,
+        level: qualityReport.level
+      )
+    )
+    lastFMDXAudioQualitySampleAt = now
   }
 
   private func makeFMDXAudioPresetSuggestion(from qualityReport: FMDXAudioQualityReport?) -> FMDXAudioPresetSuggestion? {

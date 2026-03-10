@@ -447,3 +447,14 @@
 "diagnostics.audio_quality.summary.fair" = "Le flux audio est utilisable, mais le tampon est plus grand que l'ideal.";
 "diagnostics.audio_quality.summary.poor" = "Le flux audio montre un retard ou une instabilite notable.";
 "diagnostics.audio_quality.summary.critical" = "Le flux audio est degrade et demande un tampon plus prudent.";
+"settings.audio.quality" = "Qualite audio";
+"settings.audio.quality.accessibility" = "Qualite audio : %@, score %d sur 100";
+"diagnostics.audio_quality.trend" = "Tendance";
+"diagnostics.audio_quality.trend.accessibility" = "Tendance des 60 dernieres secondes. Moyenne %d sur 100. Plage %@. Variation %@.";
+"diagnostics.audio_quality.trend_window" = "Fenetre";
+"diagnostics.audio_quality.trend_average" = "Moyenne";
+"diagnostics.audio_quality.trend_range" = "Plage";
+"diagnostics.audio_quality.trend_change" = "Variation";
+"diagnostics.audio_quality.trend_change.up" = "hausse de %d";
+"diagnostics.audio_quality.trend_change.down" = "baisse de %d";
+"diagnostics.audio_quality.trend_change.flat" = "stable";

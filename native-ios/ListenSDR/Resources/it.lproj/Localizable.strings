@@ -447,3 +447,14 @@
 "diagnostics.audio_quality.summary.fair" = "Lo stream audio e usabile, ma il buffering e piu alto dell'ideale.";
 "diagnostics.audio_quality.summary.poor" = "Lo stream audio mostra ritardo o instabilita evidente.";
 "diagnostics.audio_quality.summary.critical" = "Lo stream audio e degradato e richiede un buffering piu sicuro.";
+"settings.audio.quality" = "Qualita audio";
+"settings.audio.quality.accessibility" = "Qualita audio: %@, punteggio %d su 100";
+"diagnostics.audio_quality.trend" = "Tendenza";
+"diagnostics.audio_quality.trend.accessibility" = "Tendenza degli ultimi 60 secondi. Media %d su 100. Intervallo %@. Variazione %@.";
+"diagnostics.audio_quality.trend_window" = "Finestra";
+"diagnostics.audio_quality.trend_average" = "Media";
+"diagnostics.audio_quality.trend_range" = "Intervallo";
+"diagnostics.audio_quality.trend_change" = "Variazione";
+"diagnostics.audio_quality.trend_change.up" = "sale di %d";
+"diagnostics.audio_quality.trend_change.down" = "scende di %d";
+"diagnostics.audio_quality.trend_change.flat" = "stabile";

@@ -130,6 +130,35 @@ struct SettingsView: View {
           }
           .accessibilityHint(L10n.text("settings.audio.suggestion_scope.hint"))
 
+          if let quality = radioSession.fmdxAudioQualityReport {
+            HStack(spacing: 10) {
+              Image(systemName: qualitySymbol(for: quality.level))
+                .foregroundStyle(qualityColor(for: quality.level))
+
+              VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.text("settings.audio.quality"))
+                  .font(.subheadline)
+                Text(quality.level.localizedTitle)
+                  .font(.footnote)
+                  .foregroundStyle(qualityColor(for: quality.level))
+              }
+
+              Spacer()
+
+              Text("\(quality.score)/100")
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+              L10n.text(
+                "settings.audio.quality.accessibility",
+                quality.level.localizedTitle,
+                quality.score
+              )
+            )
+          }
+
           if let suggestion = radioSession.audioPresetSuggestion {
             VStack(alignment: .leading, spacing: 6) {
               LabeledContent(
@@ -282,6 +311,36 @@ struct SettingsView: View {
         step: step
       )
       .accessibilityHint(L10n.text(hintKey))
+    }
+  }
+
+  private func qualityColor(for level: FMDXAudioQualityLevel) -> Color {
+    switch level {
+    case .excellent:
+      return .green
+    case .good:
+      return .mint
+    case .fair:
+      return .yellow
+    case .poor:
+      return .orange
+    case .critical:
+      return .red
+    }
+  }
+
+  private func qualitySymbol(for level: FMDXAudioQualityLevel) -> String {
+    switch level {
+    case .excellent:
+      return "checkmark.circle.fill"
+    case .good:
+      return "checkmark.circle"
+    case .fair:
+      return "minus.circle"
+    case .poor:
+      return "exclamationmark.triangle"
+    case .critical:
+      return "xmark.octagon.fill"
     }
   }
 }

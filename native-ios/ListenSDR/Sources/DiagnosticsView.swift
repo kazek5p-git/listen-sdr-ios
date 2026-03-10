@@ -24,6 +24,44 @@ struct DiagnosticsView: View {
     )
   }
 
+  private var qualityTrendSamples: [FMDXAudioQualitySample] {
+    Array(radioSession.fmdxAudioQualityTrend.suffix(12))
+  }
+
+  private var qualityTrendAverageScore: Int? {
+    guard !qualityTrendSamples.isEmpty else { return nil }
+    let total = qualityTrendSamples.reduce(0) { $0 + $1.score }
+    return Int((Double(total) / Double(qualityTrendSamples.count)).rounded())
+  }
+
+  private var qualityTrendRangeText: String? {
+    guard
+      let minimum = qualityTrendSamples.map(\.score).min(),
+      let maximum = qualityTrendSamples.map(\.score).max()
+    else {
+      return nil
+    }
+    return "\(minimum)-\(maximum)"
+  }
+
+  private var qualityTrendChangeText: String? {
+    guard
+      let first = qualityTrendSamples.first?.score,
+      let last = qualityTrendSamples.last?.score
+    else {
+      return nil
+    }
+
+    let delta = last - first
+    if delta > 0 {
+      return L10n.text("diagnostics.audio_quality.trend_change.up", delta)
+    }
+    if delta < 0 {
+      return L10n.text("diagnostics.audio_quality.trend_change.down", abs(delta))
+    }
+    return L10n.text("diagnostics.audio_quality.trend_change.flat")
+  }
+
   var body: some View {
     List {
       Section("Quick Actions") {
@@ -114,6 +152,58 @@ struct DiagnosticsView: View {
           Text(quality.localizedSummary)
             .font(.footnote)
             .foregroundStyle(.secondary)
+
+          if !qualityTrendSamples.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+              Text(L10n.text("diagnostics.audio_quality.trend"))
+                .font(.subheadline)
+
+              HStack(alignment: .bottom, spacing: 4) {
+                ForEach(qualityTrendSamples) { sample in
+                  Capsule()
+                    .fill(qualityColor(for: sample.level))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: barHeight(for: sample.score))
+                }
+              }
+              .frame(height: 26, alignment: .bottom)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel(
+                L10n.text(
+                  "diagnostics.audio_quality.trend.accessibility",
+                  qualityTrendAverageScore ?? quality.score,
+                  qualityTrendRangeText ?? "\(quality.score)-\(quality.score)",
+                  qualityTrendChangeText ?? L10n.text("diagnostics.audio_quality.trend_change.flat")
+                )
+              )
+
+              LabeledContent(
+                L10n.text("diagnostics.audio_quality.trend_window"),
+                value: "60 s"
+              )
+
+              if let average = qualityTrendAverageScore {
+                LabeledContent(
+                  L10n.text("diagnostics.audio_quality.trend_average"),
+                  value: "\(average)/100"
+                )
+              }
+
+              if let range = qualityTrendRangeText {
+                LabeledContent(
+                  L10n.text("diagnostics.audio_quality.trend_range"),
+                  value: range
+                )
+              }
+
+              if let change = qualityTrendChangeText {
+                LabeledContent(
+                  L10n.text("diagnostics.audio_quality.trend_change"),
+                  value: change
+                )
+              }
+            }
+          }
 
           LabeledContent(
             L10n.text("diagnostics.audio_quality.queue"),
@@ -227,5 +317,25 @@ struct DiagnosticsView: View {
     case .error:
       return .red
     }
+  }
+
+  private func qualityColor(for level: FMDXAudioQualityLevel) -> Color {
+    switch level {
+    case .excellent:
+      return .green
+    case .good:
+      return .mint
+    case .fair:
+      return .yellow
+    case .poor:
+      return .orange
+    case .critical:
+      return .red
+    }
+  }
+
+  private func barHeight(for score: Int) -> CGFloat {
+    let normalized = min(max(CGFloat(score) / 100, 0.2), 1.0)
+    return 8 + (normalized * 18)
   }
 }

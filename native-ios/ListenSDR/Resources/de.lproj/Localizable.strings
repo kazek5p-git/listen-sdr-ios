@@ -447,3 +447,14 @@
 "diagnostics.audio_quality.summary.fair" = "Der Audiostream ist brauchbar, aber staerker gepuffert als ideal.";
 "diagnostics.audio_quality.summary.poor" = "Der Audiostream zeigt deutliche Verzoegerung oder Instabilitaet.";
 "diagnostics.audio_quality.summary.critical" = "Der Audiostream ist beeintraechtigt und braucht sicherere Pufferung.";
+"settings.audio.quality" = "Audioqualitaet";
+"settings.audio.quality.accessibility" = "Audioqualitaet: %@, Wert %d von 100";
+"diagnostics.audio_quality.trend" = "Trend";
+"diagnostics.audio_quality.trend.accessibility" = "Trend der letzten 60 Sekunden. Durchschnitt %d von 100. Bereich %@. Veraenderung %@.";
+"diagnostics.audio_quality.trend_window" = "Fenster";
+"diagnostics.audio_quality.trend_average" = "Durchschnitt";
+"diagnostics.audio_quality.trend_range" = "Bereich";
+"diagnostics.audio_quality.trend_change" = "Veraenderung";
+"diagnostics.audio_quality.trend_change.up" = "plus %d";
+"diagnostics.audio_quality.trend_change.down" = "minus %d";
+"diagnostics.audio_quality.trend_change.flat" = "stabil";
