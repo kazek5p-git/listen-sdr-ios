@@ -17,35 +17,22 @@ private enum ScanSource: String, CaseIterable, Identifiable {
   }
 }
 
-private enum ReceiverSelectionPanel: String {
-  case mode
-  case openWebRXProfile
-  case fmDxFilterProfile
-  case kiwiWaterfallSpeed
-  case fmDxAntenna
-  case fmDxBandwidth
-  case scanSource
-}
-
-private struct ReceiverSelectionOption: Identifiable {
-  let id: String
-  let title: String
-  let detail: String?
+private enum ReceiverAccessibilityFocus: Hashable {
+  case frequencyControl
 }
 
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
   @FocusState private var isInlineFrequencyFocused: Bool
+  @AccessibilityFocusState private var accessibilityFocus: ReceiverAccessibilityFocus?
   @State private var inlineFrequencyInput = ""
   @State private var inlineFrequencyError: String?
   @State private var inlineFrequencyEditing = false
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var quickScanChannels: [ScanChannel] = []
-  @State private var isFMDXDetailsExpanded = false
   @State private var isFMDXStationListExpanded = true
-  @State private var expandedSelectionPanel: ReceiverSelectionPanel?
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -71,11 +58,10 @@ struct ReceiverView: View {
 
   private func receiverForm(for profile: SDRConnectionProfile) -> some View {
     let scannerChannels = scanChannels(for: profile)
-    let tuningRange = frequencyRange(for: profile.backend)
 
     return Form {
       connectionSection(for: profile)
-      tuningSection(for: profile, tuningRange: tuningRange)
+      tuningSection(for: profile)
       openWebRXControlsSection(for: profile)
       openWebRXServerBookmarksSection(for: profile)
       openWebRXBandPlanSection(for: profile)
@@ -94,7 +80,6 @@ struct ReceiverView: View {
       resetInlineFrequencyInput()
     }
     .onChange(of: profile.backend) { _ in
-      expandedSelectionPanel = nil
       resetInlineFrequencyInput()
     }
   }
@@ -154,24 +139,23 @@ struct ReceiverView: View {
     .appSectionStyle()
   }
 
-  private func tuningSection(for profile: SDRConnectionProfile, tuningRange: ClosedRange<Int>) -> some View {
+  private func tuningSection(for profile: SDRConnectionProfile) -> some View {
     Section("Tuning") {
       frequencyInputSection(for: profile.backend)
 
-      frequencySlider(for: profile.backend, tuningRange: tuningRange)
+      frequencyTuningControl(for: profile.backend)
 
       tuneStepControl(for: profile.backend)
 
       if profile.backend == .fmDxWebserver {
         fmdxBandSwitcher()
       } else {
-        selectionDisclosure(
+        selectionNavigationLink(
           title: "Mode",
           value: currentModeSelectionValue(for: profile.backend),
-          panel: .mode,
           selectedID: currentModeSelectionID(for: profile.backend),
           options: availableModes(for: profile.backend).map {
-            ReceiverSelectionOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
+            SelectionListOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
           }
         ) { value in
           if let mode = modeFromSelectionID(value) {
@@ -200,13 +184,12 @@ struct ReceiverView: View {
             Text(L10n.text("openwebrx.controls.waiting_profiles"))
               .foregroundStyle(.secondary)
           } else {
-            selectionDisclosure(
+            selectionNavigationLink(
               title: L10n.text("openwebrx.server_profile"),
               value: selectedOpenWebRXProfileName(),
-              panel: .openWebRXProfile,
               selectedID: radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? "",
               options: radioSession.openWebRXProfiles.map {
-                ReceiverSelectionOption(id: $0.id, title: $0.name, detail: nil)
+                SelectionListOption(id: $0.id, title: $0.name, detail: nil)
               },
               disabled: radioSession.state != .connected
             ) { value in
@@ -295,25 +278,16 @@ struct ReceiverView: View {
             .foregroundStyle(.secondary)
         } else {
           ForEach(radioSession.openWebRXBandPlan) { band in
-            DisclosureGroup {
-              Button {
-                radioSession.tuneToBand(band)
-              } label: {
-                Label("Tune band center", systemImage: "scope")
-              }
-
-              ForEach(Array(band.frequencies.prefix(8))) { item in
-                Button {
+            NavigationLink {
+              OpenWebRXBandDetailView(
+                band: band,
+                onTuneBandCenter: {
+                  radioSession.tuneToBand(band)
+                },
+                onTuneFrequency: { item in
                   radioSession.tuneToBand(band, using: item)
-                } label: {
-                  HStack {
-                    Text(item.name)
-                    Spacer()
-                    Text(FrequencyFormatter.mhzText(fromHz: item.frequencyHz))
-                      .foregroundStyle(.secondary)
-                  }
                 }
-              }
+              )
             } label: {
               VStack(alignment: .leading, spacing: 4) {
                 Text(band.name)
@@ -374,10 +348,9 @@ struct ReceiverView: View {
     let currentProfile = radioSession.currentFMDXFilterProfile()
     let selectedID = currentProfile?.rawValue ?? "custom"
 
-    return selectionDisclosure(
+    return selectionNavigationLink(
       title: L10n.text("fmdx.filter_profile"),
       value: currentFMDXFilterProfileName(),
-      panel: .fmDxFilterProfile,
       selectedID: selectedID,
       options: fmdxFilterProfileOptions(),
       disabled: radioSession.state != .connected
@@ -503,13 +476,12 @@ struct ReceiverView: View {
           .accessibilityValue("\(radioSession.settings.kiwiSquelchThreshold)")
         }
 
-        selectionDisclosure(
+        selectionNavigationLink(
           title: L10n.text("kiwi.waterfall.speed"),
           value: "x\(radioSession.settings.kiwiWaterfallSpeed)",
-          panel: .kiwiWaterfallSpeed,
           selectedID: "\(radioSession.settings.kiwiWaterfallSpeed)",
           options: [1, 2, 4, 8].map {
-            ReceiverSelectionOption(id: "\($0)", title: "x\($0)", detail: nil)
+            SelectionListOption(id: "\($0)", title: "x\($0)", detail: nil)
           },
           disabled: radioSession.state != .connected
         ) { value in
@@ -603,15 +575,14 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxAntennaPicker() -> some View {
     if !radioSession.fmdxCapabilities.antennas.isEmpty {
-      selectionDisclosure(
+      selectionNavigationLink(
         title: L10n.text("fmdx.antenna"),
         value: currentFMDXAntennaName(),
-        panel: .fmDxAntenna,
         selectedID: radioSession.selectedFMDXAntennaID
           ?? radioSession.fmdxCapabilities.antennas.first?.id
           ?? "",
         options: radioSession.fmdxCapabilities.antennas.map {
-          ReceiverSelectionOption(id: $0.id, title: $0.label, detail: nil)
+          SelectionListOption(id: $0.id, title: $0.label, detail: nil)
         },
         disabled: radioSession.state != .connected
       ) { value in
@@ -625,15 +596,14 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxBandwidthPicker() -> some View {
     if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
-      selectionDisclosure(
+      selectionNavigationLink(
         title: L10n.text("fmdx.bandwidth"),
         value: currentFMDXBandwidthName(),
-        panel: .fmDxBandwidth,
         selectedID: radioSession.selectedFMDXBandwidthID
           ?? radioSession.fmdxCapabilities.bandwidths.first?.id
           ?? "",
         options: radioSession.fmdxCapabilities.bandwidths.map {
-          ReceiverSelectionOption(id: $0.id, title: $0.label, detail: nil)
+          SelectionListOption(id: $0.id, title: $0.label, detail: nil)
         },
         disabled: radioSession.state != .connected
       ) { value in
@@ -645,13 +615,12 @@ struct ReceiverView: View {
 
   private func scannerSection(for profile: SDRConnectionProfile, scannerChannels: [ScanChannel]) -> some View {
     Section("Scanner") {
-      selectionDisclosure(
+      selectionNavigationLink(
         title: "Channel source",
         value: scanSource.displayName,
-        panel: .scanSource,
         selectedID: scanSource.rawValue,
         options: ScanSource.allCases.map {
-          ReceiverSelectionOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+          SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
         }
       ) { value in
         if let source = ScanSource(rawValue: value) {
@@ -794,79 +763,16 @@ struct ReceiverView: View {
           Text(L10n.text("fmdx.rt1", rt1))
             .font(.footnote)
         }
-
-        DisclosureGroup(
-          L10n.text("fmdx.live.more_details"),
-          isExpanded: $isFMDXDetailsExpanded
-        ) {
-          if let pty = telemetry.pty {
-            LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
-          }
-          if let tp = telemetry.tp {
-            LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-          }
-          if let ta = telemetry.ta {
-            LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-          }
-          if let ms = telemetry.ms {
-            LabeledContent("MS", value: msDisplayText(ms))
-          }
-          if let ecc = telemetry.ecc {
-            LabeledContent("ECC", value: String(format: "0x%02X", ecc))
-          }
-          if let rbds = telemetry.rbds {
-            LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
-          }
-          if let agc = telemetry.agc, !agc.isEmpty {
-            LabeledContent("AGC", value: agc)
-          }
-
-          Toggle(
-            L10n.text("fmdx.show_rds_errors"),
-            isOn: Binding(
+        NavigationLink {
+          FMDXRDSDetailsView(
+            telemetry: telemetry,
+            showRdsErrorCounters: Binding(
               get: { radioSession.settings.showRdsErrorCounters },
               set: { radioSession.setShowRdsErrorCounters($0) }
             )
           )
-
-          if radioSession.settings.showRdsErrorCounters {
-            if let errors = telemetry.psErrors, !errors.isEmpty {
-              Text(L10n.text("fmdx.ps_errors", errors))
-                .font(.footnote)
-            }
-            if let errors = telemetry.rt0Errors, !errors.isEmpty {
-              Text(L10n.text("fmdx.rt0_errors", errors))
-                .font(.footnote)
-            }
-            if let errors = telemetry.rt1Errors, !errors.isEmpty {
-              Text(L10n.text("fmdx.rt1_errors", errors))
-                .font(.footnote)
-            }
-          }
-
-          if let tx = telemetry.txInfo {
-            if let station = tx.station, !station.isEmpty {
-              LabeledContent("TX", value: station)
-            }
-            if let city = tx.city, !city.isEmpty {
-              LabeledContent("City", value: city)
-            }
-            if let itu = tx.itu, !itu.isEmpty {
-              LabeledContent("ITU", value: itu)
-            }
-            if let distance = tx.distanceKm, !distance.isEmpty {
-              LabeledContent(L10n.text("fmdx.field.distance"), value: "\(distance) km")
-            }
-            if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
-              LabeledContent(L10n.text("fmdx.field.azimuth"), value: "\(azimuth) deg")
-            }
-            if let erp = tx.erpKW, !erp.isEmpty {
-              LabeledContent("ERP", value: "\(erp) kW")
-            }
-            if let polarization = tx.polarization, !polarization.isEmpty {
-              LabeledContent(L10n.text("fmdx.field.polarization"), value: polarization)
-            }
-          }
+        } label: {
+          Label(L10n.text("fmdx.live.more_details"), systemImage: "text.badge.plus")
         }
       }
       .appSectionStyle()
@@ -963,24 +869,24 @@ struct ReceiverView: View {
   private func tuneStepControl(for backend: SDRBackend) -> some View {
     let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
     let options = radioSession.tuneStepOptions(for: backend)
-    let selection = Binding<Int>(
-      get: {
-        let currentStep = radioSession.settings.tuneStepHz
-        if options.contains(currentStep) {
-          return currentStep
-        }
-        return options.first ?? currentStep
-      },
-      set: { newValue in
-        setTuneStepAndAnnounce(newValue)
-      }
-    )
+    let selectedStep = options.contains(radioSession.settings.tuneStepHz)
+      ? radioSession.settings.tuneStepHz
+      : (options.first ?? radioSession.settings.tuneStepHz)
 
-    return Picker(L10n.text("receiver.tune_step.label"), selection: selection) {
-      ForEach(options, id: \.self) { stepHz in
-        Text(FrequencyFormatter.tuneStepText(fromHz: stepHz))
-          .tag(stepHz)
+    return selectionNavigationLink(
+      title: L10n.text("receiver.tune_step.label"),
+      value: stepLabel,
+      selectedID: "\(selectedStep)",
+      options: options.map { stepHz in
+        SelectionListOption(
+          id: "\(stepHz)",
+          title: FrequencyFormatter.tuneStepText(fromHz: stepHz),
+          detail: nil
+        )
       }
+    ) { value in
+      guard let stepHz = Int(value) else { return }
+      setTuneStepAndAnnounce(stepHz)
     }
     .accessibilityLabel(L10n.text("receiver.tune_step.label"))
     .accessibilityValue(stepLabel)
@@ -1052,70 +958,29 @@ struct ReceiverView: View {
     }
   }
 
-  private func selectionDisclosure(
+  @ViewBuilder
+  private func selectionNavigationLink(
     title: String,
     value: String,
-    panel: ReceiverSelectionPanel,
     selectedID: String,
-    options: [ReceiverSelectionOption],
+    options: [SelectionListOption],
     disabled: Bool = false,
     onSelect: @escaping (String) -> Void
   ) -> some View {
-    DisclosureGroup(isExpanded: selectionBinding(for: panel)) {
-      ForEach(options) { option in
-        Button {
-          onSelect(option.id)
-          collapseSelectionPanel(panel)
-        } label: {
-          HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-              Text(option.title)
-                .foregroundStyle(.primary)
-
-              if let detail = option.detail, !detail.isEmpty {
-                Text(detail)
-                  .font(.footnote)
-                  .foregroundStyle(.secondary)
-              }
-            }
-
-            Spacer()
-
-            if option.id == selectedID {
-              Image(systemName: "checkmark")
-                .foregroundStyle(.tint)
-            }
-          }
-          .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(disabled)
-      }
-    } label: {
+    if disabled {
       LabeledContent(title, value: value)
-    }
-    .disabled(disabled)
-  }
-
-  private func selectionBinding(for panel: ReceiverSelectionPanel) -> Binding<Bool> {
-    Binding(
-      get: { expandedSelectionPanel == panel },
-      set: { isExpanded in
-        withAnimation(.easeInOut(duration: 0.2)) {
-          if isExpanded {
-            expandedSelectionPanel = panel
-          } else if expandedSelectionPanel == panel {
-            expandedSelectionPanel = nil
-          }
-        }
+        .foregroundStyle(.secondary)
+    } else {
+      NavigationLink {
+        SelectionListView(
+          title: title,
+          options: options,
+          selectedID: selectedID,
+          onSelect: onSelect
+        )
+      } label: {
+        LabeledContent(title, value: value)
       }
-    )
-  }
-
-  private func collapseSelectionPanel(_ panel: ReceiverSelectionPanel) {
-    guard expandedSelectionPanel == panel else { return }
-    withAnimation(.easeInOut(duration: 0.2)) {
-      expandedSelectionPanel = nil
     }
   }
 
@@ -1202,51 +1067,86 @@ struct ReceiverView: View {
     UIAccessibility.post(notification: .announcement, argument: announcement)
   }
 
-  private func frequencySlider(for backend: SDRBackend, tuningRange: ClosedRange<Int>) -> some View {
-    let sliderBinding = Binding<Double>(
-      get: { Double(radioSession.settings.frequencyHz) },
-      set: { newValue in
-        let stepHz = max(1, radioSession.settings.tuneStepHz)
-        let snapped = Int((newValue / Double(stepHz)).rounded()) * stepHz
-        radioSession.setFrequencyHz(snapped)
-      }
-    )
+  private func frequencyTuningControl(for backend: SDRBackend) -> some View {
     let frequencyValue = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
     let tuneStepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
 
-    return Slider(
-      value: sliderBinding,
-      in: Double(tuningRange.lowerBound)...Double(tuningRange.upperBound),
-      step: Double(radioSession.settings.tuneStepHz)
-    )
-    .accessibilityLabel("Frequency")
-    .accessibilityValue(frequencyValue)
-    .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", tuneStepLabel))
-    .accessibilityAdjustableAction { direction in
-      switch direction {
-      case .increment:
-        radioSession.tune(byStepCount: 1)
-      case .decrement:
-        radioSession.tune(byStepCount: -1)
-      @unknown default:
-        break
+    return VStack(alignment: .leading, spacing: 10) {
+      Text(L10n.text("fmdx.field.frequency"))
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      HStack(spacing: 12) {
+        Button {
+          tuneFrequency(byStepCount: -1)
+        } label: {
+          Image(systemName: "minus")
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityHidden(true)
+
+        VStack(spacing: 4) {
+          Text(frequencyValue)
+            .font(.title2.monospacedDigit().weight(.semibold))
+
+          Text(L10n.text("receiver.tune_step.label") + ": " + tuneStepLabel)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+
+        Button {
+          tuneFrequency(byStepCount: 1)
+        } label: {
+          Image(systemName: "plus")
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .accessibilityHidden(true)
       }
-    }
-    .accessibilityScrollAction { edge in
-      switch edge {
-      case .leading, .top:
+      .padding(12)
+      .background {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .fill(AppTheme.cardFill)
+      }
+      .overlay {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .stroke(AppTheme.cardStroke, lineWidth: 1)
+      }
+      .contentShape(Rectangle())
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(L10n.text("fmdx.field.frequency"))
+      .accessibilityValue(frequencyValue)
+      .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", tuneStepLabel))
+      .accessibilityFocused($accessibilityFocus, equals: .frequencyControl)
+      .accessibilityAdjustableAction { direction in
+        switch direction {
+        case .increment:
+          tuneFrequency(byStepCount: 1)
+        case .decrement:
+          tuneFrequency(byStepCount: -1)
+        @unknown default:
+          break
+        }
+      }
+      .accessibilityAction(named: Text(L10n.text("receiver.tune_step.previous_action"))) {
         changeTuneStep(by: -1, backend: backend)
-      case .trailing, .bottom:
+      }
+      .accessibilityAction(named: Text(L10n.text("receiver.tune_step.next_action"))) {
         changeTuneStep(by: 1, backend: backend)
-      default:
-        break
       }
     }
-    .accessibilityAction(named: Text(L10n.text("receiver.tune_step.previous_action"))) {
-      changeTuneStep(by: -1, backend: backend)
-    }
-    .accessibilityAction(named: Text(L10n.text("receiver.tune_step.next_action"))) {
-      changeTuneStep(by: 1, backend: backend)
+  }
+
+  private func tuneFrequency(byStepCount stepCount: Int) {
+    radioSession.tune(byStepCount: stepCount)
+    focusFrequencyControl()
+  }
+
+  private func focusFrequencyControl() {
+    Task { @MainActor in
+      accessibilityFocus = .frequencyControl
     }
   }
 
@@ -1264,7 +1164,6 @@ struct ReceiverView: View {
           inlineFrequencyEditing = isEditing
           if isEditing {
             inlineFrequencyApplyTask?.cancel()
-            expandedSelectionPanel = nil
             inlineFrequencyInput = ""
             inlineFrequencyError = nil
           }
@@ -1458,43 +1357,6 @@ struct ReceiverView: View {
     quickScanChannels.sort { $0.frequencyHz < $1.frequencyHz }
   }
 
-  private func msDisplayText(_ ms: Int) -> String {
-    switch ms {
-    case 1:
-      return L10n.text("common.yes")
-    case 0:
-      return L10n.text("common.no")
-    default:
-      return L10n.text("common.not_selected")
-    }
-  }
-
-  private func ptyDisplayText(pty: Int, rbds: Bool?) -> String {
-    let labelsEU = [
-      "No PTY", "News", "Current Affairs", "Info", "Sport", "Education", "Drama", "Culture",
-      "Science", "Varied", "Pop Music", "Rock Music", "Easy Listening", "Light Classical",
-      "Serious Classical", "Other Music", "Weather", "Finance", "Children's", "Social Affairs",
-      "Religion", "Phone-in", "Travel", "Leisure", "Jazz Music", "Country Music", "National Music",
-      "Oldies Music", "Folk Music", "Documentary", "Alarm Test", "Alarm"
-    ]
-    let labelsUS = [
-      "No PTY", "News", "Information", "Sports", "Talk", "Rock", "Classic Rock", "Adult Hits",
-      "Soft Rock", "Top 40", "Country", "Oldies", "Soft Music", "Nostalgia", "Jazz", "Classical",
-      "Rhythm and Blues", "Soft R&B", "Language", "Religious Music", "Religious Talk", "Personality",
-      "Public", "College", "Spanish Talk", "Spanish Music", "Hip Hop", "", "", "Weather",
-      "Emergency Test", "Emergency"
-    ]
-
-    let table = (rbds ?? false) ? labelsUS : labelsEU
-    if pty >= 0 && pty < table.count {
-      let label = table[pty].trimmingCharacters(in: .whitespacesAndNewlines)
-      if !label.isEmpty {
-        return "\(pty) (\(label))"
-      }
-    }
-    return "\(pty)"
-  }
-
   private func frequencyText(fromHz value: Int, backend: SDRBackend?) -> String {
     if backend == .fmDxWebserver {
       return FrequencyFormatter.fmDxMHzText(fromHz: value)
@@ -1561,10 +1423,10 @@ struct ReceiverView: View {
     return L10n.text("fmdx.filter_profile.custom")
   }
 
-  private func fmdxFilterProfileOptions() -> [ReceiverSelectionOption] {
+  private func fmdxFilterProfileOptions() -> [SelectionListOption] {
     FMDXFilterProfile.allCases.map {
-      ReceiverSelectionOption(id: $0.rawValue, title: L10n.text($0.localizationKey), detail: nil)
-    } + [ReceiverSelectionOption(
+      SelectionListOption(id: $0.rawValue, title: L10n.text($0.localizationKey), detail: nil)
+    } + [SelectionListOption(
       id: "custom",
       title: L10n.text("fmdx.filter_profile.custom"),
       detail: nil
@@ -1948,6 +1810,233 @@ private struct FrequencyInputProfileSpec {
   let alternateExample: String?
   let placeholder: String
   let maxFractionDigits: Int
+}
+
+struct SelectionListOption: Identifiable, Hashable {
+  let id: String
+  let title: String
+  let detail: String?
+}
+
+struct SelectionListView: View {
+  let title: String
+  let options: [SelectionListOption]
+  let selectedID: String
+  let onSelect: (String) -> Void
+
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    List {
+      Section {
+        ForEach(options) { option in
+          Button {
+            onSelect(option.id)
+            dismiss()
+          } label: {
+            HStack(spacing: 12) {
+              VStack(alignment: .leading, spacing: 2) {
+                Text(option.title)
+                  .foregroundStyle(.primary)
+
+                if let detail = option.detail, !detail.isEmpty {
+                  Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+              }
+
+              Spacer()
+
+              if option.id == selectedID {
+                Image(systemName: "checkmark")
+                  .foregroundStyle(.tint)
+              }
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+        }
+      }
+      .appSectionStyle()
+    }
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .navigationTitle(title)
+    .navigationBarTitleDisplayMode(.inline)
+    .appScreenBackground()
+  }
+}
+
+private struct OpenWebRXBandDetailView: View {
+  let band: SDRBandPlanEntry
+  let onTuneBandCenter: () -> Void
+  let onTuneFrequency: (SDRBandFrequency) -> Void
+
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    List {
+      Section {
+        LabeledContent(L10n.text("openwebrx.band_plan_section"), value: band.rangeText)
+
+        Button {
+          onTuneBandCenter()
+          dismiss()
+        } label: {
+          Label(L10n.text("Tune band center"), systemImage: "scope")
+        }
+      }
+      .appSectionStyle()
+
+      if !band.frequencies.isEmpty {
+        Section(L10n.text("openwebrx.band_frequencies")) {
+          ForEach(band.frequencies) { item in
+            Button {
+              onTuneFrequency(item)
+              dismiss()
+            } label: {
+              HStack {
+                Text(item.name)
+                Spacer()
+                Text(FrequencyFormatter.mhzText(fromHz: item.frequencyHz))
+                  .foregroundStyle(.secondary)
+              }
+            }
+          }
+        }
+        .appSectionStyle()
+      }
+    }
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .navigationTitle(band.name)
+    .navigationBarTitleDisplayMode(.inline)
+    .appScreenBackground()
+  }
+}
+
+private struct FMDXRDSDetailsView: View {
+  let telemetry: FMDXTelemetry
+  @Binding var showRdsErrorCounters: Bool
+
+  var body: some View {
+    List {
+      Section(L10n.text("fmdx.live.more_details")) {
+        if let pty = telemetry.pty {
+          LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
+        }
+        if let tp = telemetry.tp {
+          LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let ta = telemetry.ta {
+          LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let ms = telemetry.ms {
+          LabeledContent("MS", value: msDisplayText(ms))
+        }
+        if let ecc = telemetry.ecc {
+          LabeledContent("ECC", value: String(format: "0x%02X", ecc))
+        }
+        if let rbds = telemetry.rbds {
+          LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let agc = telemetry.agc, !agc.isEmpty {
+          LabeledContent("AGC", value: agc)
+        }
+
+        Toggle(
+          L10n.text("fmdx.show_rds_errors"),
+          isOn: $showRdsErrorCounters
+        )
+
+        if showRdsErrorCounters {
+          if let errors = telemetry.psErrors, !errors.isEmpty {
+            Text(L10n.text("fmdx.ps_errors", errors))
+              .font(.footnote)
+          }
+          if let errors = telemetry.rt0Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt0_errors", errors))
+              .font(.footnote)
+          }
+          if let errors = telemetry.rt1Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt1_errors", errors))
+              .font(.footnote)
+          }
+        }
+      }
+      .appSectionStyle()
+
+      if let tx = telemetry.txInfo {
+        Section(L10n.text("TX")) {
+          if let station = tx.station, !station.isEmpty {
+            LabeledContent(L10n.text("TX"), value: station)
+          }
+          if let city = tx.city, !city.isEmpty {
+            LabeledContent(L10n.text("City"), value: city)
+          }
+          if let itu = tx.itu, !itu.isEmpty {
+            LabeledContent("ITU", value: itu)
+          }
+          if let distance = tx.distanceKm, !distance.isEmpty {
+            LabeledContent(L10n.text("fmdx.field.distance"), value: "\(distance) km")
+          }
+          if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
+            LabeledContent(L10n.text("fmdx.field.azimuth"), value: "\(azimuth) deg")
+          }
+          if let erp = tx.erpKW, !erp.isEmpty {
+            LabeledContent("ERP", value: "\(erp) kW")
+          }
+          if let polarization = tx.polarization, !polarization.isEmpty {
+            LabeledContent(L10n.text("fmdx.field.polarization"), value: polarization)
+          }
+        }
+        .appSectionStyle()
+      }
+    }
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .navigationTitle(L10n.text("fmdx.live.more_details"))
+    .navigationBarTitleDisplayMode(.inline)
+    .appScreenBackground()
+  }
+
+  private func msDisplayText(_ ms: Int) -> String {
+    switch ms {
+    case 1:
+      return L10n.text("common.yes")
+    case 0:
+      return L10n.text("common.no")
+    default:
+      return L10n.text("common.not_selected")
+    }
+  }
+
+  private func ptyDisplayText(pty: Int, rbds: Bool?) -> String {
+    let labelsEU = [
+      "No PTY", "News", "Current Affairs", "Info", "Sport", "Education", "Drama", "Culture",
+      "Science", "Varied", "Pop Music", "Rock Music", "Easy Listening", "Light Classical",
+      "Serious Classical", "Other Music", "Weather", "Finance", "Children's", "Social Affairs",
+      "Religion", "Phone-in", "Travel", "Leisure", "Jazz Music", "Country Music", "National Music",
+      "Oldies Music", "Folk Music", "Documentary", "Alarm Test", "Alarm"
+    ]
+    let labelsUS = [
+      "No PTY", "News", "Information", "Sports", "Talk", "Rock", "Classic Rock", "Adult Hits",
+      "Soft Rock", "Top 40", "Country", "Oldies", "Soft Music", "Nostalgia", "Jazz", "Classical",
+      "Rhythm and Blues", "Soft R&B", "Language", "Religious Music", "Religious Talk", "Personality",
+      "Public", "College", "Spanish Talk", "Spanish Music", "Hip Hop", "", "", "Weather",
+      "Emergency Test", "Emergency"
+    ]
+
+    let table = (rbds ?? false) ? labelsUS : labelsEU
+    if pty >= 0 && pty < table.count {
+      let label = table[pty].trimmingCharacters(in: .whitespacesAndNewlines)
+      if !label.isEmpty {
+        return "\(pty) (\(label))"
+      }
+    }
+    return "\(pty)"
+  }
 }
 
 struct WaterfallStripView: View {

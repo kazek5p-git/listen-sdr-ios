@@ -350,6 +350,7 @@
 "openwebrx.bookmarks_section" = "Zakladki serwera";
 "openwebrx.bookmarks_empty" = "Brak zakladek OpenWebRX.";
 "openwebrx.band_plan_section" = "Plan pasm";
+"openwebrx.band_frequencies" = "Czestotliwosci pasma";
 "openwebrx.band_plan_loading" = "Plan pasm jest ladowany...";
 "receiver.tune_step.label" = "Krok strojenia";
 "frequency_input.voiceover_button" = "Wpisz dokladna czestotliwosc";

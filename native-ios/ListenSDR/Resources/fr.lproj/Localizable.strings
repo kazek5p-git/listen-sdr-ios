@@ -343,6 +343,7 @@
 "openwebrx.bookmarks_section" = "Signets du serveur";
 "openwebrx.bookmarks_empty" = "Aucun signet OpenWebRX pour le moment.";
 "openwebrx.band_plan_section" = "Plan de bande";
+"openwebrx.band_frequencies" = "Frequences de bande";
 "openwebrx.band_plan_loading" = "Chargement du plan de bande...";
 "receiver.tune_step.label" = "Pas d'accord";
 "frequency_input.voiceover_button" = "Entrer la frequence exacte";

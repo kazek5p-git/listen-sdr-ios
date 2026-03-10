@@ -343,6 +343,7 @@
 "openwebrx.bookmarks_section" = "Marcadores del servidor";
 "openwebrx.bookmarks_empty" = "Todavia no hay marcadores de OpenWebRX.";
 "openwebrx.band_plan_section" = "Plan de bandas";
+"openwebrx.band_frequencies" = "Frecuencias de banda";
 "openwebrx.band_plan_loading" = "Cargando plan de bandas...";
 "receiver.tune_step.label" = "Paso de sintonia";
 "frequency_input.voiceover_button" = "Introducir frecuencia exacta";
