@@ -703,19 +703,18 @@ struct RadiosView: View {
     if radioSession.state != .connected || radioSession.connectedProfileID != storedProfile.id {
       radioSession.connect(to: storedProfile)
     }
+    openReceiverTabAfterHistoryActionIfNeeded()
   }
 
   private func restoreListeningRecord(_ record: RecentListeningRecord) {
     let storedProfile = profileStore.upsertImportedProfile(record.makeProfile())
     profileStore.updateSelection(storedProfile.id)
-    if radioSession.settings.openReceiverAfterHistoryRestore {
-      navigationState.selectedTab = .receiver
-    }
     if radioSession.state == .connected && radioSession.connectedProfileID == storedProfile.id {
       if let mode = record.mode {
         radioSession.setMode(mode)
       }
       radioSession.setFrequencyHz(record.frequencyHz)
+      openReceiverTabAfterHistoryActionIfNeeded()
       return
     }
     radioSession.connect(
@@ -723,6 +722,14 @@ struct RadiosView: View {
       restoringFrequencyHz: record.frequencyHz,
       mode: record.mode
     )
+    openReceiverTabAfterHistoryActionIfNeeded()
+  }
+
+  private func openReceiverTabAfterHistoryActionIfNeeded() {
+    guard radioSession.settings.openReceiverAfterHistoryRestore else { return }
+    DispatchQueue.main.async {
+      navigationState.selectedTab = .receiver
+    }
   }
 
   private func isFavoriteListeningRecord(_ record: RecentListeningRecord) -> Bool {
