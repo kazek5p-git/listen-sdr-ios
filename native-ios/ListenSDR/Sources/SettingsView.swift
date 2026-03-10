@@ -105,7 +105,7 @@ struct SettingsView: View {
         }
         .appSectionStyle()
 
-        Section(L10n.text("settings.audio.section")) {
+        Section {
           audioSlider(
             title: L10n.text("settings.audio.startup_buffer"),
             value: radioSession.settings.fmdxAudioStartupBufferSeconds,
@@ -139,6 +139,8 @@ struct SettingsView: View {
           Button(L10n.text("settings.audio.reset")) {
             radioSession.resetFMDXAudioTuning()
           }
+        } header: {
+          Text(L10n.text("settings.audio.section"))
         } footer: {
           Text(L10n.text("settings.audio.footer"))
         }
