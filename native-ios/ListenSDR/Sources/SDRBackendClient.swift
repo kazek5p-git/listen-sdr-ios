@@ -2187,6 +2187,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var activeProfile: SDRConnectionProfile?
   private var activeBasePath = "/"
   private var lastAppliedSettings: RadioSessionSettings?
+  private var lastCapabilities: FMDXCapabilities = .empty
   private var lastAudioPacketAt = Date.distantPast
   private var supportsPingEndpoint: Bool?
   private var consecutivePingFailures = 0
@@ -2254,6 +2255,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     nextStationListRefreshAt = nextStationListRefreshDate(after: Date(), stationList: stationList)
 
     let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
+    lastCapabilities = capabilities
     enqueueTelemetry(.fmdxCapabilities(capabilities))
   }
 
@@ -2288,6 +2290,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     activeProfile = nil
     activeBasePath = "/"
     lastAppliedSettings = nil
+    lastCapabilities = .empty
     lastAudioPacketAt = .distantPast
     lastRealtimeStatusAt = .distantPast
     supportsPingEndpoint = nil
@@ -2304,8 +2307,12 @@ actor FMDXWebserverClient: SDRBackendClient {
     lastAppliedSettings = settings
 
     try await sendFrequency(settings.frequencyHz)
-    try await sendFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled)
-    try? await send("A\(settings.agcEnabled ? 1 : 0)")
+    if lastCapabilities.supportsFilterControls {
+      try await sendFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled)
+    }
+    if lastCapabilities.supportsAGCControl {
+      try? await send("A\(settings.agcEnabled ? 1 : 0)")
+    }
 
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
@@ -2345,9 +2352,11 @@ actor FMDXWebserverClient: SDRBackendClient {
       try await sendFrequency(frequencyHz)
 
     case .setFMDXFilter(let eqEnabled, let imsEnabled):
+      guard lastCapabilities.supportsFilterControls else { return }
       try await sendFilter(eqEnabled: eqEnabled, imsEnabled: imsEnabled)
 
     case .setFMDXAGC(let enabled):
+      guard lastCapabilities.supportsAGCControl else { return }
       try await send("A\(enabled ? 1 : 0)")
 
     case .setFMDXForcedStereo(let enabled):
@@ -2809,7 +2818,15 @@ actor FMDXWebserverClient: SDRBackendClient {
     let antennas = parseAntennaOptions(from: staticData)
     let bandwidths = parseBandwidthOptions(from: indexHTML)
     let supportsAM = parseAMSupport(staticData: staticData, indexHTML: indexHTML)
-    return FMDXCapabilities(antennas: antennas, bandwidths: bandwidths, supportsAM: supportsAM)
+    let supportsFilterControls = parseFilterControlSupport(indexHTML: indexHTML)
+    let supportsAGCControl = parseAGCSupport(indexHTML: indexHTML)
+    return FMDXCapabilities(
+      antennas: antennas,
+      bandwidths: bandwidths,
+      supportsAM: supportsAM,
+      supportsFilterControls: supportsFilterControls,
+      supportsAGCControl: supportsAGCControl
+    )
   }
 
   private func parseAntennaOptions(from staticData: [String: Any]?) -> [FMDXControlOption] {
@@ -2950,6 +2967,24 @@ actor FMDXWebserverClient: SDRBackendClient {
 
     // FM-only is the safest fallback when server does not advertise AM capabilities.
     return false
+  }
+
+  private func parseFilterControlSupport(indexHTML: String?) -> Bool {
+    guard let indexHTML, !indexHTML.isEmpty else { return false }
+    let normalized = indexHTML.lowercased()
+    return normalized.contains("class=\"data-eq")
+      || normalized.contains("class=\"data-ims")
+      || normalized.contains(" data-eq ")
+      || normalized.contains(" data-ims ")
+  }
+
+  private func parseAGCSupport(indexHTML: String?) -> Bool {
+    guard let indexHTML, !indexHTML.isEmpty else { return false }
+    let normalized = indexHTML.lowercased()
+    return normalized.contains("id=\"data-agc\"")
+      || normalized.contains("id=\"data-agc-phone\"")
+      || normalized.contains("class=\"data-agc")
+      || normalized.contains(" data-agc ")
   }
 
   private func parsePresetFrequencyHz(from preset: [String: Any]) -> Int? {

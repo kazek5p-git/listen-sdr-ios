@@ -19,6 +19,7 @@ private enum ScanSource: String, CaseIterable, Identifiable {
 
 private enum ReceiverAccessibilityFocus: Hashable {
   case frequencyControl
+  case tuneStepControl
 }
 
 struct ReceiverView: View {
@@ -308,34 +309,10 @@ struct ReceiverView: View {
     if profile.backend == .fmDxWebserver {
       Section(L10n.text("fmdx.controls")) {
         fmDxAudioModePicker()
-        fmDxFilterProfilePicker()
-
-        Toggle(
-          "AGC",
-          isOn: Binding(
-            get: { radioSession.settings.agcEnabled },
-            set: { radioSession.setAGCEnabled($0) }
-          )
-        )
-        .disabled(radioSession.state != .connected)
-
-        Toggle(
-          L10n.text("fmdx.eq_filter"),
-          isOn: Binding(
-            get: { radioSession.settings.noiseReductionEnabled },
-            set: { radioSession.setNoiseReductionEnabled($0) }
-          )
-        )
-        .disabled(radioSession.state != .connected)
-
-        Toggle(
-          L10n.text("fmdx.ims_filter"),
-          isOn: Binding(
-            get: { radioSession.settings.imsEnabled },
-            set: { radioSession.setIMSEnabled($0) }
-          )
-        )
-        .disabled(radioSession.state != .connected)
+        if radioSession.fmdxSupportsFilterControls || !radioSession.fmdxCapabilities.bandwidths.isEmpty {
+          fmDxFilterProfilePicker()
+        }
+        fmDxFilterToggleRow()
 
         fmDxAntennaPicker()
         fmDxBandwidthPicker()
@@ -347,16 +324,60 @@ struct ReceiverView: View {
   private func fmDxFilterProfilePicker() -> some View {
     let currentProfile = radioSession.currentFMDXFilterProfile()
     let selectedID = currentProfile?.rawValue ?? "custom"
+    let isProfileAvailable = radioSession.fmdxSupportsFilterControls || !radioSession.fmdxCapabilities.bandwidths.isEmpty
 
     return selectionNavigationLink(
       title: L10n.text("fmdx.filter_profile"),
       value: currentFMDXFilterProfileName(),
       selectedID: selectedID,
       options: fmdxFilterProfileOptions(),
-      disabled: radioSession.state != .connected
+      disabled: radioSession.state != .connected || !isProfileAvailable
     ) { value in
       guard let profile = FMDXFilterProfile(rawValue: value) else { return }
       radioSession.applyFMDXFilterProfile(profile)
+    }
+  }
+
+  @ViewBuilder
+  private func fmDxFilterToggleRow() -> some View {
+    let showsAGC = radioSession.fmdxSupportsAGCControl
+    let showsFilterControls = radioSession.fmdxSupportsFilterControls
+    let controlsEnabled = radioSession.state == .connected
+
+    if showsAGC || showsFilterControls {
+      HStack(spacing: 8) {
+        if showsAGC {
+          fmdxToggleChip(
+            title: "AGC",
+            accessibilityTitle: "AGC",
+            isOn: radioSession.settings.agcEnabled,
+            isEnabled: controlsEnabled
+          ) {
+            radioSession.setAGCEnabled(!radioSession.settings.agcEnabled)
+          }
+        }
+
+        if showsFilterControls {
+          fmdxToggleChip(
+            title: L10n.text("fmdx.eq_filter"),
+            accessibilityTitle: L10n.text("fmdx.eq_filter"),
+            isOn: radioSession.settings.noiseReductionEnabled,
+            isEnabled: controlsEnabled
+          ) {
+            radioSession.setNoiseReductionEnabled(!radioSession.settings.noiseReductionEnabled)
+          }
+
+          fmdxToggleChip(
+            title: L10n.text("fmdx.ims_filter"),
+            accessibilityTitle: L10n.text("fmdx.ims_filter"),
+            isOn: radioSession.settings.imsEnabled,
+            isEnabled: controlsEnabled
+          ) {
+            radioSession.setIMSEnabled(!radioSession.settings.imsEnabled)
+          }
+        }
+      }
+      .accessibilityElement(children: .contain)
     }
   }
 
@@ -716,12 +737,7 @@ struct ReceiverView: View {
   private func fmDxLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
       Section(L10n.text("fmdx.live.section")) {
-        if let signal = telemetry.signal {
-          LabeledContent(L10n.text("fmdx.field.signal"), value: String(format: "%.1f dBf", signal))
-        }
-        if let signalTop = telemetry.signalTop {
-          LabeledContent(L10n.text("fmdx.field.signal_peak"), value: String(format: "%.1f dBf", signalTop))
-        }
+        fmDxSignalMetricsRow(telemetry: telemetry)
         if let users = telemetry.users {
           LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
         }
@@ -776,6 +792,26 @@ struct ReceiverView: View {
         }
       }
       .appSectionStyle()
+    }
+  }
+
+  @ViewBuilder
+  private func fmDxSignalMetricsRow(telemetry: FMDXTelemetry) -> some View {
+    if telemetry.signal != nil || telemetry.signalTop != nil {
+      HStack(spacing: 8) {
+        if let signal = telemetry.signal {
+          metricCard(
+            title: L10n.text("fmdx.field.signal"),
+            value: String(format: "%.1f dBf", signal)
+          )
+        }
+        if let signalTop = telemetry.signalTop {
+          metricCard(
+            title: L10n.text("fmdx.field.signal_peak"),
+            value: String(format: "%.1f dBf", signalTop)
+          )
+        }
+      }
     }
   }
 
@@ -868,47 +904,80 @@ struct ReceiverView: View {
 
   private func tuneStepControl(for backend: SDRBackend) -> some View {
     let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
-    let options = radioSession.tuneStepOptions(for: backend)
-    let selectedStep = options.contains(radioSession.settings.tuneStepHz)
-      ? radioSession.settings.tuneStepHz
-      : (options.first ?? radioSession.settings.tuneStepHz)
+    let options = radioSession.tuneStepOptions(for: backend).map(FrequencyFormatter.tuneStepText(fromHz:))
 
-    return selectionNavigationLink(
-      title: L10n.text("receiver.tune_step.label"),
-      value: stepLabel,
-      selectedID: "\(selectedStep)",
-      options: options.map { stepHz in
-        SelectionListOption(
-          id: "\(stepHz)",
-          title: FrequencyFormatter.tuneStepText(fromHz: stepHz),
-          detail: nil
-        )
+    return VStack(alignment: .leading, spacing: 10) {
+      Text(L10n.text("receiver.tune_step.label"))
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      HStack(spacing: 12) {
+        Button {
+          changeTuneStep(by: -1, backend: backend)
+          focusTuneStepControl()
+        } label: {
+          Image(systemName: "minus")
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityHidden(true)
+
+        VStack(spacing: 4) {
+          Text(stepLabel)
+            .font(.title3.monospacedDigit().weight(.semibold))
+
+          Text(options.joined(separator: " / "))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+
+        Button {
+          changeTuneStep(by: 1, backend: backend)
+          focusTuneStepControl()
+        } label: {
+          Image(systemName: "plus")
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .accessibilityHidden(true)
       }
-    ) { value in
-      guard let stepHz = Int(value) else { return }
-      setTuneStepAndAnnounce(stepHz)
-    }
-    .accessibilityLabel(L10n.text("receiver.tune_step.label"))
-    .accessibilityValue(stepLabel)
-    .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", stepLabel))
-    .accessibilityAdjustableAction { direction in
-      switch direction {
-      case .increment:
-        changeTuneStep(by: 1, backend: backend)
-      case .decrement:
-        changeTuneStep(by: -1, backend: backend)
-      @unknown default:
-        break
+      .padding(12)
+      .background {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .fill(AppTheme.cardFill)
       }
-    }
-    .accessibilityScrollAction { edge in
-      switch edge {
-      case .leading, .top:
-        changeTuneStep(by: -1, backend: backend)
-      case .trailing, .bottom:
-        changeTuneStep(by: 1, backend: backend)
-      default:
-        break
+      .overlay {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .stroke(AppTheme.cardStroke, lineWidth: 1)
+      }
+      .contentShape(Rectangle())
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(L10n.text("receiver.tune_step.label"))
+      .accessibilityValue(stepLabel)
+      .accessibilityFocused($accessibilityFocus, equals: .tuneStepControl)
+      .accessibilityAdjustableAction { direction in
+        switch direction {
+        case .increment:
+          changeTuneStep(by: 1, backend: backend)
+        case .decrement:
+          changeTuneStep(by: -1, backend: backend)
+        @unknown default:
+          break
+        }
+      }
+      .accessibilityScrollAction { edge in
+        switch edge {
+        case .leading, .top:
+          changeTuneStep(by: -1, backend: backend)
+        case .trailing, .bottom:
+          changeTuneStep(by: 1, backend: backend)
+        default:
+          break
+        }
       }
     }
   }
@@ -1148,6 +1217,59 @@ struct ReceiverView: View {
     Task { @MainActor in
       accessibilityFocus = .frequencyControl
     }
+  }
+
+  private func focusTuneStepControl() {
+    Task { @MainActor in
+      accessibilityFocus = .tuneStepControl
+    }
+  }
+
+  private func fmdxToggleChip(
+    title: String,
+    accessibilityTitle: String,
+    isOn: Bool,
+    isEnabled: Bool,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Text(title)
+        .font(.footnote.weight(.semibold))
+        .multilineTextAlignment(.center)
+        .lineLimit(2)
+        .minimumScaleFactor(0.7)
+        .frame(maxWidth: .infinity, minHeight: 44)
+    }
+    .buttonStyle(isOn ? .borderedProminent : .bordered)
+    .controlSize(.small)
+    .disabled(!isEnabled)
+    .accessibilityLabel(accessibilityTitle)
+    .accessibilityValue(isOn ? L10n.text("common.on") : L10n.text("common.off"))
+  }
+
+  private func metricCard(title: String, value: String) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(title)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+      Text(value)
+        .font(.headline.monospacedDigit())
+        .foregroundStyle(.primary)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    .background(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(AppTheme.chipFill)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(AppTheme.cardStroke, lineWidth: 1)
+    )
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(value)
   }
 
   @ViewBuilder

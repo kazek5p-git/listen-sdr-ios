@@ -38,7 +38,9 @@ enum FMDXFilterProfile: String, CaseIterable, Identifiable {
     switch self {
     case .wide:
       return false
-    case .balanced, .dx:
+    case .balanced:
+      return false
+    case .dx:
       return true
     }
   }
@@ -46,7 +48,7 @@ enum FMDXFilterProfile: String, CaseIterable, Identifiable {
   var imsEnabled: Bool {
     switch self {
     case .wide:
-      return false
+      return true
     case .balanced, .dx:
       return true
     }
@@ -147,6 +149,14 @@ final class RadioSessionViewModel: ObservableObject {
 
   var fmdxSupportsAM: Bool {
     fmdxCapabilities.supportsAM
+  }
+
+  var fmdxSupportsFilterControls: Bool {
+    fmdxCapabilities.supportsFilterControls
+  }
+
+  var fmdxSupportsAGCControl: Bool {
+    fmdxCapabilities.supportsAGCControl
   }
 
   var isAwaitingInitialServerTuningSync: Bool {
@@ -568,6 +578,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.agcEnabled = enabled
     persistSettings()
     if activeBackend == .fmDxWebserver {
+      guard fmdxCapabilities.supportsAGCControl else { return }
       sendFMDXControl(.setFMDXAGC(enabled))
     } else {
       applyIfConnected()
@@ -579,6 +590,7 @@ final class RadioSessionViewModel: ObservableObject {
     markAutoFilterManuallyOverridden()
     persistSettings()
     if activeBackend == .fmDxWebserver {
+      guard fmdxCapabilities.supportsFilterControls else { return }
       sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
     } else {
       applyIfConnected()
@@ -590,6 +602,7 @@ final class RadioSessionViewModel: ObservableObject {
     markAutoFilterManuallyOverridden()
     persistSettings()
     if activeBackend == .fmDxWebserver {
+      guard fmdxCapabilities.supportsFilterControls else { return }
       sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
     } else {
       applyIfConnected()
@@ -616,12 +629,36 @@ final class RadioSessionViewModel: ObservableObject {
   func currentFMDXFilterProfile() -> FMDXFilterProfile? {
     let eq = settings.noiseReductionEnabled
     let ims = settings.imsEnabled
+    let supportsFilterControls = fmdxCapabilities.supportsFilterControls
 
-    if !eq && !ims {
+    if !supportsFilterControls {
+      guard let selected = selectedFMDXBandwidthOption(),
+        let bandwidthKHz = parseBandwidthKHz(from: selected)
+      else {
+        return nil
+      }
+
+      if bandwidthKHz <= 64 {
+        return .dx
+      }
+      if bandwidthKHz >= 110 {
+        return .wide
+      }
+      return .balanced
+    }
+
+    if !eq && ims {
       return .wide
     }
 
-    guard eq && ims else { return nil }
+    if eq && ims,
+      let selected = selectedFMDXBandwidthOption(),
+      let bandwidthKHz = parseBandwidthKHz(from: selected),
+      bandwidthKHz <= 64 {
+      return .dx
+    }
+
+    guard !eq && ims else { return nil }
 
     guard let selected = selectedFMDXBandwidthOption(),
       let bandwidthKHz = parseBandwidthKHz(from: selected)
@@ -646,10 +683,14 @@ final class RadioSessionViewModel: ObservableObject {
   private func applyFMDXFilterProfile(_ profile: FMDXFilterProfile, isAutomatic: Bool) {
     guard activeBackend == .fmDxWebserver else { return }
 
-    settings.noiseReductionEnabled = profile.eqEnabled
-    settings.imsEnabled = profile.imsEnabled
+    if fmdxCapabilities.supportsFilterControls {
+      settings.noiseReductionEnabled = profile.eqEnabled
+      settings.imsEnabled = profile.imsEnabled
+    }
     persistSettings()
-    sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+    if fmdxCapabilities.supportsFilterControls {
+      sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+    }
     if isAutomatic {
       autoFilterLastAppliedAt = Date()
     }
@@ -820,8 +861,12 @@ final class RadioSessionViewModel: ObservableObject {
     settings.squelchEnabled = RadioSessionSettings.default.squelchEnabled
     persistSettings()
     if activeBackend == .fmDxWebserver {
-      sendFMDXControl(.setFMDXAGC(settings.agcEnabled))
-      sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+      if fmdxCapabilities.supportsAGCControl {
+        sendFMDXControl(.setFMDXAGC(settings.agcEnabled))
+      }
+      if fmdxCapabilities.supportsFilterControls {
+        sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+      }
     } else {
       applyIfConnected()
     }
@@ -1079,8 +1124,12 @@ final class RadioSessionViewModel: ObservableObject {
 
     if activeBackend == .fmDxWebserver {
       queueFMDXFrequencySend(settings.frequencyHz)
-      sendFMDXControl(.setFMDXAGC(settings.agcEnabled))
-      sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+      if fmdxCapabilities.supportsAGCControl {
+        sendFMDXControl(.setFMDXAGC(settings.agcEnabled))
+      }
+      if fmdxCapabilities.supportsFilterControls {
+        sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
+      }
       if let profile = currentFMDXFilterProfile() {
         applyFMDXFilterProfile(profile, isAutomatic: true)
       }
@@ -1481,6 +1530,9 @@ final class RadioSessionViewModel: ObservableObject {
         settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: .fm)
         fmdxTuneWarningText = L10n.text("fmdx.band.am_not_supported")
         persistSettings()
+      }
+      if activeBackend == .fmDxWebserver, state == .connected {
+        applyCurrentSettingsToConnectedBackend()
       }
 
     case .fmdxPresets(let presets):
