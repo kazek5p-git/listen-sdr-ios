@@ -1630,13 +1630,13 @@ final class FMDXMP3AudioPlayer {
   static let shared = FMDXMP3AudioPlayer()
 
   private let workerQueue = DispatchQueue(label: "ListenSDR.FMDXMP3AudioPlayer")
-  private let queueBufferSize: Int = 64 * 1024
-  private let queueBufferCount: Int = 36
-  private let maxPacketsPerBuffer: Int = 1024
-  private let minEnqueueBytes: Int = 8 * 1024
-  private let maxBufferHoldSeconds: TimeInterval = 0.2
-  private let minBuffersBeforeStart = 4
-  private let maxConsecutiveBufferStarvation = 120
+  private let queueBufferSize: Int = 96 * 1024
+  private let queueBufferCount: Int = 48
+  private let maxPacketsPerBuffer: Int = 1536
+  private let minEnqueueBytes: Int = 16 * 1024
+  private let maxBufferHoldSeconds: TimeInterval = 0.35
+  private let minBuffersBeforeStart = 6
+  private let maxConsecutiveBufferStarvation = 180
 
   private var fileStreamID: AudioFileStreamID?
   private var audioQueue: AudioQueueRef?
@@ -1840,13 +1840,24 @@ final class FMDXMP3AudioPlayer {
 
   private func configureAudioSessionIfNeeded(sampleRate: Double) {
     let session = AVAudioSession.sharedInstance()
+    let requestedSampleRate = sampleRate.isFinite && sampleRate >= 8_000 && sampleRate <= 192_000
+      ? sampleRate
+      : nil
+
     do {
-      try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
-      try session.setPreferredIOBufferDuration(0.01)
-      try session.setPreferredSampleRate(sampleRate)
+      try session.setCategory(.playback, mode: .default, options: [.allowAirPlay])
+      try session.setPreferredIOBufferDuration(0.023)
+      if let requestedSampleRate {
+        try session.setPreferredSampleRate(requestedSampleRate)
+      }
       try session.setActive(true, options: [])
     } catch {
-      log("Audio session setup failed: \(error.localizedDescription)", severity: .warning)
+      do {
+        try session.setCategory(.playback, mode: .default, options: [])
+        try session.setActive(true, options: [])
+      } catch {
+        log("Audio session setup failed: \(error.localizedDescription)", severity: .warning)
+      }
     }
   }
 
@@ -2183,6 +2194,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private let stationListRefreshInterval: TimeInterval = 90
   private let stationListRetryInterval: TimeInterval = 15
   private var nextStationListRefreshAt = Date.distantPast
+  private var stationListUnavailable = false
   private var lastPublishedFMDXPresets: [SDRServerBookmark] = []
 
   func connect(profile: SDRConnectionProfile) async throws {
@@ -2281,6 +2293,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     supportsPingEndpoint = nil
     consecutivePingFailures = 0
     nextStationListRefreshAt = .distantPast
+    stationListUnavailable = false
     lastPublishedFMDXPresets = []
 
     log("Disconnected")
@@ -3000,6 +3013,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func refreshStationListIfNeeded(profile: SDRConnectionProfile) async {
     let now = Date()
+    guard !stationListUnavailable else { return }
     guard now >= nextStationListRefreshAt else { return }
 
     let basePath = activeBasePath
@@ -3018,6 +3032,9 @@ actor FMDXWebserverClient: SDRBackendClient {
   }
 
   private func nextStationListRefreshDate(after now: Date, stationList: [SDRServerBookmark]) -> Date {
+    if stationListUnavailable {
+      return now.addingTimeInterval(30 * 60)
+    }
     let interval = stationList.isEmpty ? stationListRetryInterval : stationListRefreshInterval
     return now.addingTimeInterval(interval)
   }
@@ -3027,12 +3044,23 @@ actor FMDXWebserverClient: SDRBackendClient {
     indexHTML: String?,
     basePath: String
   ) async -> [SDRServerBookmark] {
+    if let indexHTML, !indexHTML.isEmpty {
+      let inlineStationList = parseStationListBookmarks(from: indexHTML)
+      if !inlineStationList.isEmpty {
+        stationListUnavailable = false
+        return inlineStationList
+      }
+    }
+
     let scriptURLs = resolveStationListScriptURLs(
       indexHTML: indexHTML,
       profile: profile,
       basePath: basePath
     )
     guard !scriptURLs.isEmpty else {
+      if let indexHTML, !indexHTML.isEmpty {
+        stationListUnavailable = true
+      }
       return []
     }
 
@@ -3059,6 +3087,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     if !best.isEmpty {
+      stationListUnavailable = false
       log("Loaded FM-DX station list (\(best.count)) from \(bestSource ?? "unknown source")")
       return best
     }
@@ -3095,24 +3124,26 @@ actor FMDXWebserverClient: SDRBackendClient {
       }
     }
 
-    let fallbackScriptPaths: [(path: String, score: Int)] = [
-      ("js/plugins/ButtonPresets/pluginButtonPresets.js", 240),
-      ("js/plugins/buttonpresets/pluginbuttonpresets.js", 220),
-      ("js/plugins/button-presets/plugin-button-presets.js", 190),
-      ("plugins/ButtonPresets/pluginButtonPresets.js", 170),
-      ("plugins/buttonpresets/pluginbuttonpresets.js", 160),
-      ("js/plugins/server-list/server-list.js", 40)
-    ]
+    if indexHTML == nil || indexHTML?.isEmpty == true {
+      let fallbackScriptPaths: [(path: String, score: Int)] = [
+        ("js/plugins/ButtonPresets/pluginButtonPresets.js", 240),
+        ("js/plugins/buttonpresets/pluginbuttonpresets.js", 220),
+        ("js/plugins/button-presets/plugin-button-presets.js", 190),
+        ("plugins/ButtonPresets/pluginButtonPresets.js", 170),
+        ("plugins/buttonpresets/pluginbuttonpresets.js", 160),
+        ("js/plugins/server-list/server-list.js", 40)
+      ]
 
-    for fallback in fallbackScriptPaths {
-      guard let fallbackURL = makeStationScriptURL(
-        profile: profile,
-        basePath: basePath,
-        relativePath: fallback.path
-      ) else {
-        continue
+      for fallback in fallbackScriptPaths {
+        guard let fallbackURL = makeStationScriptURL(
+          profile: profile,
+          basePath: basePath,
+          relativePath: fallback.path
+        ) else {
+          continue
+        }
+        addStationScriptCandidate(fallbackURL, score: fallback.score, to: &scoredURLs)
       }
-      addStationScriptCandidate(fallbackURL, score: fallback.score, to: &scoredURLs)
     }
 
     return scoredURLs.values

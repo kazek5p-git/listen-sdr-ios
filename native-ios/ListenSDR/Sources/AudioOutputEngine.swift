@@ -92,13 +92,19 @@ final class AudioOutputEngine {
     let session = AVAudioSession.sharedInstance()
 
     do {
-      try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
-      try session.setPreferredIOBufferDuration(0.01)
+      try session.setCategory(.playback, mode: .default, options: [.allowAirPlay])
+      try session.setPreferredIOBufferDuration(0.023)
       try session.setPreferredSampleRate(48_000)
       try session.setActive(true, options: [])
       sessionConfigured = true
     } catch {
-      sessionConfigured = false
+      do {
+        try session.setCategory(.playback, mode: .default, options: [])
+        try session.setActive(true, options: [])
+        sessionConfigured = true
+      } catch {
+        sessionConfigured = false
+      }
     }
   }
 

@@ -1270,10 +1270,10 @@ final class RadioSessionViewModel: ObservableObject {
   private func parseFMDXToggleState(_ raw: String?) -> Bool? {
     guard let raw else { return nil }
     let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    if ["1", "on", "true", "enabled", "yes"].contains(normalized) {
+    if ["1", "on", "true", "enabled", "yes", "auto", "agc"].contains(normalized) {
       return true
     }
-    if ["0", "off", "false", "disabled", "no"].contains(normalized) {
+    if ["0", "off", "false", "disabled", "no", "manual", "man"].contains(normalized) {
       return false
     }
     return nil
@@ -1491,6 +1491,11 @@ final class RadioSessionViewModel: ObservableObject {
       }
       if let bandwidth = telemetry.bandwidth, !bandwidth.isEmpty {
         selectedFMDXBandwidthID = resolveFMDXBandwidthSelectionID(from: bandwidth)
+      }
+      if let agcEnabled = parseFMDXToggleState(telemetry.agc),
+        settings.agcEnabled != agcEnabled {
+        settings.agcEnabled = agcEnabled
+        changedSettings = true
       }
       if let eqEnabled = parseFMDXToggleState(telemetry.eq),
         settings.noiseReductionEnabled != eqEnabled {

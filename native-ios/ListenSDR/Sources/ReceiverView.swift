@@ -20,7 +20,6 @@ private enum ScanSource: String, CaseIterable, Identifiable {
 private enum ReceiverSelectionPanel: String {
   case mode
   case openWebRXProfile
-  case tuneStep
   case fmDxFilterProfile
   case kiwiWaterfallSpeed
   case fmDxAntenna
@@ -92,14 +91,11 @@ struct ReceiverView: View {
     }
     .scrollContentBackground(.hidden)
     .onAppear {
-      syncInlineFrequencyInputFromSession(for: profile.backend, force: true)
+      resetInlineFrequencyInput()
     }
-    .onChange(of: radioSession.settings.frequencyHz) { _ in
-      syncInlineFrequencyInputFromSession(for: profile.backend, force: false)
-    }
-    .onChange(of: profile.backend) { backend in
+    .onChange(of: profile.backend) { _ in
       expandedSelectionPanel = nil
-      syncInlineFrequencyInputFromSession(for: backend, force: true)
+      resetInlineFrequencyInput()
     }
   }
 
@@ -967,45 +963,25 @@ struct ReceiverView: View {
   private func tuneStepControl(for backend: SDRBackend) -> some View {
     let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
     let options = radioSession.tuneStepOptions(for: backend)
-
-    return VStack(alignment: .leading, spacing: 10) {
-      selectionDisclosure(
-        title: L10n.text("receiver.tune_step.label"),
-        value: stepLabel,
-        panel: .tuneStep,
-        selectedID: "\(radioSession.settings.tuneStepHz)",
-        options: options.map {
-          ReceiverSelectionOption(
-            id: "\($0)",
-            title: FrequencyFormatter.tuneStepText(fromHz: $0),
-            detail: nil
-          )
+    let selection = Binding<Int>(
+      get: {
+        let currentStep = radioSession.settings.tuneStepHz
+        if options.contains(currentStep) {
+          return currentStep
         }
-      ) { value in
-        if let stepHz = Int(value) {
-          setTuneStepAndAnnounce(stepHz)
-        }
+        return options.first ?? currentStep
+      },
+      set: { newValue in
+        setTuneStepAndAnnounce(newValue)
       }
+    )
 
-      HStack(spacing: 12) {
-        Button {
-          changeTuneStep(by: -1, backend: backend)
-        } label: {
-          Label(L10n.text("receiver.tune_step.previous_action"), systemImage: "minus.circle.fill")
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-
-        Button {
-          changeTuneStep(by: 1, backend: backend)
-        } label: {
-          Label(L10n.text("receiver.tune_step.next_action"), systemImage: "plus.circle.fill")
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
+    return Picker(L10n.text("receiver.tune_step.label"), selection: selection) {
+      ForEach(options, id: \.self) { stepHz in
+        Text(FrequencyFormatter.tuneStepText(fromHz: stepHz))
+          .tag(stepHz)
       }
     }
-    .accessibilityElement(children: .contain)
     .accessibilityLabel(L10n.text("receiver.tune_step.label"))
     .accessibilityValue(stepLabel)
     .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", stepLabel))
@@ -1331,17 +1307,12 @@ struct ReceiverView: View {
     }
   }
 
-  private func syncInlineFrequencyInputFromSession(for backend: SDRBackend, force: Bool) {
-    if !force && (inlineFrequencyEditing || isInlineFrequencyFocused) {
-      return
-    }
-    let formatted = inlineFrequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
-    if inlineFrequencyInput != formatted {
-      inlineFrequencyInput = formatted
-    }
-    if force {
-      inlineFrequencyError = nil
-    }
+  private func resetInlineFrequencyInput() {
+    inlineFrequencyApplyTask?.cancel()
+    inlineFrequencyInput = ""
+    inlineFrequencyError = nil
+    inlineFrequencyEditing = false
+    isInlineFrequencyFocused = false
   }
 
   private func inlineFrequencyText(fromHz value: Int, backend: SDRBackend) -> String {
@@ -1377,10 +1348,7 @@ struct ReceiverView: View {
     inlineFrequencyApplyTask?.cancel()
     let trimmed = inlineFrequencyInput.trimmingCharacters(in: .whitespacesAndNewlines)
     if trimmed.isEmpty {
-      inlineFrequencyEditing = false
-      inlineFrequencyError = nil
-      syncInlineFrequencyInputFromSession(for: backend, force: true)
-      isInlineFrequencyFocused = false
+      resetInlineFrequencyInput()
       return
     }
     _ = applyInlineFrequencyInput(backend, commitFormatting: true, endEditing: true)
@@ -1423,11 +1391,11 @@ struct ReceiverView: View {
     radioSession.setFrequencyHz(normalizedFrequencyHz)
     inlineFrequencyError = nil
 
-    if commitFormatting {
-      inlineFrequencyInput = inlineFrequencyText(fromHz: normalizedFrequencyHz, backend: backend)
-    }
     if endEditing {
+      inlineFrequencyInput = ""
       inlineFrequencyEditing = false
+    } else if commitFormatting {
+      inlineFrequencyInput = inlineFrequencyText(fromHz: normalizedFrequencyHz, backend: backend)
     }
 
     return true
