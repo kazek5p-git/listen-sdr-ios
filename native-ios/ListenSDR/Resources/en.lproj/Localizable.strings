@@ -263,3 +263,12 @@
 "settings.audio.preset.weak_server.detail" = "Largest safety margin for unstable or overloaded servers.";
 "settings.audio.preset.custom" = "Custom";
 "settings.audio.preset.custom.detail" = "Manual values different from ready presets.";
+"settings.audio.suggestion" = "Suggested preset";
+"settings.audio.suggestion.apply" = "Apply suggestion";
+"settings.audio.suggestion.current" = "Current preset already matches the suggestion.";
+"settings.audio.suggestion.unavailable" = "Connect to an FM-DX receiver to get a live audio suggestion.";
+"settings.audio.suggestion.reason.output_gaps" = "Audio output had recent gaps. Safer buffering should reduce dropouts.";
+"settings.audio.suggestion.reason.latency_trim" = "Live delay recently grew too much. Lower-latency preset should react faster.";
+"settings.audio.suggestion.reason.large_queue" = "The player keeps a larger queue. More stable preset should fit this stream better.";
+"settings.audio.suggestion.reason.short_queue" = "The stream keeps a short queue and looks healthy, so lower latency should be safe.";
+"settings.audio.suggestion.reason.balanced" = "Current stream behavior looks normal. Balanced preset should be enough.";

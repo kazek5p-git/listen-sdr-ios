@@ -407,3 +407,12 @@
 "settings.audio.preset.weak_server.detail" = "Massimo margine di sicurezza per server instabili o sovraccarichi.";
 "settings.audio.preset.custom" = "Personalizzato";
 "settings.audio.preset.custom.detail" = "Valori manuali diversi dai preset pronti.";
+"settings.audio.suggestion" = "Suggerimento";
+"settings.audio.suggestion.apply" = "Applica suggerimento";
+"settings.audio.suggestion.current" = "Il preset attuale coincide gia con il suggerimento.";
+"settings.audio.suggestion.unavailable" = "Connettiti a un ricevitore FM-DX per ottenere un suggerimento audio live.";
+"settings.audio.suggestion.reason.output_gaps" = "L'uscita audio ha avuto interruzioni recenti. Un buffering piu prudente dovrebbe ridurre i dropouts.";
+"settings.audio.suggestion.reason.latency_trim" = "Il ritardo live e cresciuto troppo di recente. Un preset a latenza minore dovrebbe reagire piu in fretta.";
+"settings.audio.suggestion.reason.large_queue" = "Il player mantiene una coda piu grande. Un preset piu stabile dovrebbe adattarsi meglio a questo stream.";
+"settings.audio.suggestion.reason.short_queue" = "Lo stream mantiene una coda corta e sembra sano, quindi una latenza piu bassa dovrebbe essere sicura.";
+"settings.audio.suggestion.reason.balanced" = "Il comportamento dello stream sembra normale. Il preset bilanciato dovrebbe bastare.";

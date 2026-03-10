@@ -100,6 +100,15 @@ enum FMDXAudioTuningPreset: String, CaseIterable, Identifiable {
   }
 }
 
+struct FMDXAudioPresetSuggestion {
+  let preset: FMDXAudioTuningPreset
+  let reasonKey: String
+
+  var localizedReason: String {
+    L10n.text(reasonKey)
+  }
+}
+
 struct RadioSessionSettings: Codable, Equatable {
   var frequencyHz: Int
   var tuneStepHz: Int

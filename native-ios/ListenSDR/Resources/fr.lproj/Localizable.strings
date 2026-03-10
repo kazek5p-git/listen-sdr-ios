@@ -407,3 +407,12 @@
 "settings.audio.preset.weak_server.detail" = "Plus grande marge de securite pour les serveurs instables ou surcharges.";
 "settings.audio.preset.custom" = "Personnalise";
 "settings.audio.preset.custom.detail" = "Valeurs manuelles differentes des presets prets.";
+"settings.audio.suggestion" = "Suggestion";
+"settings.audio.suggestion.apply" = "Appliquer la suggestion";
+"settings.audio.suggestion.current" = "Le preset actuel correspond deja a la suggestion.";
+"settings.audio.suggestion.unavailable" = "Connectez-vous a un recepteur FM-DX pour obtenir une suggestion audio en direct.";
+"settings.audio.suggestion.reason.output_gaps" = "La sortie audio a eu des coupures recentes. Un tampon plus prudent devrait reduire les dropouts.";
+"settings.audio.suggestion.reason.latency_trim" = "Le retard direct a recemment trop augmente. Un preset a plus faible latence devrait reagir plus vite.";
+"settings.audio.suggestion.reason.large_queue" = "Le lecteur garde une file plus grande. Un preset plus stable devrait mieux convenir a ce flux.";
+"settings.audio.suggestion.reason.short_queue" = "Le flux garde une file courte et semble sain, donc une latence plus faible devrait etre sure.";
+"settings.audio.suggestion.reason.balanced" = "Le comportement du flux semble normal. Le preset equilibre devrait suffire.";

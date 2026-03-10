@@ -1626,6 +1626,14 @@ actor OpenWebRXClient: SDRBackendClient {
   }
 }
 
+struct FMDXAudioRuntimeSnapshot {
+  let queueStarted: Bool
+  let queuedDurationSeconds: TimeInterval
+  let queuedBufferCount: Int
+  let secondsSinceLastAudioOutput: TimeInterval
+  let secondsSinceLastLatencyTrim: TimeInterval?
+}
+
 final class FMDXMP3AudioPlayer {
   static let shared = FMDXMP3AudioPlayer()
 
@@ -1783,6 +1791,24 @@ final class FMDXMP3AudioPlayer {
     workerQueue.sync {
       let referenceDate = lastAudioRenderAt != .distantPast ? lastAudioRenderAt : lastSuccessfulEnqueueAt
       return Date().timeIntervalSince(referenceDate)
+    }
+  }
+
+  func runtimeSnapshot() -> FMDXAudioRuntimeSnapshot {
+    workerQueue.sync {
+      let referenceDate = lastAudioRenderAt != .distantPast ? lastAudioRenderAt : lastSuccessfulEnqueueAt
+      let secondsSinceLastOutput = Date().timeIntervalSince(referenceDate)
+      let secondsSinceLastTrim = lastLatencyTrimAt == .distantPast
+        ? nil
+        : Date().timeIntervalSince(lastLatencyTrimAt)
+
+      return FMDXAudioRuntimeSnapshot(
+        queueStarted: queueStarted,
+        queuedDurationSeconds: pendingQueuedDuration,
+        queuedBufferCount: pendingQueuedBuffers,
+        secondsSinceLastAudioOutput: secondsSinceLastOutput,
+        secondsSinceLastLatencyTrim: secondsSinceLastTrim
+      )
     }
   }
 

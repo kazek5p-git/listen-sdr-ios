@@ -106,6 +106,34 @@ struct SettingsView: View {
         .appSectionStyle()
 
         Section {
+          if let suggestion = radioSession.fmdxAudioPresetSuggestion {
+            VStack(alignment: .leading, spacing: 6) {
+              LabeledContent(
+                L10n.text("settings.audio.suggestion"),
+                value: suggestion.preset.localizedTitle
+              )
+
+              Text(suggestion.localizedReason)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+              if suggestion.preset != radioSession.currentFMDXAudioPreset {
+                Button(L10n.text("settings.audio.suggestion.apply")) {
+                  radioSession.applyFMDXAudioPreset(suggestion.preset)
+                }
+              } else {
+                Text(L10n.text("settings.audio.suggestion.current"))
+                  .font(.footnote)
+                  .foregroundStyle(.secondary)
+              }
+            }
+            .accessibilityElement(children: .contain)
+          } else {
+            Text(L10n.text("settings.audio.suggestion.unavailable"))
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+          }
+
           NavigationLink {
             SelectionListView(
               title: L10n.text("settings.audio.preset"),

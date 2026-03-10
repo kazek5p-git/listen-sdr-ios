@@ -185,6 +185,47 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
+  var fmdxAudioPresetSuggestion: FMDXAudioPresetSuggestion? {
+    guard activeBackend == .fmDxWebserver else { return nil }
+    guard state == .connected else { return nil }
+
+    let snapshot = FMDXMP3AudioPlayer.shared.runtimeSnapshot()
+    guard snapshot.queueStarted || snapshot.secondsSinceLastAudioOutput < 12 else { return nil }
+
+    if snapshot.secondsSinceLastAudioOutput > 2.5 {
+      return FMDXAudioPresetSuggestion(
+        preset: .weakServer,
+        reasonKey: "settings.audio.suggestion.reason.output_gaps"
+      )
+    }
+
+    if let secondsSinceLastTrim = snapshot.secondsSinceLastLatencyTrim, secondsSinceLastTrim < 18 {
+      return FMDXAudioPresetSuggestion(
+        preset: .lowLatency,
+        reasonKey: "settings.audio.suggestion.reason.latency_trim"
+      )
+    }
+
+    if snapshot.queuedDurationSeconds >= 1.05 || snapshot.queuedBufferCount >= 7 {
+      return FMDXAudioPresetSuggestion(
+        preset: .stable,
+        reasonKey: "settings.audio.suggestion.reason.large_queue"
+      )
+    }
+
+    if snapshot.queuedDurationSeconds <= 0.40 && snapshot.queuedBufferCount <= 3 {
+      return FMDXAudioPresetSuggestion(
+        preset: .lowLatency,
+        reasonKey: "settings.audio.suggestion.reason.short_queue"
+      )
+    }
+
+    return FMDXAudioPresetSuggestion(
+      preset: .balanced,
+      reasonKey: "settings.audio.suggestion.reason.balanced"
+    )
+  }
+
   func connect(to profile: SDRConnectionProfile) {
     if state == .connecting {
       return
