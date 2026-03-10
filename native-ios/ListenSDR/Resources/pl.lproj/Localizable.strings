@@ -278,10 +278,10 @@
 "kiwi.squelch_hint" = "Włącz blokadę szumów dla audio KiwiSDR";
 "openwebrx.squelch_level" = "Poziom blokady szumów";
 "kiwi.squelch_level" = "Próg blokady szumów";
-"kiwi.waterfall.speed" = "Prędkość waterfall";
-"kiwi.waterfall.zoom" = "Powiększenie waterfall";
-"kiwi.waterfall.min_db" = "Waterfall minimum";
-"kiwi.waterfall.max_db" = "Waterfall maksimum";
+"kiwi.waterfall.speed" = "Prędkość wodospadu";
+"kiwi.waterfall.zoom" = "Powiększenie wodospadu";
+"kiwi.waterfall.min_db" = "Minimum wodospadu";
+"kiwi.waterfall.max_db" = "Maksimum wodospadu";
 
 "fmdx.live.section" = "FM-DX na żywo";
 "fmdx.field.frequency" = "Częstotliwość";
@@ -322,8 +322,8 @@
 "fmdx.user_presets.import_error" = "Import listy stacji nie udał się: %@";
 
 "Settings" = "Ustawienia";
-"fmdx.eq_filter" = "EQ filter";
-"fmdx.ims_filter" = "iMS+ Filter";
+"fmdx.eq_filter" = "Filtr EQ";
+"fmdx.ims_filter" = "Filtr iMS+";
 "scanner.mode.adaptive" = "Adaptacyjny";
 "scanner.mode.fixed" = "Stały";
 "settings.session.section" = "Migawka sesji";
@@ -334,7 +334,7 @@
 "settings.dx.section" = "Opcje DX";
 "settings.dx.night_mode" = "Tryb nocny DX";
 "settings.dx.night_mode.hint" = "Ustawia agresywniejszy profil DX, cichsze audio i mniejsze zużycie CPU.";
-"settings.dx.auto_filter" = "Auto profil filtra (sygnał/SNR)";
+"settings.dx.auto_filter" = "Automatyczny profil filtra (sygnał/SNR)";
 "settings.dx.auto_filter.hint" = "Automatycznie przełącza profil filtra FM-DX według jakości sygnału.";
 "settings.dx.adaptive_scan" = "Adaptacyjny skaner DX";
 "settings.dx.adaptive_scan.hint" = "Automatycznie dopasowuje czasy postoju i podtrzymania skanera do jakości sygnału.";
