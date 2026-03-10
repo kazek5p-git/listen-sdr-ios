@@ -144,6 +144,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var deferredRestoreTask: Task<Void, Never>?
   private let autoReconnectDelaySeconds: [UInt64] = [1, 2, 3, 5, 8, 12]
   private let autoReconnectWindowSeconds: TimeInterval = 75
+  private let manualReconnectDelayNanoseconds: UInt64 = 120_000_000
+  private let deferredRestorePollNanoseconds: UInt64 = 90_000_000
 
   init() {
     settings = loadPersistedSettings()
@@ -385,7 +387,7 @@ final class RadioSessionViewModel: ObservableObject {
     disconnect()
 
     Task { [weak self] in
-      try? await Task.sleep(nanoseconds: 350_000_000)
+      try? await Task.sleep(nanoseconds: manualReconnectDelayNanoseconds)
       if Task.isCancelled {
         return
       }
@@ -2156,7 +2158,7 @@ final class RadioSessionViewModel: ObservableObject {
           return
         }
 
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        try? await Task.sleep(nanoseconds: deferredRestorePollNanoseconds)
       }
     }
   }
