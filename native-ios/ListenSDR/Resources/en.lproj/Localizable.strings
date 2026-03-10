@@ -272,3 +272,15 @@
 "settings.audio.suggestion.reason.large_queue" = "The player keeps a larger queue. More stable preset should fit this stream better.";
 "settings.audio.suggestion.reason.short_queue" = "The stream keeps a short queue and looks healthy, so lower latency should be safe.";
 "settings.audio.suggestion.reason.balanced" = "Current stream behavior looks normal. Balanced preset should be enough.";
+"settings.audio.suggestion_scope" = "Suggestion scope";
+"settings.audio.suggestion_scope.hint" = "Choose where audio suggestions should appear.";
+"settings.audio.suggestion_scope.off" = "Off";
+"settings.audio.suggestion_scope.off.detail" = "Do not show audio suggestions.";
+"settings.audio.suggestion_scope.fmdx_only" = "FM-DX only";
+"settings.audio.suggestion_scope.fmdx_only.detail" = "Show suggestions only for FM-DX receivers.";
+"settings.audio.suggestion_scope.all_supported" = "All supported backends";
+"settings.audio.suggestion_scope.all_supported.detail" = "Ready for future expansion beyond FM-DX.";
+"settings.audio.suggestion.disabled" = "Audio suggestions are disabled.";
+"settings.audio.suggestion.log.recommended" = "Suggested audio preset: %@. %@";
+"settings.audio.suggestion.log.applied" = "Applied audio preset: %@.";
+"diagnostics.audio_suggestions.section" = "Audio suggestion history";

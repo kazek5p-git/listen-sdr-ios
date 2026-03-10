@@ -96,6 +96,7 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var scannerStatusText: String?
   @Published var scannerThreshold: Double = -95
   @Published private(set) var hasSavedSettingsSnapshot = false
+  @Published private(set) var audioPresetSuggestion: FMDXAudioPresetSuggestion?
 
   private let fmDxDefaultFrequencyHz = 87_500_000
   private let fmDxMinFrequencyHz = 64_000_000
@@ -127,6 +128,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var lastRDSAnnouncementText: String?
   private var lastRDSAnnouncementAt = Date.distantPast
   private var lastRDSAnnouncementKind: RDSAnnouncementKind?
+  private var lastLoggedAudioSuggestionPreset: FMDXAudioTuningPreset?
 
   init() {
     settings = loadPersistedSettings()
@@ -182,47 +184,6 @@ final class RadioSessionViewModel: ObservableObject {
       startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds,
       maxLatencySeconds: settings.fmdxAudioMaxLatencySeconds,
       packetHoldSeconds: settings.fmdxAudioPacketHoldSeconds
-    )
-  }
-
-  var fmdxAudioPresetSuggestion: FMDXAudioPresetSuggestion? {
-    guard activeBackend == .fmDxWebserver else { return nil }
-    guard state == .connected else { return nil }
-
-    let snapshot = FMDXMP3AudioPlayer.shared.runtimeSnapshot()
-    guard snapshot.queueStarted || snapshot.secondsSinceLastAudioOutput < 12 else { return nil }
-
-    if snapshot.secondsSinceLastAudioOutput > 2.5 {
-      return FMDXAudioPresetSuggestion(
-        preset: .weakServer,
-        reasonKey: "settings.audio.suggestion.reason.output_gaps"
-      )
-    }
-
-    if let secondsSinceLastTrim = snapshot.secondsSinceLastLatencyTrim, secondsSinceLastTrim < 18 {
-      return FMDXAudioPresetSuggestion(
-        preset: .lowLatency,
-        reasonKey: "settings.audio.suggestion.reason.latency_trim"
-      )
-    }
-
-    if snapshot.queuedDurationSeconds >= 1.05 || snapshot.queuedBufferCount >= 7 {
-      return FMDXAudioPresetSuggestion(
-        preset: .stable,
-        reasonKey: "settings.audio.suggestion.reason.large_queue"
-      )
-    }
-
-    if snapshot.queuedDurationSeconds <= 0.40 && snapshot.queuedBufferCount <= 3 {
-      return FMDXAudioPresetSuggestion(
-        preset: .lowLatency,
-        reasonKey: "settings.audio.suggestion.reason.short_queue"
-      )
-    }
-
-    return FMDXAudioPresetSuggestion(
-      preset: .balanced,
-      reasonKey: "settings.audio.suggestion.reason.balanced"
     )
   }
 
@@ -881,6 +842,7 @@ final class RadioSessionViewModel: ObservableObject {
     )
     persistSettings()
     applyFMDXAudioTuning()
+    refreshAudioPresetSuggestion(forceLog: false)
   }
 
   func setFMDXAudioMaxLatencySeconds(_ value: Double) {
@@ -890,12 +852,14 @@ final class RadioSessionViewModel: ObservableObject {
     )
     persistSettings()
     applyFMDXAudioTuning()
+    refreshAudioPresetSuggestion(forceLog: false)
   }
 
   func setFMDXAudioPacketHoldSeconds(_ value: Double) {
     settings.fmdxAudioPacketHoldSeconds = RadioSessionSettings.clampedFMDXAudioPacketHoldSeconds(value)
     persistSettings()
     applyFMDXAudioTuning()
+    refreshAudioPresetSuggestion(forceLog: false)
   }
 
   func resetFMDXAudioTuning() {
@@ -909,6 +873,17 @@ final class RadioSessionViewModel: ObservableObject {
     settings.fmdxAudioPacketHoldSeconds = values.packetHoldSeconds
     persistSettings()
     applyFMDXAudioTuning()
+    refreshAudioPresetSuggestion(forceLog: false)
+    Diagnostics.log(
+      category: "Audio Suggestion",
+      message: L10n.text("settings.audio.suggestion.log.applied", preset.localizedTitle)
+    )
+  }
+
+  func setAudioSuggestionScope(_ scope: AudioSuggestionScope) {
+    settings.audioSuggestionScope = scope
+    persistSettings()
+    refreshAudioPresetSuggestion(forceLog: false)
   }
 
   func saveCurrentSettingsSnapshot() {
@@ -1598,6 +1573,11 @@ final class RadioSessionViewModel: ObservableObject {
             }
           }
         }
+
+        await MainActor.run {
+          guard self.connectedProfileID == profileID else { return }
+          self.refreshAudioPresetSuggestion(forceLog: false)
+        }
       }
     }
   }
@@ -1891,9 +1871,80 @@ final class RadioSessionViewModel: ObservableObject {
     lastRDSAnnouncementText = nil
     lastRDSAnnouncementAt = Date.distantPast
     lastRDSAnnouncementKind = nil
+    audioPresetSuggestion = nil
+    lastLoggedAudioSuggestionPreset = nil
     if backend != .fmDxWebserver {
       NowPlayingMetadataController.shared.setTitle(nil)
     }
+  }
+
+  private func refreshAudioPresetSuggestion(forceLog: Bool) {
+    let suggestion = makeFMDXAudioPresetSuggestion()
+    audioPresetSuggestion = suggestion
+
+    guard let suggestion else {
+      lastLoggedAudioSuggestionPreset = nil
+      return
+    }
+
+    guard forceLog || lastLoggedAudioSuggestionPreset != suggestion.preset else { return }
+    lastLoggedAudioSuggestionPreset = suggestion.preset
+    Diagnostics.log(
+      category: "Audio Suggestion",
+      message: L10n.text(
+        "settings.audio.suggestion.log.recommended",
+        suggestion.preset.localizedTitle,
+        suggestion.localizedReason
+      )
+    )
+  }
+
+  private func makeFMDXAudioPresetSuggestion() -> FMDXAudioPresetSuggestion? {
+    guard settings.audioSuggestionScope != .off else { return nil }
+    guard state == .connected else { return nil }
+
+    switch settings.audioSuggestionScope {
+    case .off:
+      return nil
+    case .fmDxOnly, .allSupportedBackends:
+      guard activeBackend == .fmDxWebserver else { return nil }
+    }
+
+    let snapshot = FMDXMP3AudioPlayer.shared.runtimeSnapshot()
+    guard snapshot.queueStarted || snapshot.secondsSinceLastAudioOutput < 12 else { return nil }
+
+    if snapshot.secondsSinceLastAudioOutput > 2.5 {
+      return FMDXAudioPresetSuggestion(
+        preset: .weakServer,
+        reasonKey: "settings.audio.suggestion.reason.output_gaps"
+      )
+    }
+
+    if let secondsSinceLastTrim = snapshot.secondsSinceLastLatencyTrim, secondsSinceLastTrim < 18 {
+      return FMDXAudioPresetSuggestion(
+        preset: .lowLatency,
+        reasonKey: "settings.audio.suggestion.reason.latency_trim"
+      )
+    }
+
+    if snapshot.queuedDurationSeconds >= 1.05 || snapshot.queuedBufferCount >= 7 {
+      return FMDXAudioPresetSuggestion(
+        preset: .stable,
+        reasonKey: "settings.audio.suggestion.reason.large_queue"
+      )
+    }
+
+    if snapshot.queuedDurationSeconds <= 0.40 && snapshot.queuedBufferCount <= 3 {
+      return FMDXAudioPresetSuggestion(
+        preset: .lowLatency,
+        reasonKey: "settings.audio.suggestion.reason.short_queue"
+      )
+    }
+
+    return FMDXAudioPresetSuggestion(
+      preset: .balanced,
+      reasonKey: "settings.audio.suggestion.reason.balanced"
+    )
   }
 
   private func clearRecognizedTrackIfTunedAway(from oldFrequencyHz: Int, to newFrequencyHz: Int) {

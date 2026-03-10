@@ -106,7 +106,31 @@ struct SettingsView: View {
         .appSectionStyle()
 
         Section {
-          if let suggestion = radioSession.fmdxAudioPresetSuggestion {
+          NavigationLink {
+            SelectionListView(
+              title: L10n.text("settings.audio.suggestion_scope"),
+              options: AudioSuggestionScope.allCases.map { scope in
+                SelectionListOption(
+                  id: scope.rawValue,
+                  title: scope.localizedTitle,
+                  detail: scope.localizedDetail
+                )
+              },
+              selectedID: radioSession.settings.audioSuggestionScope.rawValue
+            ) { value in
+              if let scope = AudioSuggestionScope(rawValue: value) {
+                radioSession.setAudioSuggestionScope(scope)
+              }
+            }
+          } label: {
+            LabeledContent(
+              L10n.text("settings.audio.suggestion_scope"),
+              value: radioSession.settings.audioSuggestionScope.localizedTitle
+            )
+          }
+          .accessibilityHint(L10n.text("settings.audio.suggestion_scope.hint"))
+
+          if let suggestion = radioSession.audioPresetSuggestion {
             VStack(alignment: .leading, spacing: 6) {
               LabeledContent(
                 L10n.text("settings.audio.suggestion"),
@@ -128,6 +152,10 @@ struct SettingsView: View {
               }
             }
             .accessibilityElement(children: .contain)
+          } else if radioSession.settings.audioSuggestionScope == .off {
+            Text(L10n.text("settings.audio.suggestion.disabled"))
+              .font(.footnote)
+              .foregroundStyle(.secondary)
           } else {
             Text(L10n.text("settings.audio.suggestion.unavailable"))
               .font(.footnote)

@@ -19,6 +19,36 @@ enum VoiceOverRDSAnnouncementMode: String, Codable, CaseIterable, Identifiable {
   }
 }
 
+enum AudioSuggestionScope: String, Codable, CaseIterable, Identifiable {
+  case off
+  case fmDxOnly
+  case allSupportedBackends
+
+  var id: String { rawValue }
+
+  var localizedTitle: String {
+    switch self {
+    case .off:
+      return L10n.text("settings.audio.suggestion_scope.off")
+    case .fmDxOnly:
+      return L10n.text("settings.audio.suggestion_scope.fmdx_only")
+    case .allSupportedBackends:
+      return L10n.text("settings.audio.suggestion_scope.all_supported")
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .off:
+      return L10n.text("settings.audio.suggestion_scope.off.detail")
+    case .fmDxOnly:
+      return L10n.text("settings.audio.suggestion_scope.fmdx_only.detail")
+    case .allSupportedBackends:
+      return L10n.text("settings.audio.suggestion_scope.all_supported.detail")
+    }
+  }
+}
+
 enum FMDXAudioTuningPreset: String, CaseIterable, Identifiable {
   case lowLatency
   case balanced
@@ -137,6 +167,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var fmdxAudioStartupBufferSeconds: Double
   var fmdxAudioMaxLatencySeconds: Double
   var fmdxAudioPacketHoldSeconds: Double
+  var audioSuggestionScope: AudioSuggestionScope
 
   var voiceOverAnnouncesRDSChanges: Bool {
     get { voiceOverRDSAnnouncementMode != .off }
@@ -175,7 +206,8 @@ struct RadioSessionSettings: Codable, Equatable {
     scannerHoldSeconds: 4.0,
     fmdxAudioStartupBufferSeconds: 0.55,
     fmdxAudioMaxLatencySeconds: 1.8,
-    fmdxAudioPacketHoldSeconds: 0.14
+    fmdxAudioPacketHoldSeconds: 0.14,
+    audioSuggestionScope: .fmDxOnly
   )
 
   private enum CodingKeys: String, CodingKey {
@@ -207,6 +239,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case fmdxAudioStartupBufferSeconds
     case fmdxAudioMaxLatencySeconds
     case fmdxAudioPacketHoldSeconds
+    case audioSuggestionScope
   }
 
   init(
@@ -236,7 +269,8 @@ struct RadioSessionSettings: Codable, Equatable {
     scannerHoldSeconds: Double,
     fmdxAudioStartupBufferSeconds: Double,
     fmdxAudioMaxLatencySeconds: Double,
-    fmdxAudioPacketHoldSeconds: Double
+    fmdxAudioPacketHoldSeconds: Double,
+    audioSuggestionScope: AudioSuggestionScope
   ) {
     self.frequencyHz = frequencyHz
     self.tuneStepHz = Self.normalizedTuneStep(tuneStepHz)
@@ -271,6 +305,7 @@ struct RadioSessionSettings: Codable, Equatable {
       startupBufferSeconds: self.fmdxAudioStartupBufferSeconds
     )
     self.fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(fmdxAudioPacketHoldSeconds)
+    self.audioSuggestionScope = audioSuggestionScope
   }
 
   init(from decoder: Decoder) throws {
@@ -349,6 +384,8 @@ struct RadioSessionSettings: Codable, Equatable {
     let rawFMDXPacketHoldSeconds = try container.decodeIfPresent(Double.self, forKey: .fmdxAudioPacketHoldSeconds)
       ?? Self.default.fmdxAudioPacketHoldSeconds
     fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(rawFMDXPacketHoldSeconds)
+    audioSuggestionScope = try container.decodeIfPresent(AudioSuggestionScope.self, forKey: .audioSuggestionScope)
+      ?? Self.default.audioSuggestionScope
   }
 
   func encode(to encoder: Encoder) throws {
@@ -380,6 +417,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(fmdxAudioStartupBufferSeconds, forKey: .fmdxAudioStartupBufferSeconds)
     try container.encode(fmdxAudioMaxLatencySeconds, forKey: .fmdxAudioMaxLatencySeconds)
     try container.encode(fmdxAudioPacketHoldSeconds, forKey: .fmdxAudioPacketHoldSeconds)
+    try container.encode(audioSuggestionScope, forKey: .audioSuggestionScope)
   }
 
   static func normalizedTuneStep(_ value: Int) -> Int {

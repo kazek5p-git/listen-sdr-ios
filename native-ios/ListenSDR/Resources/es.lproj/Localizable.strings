@@ -416,3 +416,15 @@
 "settings.audio.suggestion.reason.large_queue" = "El reproductor mantiene una cola mayor. Un preset mas estable deberia encajar mejor con este stream.";
 "settings.audio.suggestion.reason.short_queue" = "El stream mantiene una cola corta y se ve sano, asi que menor latencia deberia ser segura.";
 "settings.audio.suggestion.reason.balanced" = "El comportamiento del stream parece normal. El preset equilibrado deberia bastar.";
+"settings.audio.suggestion_scope" = "Alcance de sugerencias";
+"settings.audio.suggestion_scope.hint" = "Elige donde deben aparecer las sugerencias de audio.";
+"settings.audio.suggestion_scope.off" = "Desactivado";
+"settings.audio.suggestion_scope.off.detail" = "No mostrar sugerencias de audio.";
+"settings.audio.suggestion_scope.fmdx_only" = "Solo FM-DX";
+"settings.audio.suggestion_scope.fmdx_only.detail" = "Mostrar sugerencias solo para receptores FM-DX.";
+"settings.audio.suggestion_scope.all_supported" = "Todos los backends compatibles";
+"settings.audio.suggestion_scope.all_supported.detail" = "Preparado para ampliacion futura mas alla de FM-DX.";
+"settings.audio.suggestion.disabled" = "Las sugerencias de audio estan desactivadas.";
+"settings.audio.suggestion.log.recommended" = "Preset de audio sugerido: %@. %@";
+"settings.audio.suggestion.log.applied" = "Preset de audio aplicado: %@.";
+"diagnostics.audio_suggestions.section" = "Historial de sugerencias de audio";

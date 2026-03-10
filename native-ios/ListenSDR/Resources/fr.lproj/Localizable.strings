@@ -416,3 +416,15 @@
 "settings.audio.suggestion.reason.large_queue" = "Le lecteur garde une file plus grande. Un preset plus stable devrait mieux convenir a ce flux.";
 "settings.audio.suggestion.reason.short_queue" = "Le flux garde une file courte et semble sain, donc une latence plus faible devrait etre sure.";
 "settings.audio.suggestion.reason.balanced" = "Le comportement du flux semble normal. Le preset equilibre devrait suffire.";
+"settings.audio.suggestion_scope" = "Portee des suggestions";
+"settings.audio.suggestion_scope.hint" = "Choisissez ou les suggestions audio doivent apparaitre.";
+"settings.audio.suggestion_scope.off" = "Desactive";
+"settings.audio.suggestion_scope.off.detail" = "Ne pas afficher de suggestions audio.";
+"settings.audio.suggestion_scope.fmdx_only" = "FM-DX uniquement";
+"settings.audio.suggestion_scope.fmdx_only.detail" = "Afficher les suggestions seulement pour les recepteurs FM-DX.";
+"settings.audio.suggestion_scope.all_supported" = "Tous les backends compatibles";
+"settings.audio.suggestion_scope.all_supported.detail" = "Pret pour une extension future au-dela de FM-DX.";
+"settings.audio.suggestion.disabled" = "Les suggestions audio sont desactivees.";
+"settings.audio.suggestion.log.recommended" = "Preset audio suggere: %@. %@";
+"settings.audio.suggestion.log.applied" = "Preset audio applique: %@.";
+"diagnostics.audio_suggestions.section" = "Historique des suggestions audio";

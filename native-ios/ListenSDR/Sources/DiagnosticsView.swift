@@ -7,6 +7,15 @@ struct DiagnosticsView: View {
   @EnvironmentObject private var diagnostics: DiagnosticsStore
   @State private var showingCopyConfirmation = false
 
+  private var audioSuggestionEntries: [DiagnosticLogEntry] {
+    Array(
+      diagnostics.entries
+        .filter { $0.category == "Audio Suggestion" }
+        .suffix(10)
+        .reversed()
+    )
+  }
+
   var body: some View {
     List {
       Section("Quick Actions") {
@@ -47,6 +56,39 @@ struct DiagnosticsView: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+      }
+
+      if !audioSuggestionEntries.isEmpty {
+        Section(L10n.text("diagnostics.audio_suggestions.section")) {
+          ForEach(audioSuggestionEntries) { entry in
+            VStack(alignment: .leading, spacing: 4) {
+              HStack {
+                Text(timeText(entry.date))
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(entry.category)
+                  .font(.caption2)
+                  .padding(.horizontal, 8)
+                  .padding(.vertical, 3)
+                  .background(AppTheme.chipFill, in: Capsule())
+              }
+
+              Text(entry.message)
+                .font(.body)
+                .foregroundStyle(color(for: entry.severity))
+                .textSelection(.enabled)
+            }
+            .appCardContainer()
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(L10n.text("diagnostics.entry_accessibility", entry.category, entry.message))
+          }
+        }
       }
 
       Section("Logs") {
