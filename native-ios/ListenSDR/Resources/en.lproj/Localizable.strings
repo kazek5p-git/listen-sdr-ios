@@ -242,3 +242,12 @@
 "shazam.result.title" = "Song";
 "shazam.result.artist" = "Artist";
 "shazam.result.unknown_title" = "Unknown title";
+"settings.audio.section" = "FM-DX audio";
+"settings.audio.startup_buffer" = "Startup buffer";
+"settings.audio.startup_buffer.hint" = "Higher values reduce stutter, but increase delay.";
+"settings.audio.max_latency" = "Maximum live delay";
+"settings.audio.max_latency.hint" = "If live delay grows above this value, the app trims queued audio.";
+"settings.audio.packet_hold" = "Packet hold time";
+"settings.audio.packet_hold.hint" = "Lower values reduce delay, higher values can help with unstable streams.";
+"settings.audio.reset" = "Reset audio tuning";
+"settings.audio.footer" = "These controls affect the FM-DX audio pipeline only.";

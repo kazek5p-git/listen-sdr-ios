@@ -386,3 +386,12 @@
 "shazam.result.title" = "Brano";
 "shazam.result.artist" = "Artista";
 "shazam.result.unknown_title" = "Titolo sconosciuto";
+"settings.audio.section" = "Audio FM-DX";
+"settings.audio.startup_buffer" = "Buffer iniziale";
+"settings.audio.startup_buffer.hint" = "Valori piu alti riducono gli scatti, ma aumentano il ritardo.";
+"settings.audio.max_latency" = "Ritardo live massimo";
+"settings.audio.max_latency.hint" = "Se il ritardo supera questo valore, l'app riduce la coda audio.";
+"settings.audio.packet_hold" = "Tempo di accumulo pacchetto";
+"settings.audio.packet_hold.hint" = "Valori piu bassi riducono il ritardo, valori piu alti aiutano con stream instabili.";
+"settings.audio.reset" = "Ripristina audio";
+"settings.audio.footer" = "Questi controlli influenzano solo l'audio FM-DX.";

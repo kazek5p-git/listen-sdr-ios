@@ -393,3 +393,12 @@
 "shazam.result.title" = "Utwor";
 "shazam.result.artist" = "Wykonawca";
 "shazam.result.unknown_title" = "Nieznany tytul";
+"settings.audio.section" = "Audio FM-DX";
+"settings.audio.startup_buffer" = "Bufor startowy";
+"settings.audio.startup_buffer.hint" = "Wieksza wartosc zmniejsza przycinki, ale zwieksza opoznienie.";
+"settings.audio.max_latency" = "Maksymalne opoznienie live";
+"settings.audio.max_latency.hint" = "Po przekroczeniu tej wartosci aplikacja obcina kolejke audio.";
+"settings.audio.packet_hold" = "Czas skladania pakietu";
+"settings.audio.packet_hold.hint" = "Mniejsza wartosc zmniejsza opoznienie, wieksza moze pomoc przy niestabilnym strumieniu.";
+"settings.audio.reset" = "Przywroc domyslne audio";
+"settings.audio.footer" = "Te ustawienia dzialaja tylko dla toru audio FM-DX.";

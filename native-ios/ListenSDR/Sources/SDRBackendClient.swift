@@ -1634,13 +1634,13 @@ final class FMDXMP3AudioPlayer {
   private let queueBufferCount: Int = 24
   private let maxPacketsPerBuffer: Int = 1024
   private let minEnqueueBytes: Int = 8 * 1024
-  private let maxBufferHoldSeconds: TimeInterval = 0.14
   private let minBuffersBeforeStart = 2
-  private let minQueuedLeadBeforeStartSeconds: TimeInterval = 0.55
-  private let maxQueuedLeadBeforeTrimSeconds: TimeInterval = 1.8
   private let maxQueuedBuffersBeforeTrim = 10
   private let latencyTrimCooldownSeconds: TimeInterval = 8
   private let maxConsecutiveBufferStarvation = 180
+  private var packetHoldSeconds: TimeInterval = 0.14
+  private var startupBufferSeconds: TimeInterval = 0.55
+  private var maxLatencySeconds: TimeInterval = 1.8
 
   private var fileStreamID: AudioFileStreamID?
   private var audioQueue: AudioQueueRef?
@@ -1734,6 +1734,35 @@ final class FMDXMP3AudioPlayer {
     workerQueue.async {
       self.muted = value
       self.applyVolumeLocked()
+    }
+  }
+
+  func setPlaybackTuning(
+    startupBufferSeconds: Double,
+    maxLatencySeconds: Double,
+    packetHoldSeconds: Double
+  ) {
+    workerQueue.async {
+      self.startupBufferSeconds = startupBufferSeconds
+      self.maxLatencySeconds = max(maxLatencySeconds, startupBufferSeconds + 0.25)
+      self.packetHoldSeconds = packetHoldSeconds
+      self.log(
+        String(
+          format: "FM-DX audio tuning updated (start %.2f s, max %.2f s, hold %.2f s)",
+          self.startupBufferSeconds,
+          self.maxLatencySeconds,
+          self.packetHoldSeconds
+        )
+      )
+      if self.queueStarted && self.pendingQueuedDuration > self.maxLatencySeconds {
+        self.restartOutputQueueLocked(
+          reason: String(
+            format: "Applying new FM-DX audio latency target (%.2f s queued, limit %.2f s)",
+            self.pendingQueuedDuration,
+            self.maxLatencySeconds
+          )
+        )
+      }
     }
   }
 
@@ -2072,7 +2101,7 @@ final class FMDXMP3AudioPlayer {
     }
 
     let heldForSeconds = Date().timeIntervalSince(activeBufferStartedAt)
-    if activeBufferOffset >= minEnqueueBytes || heldForSeconds >= maxBufferHoldSeconds {
+    if activeBufferOffset >= minEnqueueBytes || heldForSeconds >= packetHoldSeconds {
       enqueueActiveBufferLocked()
     }
   }
@@ -2103,7 +2132,7 @@ final class FMDXMP3AudioPlayer {
       if !queueStarted {
         enqueuedBuffersBeforeStart += 1
         if enqueuedBuffersBeforeStart >= minBuffersBeforeStart &&
-          pendingQueuedDuration >= minQueuedLeadBeforeStartSeconds {
+          pendingQueuedDuration >= startupBufferSeconds {
           let startStatus = AudioQueueStart(audioQueue, nil)
           if startStatus == noErr {
             queueStarted = true
@@ -2186,7 +2215,7 @@ final class FMDXMP3AudioPlayer {
     guard queueStarted else { return }
     guard Date().timeIntervalSince(lastLatencyTrimAt) >= latencyTrimCooldownSeconds else { return }
 
-    let queuedTooLong = pendingQueuedDuration > maxQueuedLeadBeforeTrimSeconds
+    let queuedTooLong = pendingQueuedDuration > maxLatencySeconds
     let tooManyQueuedBuffers = pendingQueuedBuffers > maxQueuedBuffersBeforeTrim
     guard queuedTooLong || tooManyQueuedBuffers else { return }
 

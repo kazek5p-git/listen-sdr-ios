@@ -386,3 +386,12 @@
 "shazam.result.title" = "Titel";
 "shazam.result.artist" = "Interpret";
 "shazam.result.unknown_title" = "Unbekannter Titel";
+"settings.audio.section" = "FM-DX-Audio";
+"settings.audio.startup_buffer" = "Startpuffer";
+"settings.audio.startup_buffer.hint" = "Hoehere Werte verringern Aussetzer, erhoehen aber die Verzoegerung.";
+"settings.audio.max_latency" = "Maximale Live-Verzoegerung";
+"settings.audio.max_latency.hint" = "Wenn die Live-Verzoegerung darueber steigt, kuerzt die App die Audiowarteschlange.";
+"settings.audio.packet_hold" = "Paket-Haltezeit";
+"settings.audio.packet_hold.hint" = "Niedrigere Werte verringern die Verzoegerung, hoehere helfen bei instabilen Streams.";
+"settings.audio.reset" = "Audio-Tuning zuruecksetzen";
+"settings.audio.footer" = "Diese Regler betreffen nur die FM-DX-Audiowiedergabe.";

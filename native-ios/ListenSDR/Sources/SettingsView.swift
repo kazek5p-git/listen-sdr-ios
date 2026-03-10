@@ -105,6 +105,45 @@ struct SettingsView: View {
         }
         .appSectionStyle()
 
+        Section(L10n.text("settings.audio.section")) {
+          audioSlider(
+            title: L10n.text("settings.audio.startup_buffer"),
+            value: radioSession.settings.fmdxAudioStartupBufferSeconds,
+            range: 0.25...1.5,
+            step: 0.05,
+            hintKey: "settings.audio.startup_buffer.hint"
+          ) {
+            radioSession.setFMDXAudioStartupBufferSeconds($0)
+          }
+
+          audioSlider(
+            title: L10n.text("settings.audio.max_latency"),
+            value: radioSession.settings.fmdxAudioMaxLatencySeconds,
+            range: max(0.6, radioSession.settings.fmdxAudioStartupBufferSeconds + 0.25)...3.0,
+            step: 0.05,
+            hintKey: "settings.audio.max_latency.hint"
+          ) {
+            radioSession.setFMDXAudioMaxLatencySeconds($0)
+          }
+
+          audioSlider(
+            title: L10n.text("settings.audio.packet_hold"),
+            value: radioSession.settings.fmdxAudioPacketHoldSeconds,
+            range: 0.05...0.35,
+            step: 0.01,
+            hintKey: "settings.audio.packet_hold.hint"
+          ) {
+            radioSession.setFMDXAudioPacketHoldSeconds($0)
+          }
+
+          Button(L10n.text("settings.audio.reset")) {
+            radioSession.resetFMDXAudioTuning()
+          }
+        } footer: {
+          Text(L10n.text("settings.audio.footer"))
+        }
+        .appSectionStyle()
+
         Section(L10n.text("settings.diagnostics.section")) {
           NavigationLink {
             DiagnosticsView()
@@ -136,6 +175,31 @@ struct SettingsView: View {
       .scrollContentBackground(.hidden)
       .navigationTitle(L10n.text("Settings"))
       .appScreenBackground()
+    }
+  }
+
+  private func audioSlider(
+    title: String,
+    value: Double,
+    range: ClosedRange<Double>,
+    step: Double,
+    hintKey: String,
+    onChange: @escaping (Double) -> Void
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(
+        title,
+        value: "\(String(format: "%.2f", value)) s"
+      )
+      Slider(
+        value: Binding(
+          get: { value },
+          set: { onChange($0) }
+        ),
+        in: range,
+        step: step
+      )
+      .accessibilityHint(L10n.text(hintKey))
     }
   }
 }

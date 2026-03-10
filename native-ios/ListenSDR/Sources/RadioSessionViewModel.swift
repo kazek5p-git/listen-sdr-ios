@@ -139,6 +139,16 @@ final class RadioSessionViewModel: ObservableObject {
     settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.tuneStepHz)
     settings.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(settings.scannerDwellSeconds)
     settings.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(settings.scannerHoldSeconds)
+    settings.fmdxAudioStartupBufferSeconds = RadioSessionSettings.clampedFMDXAudioStartupBufferSeconds(
+      settings.fmdxAudioStartupBufferSeconds
+    )
+    settings.fmdxAudioMaxLatencySeconds = RadioSessionSettings.clampedFMDXAudioMaxLatencySeconds(
+      settings.fmdxAudioMaxLatencySeconds,
+      startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds
+    )
+    settings.fmdxAudioPacketHoldSeconds = RadioSessionSettings.clampedFMDXAudioPacketHoldSeconds(
+      settings.fmdxAudioPacketHoldSeconds
+    )
     nightModeSnapshot = loadPersistedSnapshot(forKey: nightModeSnapshotKey)
     manualSettingsSnapshot = loadPersistedSnapshot(forKey: manualSettingsSnapshotKey)
     hasSavedSettingsSnapshot = manualSettingsSnapshot != nil
@@ -146,6 +156,7 @@ final class RadioSessionViewModel: ObservableObject {
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
+    applyFMDXAudioTuning()
     ShazamRecognitionController.shared.setIntegrationEnabled(false)
     persistSettings()
   }
@@ -813,6 +824,39 @@ final class RadioSessionViewModel: ObservableObject {
     persistSettings()
   }
 
+  func setFMDXAudioStartupBufferSeconds(_ value: Double) {
+    settings.fmdxAudioStartupBufferSeconds = RadioSessionSettings.clampedFMDXAudioStartupBufferSeconds(value)
+    settings.fmdxAudioMaxLatencySeconds = RadioSessionSettings.clampedFMDXAudioMaxLatencySeconds(
+      settings.fmdxAudioMaxLatencySeconds,
+      startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds
+    )
+    persistSettings()
+    applyFMDXAudioTuning()
+  }
+
+  func setFMDXAudioMaxLatencySeconds(_ value: Double) {
+    settings.fmdxAudioMaxLatencySeconds = RadioSessionSettings.clampedFMDXAudioMaxLatencySeconds(
+      value,
+      startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds
+    )
+    persistSettings()
+    applyFMDXAudioTuning()
+  }
+
+  func setFMDXAudioPacketHoldSeconds(_ value: Double) {
+    settings.fmdxAudioPacketHoldSeconds = RadioSessionSettings.clampedFMDXAudioPacketHoldSeconds(value)
+    persistSettings()
+    applyFMDXAudioTuning()
+  }
+
+  func resetFMDXAudioTuning() {
+    settings.fmdxAudioStartupBufferSeconds = RadioSessionSettings.default.fmdxAudioStartupBufferSeconds
+    settings.fmdxAudioMaxLatencySeconds = RadioSessionSettings.default.fmdxAudioMaxLatencySeconds
+    settings.fmdxAudioPacketHoldSeconds = RadioSessionSettings.default.fmdxAudioPacketHoldSeconds
+    persistSettings()
+    applyFMDXAudioTuning()
+  }
+
   func saveCurrentSettingsSnapshot() {
     var snapshot = settings
     snapshot.dxNightModeEnabled = false
@@ -1111,6 +1155,16 @@ final class RadioSessionViewModel: ObservableObject {
     merged.tuneStepHz = RadioSessionSettings.normalizedTuneStep(merged.tuneStepHz)
     merged.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(merged.scannerDwellSeconds)
     merged.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(merged.scannerHoldSeconds)
+    merged.fmdxAudioStartupBufferSeconds = RadioSessionSettings.clampedFMDXAudioStartupBufferSeconds(
+      merged.fmdxAudioStartupBufferSeconds
+    )
+    merged.fmdxAudioMaxLatencySeconds = RadioSessionSettings.clampedFMDXAudioMaxLatencySeconds(
+      merged.fmdxAudioMaxLatencySeconds,
+      startupBufferSeconds: merged.fmdxAudioStartupBufferSeconds
+    )
+    merged.fmdxAudioPacketHoldSeconds = RadioSessionSettings.clampedFMDXAudioPacketHoldSeconds(
+      merged.fmdxAudioPacketHoldSeconds
+    )
     settings = merged
     if let backend = activeBackend {
       normalizeSettingsForBackendBeforeConnect(backend)
@@ -1125,6 +1179,7 @@ final class RadioSessionViewModel: ObservableObject {
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
+    applyFMDXAudioTuning()
 
     if activeBackend == .fmDxWebserver {
       queueFMDXFrequencySend(settings.frequencyHz)
@@ -1153,6 +1208,28 @@ final class RadioSessionViewModel: ObservableObject {
     let clampedHold = RadioSessionSettings.clampedScannerHoldSeconds(settings.scannerHoldSeconds)
     if settings.scannerHoldSeconds != clampedHold {
       settings.scannerHoldSeconds = clampedHold
+      changed = true
+    }
+    let clampedFMDXStartupBuffer = RadioSessionSettings.clampedFMDXAudioStartupBufferSeconds(
+      settings.fmdxAudioStartupBufferSeconds
+    )
+    if settings.fmdxAudioStartupBufferSeconds != clampedFMDXStartupBuffer {
+      settings.fmdxAudioStartupBufferSeconds = clampedFMDXStartupBuffer
+      changed = true
+    }
+    let clampedFMDXMaxLatency = RadioSessionSettings.clampedFMDXAudioMaxLatencySeconds(
+      settings.fmdxAudioMaxLatencySeconds,
+      startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds
+    )
+    if settings.fmdxAudioMaxLatencySeconds != clampedFMDXMaxLatency {
+      settings.fmdxAudioMaxLatencySeconds = clampedFMDXMaxLatency
+      changed = true
+    }
+    let clampedFMDXPacketHold = RadioSessionSettings.clampedFMDXAudioPacketHoldSeconds(
+      settings.fmdxAudioPacketHoldSeconds
+    )
+    if settings.fmdxAudioPacketHoldSeconds != clampedFMDXPacketHold {
+      settings.fmdxAudioPacketHoldSeconds = clampedFMDXPacketHold
       changed = true
     }
 
@@ -1236,6 +1313,14 @@ final class RadioSessionViewModel: ObservableObject {
     if changed {
       persistSettings()
     }
+  }
+
+  private func applyFMDXAudioTuning() {
+    FMDXMP3AudioPlayer.shared.setPlaybackTuning(
+      startupBufferSeconds: settings.fmdxAudioStartupBufferSeconds,
+      maxLatencySeconds: settings.fmdxAudioMaxLatencySeconds,
+      packetHoldSeconds: settings.fmdxAudioPacketHoldSeconds
+    )
   }
 
   private func normalizeFMDXTuneStepHz(_ value: Int, mode: DemodulationMode) -> Int {

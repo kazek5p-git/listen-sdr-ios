@@ -44,6 +44,9 @@ struct RadioSessionSettings: Codable, Equatable {
   var adaptiveScannerEnabled: Bool
   var scannerDwellSeconds: Double
   var scannerHoldSeconds: Double
+  var fmdxAudioStartupBufferSeconds: Double
+  var fmdxAudioMaxLatencySeconds: Double
+  var fmdxAudioPacketHoldSeconds: Double
 
   var voiceOverAnnouncesRDSChanges: Bool {
     get { voiceOverRDSAnnouncementMode != .off }
@@ -79,7 +82,10 @@ struct RadioSessionSettings: Codable, Equatable {
     autoFilterProfileEnabled: false,
     adaptiveScannerEnabled: false,
     scannerDwellSeconds: 1.5,
-    scannerHoldSeconds: 4.0
+    scannerHoldSeconds: 4.0,
+    fmdxAudioStartupBufferSeconds: 0.55,
+    fmdxAudioMaxLatencySeconds: 1.8,
+    fmdxAudioPacketHoldSeconds: 0.14
   )
 
   private enum CodingKeys: String, CodingKey {
@@ -108,6 +114,9 @@ struct RadioSessionSettings: Codable, Equatable {
     case adaptiveScannerEnabled
     case scannerDwellSeconds
     case scannerHoldSeconds
+    case fmdxAudioStartupBufferSeconds
+    case fmdxAudioMaxLatencySeconds
+    case fmdxAudioPacketHoldSeconds
   }
 
   init(
@@ -134,7 +143,10 @@ struct RadioSessionSettings: Codable, Equatable {
     autoFilterProfileEnabled: Bool,
     adaptiveScannerEnabled: Bool,
     scannerDwellSeconds: Double,
-    scannerHoldSeconds: Double
+    scannerHoldSeconds: Double,
+    fmdxAudioStartupBufferSeconds: Double,
+    fmdxAudioMaxLatencySeconds: Double,
+    fmdxAudioPacketHoldSeconds: Double
   ) {
     self.frequencyHz = frequencyHz
     self.tuneStepHz = Self.normalizedTuneStep(tuneStepHz)
@@ -163,6 +175,12 @@ struct RadioSessionSettings: Codable, Equatable {
     self.adaptiveScannerEnabled = adaptiveScannerEnabled
     self.scannerDwellSeconds = Self.clampedScannerDwellSeconds(scannerDwellSeconds)
     self.scannerHoldSeconds = Self.clampedScannerHoldSeconds(scannerHoldSeconds)
+    self.fmdxAudioStartupBufferSeconds = Self.clampedFMDXAudioStartupBufferSeconds(fmdxAudioStartupBufferSeconds)
+    self.fmdxAudioMaxLatencySeconds = Self.clampedFMDXAudioMaxLatencySeconds(
+      fmdxAudioMaxLatencySeconds,
+      startupBufferSeconds: self.fmdxAudioStartupBufferSeconds
+    )
+    self.fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(fmdxAudioPacketHoldSeconds)
   }
 
   init(from decoder: Decoder) throws {
@@ -226,6 +244,21 @@ struct RadioSessionSettings: Codable, Equatable {
     let rawScannerHoldSeconds = try container.decodeIfPresent(Double.self, forKey: .scannerHoldSeconds)
       ?? Self.default.scannerHoldSeconds
     scannerHoldSeconds = Self.clampedScannerHoldSeconds(rawScannerHoldSeconds)
+
+    let rawFMDXStartupBufferSeconds = try container.decodeIfPresent(Double.self, forKey: .fmdxAudioStartupBufferSeconds)
+      ?? Self.default.fmdxAudioStartupBufferSeconds
+    fmdxAudioStartupBufferSeconds = Self.clampedFMDXAudioStartupBufferSeconds(rawFMDXStartupBufferSeconds)
+
+    let rawFMDXMaxLatencySeconds = try container.decodeIfPresent(Double.self, forKey: .fmdxAudioMaxLatencySeconds)
+      ?? Self.default.fmdxAudioMaxLatencySeconds
+    fmdxAudioMaxLatencySeconds = Self.clampedFMDXAudioMaxLatencySeconds(
+      rawFMDXMaxLatencySeconds,
+      startupBufferSeconds: fmdxAudioStartupBufferSeconds
+    )
+
+    let rawFMDXPacketHoldSeconds = try container.decodeIfPresent(Double.self, forKey: .fmdxAudioPacketHoldSeconds)
+      ?? Self.default.fmdxAudioPacketHoldSeconds
+    fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(rawFMDXPacketHoldSeconds)
   }
 
   func encode(to encoder: Encoder) throws {
@@ -254,6 +287,9 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(adaptiveScannerEnabled, forKey: .adaptiveScannerEnabled)
     try container.encode(scannerDwellSeconds, forKey: .scannerDwellSeconds)
     try container.encode(scannerHoldSeconds, forKey: .scannerHoldSeconds)
+    try container.encode(fmdxAudioStartupBufferSeconds, forKey: .fmdxAudioStartupBufferSeconds)
+    try container.encode(fmdxAudioMaxLatencySeconds, forKey: .fmdxAudioMaxLatencySeconds)
+    try container.encode(fmdxAudioPacketHoldSeconds, forKey: .fmdxAudioPacketHoldSeconds)
   }
 
   static func normalizedTuneStep(_ value: Int) -> Int {
@@ -297,5 +333,19 @@ struct RadioSessionSettings: Codable, Equatable {
 
   static func clampedScannerHoldSeconds(_ value: Double) -> Double {
     min(max(value, 0.5), 12.0)
+  }
+
+  static func clampedFMDXAudioStartupBufferSeconds(_ value: Double) -> Double {
+    min(max(value, 0.25), 1.5)
+  }
+
+  static func clampedFMDXAudioMaxLatencySeconds(_ value: Double, startupBufferSeconds: Double) -> Double {
+    let clamped = min(max(value, 0.6), 3.0)
+    let minimum = min(3.0, startupBufferSeconds + 0.25)
+    return max(clamped, minimum)
+  }
+
+  static func clampedFMDXAudioPacketHoldSeconds(_ value: Double) -> Double {
+    min(max(value, 0.05), 0.35)
   }
 }
