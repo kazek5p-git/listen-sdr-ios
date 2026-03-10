@@ -300,8 +300,8 @@
 "kiwi.live.smeter" = "S-metr";
 "kiwi.live.no_data" = "Brak danych";
 "kiwi.live.audio_rate" = "Próbkowanie audio";
-"kiwi.live.waterfall" = "Waterfall";
-"kiwi.live.waterfall_loading" = "Ładowanie waterfall...";
+"kiwi.live.waterfall" = "Wodospad";
+"kiwi.live.waterfall_loading" = "Ładowanie wodospadu...";
 "fmdx.server_presets.section" = "Lista stacji serwera";
 "fmdx.server_presets.empty" = "Brak listy stacji z serwera (lub trwa ładowanie).";
 "fmdx.server_slots.section" = "Sloty serwera (F1-F4)";
