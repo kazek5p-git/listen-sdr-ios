@@ -95,13 +95,12 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
   @Published private(set) var state: RecognitionState = .idle
 
   private let processingQueue = DispatchQueue(label: "ListenSDR.ShazamRecognition")
-  private let listenDurationSeconds: Double = 8
+  private let listenDurationSeconds: Double = 10
   private let matchTimeoutSeconds: Double = 10
 
   private var integrationEnabled = false
   private var activeBackend: SDRBackend?
   private var session: SHSession?
-  private var signatureGenerator: SHSignatureGenerator?
   private var collectedDurationSeconds = 0.0
   private var currentSamplePosition: AVAudioFramePosition = 0
   private var activeRequestID = UUID()
@@ -135,12 +134,12 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
     activeBackend = backend
     session = SHSession()
     session?.delegate = self
-    signatureGenerator = SHSignatureGenerator()
     collectedDurationSeconds = 0
     currentSamplePosition = 0
     activeRequestID = UUID()
     state = .listening
     updateBackendCaptureState(enabled: true, for: backend)
+    Diagnostics.log(category: "Shazam", message: "Recognition started for \(backend.displayName)")
 
     let requestID = activeRequestID
     let timeoutSeconds = listenDurationSeconds + matchTimeoutSeconds
@@ -149,11 +148,13 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
       guard let self else { return }
       guard self.activeRequestID == requestID else { return }
       if case .listening = self.state {
-        self.finishListeningAndMatch()
+        self.state = .matching
+        self.updateBackendCaptureState(enabled: false, for: self.activeBackend)
       }
       if case .matching = self.state {
         self.state = .noMatch
         NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
+        Diagnostics.log(category: "Shazam", message: "Recognition finished with no match")
         self.cleanupActiveRecognition()
       }
     }
@@ -170,6 +171,7 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
     if clearResult {
       NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
     }
+    Diagnostics.log(category: "Shazam", message: "Recognition cancelled")
   }
 
   nonisolated func consumeFromAnyThread(samples: [Float], sampleRate: Double) {
@@ -200,25 +202,21 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
         guard let self else { return }
         guard self.activeRequestID == requestID else { return }
         guard case .listening = self.state else { return }
-        guard let signatureGenerator = self.signatureGenerator else { return }
+        guard let session = self.session else { return }
 
         let audioTime = AVAudioTime(
           sampleTime: self.currentSamplePosition,
           atRate: targetSampleRate
         )
 
-        do {
-          try signatureGenerator.append(buffer, at: audioTime)
-          self.currentSamplePosition += AVAudioFramePosition(buffer.frameLength)
-          self.collectedDurationSeconds += Double(buffer.frameLength) / targetSampleRate
+        session.matchStreamingBuffer(buffer, at: audioTime)
+        self.currentSamplePosition += AVAudioFramePosition(buffer.frameLength)
+        self.collectedDurationSeconds += Double(buffer.frameLength) / targetSampleRate
 
-          if self.collectedDurationSeconds >= self.listenDurationSeconds {
-            self.finishListeningAndMatch()
-          }
-        } catch {
-          self.state = .unavailable(L10n.text("shazam.error"))
-          NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
-          self.cleanupActiveRecognition()
+        if self.collectedDurationSeconds >= self.listenDurationSeconds {
+          self.state = .matching
+          self.updateBackendCaptureState(enabled: false, for: self.activeBackend)
+          Diagnostics.log(category: "Shazam", message: "Recognition captured enough audio; awaiting match")
         }
       }
     }
@@ -250,29 +248,40 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
         ?? self.normalized(self.stringValue(for: "subtitle", in: item))
       NowPlayingMetadataController.shared.setRecognizedTrack(title: title, artist: artist)
       self.state = .matched(title: title, artist: artist)
+      Diagnostics.log(category: "Shazam", message: "Recognition matched: \(title)")
       self.cleanupActiveRecognition()
     }
   }
 
-  private func finishListeningAndMatch() {
-    guard case .listening = state else { return }
-    guard let session, let signatureGenerator else {
-      state = .noMatch
-      NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
-      cleanupActiveRecognition()
-      return
-    }
+  nonisolated func session(_ session: SHSession, didNotFindMatchFor signature: SHSignature, error: (any Error)?) {
+    Task { @MainActor [weak self] in
+      guard let self else { return }
+      guard self.session === session else { return }
 
-    updateBackendCaptureState(enabled: false, for: activeBackend)
-    let signature = signatureGenerator.signature()
-    state = .matching
-    session.match(signature)
+      if let error {
+        let message = self.normalized(error.localizedDescription) ?? L10n.text("shazam.error")
+        self.state = .unavailable(message)
+        NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
+        Diagnostics.log(
+          severity: .error,
+          category: "Shazam",
+          message: "Recognition failed: \(message)"
+        )
+        self.cleanupActiveRecognition()
+        return
+      }
+
+      Diagnostics.log(
+        category: "Shazam",
+        message: "Streaming buffer produced no immediate match; continuing until timeout"
+      )
+    }
   }
 
   private func cleanupActiveRecognition() {
+    updateBackendCaptureState(enabled: false, for: activeBackend)
     session?.delegate = nil
     session = nil
-    signatureGenerator = nil
     collectedDurationSeconds = 0
     currentSamplePosition = 0
     activeBackend = nil
