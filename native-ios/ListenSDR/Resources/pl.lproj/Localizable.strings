@@ -335,7 +335,7 @@
 "settings.dx.night_mode" = "Tryb nocny DX";
 "settings.dx.night_mode.hint" = "Ustawia agresywniejszy profil DX, cichsze audio i mniejsze zużycie CPU.";
 "settings.dx.auto_filter" = "Auto profil filtra (sygnał/SNR)";
-"settings.dx.auto_filter.hint" = "Automatycznie przełącza profil filtra FM-DX wg jakości sygnału.";
+"settings.dx.auto_filter.hint" = "Automatycznie przełącza profil filtra FM-DX według jakości sygnału.";
 "settings.dx.adaptive_scan" = "Adaptacyjny skaner DX";
 "settings.dx.adaptive_scan.hint" = "Automatycznie dopasowuje czasy postoju i podtrzymania skanera do jakości sygnału.";
 "settings.scanner.section" = "Domyślne ustawienia skanera";
@@ -470,8 +470,8 @@
 "settings.tuning.direction" = "Kierunek gestów";
 "settings.tuning.direction.hint" = "Wybierz, czy gest w górę ma zwiększać czy zmniejszać częstotliwość.";
 "settings.tuning.direction.natural" = "W górę = częstotliwość w górę";
-"settings.tuning.direction.natural.detail" = "Domyślne mapowanie dla gestów strojenia i rotora VoiceOver.";
+"settings.tuning.direction.natural.detail" = "Domyślne mapowanie dla gestów strojenia i pokrętła VoiceOver.";
 "settings.tuning.direction.reversed" = "W górę = częstotliwość w dół";
-"settings.tuning.direction.reversed.detail" = "Odwraca gesty strojenia i rotor VoiceOver.";
+"settings.tuning.direction.reversed.detail" = "Odwraca gesty strojenia i pokrętło VoiceOver.";
 "settings.tuning.global_step" = "Globalny krok strojenia";
 "settings.tuning.global_step.hint" = "Preferowany krok dla wszystkich tunerów. Nieobsługiwane pasma użyją najbliższego dostępnego kroku.";
