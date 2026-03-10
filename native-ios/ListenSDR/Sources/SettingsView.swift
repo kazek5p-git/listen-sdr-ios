@@ -70,18 +70,6 @@ struct SettingsView: View {
         }
         .appSectionStyle()
 
-        Section(L10n.text("settings.integrations.section")) {
-          Toggle(
-            L10n.text("settings.integrations.shazam"),
-            isOn: Binding(
-              get: { radioSession.settings.shazamIntegrationEnabled },
-              set: { radioSession.setShazamIntegrationEnabled($0) }
-            )
-          )
-          .accessibilityHint(L10n.text("settings.integrations.shazam.hint"))
-        }
-        .appSectionStyle()
-
         Section(L10n.text("settings.scanner.section")) {
           VStack(alignment: .leading, spacing: 6) {
             LabeledContent(

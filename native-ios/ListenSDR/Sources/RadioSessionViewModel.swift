@@ -121,6 +121,9 @@ final class RadioSessionViewModel: ObservableObject {
 
   init() {
     settings = loadPersistedSettings()
+    if settings.shazamIntegrationEnabled {
+      settings.shazamIntegrationEnabled = false
+    }
     settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.tuneStepHz)
     settings.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(settings.scannerDwellSeconds)
     settings.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(settings.scannerHoldSeconds)
@@ -131,7 +134,8 @@ final class RadioSessionViewModel: ObservableObject {
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
-    ShazamRecognitionController.shared.setIntegrationEnabled(settings.shazamIntegrationEnabled)
+    ShazamRecognitionController.shared.setIntegrationEnabled(false)
+    persistSettings()
   }
 
   var fmdxSupportsAM: Bool {
@@ -728,10 +732,10 @@ final class RadioSessionViewModel: ObservableObject {
     persistSettings()
   }
 
-  func setShazamIntegrationEnabled(_ enabled: Bool) {
-    settings.shazamIntegrationEnabled = enabled
+  func setShazamIntegrationEnabled(_ _: Bool) {
+    settings.shazamIntegrationEnabled = false
     persistSettings()
-    ShazamRecognitionController.shared.setIntegrationEnabled(enabled)
+    ShazamRecognitionController.shared.setIntegrationEnabled(false)
   }
 
   func setAutoFilterProfileEnabled(_ enabled: Bool) {
