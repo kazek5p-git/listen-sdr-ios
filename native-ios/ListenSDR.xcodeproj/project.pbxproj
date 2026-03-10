@@ -38,6 +38,7 @@
 		9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */; };
 		9F264E92F61C2DCB0DEC868D /* ReceiverIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 538629FD19959273EAEB0434 /* ReceiverIdentity.swift */; };
 		A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */; };
+		A5B5C702F7D887555E1937CC /* AppNavigationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AA3EF25749DE49C7AFCB68C /* AppNavigationState.swift */; };
 		A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8430FABA0F566E0392A547 /* L10n.swift */; };
 		A83F58F1D406EC3C8894D954 /* RadiosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC198DC08EE579F8E7D22664 /* RadiosView.swift */; };
 		D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */; };
@@ -65,6 +66,7 @@
 		396F525F7C563EB82217FAE2 /* ShazamRecognitionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShazamRecognitionController.swift; sourceTree = "<group>"; };
 		3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackendClient.swift; sourceTree = "<group>"; };
 		4286BB33324D82C98CA59BFE /* ReceiverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverView.swift; sourceTree = "<group>"; };
+		4AA3EF25749DE49C7AFCB68C /* AppNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationState.swift; sourceTree = "<group>"; };
 		4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemRemoteCommandController.swift; sourceTree = "<group>"; };
 		530A6B024830FC4082BDBF66 /* ListenSDR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ListenSDR.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		538629FD19959273EAEB0434 /* ReceiverIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverIdentity.swift; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 		5A42D545FB3CAA4DCAEE463B /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				4AA3EF25749DE49C7AFCB68C /* AppNavigationState.swift */,
 				1030E7AA0B8CC314535900F8 /* AppTheme.swift */,
 				FF8CEEFF5137077F585714EE /* AudioDecoders.swift */,
 				BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */,
@@ -246,6 +249,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A5B5C702F7D887555E1937CC /* AppNavigationState.swift in Sources */,
 				4D7ABA4F816056972029EBCC /* AppTheme.swift in Sources */,
 				71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */,
 				A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */,
@@ -375,7 +379,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -451,7 +455,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
