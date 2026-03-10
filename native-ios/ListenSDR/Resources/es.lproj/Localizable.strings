@@ -447,6 +447,7 @@
 "diagnostics.audio_quality.summary.fair" = "El stream de audio es usable, pero el buffer es mayor de lo ideal.";
 "diagnostics.audio_quality.summary.poor" = "El stream de audio muestra retardo o inestabilidad notable.";
 "diagnostics.audio_quality.summary.critical" = "El stream de audio esta degradado y necesita un buffer mas seguro.";
+"diagnostics.audio_quality.log.changed" = "La calidad de audio cambio: %@ -> %@ (%d/100).";
 "settings.audio.quality" = "Calidad de audio";
 "settings.audio.quality.accessibility" = "Calidad de audio: %@, puntuacion %d de 100";
 "diagnostics.audio_quality.trend" = "Tendencia";

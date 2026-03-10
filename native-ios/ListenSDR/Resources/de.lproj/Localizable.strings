@@ -447,6 +447,7 @@
 "diagnostics.audio_quality.summary.fair" = "Der Audiostream ist brauchbar, aber staerker gepuffert als ideal.";
 "diagnostics.audio_quality.summary.poor" = "Der Audiostream zeigt deutliche Verzoegerung oder Instabilitaet.";
 "diagnostics.audio_quality.summary.critical" = "Der Audiostream ist beeintraechtigt und braucht sicherere Pufferung.";
+"diagnostics.audio_quality.log.changed" = "Audioqualitaet geaendert: %@ -> %@ (%d/100).";
 "settings.audio.quality" = "Audioqualitaet";
 "settings.audio.quality.accessibility" = "Audioqualitaet: %@, Wert %d von 100";
 "diagnostics.audio_quality.trend" = "Trend";

@@ -131,6 +131,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var lastRDSAnnouncementAt = Date.distantPast
   private var lastRDSAnnouncementKind: RDSAnnouncementKind?
   private var lastLoggedAudioSuggestionPreset: FMDXAudioTuningPreset?
+  private var lastLoggedFMDXAudioQualityLevel: FMDXAudioQualityLevel?
   private var lastFMDXAudioQualitySampleAt = Date.distantPast
   private let fmdxAudioQualityTrendWindowSeconds: TimeInterval = 60
   private let fmdxAudioQualitySampleIntervalSeconds: TimeInterval = 5
@@ -1880,6 +1881,7 @@ final class RadioSessionViewModel: ObservableObject {
     fmdxAudioQualityTrend = []
     audioPresetSuggestion = nil
     lastLoggedAudioSuggestionPreset = nil
+    lastLoggedFMDXAudioQualityLevel = nil
     lastFMDXAudioQualitySampleAt = .distantPast
     if backend != .fmDxWebserver {
       NowPlayingMetadataController.shared.setTitle(nil)
@@ -1890,6 +1892,7 @@ final class RadioSessionViewModel: ObservableObject {
     let qualityReport = makeFMDXAudioQualityReport()
     fmdxAudioQualityReport = qualityReport
     updateFMDXAudioQualityTrend(with: qualityReport)
+    logFMDXAudioQualityTransitionIfNeeded(qualityReport, forceLog: forceLog)
 
     let suggestion = makeFMDXAudioPresetSuggestion(from: qualityReport)
     audioPresetSuggestion = suggestion
@@ -1990,6 +1993,34 @@ final class RadioSessionViewModel: ObservableObject {
       latencyTrimAgeSeconds: snapshot.secondsSinceLastLatencyTrim,
       signalDBf: signal
     )
+  }
+
+  private func logFMDXAudioQualityTransitionIfNeeded(
+    _ qualityReport: FMDXAudioQualityReport?,
+    forceLog: Bool
+  ) {
+    guard let qualityReport else {
+      lastLoggedFMDXAudioQualityLevel = nil
+      return
+    }
+
+    guard let previousLevel = lastLoggedFMDXAudioQualityLevel else {
+      lastLoggedFMDXAudioQualityLevel = qualityReport.level
+      return
+    }
+
+    guard forceLog || previousLevel != qualityReport.level else { return }
+
+    Diagnostics.log(
+      category: "Audio Quality",
+      message: L10n.text(
+        "diagnostics.audio_quality.log.changed",
+        previousLevel.localizedTitle,
+        qualityReport.level.localizedTitle,
+        qualityReport.score
+      )
+    )
+    lastLoggedFMDXAudioQualityLevel = qualityReport.level
   }
 
   private func updateFMDXAudioQualityTrend(with qualityReport: FMDXAudioQualityReport?) {

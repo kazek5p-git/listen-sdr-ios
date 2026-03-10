@@ -447,6 +447,7 @@
 "diagnostics.audio_quality.summary.fair" = "Lo stream audio e usabile, ma il buffering e piu alto dell'ideale.";
 "diagnostics.audio_quality.summary.poor" = "Lo stream audio mostra ritardo o instabilita evidente.";
 "diagnostics.audio_quality.summary.critical" = "Lo stream audio e degradato e richiede un buffering piu sicuro.";
+"diagnostics.audio_quality.log.changed" = "La qualita audio e cambiata: %@ -> %@ (%d/100).";
 "settings.audio.quality" = "Qualita audio";
 "settings.audio.quality.accessibility" = "Qualita audio: %@, punteggio %d su 100";
 "diagnostics.audio_quality.trend" = "Tendenza";

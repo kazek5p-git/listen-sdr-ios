@@ -303,6 +303,7 @@
 "diagnostics.audio_quality.summary.fair" = "Audio stream is usable, but buffering is higher than ideal.";
 "diagnostics.audio_quality.summary.poor" = "Audio stream shows noticeable delay or instability.";
 "diagnostics.audio_quality.summary.critical" = "Audio stream is degraded and needs safer buffering.";
+"diagnostics.audio_quality.log.changed" = "Audio quality changed: %@ -> %@ (%d/100).";
 "settings.audio.quality" = "Audio quality";
 "settings.audio.quality.accessibility" = "Audio quality: %@, score %d out of 100";
 "diagnostics.audio_quality.trend" = "Trend";

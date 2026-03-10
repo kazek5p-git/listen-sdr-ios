@@ -454,6 +454,7 @@
 "diagnostics.audio_quality.summary.fair" = "Strumien audio jest uzywalny, ale buforowanie jest wieksze niz idealne.";
 "diagnostics.audio_quality.summary.poor" = "Strumien audio ma wyrazne opoznienie albo niestabilnosc.";
 "diagnostics.audio_quality.summary.critical" = "Strumien audio jest zdegradowany i wymaga bezpieczniejszego buforowania.";
+"diagnostics.audio_quality.log.changed" = "Jakosc audio zmienila sie: %@ -> %@ (%d/100).";
 "settings.audio.quality" = "Jakosc audio";
 "settings.audio.quality.accessibility" = "Jakosc audio: %@, ocena %d na 100";
 "diagnostics.audio_quality.trend" = "Trend";
