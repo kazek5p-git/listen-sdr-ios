@@ -513,6 +513,10 @@
 "history.clear_listening" = "Cancella cronologia di ascolto";
 "history.last_used" = "Ultimo utilizzo: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.section.expand" = "Espandi sezione";
+"history.section.collapse" = "Comprimi sezione";
+"history.section.expanded" = "Espansa";
+"history.section.collapsed" = "Compressa";
 
 "history.filters.section" = "Filtri cronologia";
 "history.filter.scope" = "Sezione cronologia";

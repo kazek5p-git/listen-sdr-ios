@@ -125,6 +125,8 @@ struct RadiosView: View {
   @State private var historyListeningSort: HistoryListeningSort = .recent
   @State private var searchText = ""
   @State private var searchScope: RadiosSearchScope = .historyOnly
+  @State private var isRecentReceiversExpanded = true
+  @State private var isRecentListeningExpanded = true
 
   var body: some View {
     NavigationStack {
@@ -286,31 +288,47 @@ struct RadiosView: View {
             }
 
             if showsReceiversHistory && !sortedRecentReceivers.isEmpty {
-              Section(L10n.text("history.recent_receivers.section")) {
-                ForEach(sortedRecentReceivers) { record in
-                  recentReceiverRow(for: record)
-                }
+              Section {
+                historySectionToggle(
+                  title: L10n.text("history.recent_receivers.section"),
+                  isExpanded: $isRecentReceiversExpanded
+                )
 
-                Button(role: .destructive) {
-                  historyStore.clearRecentReceivers()
-                } label: {
-                  Text(L10n.text("history.clear_receivers"))
+                if isRecentReceiversExpanded {
+                  ForEach(sortedRecentReceivers) { record in
+                    recentReceiverRow(for: record)
+                  }
+
+                  Button(role: .destructive) {
+                    historyStore.clearRecentReceivers()
+                  } label: {
+                    Text(L10n.text("history.clear_receivers"))
+                  }
                 }
               }
+              .appSectionStyle()
             }
 
             if showsListeningHistory && !sortedRecentListening.isEmpty {
-              Section(L10n.text("history.recent_listening.section")) {
-                ForEach(sortedRecentListening) { record in
-                  recentListeningRow(for: record)
-                }
+              Section {
+                historySectionToggle(
+                  title: L10n.text("history.recent_listening.section"),
+                  isExpanded: $isRecentListeningExpanded
+                )
 
-                Button(role: .destructive) {
-                  historyStore.clearRecentListening()
-                } label: {
-                  Text(L10n.text("history.clear_listening"))
+                if isRecentListeningExpanded {
+                  ForEach(sortedRecentListening) { record in
+                    recentListeningRow(for: record)
+                  }
+
+                  Button(role: .destructive) {
+                    historyStore.clearRecentListening()
+                  } label: {
+                    Text(L10n.text("history.clear_listening"))
+                  }
                 }
               }
+              .appSectionStyle()
             }
 
             if hasAnyHistory && noHistoryMatchesFilter && !isSearching {
@@ -621,6 +639,43 @@ struct RadiosView: View {
       }
     }
     .accessibilityHint(L10n.text("history.recent_listening.hint"))
+  }
+
+  private func historySectionToggle(title: String, isExpanded: Binding<Bool>) -> some View {
+    Button {
+      withAnimation(.easeInOut(duration: 0.2)) {
+        isExpanded.wrappedValue.toggle()
+      }
+    } label: {
+      HStack(spacing: 12) {
+        Text(title)
+          .font(.headline)
+
+        Spacer()
+
+        Image(systemName: isExpanded.wrappedValue ? "chevron.up" : "chevron.down")
+          .font(.footnote.weight(.semibold))
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(title)
+    .accessibilityValue(
+      L10n.text(
+        isExpanded.wrappedValue
+          ? "history.section.expanded"
+          : "history.section.collapsed"
+      )
+    )
+    .accessibilityHint(
+      L10n.text(
+        isExpanded.wrappedValue
+          ? "history.section.collapse"
+          : "history.section.expand"
+      )
+    )
   }
 
   private func connectAndSelect(profile candidateProfile: SDRConnectionProfile) {

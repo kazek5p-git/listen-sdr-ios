@@ -520,6 +520,10 @@
 "history.clear_listening" = "Wyczyść historię odsłuchu";
 "history.last_used" = "Ostatnio używany: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.section.expand" = "Rozwiń sekcję";
+"history.section.collapse" = "Zwiń sekcję";
+"history.section.expanded" = "Rozwinięta";
+"history.section.collapsed" = "Zwinięta";
 
 "history.filters.section" = "Filtry historii";
 "history.filter.scope" = "Zakres historii";

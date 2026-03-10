@@ -513,6 +513,10 @@
 "history.clear_listening" = "H?rverlauf l?schen";
 "history.last_used" = "Zuletzt verwendet: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.section.expand" = "Abschnitt erweitern";
+"history.section.collapse" = "Abschnitt einklappen";
+"history.section.expanded" = "Erweitert";
+"history.section.collapsed" = "Eingeklappt";
 
 "history.filters.section" = "Verlaufsfilter";
 "history.filter.scope" = "Verlaufsbereich";

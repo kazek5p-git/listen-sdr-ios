@@ -369,6 +369,10 @@
 "history.clear_listening" = "Clear listening history";
 "history.last_used" = "Last used: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.section.expand" = "Expand section";
+"history.section.collapse" = "Collapse section";
+"history.section.expanded" = "Expanded";
+"history.section.collapsed" = "Collapsed";
 
 "history.filters.section" = "History filters";
 "history.filter.scope" = "History section";

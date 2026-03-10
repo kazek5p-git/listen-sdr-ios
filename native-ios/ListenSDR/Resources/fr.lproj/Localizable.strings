@@ -513,6 +513,10 @@
 "history.clear_listening" = "Effacer l'historique d'?coute";
 "history.last_used" = "Derni?re utilisation : %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.section.expand" = "Developper la section";
+"history.section.collapse" = "Replier la section";
+"history.section.expanded" = "Developpee";
+"history.section.collapsed" = "Repliee";
 
 "history.filters.section" = "Filtres d'historique";
 "history.filter.scope" = "Section de l'historique";

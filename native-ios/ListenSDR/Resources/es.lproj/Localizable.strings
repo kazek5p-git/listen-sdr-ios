@@ -513,6 +513,10 @@
 "history.clear_listening" = "Borrar historial de escucha";
 "history.last_used" = "?ltimo uso: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.section.expand" = "Expandir seccion";
+"history.section.collapse" = "Contraer seccion";
+"history.section.expanded" = "Expandida";
+"history.section.collapsed" = "Contraida";
 
 "history.filters.section" = "Filtros del historial";
 "history.filter.scope" = "Secci?n del historial";
