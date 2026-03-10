@@ -875,6 +875,16 @@ final class RadioSessionViewModel: ObservableObject {
     sendKiwiWaterfallControl()
   }
 
+  func applyKiwiSignalPreset(
+    agcEnabled: Bool,
+    rfGain: Double
+  ) {
+    settings.agcEnabled = agcEnabled
+    settings.rfGain = min(max(rfGain, 0), 100)
+    persistSettings()
+    applyIfConnected()
+  }
+
   func setShowRdsErrorCounters(_ enabled: Bool) {
     settings.showRdsErrorCounters = enabled
     persistSettings()

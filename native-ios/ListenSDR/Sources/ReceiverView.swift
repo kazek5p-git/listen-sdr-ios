@@ -110,6 +110,76 @@ private enum OpenWebRXBookmarkSort: String, CaseIterable, Identifiable {
   }
 }
 
+private enum KiwiSignalPreset: String, CaseIterable, Identifiable {
+  case auto
+  case dx
+  case local
+  case utility
+  case custom
+
+  var id: String { rawValue }
+
+  static var selectableCases: [KiwiSignalPreset] {
+    [.auto, .dx, .local, .utility]
+  }
+
+  var localizedTitle: String {
+    switch self {
+    case .auto:
+      return L10n.text("kiwi.signal_preset.auto")
+    case .dx:
+      return L10n.text("kiwi.signal_preset.dx")
+    case .local:
+      return L10n.text("kiwi.signal_preset.local")
+    case .utility:
+      return L10n.text("kiwi.signal_preset.utility")
+    case .custom:
+      return L10n.text("kiwi.signal_preset.custom")
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .auto:
+      return L10n.text("kiwi.signal_preset.auto.detail")
+    case .dx:
+      return L10n.text("kiwi.signal_preset.dx.detail")
+    case .local:
+      return L10n.text("kiwi.signal_preset.local.detail")
+    case .utility:
+      return L10n.text("kiwi.signal_preset.utility.detail")
+    case .custom:
+      return L10n.text("kiwi.signal_preset.custom.detail")
+    }
+  }
+
+  var values: (agcEnabled: Bool, rfGain: Double)? {
+    switch self {
+    case .auto:
+      return (true, 50)
+    case .dx:
+      return (true, 75)
+    case .local:
+      return (false, 25)
+    case .utility:
+      return (false, 45)
+    case .custom:
+      return nil
+    }
+  }
+
+  static func matching(settings: RadioSessionSettings) -> KiwiSignalPreset {
+    for preset in selectableCases {
+      guard let values = preset.values else { continue }
+      if settings.agcEnabled == values.agcEnabled
+        && abs(settings.rfGain - values.rfGain) < 0.0001 {
+        return preset
+      }
+    }
+    return .custom
+  }
+}
+
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -389,6 +459,44 @@ struct ReceiverView: View {
         if let activeBand = activeOpenWebRXBandName() {
           LabeledContent(L10n.text("openwebrx.current_band"), value: activeBand)
         }
+
+        if let activeBookmark = activeOpenWebRXBookmark() {
+          LabeledContent(L10n.text("openwebrx.active_bookmark"), value: activeBookmark.name)
+          Button {
+            radioSession.applyServerBookmark(activeBookmark)
+          } label: {
+            Label(L10n.text("openwebrx.active_bookmark.apply"), systemImage: "bookmark.fill")
+          }
+          .disabled(radioSession.state != .connected)
+        }
+
+        if let activeBand = activeOpenWebRXBandEntry() {
+          Button {
+            radioSession.tuneToBand(activeBand)
+          } label: {
+            Label(L10n.text("openwebrx.active_band.center"), systemImage: "scope")
+          }
+          .disabled(radioSession.state != .connected)
+
+          if !activeBand.frequencies.isEmpty {
+            NavigationLink {
+              OpenWebRXBandDetailView(
+                band: activeBand,
+                onTuneBandCenter: {
+                  radioSession.tuneToBand(activeBand)
+                },
+                onTuneFrequency: { item in
+                  radioSession.tuneToBand(activeBand, using: item)
+                }
+              )
+            } label: {
+              LabeledContent(
+                L10n.text("openwebrx.active_band.frequencies"),
+                value: "\(activeBand.frequencies.count)"
+              )
+            }
+          }
+        }
       }
       .appSectionStyle()
     }
@@ -575,6 +683,30 @@ struct ReceiverView: View {
   private func kiwiControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .kiwiSDR {
       Section(L10n.text("kiwi.controls")) {
+        selectionNavigationLink(
+          title: L10n.text("kiwi.signal_preset"),
+          value: currentKiwiSignalPreset().localizedTitle,
+          selectedID: currentKiwiSignalPreset().rawValue,
+          options: KiwiSignalPreset.selectableCases.map {
+            SelectionListOption(
+              id: $0.rawValue,
+              title: $0.localizedTitle,
+              detail: $0.localizedDetail
+            )
+          },
+          disabled: radioSession.state != .connected
+        ) { value in
+          guard let preset = KiwiSignalPreset(rawValue: value),
+            let values = preset.values
+          else {
+            return
+          }
+          radioSession.applyKiwiSignalPreset(
+            agcEnabled: values.agcEnabled,
+            rfGain: values.rfGain
+          )
+        }
+
         Toggle(
           L10n.text("kiwi.agc"),
           isOn: Binding(
@@ -1779,6 +1911,10 @@ struct ReceiverView: View {
 
   private func currentKiwiWaterfallPreset() -> KiwiWaterfallPreset {
     KiwiWaterfallPreset.matching(settings: radioSession.settings)
+  }
+
+  private func currentKiwiSignalPreset() -> KiwiSignalPreset {
+    KiwiSignalPreset.matching(settings: radioSession.settings)
   }
 
   private func normalizeFrequencyHz(_ value: Int, for backend: SDRBackend?) -> Int {
