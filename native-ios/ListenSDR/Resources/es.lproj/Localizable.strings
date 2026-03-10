@@ -156,6 +156,9 @@
 "session.status.connection_failed" = "Conexion fallida";
 "session.status.connected_with_setting_error" = "Conectado con error de configuracion";
 "session.status.connection_lost" = "Conexion perdida";
+"session.status.reconnecting_to" = "Restableciendo la conexion con %@...";
+"session.status.reconnecting_wait" = "Restableciendo la conexion tras una breve perdida de red...";
+"session.status.reconnect_exhausted" = "No se pudo restablecer la conexion automaticamente.";
 "session.status.server_error_on" = "Error del servidor en %@";
 "session.error.receiver_closed" = "El receptor cerro la conexion.";
 

@@ -156,6 +156,9 @@
 "session.status.connection_failed" = "Verbindung fehlgeschlagen";
 "session.status.connected_with_setting_error" = "Verbunden, aber Einstellungsfehler";
 "session.status.connection_lost" = "Verbindung verloren";
+"session.status.reconnecting_to" = "Verbindung zu %@ wird wiederhergestellt...";
+"session.status.reconnecting_wait" = "Die Verbindung wird nach einem kurzen Netzverlust wiederhergestellt...";
+"session.status.reconnect_exhausted" = "Die Verbindung konnte nicht automatisch wiederhergestellt werden.";
 "session.status.server_error_on" = "Serverfehler auf %@";
 "session.error.receiver_closed" = "Empfaenger hat die Verbindung geschlossen.";
 

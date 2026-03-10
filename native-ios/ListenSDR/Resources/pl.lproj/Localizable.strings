@@ -156,6 +156,9 @@
 "session.status.connection_failed" = "Połączenie nieudane";
 "session.status.connected_with_setting_error" = "Połączono, ale wystąpił błąd ustawień";
 "session.status.connection_lost" = "Utracono połączenie";
+"session.status.reconnecting_to" = "Wznawianie połączenia z %@...";
+"session.status.reconnecting_wait" = "Przywracanie połączenia po chwilowej utracie sieci...";
+"session.status.reconnect_exhausted" = "Nie udało się wznowić połączenia automatycznie.";
 "session.status.server_error_on" = "Błąd serwera na %@";
 "session.error.receiver_closed" = "Odbiornik zamknął połączenie.";
 

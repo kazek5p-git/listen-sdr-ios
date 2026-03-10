@@ -4,6 +4,9 @@
 "session.status.connection_failed" = "Connection failed";
 "session.status.connected_with_setting_error" = "Connected with setting error";
 "session.status.connection_lost" = "Connection lost";
+"session.status.reconnecting_to" = "Reconnecting to %@...";
+"session.status.reconnecting_wait" = "Restoring the connection after a brief network loss...";
+"session.status.reconnect_exhausted" = "Automatic reconnect could not restore the connection.";
 "session.status.server_error_on" = "Server error on %@";
 "session.error.receiver_closed" = "Receiver closed the connection.";
 

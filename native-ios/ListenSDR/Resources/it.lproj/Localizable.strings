@@ -156,6 +156,9 @@
 "session.status.connection_failed" = "Connessione non riuscita";
 "session.status.connected_with_setting_error" = "Connesso con errore impostazioni";
 "session.status.connection_lost" = "Connessione persa";
+"session.status.reconnecting_to" = "Ripristino della connessione a %@...";
+"session.status.reconnecting_wait" = "Ripristino della connessione dopo una breve perdita di rete...";
+"session.status.reconnect_exhausted" = "La riconnessione automatica non e riuscita a ripristinare la connessione.";
 "session.status.server_error_on" = "Errore server su %@";
 "session.error.receiver_closed" = "Il ricevitore ha chiuso la connessione.";
 

@@ -110,6 +110,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var client: (any SDRBackendClient)?
   private var connectTask: Task<Void, Never>?
   private var statusMonitorTask: Task<Void, Never>?
+  private var sessionRecoveryTask: Task<Void, Never>?
   private var scannerTask: Task<Void, Never>?
   private var fmDxTuneDebounceTask: Task<Void, Never>?
   private var fmDxTuneConfirmTask: Task<Void, Never>?
@@ -135,6 +136,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var lastFMDXAudioQualitySampleAt = Date.distantPast
   private let fmdxAudioQualityTrendWindowSeconds: TimeInterval = 60
   private let fmdxAudioQualitySampleIntervalSeconds: TimeInterval = 5
+  private let autoReconnectDelaySeconds: [UInt64] = [1, 2, 3, 5, 8, 12]
+  private let autoReconnectWindowSeconds: TimeInterval = 75
 
   init() {
     settings = loadPersistedSettings()
@@ -199,9 +202,11 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func connect(to profile: SDRConnectionProfile) {
-    if state == .connecting {
+    if state == .connecting && sessionRecoveryTask == nil {
       return
     }
+
+    cancelAutomaticRecovery()
 
     Diagnostics.log(
       category: "Session",
@@ -259,8 +264,7 @@ final class RadioSessionViewModel: ObservableObject {
           )
           self.lastError = nil
           self.startStatusMonitor(
-            profileName: profile.name,
-            profileID: profile.id,
+            profile: profile,
             client: newClient
           )
         }
@@ -294,6 +298,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func disconnect() {
+    cancelAutomaticRecovery()
     connectTask?.cancel()
     connectTask = nil
     statusMonitorTask?.cancel()
@@ -1522,8 +1527,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func startStatusMonitor(
-    profileName: String,
-    profileID: UUID,
+    profile: SDRConnectionProfile,
     client: any SDRBackendClient
   ) {
     statusMonitorTask?.cancel()
@@ -1540,19 +1544,11 @@ final class RadioSessionViewModel: ObservableObject {
           Diagnostics.log(
             severity: .warning,
             category: "Session",
-            message: "Connection lost for \(profileName)"
+            message: "Connection lost for \(profile.name)"
           )
           await MainActor.run {
-            guard self.connectedProfileID == profileID else { return }
-            self.client = nil
-            self.connectedProfileID = nil
-            self.activeBackend = nil
-            self.state = .failed
-            self.statusText = L10n.text("session.status.connection_lost")
-            self.backendStatusText = nil
-            self.lastError = L10n.text("session.error.receiver_closed")
-            self.stopScanner()
-            self.resetRuntimeState(for: nil)
+            guard self.connectedProfileID == profile.id else { return }
+            self.beginAutomaticRecovery(for: profile, from: client)
           }
           return
         }
@@ -1562,15 +1558,15 @@ final class RadioSessionViewModel: ObservableObject {
           Diagnostics.log(
             severity: .error,
             category: "Session",
-            message: "Server error on \(profileName): \(backendError)"
+            message: "Server error on \(profile.name): \(backendError)"
           )
           await MainActor.run {
-            guard self.connectedProfileID == profileID else { return }
+            guard self.connectedProfileID == profile.id else { return }
             self.client = nil
             self.connectedProfileID = nil
             self.activeBackend = nil
             self.state = .failed
-            self.statusText = L10n.text("session.status.server_error_on", profileName)
+            self.statusText = L10n.text("session.status.server_error_on", profile.name)
             self.backendStatusText = nil
             self.lastError = backendError
             self.stopScanner()
@@ -1585,7 +1581,7 @@ final class RadioSessionViewModel: ObservableObject {
         }
         if let latestBackendStatus {
           await MainActor.run {
-            guard self.connectedProfileID == profileID else { return }
+            guard self.connectedProfileID == profile.id else { return }
             self.updateBackendStatusText(latestBackendStatus)
           }
         }
@@ -1596,7 +1592,7 @@ final class RadioSessionViewModel: ObservableObject {
         }
         if !telemetryEvents.isEmpty {
           await MainActor.run {
-            guard self.connectedProfileID == profileID else { return }
+            guard self.connectedProfileID == profile.id else { return }
             for telemetryEvent in telemetryEvents {
               self.apply(telemetryEvent: telemetryEvent)
             }
@@ -1604,11 +1600,115 @@ final class RadioSessionViewModel: ObservableObject {
         }
 
         await MainActor.run {
-          guard self.connectedProfileID == profileID else { return }
+          guard self.connectedProfileID == profile.id else { return }
           self.refreshFMDXAudioAnalysis(forceLog: false)
         }
       }
     }
+  }
+
+  private func beginAutomaticRecovery(
+    for profile: SDRConnectionProfile,
+    from client: any SDRBackendClient
+  ) {
+    guard sessionRecoveryTask == nil else { return }
+
+    statusMonitorTask?.cancel()
+    statusMonitorTask = nil
+    stopScanner()
+    self.client = nil
+    activeBackend = profile.backend
+    state = .connecting
+    statusText = L10n.text("session.status.reconnecting_to", profile.name)
+    updateBackendStatusText(L10n.text("session.status.reconnecting_wait"))
+    lastError = nil
+
+    sessionRecoveryTask = Task {
+      defer { self.sessionRecoveryTask = nil }
+
+      await client.disconnect()
+
+      let startedAt = Date()
+      var attempt = 0
+
+      while !Task.isCancelled {
+        let delaySeconds = autoReconnectDelaySeconds[min(attempt, autoReconnectDelaySeconds.count - 1)]
+        attempt += 1
+
+        if delaySeconds > 0 {
+          try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+        }
+        if Task.isCancelled { return }
+
+        do {
+          let newClient = makeClient(for: profile.backend)
+          try await newClient.connect(profile: profile)
+          if Task.isCancelled {
+            await newClient.disconnect()
+            return
+          }
+
+          await MainActor.run {
+            guard self.state == .connecting else { return }
+            self.client = newClient
+            self.connectedProfileID = profile.id
+            self.activeBackend = profile.backend
+            NowPlayingMetadataController.shared.setReceiverName(profile.name)
+            NowPlayingMetadataController.shared.setTitle(nil)
+            self.hasInitialServerTuningSync = false
+            self.initialServerTuningSyncDeadline = Date().addingTimeInterval(4.0)
+            self.state = .connected
+            self.statusText = L10n.text("session.status.connected_to", profile.name)
+            self.updateBackendStatusText(
+              (profile.backend == .openWebRX || profile.backend == .kiwiSDR)
+                ? L10n.text("session.status.sync_tuning")
+                : nil
+            )
+            self.lastError = nil
+            self.startStatusMonitor(profile: profile, client: newClient)
+          }
+          Diagnostics.log(
+            category: "Session",
+            message: "Connection restored for \(profile.name) on attempt \(attempt)"
+          )
+          return
+        } catch {
+          Diagnostics.log(
+            severity: .warning,
+            category: "Session",
+            message: "Reconnect attempt \(attempt) failed for \(profile.name): \(error.localizedDescription)"
+          )
+
+          if Date().timeIntervalSince(startedAt) >= autoReconnectWindowSeconds {
+            break
+          }
+        }
+      }
+
+      if Task.isCancelled { return }
+
+      await MainActor.run {
+        guard self.connectedProfileID == profile.id || self.state == .connecting else { return }
+        self.client = nil
+        self.connectedProfileID = nil
+        self.activeBackend = nil
+        self.state = .failed
+        self.statusText = L10n.text("session.status.connection_lost")
+        self.backendStatusText = nil
+        self.lastError = L10n.text("session.status.reconnect_exhausted")
+        self.resetRuntimeState(for: nil)
+      }
+      Diagnostics.log(
+        severity: .error,
+        category: "Session",
+        message: "Automatic reconnect exhausted for \(profile.name)"
+      )
+    }
+  }
+
+  private func cancelAutomaticRecovery() {
+    sessionRecoveryTask?.cancel()
+    sessionRecoveryTask = nil
   }
 
   private func apply(telemetryEvent: BackendTelemetryEvent) {

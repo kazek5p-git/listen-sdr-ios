@@ -156,6 +156,9 @@
 "session.status.connection_failed" = "Echec de la connexion";
 "session.status.connected_with_setting_error" = "Connecte avec erreur de parametres";
 "session.status.connection_lost" = "Connexion perdue";
+"session.status.reconnecting_to" = "Retablissement de la connexion a %@...";
+"session.status.reconnecting_wait" = "Retablissement de la connexion apres une breve perte reseau...";
+"session.status.reconnect_exhausted" = "La reconnexion automatique n'a pas pu retablir la connexion.";
 "session.status.server_error_on" = "Erreur serveur sur %@";
 "session.error.receiver_closed" = "Le recepteur a ferme la connexion.";
 
