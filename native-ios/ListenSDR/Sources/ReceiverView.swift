@@ -1189,9 +1189,9 @@ struct ReceiverView: View {
       .accessibilityAdjustableAction { direction in
         switch direction {
         case .increment:
-          tuneFrequency(byStepCount: 1)
+          tuneFrequency(byStepCount: frequencyAdjustmentStepCount(forIncrement: true))
         case .decrement:
-          tuneFrequency(byStepCount: -1)
+          tuneFrequency(byStepCount: frequencyAdjustmentStepCount(forIncrement: false))
         @unknown default:
           break
         }
@@ -1208,6 +1208,11 @@ struct ReceiverView: View {
   private func tuneFrequency(byStepCount stepCount: Int) {
     radioSession.tune(byStepCount: stepCount)
     focusFrequencyControl()
+  }
+
+  private func frequencyAdjustmentStepCount(forIncrement isIncrement: Bool) -> Int {
+    let baseStep = radioSession.settings.tuningGestureDirection.frequencyAdjustmentStepCount
+    return isIncrement ? baseStep : -baseStep
   }
 
   private func focusFrequencyControl() {

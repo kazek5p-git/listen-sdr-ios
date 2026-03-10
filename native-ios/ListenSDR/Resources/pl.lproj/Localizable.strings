@@ -466,3 +466,12 @@
 "diagnostics.audio_quality.trend_change.up" = "w gore o %d";
 "diagnostics.audio_quality.trend_change.down" = "w dol o %d";
 "diagnostics.audio_quality.trend_change.flat" = "stabilnie";
+"settings.tuning.section" = "Strojenie";
+"settings.tuning.direction" = "Kierunek gestow";
+"settings.tuning.direction.hint" = "Wybierz, czy gest w gore ma zwiekszac czy zmniejszac czestotliwosc.";
+"settings.tuning.direction.natural" = "W gore = czestotliwosc w gore";
+"settings.tuning.direction.natural.detail" = "Domyslne mapowanie dla gestow strojenia i rotora VoiceOver.";
+"settings.tuning.direction.reversed" = "W gore = czestotliwosc w dol";
+"settings.tuning.direction.reversed.detail" = "Odwraca gesty strojenia i rotor VoiceOver.";
+"settings.tuning.global_step" = "Globalny krok strojenia";
+"settings.tuning.global_step.hint" = "Preferowany krok dla wszystkich tunerow. Nieobslugiwane pasma uzyja najblizszego dostepnego kroku.";

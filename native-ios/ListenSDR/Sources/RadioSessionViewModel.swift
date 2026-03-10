@@ -145,6 +145,7 @@ final class RadioSessionViewModel: ObservableObject {
       settings.autoFilterProfileEnabled = false
     }
     settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.tuneStepHz)
+    settings.preferredTuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.preferredTuneStepHz)
     settings.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(settings.scannerDwellSeconds)
     settings.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(settings.scannerHoldSeconds)
     settings.fmdxAudioStartupBufferSeconds = RadioSessionSettings.clampedFMDXAudioStartupBufferSeconds(
@@ -543,14 +544,23 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setTuneStepHz(_ value: Int) {
     let normalized = RadioSessionSettings.normalizedTuneStep(value)
-    let resolved = activeBackend == .fmDxWebserver
-      ? normalizeFMDXTuneStepHz(normalized, mode: settings.mode)
-      : normalized
+    settings.preferredTuneStepHz = normalized
+    let resolved = resolvedTuneStepHz(forPreferred: normalized, backend: activeBackend)
     settings.tuneStepHz = resolved
     persistSettings()
     Diagnostics.log(
       category: "Session",
-      message: "Tune step set to \(resolved) Hz (requested \(value) Hz)"
+      message: "Tune step set to \(resolved) Hz (preferred \(normalized) Hz, requested \(value) Hz)"
+    )
+  }
+
+  func setTuningGestureDirection(_ direction: TuningGestureDirection) {
+    guard settings.tuningGestureDirection != direction else { return }
+    settings.tuningGestureDirection = direction
+    persistSettings()
+    Diagnostics.log(
+      category: "Session",
+      message: "Tuning gesture direction set to \(direction.rawValue)"
     )
   }
 
@@ -570,7 +580,7 @@ final class RadioSessionViewModel: ObservableObject {
         fmdxTuneWarningText = nil
       }
       settings.mode = resolvedMode
-      settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: settings.mode)
+      settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: settings.mode)
       persistSettings()
       return
     }
@@ -1173,7 +1183,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.kiwiWaterfallZoom = 0
     if activeBackend == .fmDxWebserver {
       settings.mode = .fm
-      settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: .fm)
+      settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: .fm)
     }
     persistSettings()
     applyCurrentSettingsToConnectedBackend()
@@ -1188,6 +1198,7 @@ final class RadioSessionViewModel: ObservableObject {
       merged.frequencyHz = previousFrequency
     }
     merged.tuneStepHz = RadioSessionSettings.normalizedTuneStep(merged.tuneStepHz)
+    merged.preferredTuneStepHz = RadioSessionSettings.normalizedTuneStep(merged.preferredTuneStepHz)
     merged.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(merged.scannerDwellSeconds)
     merged.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(merged.scannerHoldSeconds)
     merged.fmdxAudioStartupBufferSeconds = RadioSessionSettings.clampedFMDXAudioStartupBufferSeconds(
@@ -1275,7 +1286,7 @@ final class RadioSessionViewModel: ObservableObject {
         changed = true
       }
 
-      let normalizedStep = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: settings.mode)
+      let normalizedStep = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: settings.mode)
       if settings.tuneStepHz != normalizedStep {
         settings.tuneStepHz = normalizedStep
         changed = true
@@ -1345,6 +1356,12 @@ final class RadioSessionViewModel: ObservableObject {
       }
     }
 
+    let resolvedTuneStep = resolvedTuneStepHz(forPreferred: settings.preferredTuneStepHz, backend: backend)
+    if settings.tuneStepHz != resolvedTuneStep {
+      settings.tuneStepHz = resolvedTuneStep
+      changed = true
+    }
+
     if changed {
       persistSettings()
     }
@@ -1368,7 +1385,7 @@ final class RadioSessionViewModel: ObservableObject {
         bandTags: []
       )
     )
-    return profile.stepOptionsHz.min(by: { abs($0 - value) < abs($1 - value) }) ?? profile.defaultStepHz
+    return resolvedTuneStepHz(value, using: profile)
   }
 
   private func normalizeFMDXFrequencyHz(fromMHz value: Double) -> Int {
@@ -1656,7 +1673,7 @@ final class RadioSessionViewModel: ObservableObject {
       hasFMDXCapabilitySnapshot = true
       if settings.mode == .am && !capabilities.supportsAM {
         settings.mode = .fm
-        settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.tuneStepHz, mode: .fm)
+        settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: .fm)
         fmdxTuneWarningText = L10n.text("fmdx.band.am_not_supported")
         persistSettings()
       }
@@ -2253,6 +2270,15 @@ final class RadioSessionViewModel: ObservableObject {
     BandTuningProfiles.resolve(for: tuningBandContext(for: backend))
   }
 
+  private func resolvedTuneStepHz(_ preferredStepHz: Int, using profile: BandTuningProfile) -> Int {
+    profile.stepOptionsHz.min(by: { abs($0 - preferredStepHz) < abs($1 - preferredStepHz) }) ?? profile.defaultStepHz
+  }
+
+  private func resolvedTuneStepHz(forPreferred preferredStepHz: Int, backend: SDRBackend?) -> Int {
+    guard let backend else { return RadioSessionSettings.normalizedTuneStep(preferredStepHz) }
+    return resolvedTuneStepHz(RadioSessionSettings.normalizedTuneStep(preferredStepHz), using: tuningBandProfile(for: backend))
+  }
+
   private func tuningBandContext(for backend: SDRBackend) -> BandTuningContext {
     let bandEntry = backend == .openWebRX ? openWebRXBandEntry(for: settings.frequencyHz) : nil
     let inferredKiwiBandName = backend == .kiwiSDR ? (currentKiwiBandName ?? inferredKiwiBandName(for: settings.frequencyHz)) : nil
@@ -2273,12 +2299,12 @@ final class RadioSessionViewModel: ObservableObject {
   private func syncTuneStepToCurrentBandIfNeeded() -> Bool {
     guard let backend = activeBackend else { return false }
     let profile = tuningBandProfile(for: backend)
-    guard settings.tuneStepHz != profile.defaultStepHz else { return false }
-    guard !profile.stepOptionsHz.contains(settings.tuneStepHz) else { return false }
-    settings.tuneStepHz = profile.defaultStepHz
+    let resolvedStep = resolvedTuneStepHz(settings.preferredTuneStepHz, using: profile)
+    guard settings.tuneStepHz != resolvedStep else { return false }
+    settings.tuneStepHz = resolvedStep
     Diagnostics.log(
       category: "Session",
-      message: "Tune step auto-adjusted to \(profile.defaultStepHz) Hz for band profile \(profile.id)"
+      message: "Tune step auto-adjusted to \(resolvedStep) Hz for band profile \(profile.id)"
     )
     return true
   }

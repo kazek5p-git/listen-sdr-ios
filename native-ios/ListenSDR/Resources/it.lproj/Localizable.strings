@@ -459,3 +459,12 @@
 "diagnostics.audio_quality.trend_change.up" = "sale di %d";
 "diagnostics.audio_quality.trend_change.down" = "scende di %d";
 "diagnostics.audio_quality.trend_change.flat" = "stabile";
+"settings.tuning.section" = "Sintonia";
+"settings.tuning.direction" = "Direzione del gesto";
+"settings.tuning.direction.hint" = "Scegli se lo swipe verso l'alto deve aumentare o diminuire la frequenza.";
+"settings.tuning.direction.natural" = "Su = frequenza in su";
+"settings.tuning.direction.natural.detail" = "Comportamento predefinito per i gesti di sintonia e il rotore VoiceOver.";
+"settings.tuning.direction.reversed" = "Su = frequenza in giu";
+"settings.tuning.direction.reversed.detail" = "Inverte i gesti di sintonia e il rotore VoiceOver.";
+"settings.tuning.global_step" = "Passo globale di sintonia";
+"settings.tuning.global_step.hint" = "Passo preferito per tutti i ricevitori. Le bande non supportate usano il passo disponibile piu vicino.";

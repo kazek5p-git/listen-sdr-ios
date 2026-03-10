@@ -49,6 +49,40 @@ enum AudioSuggestionScope: String, Codable, CaseIterable, Identifiable {
   }
 }
 
+enum TuningGestureDirection: String, Codable, CaseIterable, Identifiable {
+  case natural
+  case reversed
+
+  var id: String { rawValue }
+
+  var localizedTitle: String {
+    switch self {
+    case .natural:
+      return L10n.text("settings.tuning.direction.natural")
+    case .reversed:
+      return L10n.text("settings.tuning.direction.reversed")
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .natural:
+      return L10n.text("settings.tuning.direction.natural.detail")
+    case .reversed:
+      return L10n.text("settings.tuning.direction.reversed.detail")
+    }
+  }
+
+  var frequencyAdjustmentStepCount: Int {
+    switch self {
+    case .natural:
+      return 1
+    case .reversed:
+      return -1
+    }
+  }
+}
+
 enum FMDXAudioTuningPreset: String, CaseIterable, Identifiable {
   case lowLatency
   case balanced
@@ -187,6 +221,7 @@ struct FMDXAudioQualitySample: Identifiable {
 struct RadioSessionSettings: Codable, Equatable {
   var frequencyHz: Int
   var tuneStepHz: Int
+  var preferredTuneStepHz: Int
   var mode: DemodulationMode
   var rfGain: Double
   var audioVolume: Double
@@ -213,6 +248,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var fmdxAudioMaxLatencySeconds: Double
   var fmdxAudioPacketHoldSeconds: Double
   var audioSuggestionScope: AudioSuggestionScope
+  var tuningGestureDirection: TuningGestureDirection
 
   var voiceOverAnnouncesRDSChanges: Bool {
     get { voiceOverRDSAnnouncementMode != .off }
@@ -227,6 +263,7 @@ struct RadioSessionSettings: Codable, Equatable {
   static let `default` = RadioSessionSettings(
     frequencyHz: 7_050_000,
     tuneStepHz: 100,
+    preferredTuneStepHz: 100,
     mode: .am,
     rfGain: 30,
     audioVolume: 0.85,
@@ -252,12 +289,14 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxAudioStartupBufferSeconds: 0.55,
     fmdxAudioMaxLatencySeconds: 1.8,
     fmdxAudioPacketHoldSeconds: 0.14,
-    audioSuggestionScope: .fmDxOnly
+    audioSuggestionScope: .fmDxOnly,
+    tuningGestureDirection: .natural
   )
 
   private enum CodingKeys: String, CodingKey {
     case frequencyHz
     case tuneStepHz
+    case preferredTuneStepHz
     case mode
     case rfGain
     case audioVolume
@@ -285,11 +324,13 @@ struct RadioSessionSettings: Codable, Equatable {
     case fmdxAudioMaxLatencySeconds
     case fmdxAudioPacketHoldSeconds
     case audioSuggestionScope
+    case tuningGestureDirection
   }
 
   init(
     frequencyHz: Int,
     tuneStepHz: Int,
+    preferredTuneStepHz: Int,
     mode: DemodulationMode,
     rfGain: Double,
     audioVolume: Double,
@@ -315,10 +356,12 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxAudioStartupBufferSeconds: Double,
     fmdxAudioMaxLatencySeconds: Double,
     fmdxAudioPacketHoldSeconds: Double,
-    audioSuggestionScope: AudioSuggestionScope
+    audioSuggestionScope: AudioSuggestionScope,
+    tuningGestureDirection: TuningGestureDirection
   ) {
     self.frequencyHz = frequencyHz
     self.tuneStepHz = Self.normalizedTuneStep(tuneStepHz)
+    self.preferredTuneStepHz = Self.normalizedTuneStep(preferredTuneStepHz)
     self.mode = mode
     self.rfGain = rfGain
     self.audioVolume = audioVolume
@@ -351,6 +394,7 @@ struct RadioSessionSettings: Codable, Equatable {
     )
     self.fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(fmdxAudioPacketHoldSeconds)
     self.audioSuggestionScope = audioSuggestionScope
+    self.tuningGestureDirection = tuningGestureDirection
   }
 
   init(from decoder: Decoder) throws {
@@ -358,6 +402,8 @@ struct RadioSessionSettings: Codable, Equatable {
     frequencyHz = try container.decodeIfPresent(Int.self, forKey: .frequencyHz) ?? Self.default.frequencyHz
     let rawTuneStepHz = try container.decodeIfPresent(Int.self, forKey: .tuneStepHz) ?? Self.default.tuneStepHz
     tuneStepHz = Self.normalizedTuneStep(rawTuneStepHz)
+    let rawPreferredTuneStepHz = try container.decodeIfPresent(Int.self, forKey: .preferredTuneStepHz) ?? rawTuneStepHz
+    preferredTuneStepHz = Self.normalizedTuneStep(rawPreferredTuneStepHz)
     mode = try container.decodeIfPresent(DemodulationMode.self, forKey: .mode) ?? Self.default.mode
     rfGain = try container.decodeIfPresent(Double.self, forKey: .rfGain) ?? Self.default.rfGain
     audioVolume = try container.decodeIfPresent(Double.self, forKey: .audioVolume) ?? Self.default.audioVolume
@@ -431,12 +477,15 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(rawFMDXPacketHoldSeconds)
     audioSuggestionScope = try container.decodeIfPresent(AudioSuggestionScope.self, forKey: .audioSuggestionScope)
       ?? Self.default.audioSuggestionScope
+    tuningGestureDirection = try container.decodeIfPresent(TuningGestureDirection.self, forKey: .tuningGestureDirection)
+      ?? Self.default.tuningGestureDirection
   }
 
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(frequencyHz, forKey: .frequencyHz)
     try container.encode(tuneStepHz, forKey: .tuneStepHz)
+    try container.encode(preferredTuneStepHz, forKey: .preferredTuneStepHz)
     try container.encode(mode, forKey: .mode)
     try container.encode(rfGain, forKey: .rfGain)
     try container.encode(audioVolume, forKey: .audioVolume)
@@ -463,6 +512,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(fmdxAudioMaxLatencySeconds, forKey: .fmdxAudioMaxLatencySeconds)
     try container.encode(fmdxAudioPacketHoldSeconds, forKey: .fmdxAudioPacketHoldSeconds)
     try container.encode(audioSuggestionScope, forKey: .audioSuggestionScope)
+    try container.encode(tuningGestureDirection, forKey: .tuningGestureDirection)
   }
 
   static func normalizedTuneStep(_ value: Int) -> Int {

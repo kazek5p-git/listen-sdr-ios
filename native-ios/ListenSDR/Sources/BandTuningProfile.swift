@@ -55,7 +55,7 @@ enum BandTuningProfiles {
     if (65_900_000..<74_000_000).contains(frequencyHz) {
       return BandTuningProfile(
         id: "fmdx-oirt-fm",
-        stepOptionsHz: [10_000, 30_000, 50_000, 100_000],
+        stepOptionsHz: [10_000, 25_000, 30_000, 50_000, 100_000],
         defaultStepHz: 30_000
       )
     }
@@ -70,7 +70,7 @@ enum BandTuningProfiles {
 
     return BandTuningProfile(
       id: "fmdx-fm",
-      stepOptionsHz: [50_000, 100_000, 200_000],
+      stepOptionsHz: [10_000, 25_000, 50_000, 100_000, 200_000],
       defaultStepHz: 100_000
     )
   }

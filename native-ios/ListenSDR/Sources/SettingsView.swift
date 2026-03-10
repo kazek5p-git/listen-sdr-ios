@@ -49,6 +49,57 @@ struct SettingsView: View {
         }
         .appSectionStyle()
 
+        Section(L10n.text("settings.tuning.section")) {
+          NavigationLink {
+            SelectionListView(
+              title: L10n.text("settings.tuning.direction"),
+              options: TuningGestureDirection.allCases.map { direction in
+                SelectionListOption(
+                  id: direction.rawValue,
+                  title: direction.localizedTitle,
+                  detail: direction.localizedDetail
+                )
+              },
+              selectedID: radioSession.settings.tuningGestureDirection.rawValue
+            ) { value in
+              if let direction = TuningGestureDirection(rawValue: value) {
+                radioSession.setTuningGestureDirection(direction)
+              }
+            }
+          } label: {
+            LabeledContent(
+              L10n.text("settings.tuning.direction"),
+              value: radioSession.settings.tuningGestureDirection.localizedTitle
+            )
+          }
+          .accessibilityHint(L10n.text("settings.tuning.direction.hint"))
+
+          NavigationLink {
+            SelectionListView(
+              title: L10n.text("settings.tuning.global_step"),
+              options: RadioSessionSettings.supportedTuneStepsHz.map { stepHz in
+                SelectionListOption(
+                  id: "\(stepHz)",
+                  title: FrequencyFormatter.tuneStepText(fromHz: stepHz),
+                  detail: nil
+                )
+              },
+              selectedID: "\(radioSession.settings.preferredTuneStepHz)"
+            ) { value in
+              if let stepHz = Int(value) {
+                radioSession.setTuneStepHz(stepHz)
+              }
+            }
+          } label: {
+            LabeledContent(
+              L10n.text("settings.tuning.global_step"),
+              value: FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.preferredTuneStepHz)
+            )
+          }
+          .accessibilityHint(L10n.text("settings.tuning.global_step.hint"))
+        }
+        .appSectionStyle()
+
         Section(L10n.text("settings.accessibility.section")) {
           NavigationLink {
             SelectionListView(

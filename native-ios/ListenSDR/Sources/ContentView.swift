@@ -42,12 +42,12 @@ struct ContentView: View {
       tuneStepRotorName: L10n.text("receiver.voiceover_rotor.tune_step"),
       onTuneIncrement: {
         guard let backend else { return }
-        radioSession.tune(byStepCount: 1)
+        radioSession.tune(byStepCount: frequencyAdjustmentStepCount(forIncrement: true))
         announceFrequency(for: backend)
       },
       onTuneDecrement: {
         guard let backend else { return }
-        radioSession.tune(byStepCount: -1)
+        radioSession.tune(byStepCount: frequencyAdjustmentStepCount(forIncrement: false))
         announceFrequency(for: backend)
       },
       onStepIncrement: {
@@ -62,6 +62,11 @@ struct ContentView: View {
     .frame(width: 0, height: 0)
     .allowsHitTesting(false)
     .accessibilityHidden(true)
+  }
+
+  private func frequencyAdjustmentStepCount(forIncrement isIncrement: Bool) -> Int {
+    let baseStep = radioSession.settings.tuningGestureDirection.frequencyAdjustmentStepCount
+    return isIncrement ? baseStep : -baseStep
   }
 
   private func cycleTuneStep(by offset: Int, backend: SDRBackend) {

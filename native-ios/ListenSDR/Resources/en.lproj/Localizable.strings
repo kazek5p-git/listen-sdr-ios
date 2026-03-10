@@ -315,3 +315,12 @@
 "diagnostics.audio_quality.trend_change.up" = "up %d";
 "diagnostics.audio_quality.trend_change.down" = "down %d";
 "diagnostics.audio_quality.trend_change.flat" = "steady";
+"settings.tuning.section" = "Tuning";
+"settings.tuning.direction" = "Gesture direction";
+"settings.tuning.direction.hint" = "Choose whether swipe up should raise or lower frequency.";
+"settings.tuning.direction.natural" = "Up = frequency up";
+"settings.tuning.direction.natural.detail" = "Default mapping for tuning gestures and the VoiceOver rotor.";
+"settings.tuning.direction.reversed" = "Up = frequency down";
+"settings.tuning.direction.reversed.detail" = "Reverses tuning gestures and the VoiceOver rotor.";
+"settings.tuning.global_step" = "Global tune step";
+"settings.tuning.global_step.hint" = "Preferred tune step for all tuners. Unsupported bands use the closest available step.";

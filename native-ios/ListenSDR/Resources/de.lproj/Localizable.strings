@@ -459,3 +459,12 @@
 "diagnostics.audio_quality.trend_change.up" = "plus %d";
 "diagnostics.audio_quality.trend_change.down" = "minus %d";
 "diagnostics.audio_quality.trend_change.flat" = "stabil";
+"settings.tuning.section" = "Abstimmung";
+"settings.tuning.direction" = "Gestenrichtung";
+"settings.tuning.direction.hint" = "Waehle, ob Wischen nach oben die Frequenz erhoeht oder senkt.";
+"settings.tuning.direction.natural" = "Nach oben = Frequenz rauf";
+"settings.tuning.direction.natural.detail" = "Standardzuordnung fuer Abstimmgesten und den VoiceOver-Rotor.";
+"settings.tuning.direction.reversed" = "Nach oben = Frequenz runter";
+"settings.tuning.direction.reversed.detail" = "Kehrt Abstimmgesten und den VoiceOver-Rotor um.";
+"settings.tuning.global_step" = "Globaler Abstimmschritt";
+"settings.tuning.global_step.hint" = "Bevorzugter Schritt fuer alle Empfaenger. Nicht unterstuetzte Baender nutzen den naechsten verfuegbaren Schritt.";
