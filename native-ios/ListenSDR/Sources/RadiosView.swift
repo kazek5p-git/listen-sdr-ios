@@ -9,14 +9,18 @@ private struct ProfileEditorContext: Identifiable {
 
 struct RadiosView: View {
   @EnvironmentObject private var profileStore: ProfileStore
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var favoritesStore: FavoritesStore
+  @EnvironmentObject private var historyStore: ListeningHistoryStore
   @State private var editorContext: ProfileEditorContext?
   @State private var isDirectoryPresented = false
 
   var body: some View {
     NavigationStack {
       Group {
-        if profileStore.profiles.isEmpty {
+        if profileStore.profiles.isEmpty
+          && historyStore.recentReceivers.isEmpty
+          && historyStore.recentListening.isEmpty {
           UnavailableContentView(
             title: L10n.text("No Radios Yet"),
             systemImage: "dot.radiowaves.left.and.right",
@@ -27,6 +31,34 @@ struct RadiosView: View {
             let favoriteProfiles = favoritesStore.favoriteProfiles(in: profileStore.profiles)
             let favoriteIDs = Set(favoriteProfiles.map(\.id))
             let otherProfiles = profileStore.profiles.filter { !favoriteIDs.contains($0.id) }
+
+            if !historyStore.recentReceivers.isEmpty {
+              Section(L10n.text("history.recent_receivers.section")) {
+                ForEach(historyStore.recentReceivers) { record in
+                  recentReceiverRow(for: record)
+                }
+
+                Button(role: .destructive) {
+                  historyStore.clearRecentReceivers()
+                } label: {
+                  Text(L10n.text("history.clear_receivers"))
+                }
+              }
+            }
+
+            if !historyStore.recentListening.isEmpty {
+              Section(L10n.text("history.recent_listening.section")) {
+                ForEach(historyStore.recentListening) { record in
+                  recentListeningRow(for: record)
+                }
+
+                Button(role: .destructive) {
+                  historyStore.clearRecentListening()
+                } label: {
+                  Text(L10n.text("history.clear_listening"))
+                }
+              }
+            }
 
             if !favoriteProfiles.isEmpty {
               Section(L10n.text("favorites.receivers.section")) {
@@ -180,6 +212,176 @@ struct RadiosView: View {
         ? L10n.text("common.selected")
         : L10n.text("common.not_selected")
     )
+  }
+
+  @ViewBuilder
+  private func recentReceiverRow(for record: RecentReceiverRecord) -> some View {
+    let candidateProfile = record.makeProfile()
+    let storedProfile = profileStore.matchingProfile(for: candidateProfile)
+    let selectedID = storedProfile?.id
+
+    Button {
+      connectAndSelect(profile: candidateProfile)
+    } label: {
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(spacing: 8) {
+          Text(record.receiverName)
+            .font(.headline)
+
+          Text(record.backend.displayName)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(AppTheme.chipFill, in: Capsule())
+        }
+
+        Text(candidateProfile.endpointDescription)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(2)
+
+        Text(
+          L10n.text(
+            "history.last_used",
+            record.lastUsedAt.formatted(date: .abbreviated, time: .shortened)
+          )
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .appCardContainer()
+      .overlay(alignment: .topTrailing) {
+        if let selectedID, profileStore.selectedProfileID == selectedID {
+          Image(systemName: "checkmark.circle.fill")
+            .foregroundStyle(.green)
+            .padding(10)
+            .accessibilityHidden(true)
+        }
+      }
+    }
+    .buttonStyle(.plain)
+    .listRowBackground(Color.clear)
+    .listRowSeparator(.hidden)
+    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      Button {
+        favoritesStore.toggleReceiver(candidateProfile)
+      } label: {
+        Label(
+          favoritesStore.isFavoriteReceiver(candidateProfile)
+            ? L10n.text("favorites.receiver.remove")
+            : L10n.text("favorites.receiver.add"),
+          systemImage: favoritesStore.isFavoriteReceiver(candidateProfile) ? "star.slash" : "star"
+        )
+      }
+      .tint(.yellow)
+
+      Button(role: .destructive) {
+        historyStore.removeRecentReceiver(record)
+      } label: {
+        Label(L10n.text("Delete"), systemImage: "trash")
+      }
+    }
+    .accessibilityHint(L10n.text("history.recent_receivers.hint"))
+  }
+
+  @ViewBuilder
+  private func recentListeningRow(for record: RecentListeningRecord) -> some View {
+    let candidateProfile = record.makeProfile()
+    let modeName = record.mode?.displayName ?? candidateProfile.backend.displayName
+
+    Button {
+      restoreListeningRecord(record)
+    } label: {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(record.primaryTitle)
+          .font(.headline)
+
+        Text(
+          [
+            FrequencyFormatter.mhzText(fromHz: record.frequencyHz),
+            modeName
+          ]
+            .joined(separator: " | ")
+        )
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+        Text(
+          L10n.text(
+            "history.recent_listening.detail",
+            record.receiverName,
+            record.backend.displayName,
+            record.lastHeardAt.formatted(date: .abbreviated, time: .shortened)
+          )
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .appCardContainer()
+    }
+    .buttonStyle(.plain)
+    .listRowBackground(Color.clear)
+    .listRowSeparator(.hidden)
+    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      Button {
+        favoritesStore.toggleStation(
+          profile: candidateProfile,
+          title: record.stationTitle ?? FrequencyFormatter.mhzText(fromHz: record.frequencyHz),
+          frequencyHz: record.frequencyHz,
+          mode: record.mode
+        )
+      } label: {
+        Label(
+          isFavoriteListeningRecord(record)
+            ? L10n.text("favorites.station.remove_current")
+            : L10n.text("favorites.station.add_current"),
+          systemImage: isFavoriteListeningRecord(record) ? "star.slash" : "star.circle"
+        )
+      }
+      .tint(.yellow)
+
+      Button(role: .destructive) {
+        historyStore.removeRecentListening(record)
+      } label: {
+        Label(L10n.text("Delete"), systemImage: "trash")
+      }
+    }
+    .accessibilityHint(L10n.text("history.recent_listening.hint"))
+  }
+
+  private func connectAndSelect(profile candidateProfile: SDRConnectionProfile) {
+    let storedProfile = profileStore.upsertImportedProfile(candidateProfile)
+    profileStore.updateSelection(storedProfile.id)
+    if radioSession.state != .connected || radioSession.connectedProfileID != storedProfile.id {
+      radioSession.connect(to: storedProfile)
+    }
+  }
+
+  private func restoreListeningRecord(_ record: RecentListeningRecord) {
+    let storedProfile = profileStore.upsertImportedProfile(record.makeProfile())
+    profileStore.updateSelection(storedProfile.id)
+    if radioSession.state == .connected && radioSession.connectedProfileID == storedProfile.id {
+      if let mode = record.mode {
+        radioSession.setMode(mode)
+      }
+      radioSession.setFrequencyHz(record.frequencyHz)
+      return
+    }
+    radioSession.connect(
+      to: storedProfile,
+      restoringFrequencyHz: record.frequencyHz,
+      mode: record.mode
+    )
+  }
+
+  private func isFavoriteListeningRecord(_ record: RecentListeningRecord) -> Bool {
+    favoritesStore.stations(for: record.makeProfile()).contains {
+      $0.frequencyHz == record.frequencyHz && $0.mode == record.mode
+    }
   }
 
   private func backendIconName(for backend: SDRBackend) -> String {

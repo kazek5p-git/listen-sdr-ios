@@ -7,6 +7,7 @@ struct ListenSDRApp: App {
   @StateObject private var radioSession = RadioSessionViewModel()
   @StateObject private var favoritesStore = FavoritesStore()
   @StateObject private var recordingStore = RecordingStore()
+  @StateObject private var historyStore = ListeningHistoryStore.shared
   private let shazam = ShazamRecognitionController.shared
   private let diagnostics = Diagnostics.sharedStore
 
@@ -17,6 +18,7 @@ struct ListenSDRApp: App {
         .environmentObject(radioSession)
         .environmentObject(favoritesStore)
         .environmentObject(recordingStore)
+        .environmentObject(historyStore)
         .environmentObject(shazam)
         .environmentObject(diagnostics)
         .task {

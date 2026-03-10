@@ -503,3 +503,12 @@
 "directory.sort.source" = "Source";
 "directory.cache.using_cached" = "Affichage des donnees du repertoire en cache.";
 "directory.cache.using_cached_with_date" = "Affichage des donnees du repertoire en cache de %@.";
+
+"history.recent_receivers.section" = "R?cepteurs r?cents";
+"history.recent_receivers.hint" = "Touchez deux fois pour vous reconnecter ? ce r?cepteur";
+"history.recent_listening.section" = "?cout? r?cemment";
+"history.recent_listening.hint" = "Touchez deux fois pour vous connecter et restaurer cette ?coute";
+"history.clear_receivers" = "Effacer les r?cepteurs r?cents";
+"history.clear_listening" = "Effacer l'historique d'?coute";
+"history.last_used" = "Derni?re utilisation : %@";
+"history.recent_listening.detail" = "%@ | %@ | %@";

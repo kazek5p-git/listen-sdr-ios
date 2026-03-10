@@ -121,6 +121,7 @@ final class RadioSessionViewModel: ObservableObject {
   private let nightModeSnapshotKey = "ListenSDR.nightModeSnapshot.v1"
   private let manualSettingsSnapshotKey = "ListenSDR.manualSettingsSnapshot.v1"
   private let receiverDataCache = ReceiverDataCache.shared
+  private let historyStore = ListeningHistoryStore.shared
   private var nightModeSnapshot: RadioSessionSettings?
   private var manualSettingsSnapshot: RadioSessionSettings?
   private var autoFilterPendingProfile: FMDXFilterProfile?
@@ -138,6 +139,9 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmdxAudioQualityTrendWindowSeconds: TimeInterval = 60
   private let fmdxAudioQualitySampleIntervalSeconds: TimeInterval = 5
   private var activeProfileCacheKey: String?
+  private var currentConnectedProfile: SDRConnectionProfile?
+  private var listeningHistoryCaptureTask: Task<Void, Never>?
+  private var deferredRestoreTask: Task<Void, Never>?
   private let autoReconnectDelaySeconds: [UInt64] = [1, 2, 3, 5, 8, 12]
   private let autoReconnectWindowSeconds: TimeInterval = 75
 
@@ -203,7 +207,11 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
-  func connect(to profile: SDRConnectionProfile) {
+  func connect(
+    to profile: SDRConnectionProfile,
+    restoringFrequencyHz: Int? = nil,
+    mode restoringMode: DemodulationMode? = nil
+  ) {
     if state == .connecting && sessionRecoveryTask == nil {
       return
     }
@@ -224,6 +232,10 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneDebounceTask = nil
     fmDxTuneConfirmTask?.cancel()
     fmDxTuneConfirmTask = nil
+    listeningHistoryCaptureTask?.cancel()
+    listeningHistoryCaptureTask = nil
+    deferredRestoreTask?.cancel()
+    deferredRestoreTask = nil
     pendingFMDXTuneFrequencyHz = nil
     isScannerRunning = false
     scannerStatusText = nil
@@ -234,6 +246,7 @@ final class RadioSessionViewModel: ObservableObject {
     resetRuntimeState(for: profile.backend)
     scannerThreshold = defaultScannerThreshold(for: profile.backend)
     activeBackend = nil
+    currentConnectedProfile = nil
     activeProfileCacheKey = ReceiverIdentity.key(for: profile)
     normalizeSettingsForBackendBeforeConnect(profile.backend)
     hydrateCachedReceiverData(for: profile)
@@ -256,6 +269,8 @@ final class RadioSessionViewModel: ObservableObject {
           self.connectedProfileID = profile.id
           self.activeBackend = profile.backend
           self.activeProfileCacheKey = ReceiverIdentity.key(for: profile)
+          self.currentConnectedProfile = profile
+          self.historyStore.recordReceiver(profile)
           NowPlayingMetadataController.shared.setReceiverName(profile.name)
           NowPlayingMetadataController.shared.setTitle(nil)
           self.hasInitialServerTuningSync = false
@@ -272,6 +287,12 @@ final class RadioSessionViewModel: ObservableObject {
             profile: profile,
             client: newClient
           )
+          self.scheduleListeningHistoryCapture()
+          self.scheduleRestoreAfterConnection(
+            profileID: profile.id,
+            frequencyHz: restoringFrequencyHz,
+            mode: restoringMode
+          )
         }
         Diagnostics.log(
           category: "Session",
@@ -287,6 +308,7 @@ final class RadioSessionViewModel: ObservableObject {
           self.connectedProfileID = nil
           self.activeBackend = nil
           self.activeProfileCacheKey = nil
+          self.currentConnectedProfile = nil
           self.state = .failed
           self.statusText = L10n.text("session.status.connection_failed")
           self.backendStatusText = nil
@@ -315,6 +337,10 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneDebounceTask = nil
     fmDxTuneConfirmTask?.cancel()
     fmDxTuneConfirmTask = nil
+    listeningHistoryCaptureTask?.cancel()
+    listeningHistoryCaptureTask = nil
+    deferredRestoreTask?.cancel()
+    deferredRestoreTask = nil
     pendingFMDXTuneFrequencyHz = nil
 
     Diagnostics.log(category: "Session", message: "Disconnect requested")
@@ -329,6 +355,7 @@ final class RadioSessionViewModel: ObservableObject {
         self.connectedProfileID = nil
         self.activeBackend = nil
         self.activeProfileCacheKey = nil
+        self.currentConnectedProfile = nil
         NowPlayingMetadataController.shared.setReceiverName(nil)
         NowPlayingMetadataController.shared.setTitle(nil)
         self.state = .disconnected
@@ -348,6 +375,10 @@ final class RadioSessionViewModel: ObservableObject {
       category: "Session",
       message: "Reconnect requested for \(profile.name)"
     )
+    listeningHistoryCaptureTask?.cancel()
+    listeningHistoryCaptureTask = nil
+    deferredRestoreTask?.cancel()
+    deferredRestoreTask = nil
     disconnect()
 
     Task { [weak self] in
@@ -523,6 +554,7 @@ final class RadioSessionViewModel: ObservableObject {
     scannerTask = nil
     isScannerRunning = false
     scannerStatusText = nil
+    scheduleListeningHistoryCapture()
   }
 
   func setFrequencyHz(_ value: Int) {
@@ -555,9 +587,11 @@ final class RadioSessionViewModel: ObservableObject {
 
     guard activeBackend == .fmDxWebserver else {
       applyIfConnected()
+      scheduleListeningHistoryCapture()
       return
     }
     queueFMDXFrequencySend(settings.frequencyHz)
+    scheduleListeningHistoryCapture()
   }
 
   func setTuneStepHz(_ value: Int) {
@@ -600,12 +634,14 @@ final class RadioSessionViewModel: ObservableObject {
       settings.mode = resolvedMode
       settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: settings.mode)
       persistSettings()
+      scheduleListeningHistoryCapture()
       return
     }
     settings.mode = mode
     _ = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     applyIfConnected()
+    scheduleListeningHistoryCapture()
   }
 
   func setRFGain(_ value: Double) {
@@ -1572,10 +1608,16 @@ final class RadioSessionViewModel: ObservableObject {
             self.client = nil
             self.connectedProfileID = nil
             self.activeBackend = nil
+            self.activeProfileCacheKey = nil
+            self.currentConnectedProfile = nil
             self.state = .failed
             self.statusText = L10n.text("session.status.server_error_on", profile.name)
             self.backendStatusText = nil
             self.lastError = backendError
+            self.listeningHistoryCaptureTask?.cancel()
+            self.listeningHistoryCaptureTask = nil
+            self.deferredRestoreTask?.cancel()
+            self.deferredRestoreTask = nil
             self.stopScanner()
             self.resetRuntimeState(for: nil)
           }
@@ -1622,10 +1664,15 @@ final class RadioSessionViewModel: ObservableObject {
 
     statusMonitorTask?.cancel()
     statusMonitorTask = nil
+    listeningHistoryCaptureTask?.cancel()
+    listeningHistoryCaptureTask = nil
+    deferredRestoreTask?.cancel()
+    deferredRestoreTask = nil
     stopScanner()
     self.client = nil
     activeBackend = profile.backend
     activeProfileCacheKey = ReceiverIdentity.key(for: profile)
+    currentConnectedProfile = nil
     state = .connecting
     statusText = L10n.text("session.status.reconnecting_to", profile.name)
     updateBackendStatusText(L10n.text("session.status.reconnecting_wait"))
@@ -1662,6 +1709,8 @@ final class RadioSessionViewModel: ObservableObject {
             self.connectedProfileID = profile.id
             self.activeBackend = profile.backend
             self.activeProfileCacheKey = ReceiverIdentity.key(for: profile)
+            self.currentConnectedProfile = profile
+            self.historyStore.recordReceiver(profile)
             NowPlayingMetadataController.shared.setReceiverName(profile.name)
             NowPlayingMetadataController.shared.setTitle(nil)
             self.hasInitialServerTuningSync = false
@@ -1675,6 +1724,7 @@ final class RadioSessionViewModel: ObservableObject {
             )
             self.lastError = nil
             self.startStatusMonitor(profile: profile, client: newClient)
+            self.scheduleListeningHistoryCapture()
           }
           Diagnostics.log(
             category: "Session",
@@ -1702,6 +1752,7 @@ final class RadioSessionViewModel: ObservableObject {
         self.connectedProfileID = nil
         self.activeBackend = nil
         self.activeProfileCacheKey = nil
+        self.currentConnectedProfile = nil
         self.state = .failed
         self.statusText = L10n.text("session.status.connection_lost")
         self.backendStatusText = nil
@@ -1735,6 +1786,9 @@ final class RadioSessionViewModel: ObservableObject {
       serverBookmarks = bookmarks
       persistCachedReceiverData { cached in
         cached.serverBookmarks = bookmarks
+      }
+      if activeBackend == .openWebRX, state == .connected {
+        recordCurrentListeningHistory()
       }
 
     case .openWebRXBandPlan(let bands):
@@ -1770,6 +1824,7 @@ final class RadioSessionViewModel: ObservableObject {
         persistSettings()
       }
       updateBackendStatusText(openWebRXStatusSummary(frequencyHz: clamped, mode: mode))
+      scheduleListeningHistoryCapture()
 
     case .kiwiTuning(let frequencyHz, let mode, let bandName):
       hasInitialServerTuningSync = true
@@ -1793,6 +1848,7 @@ final class RadioSessionViewModel: ObservableObject {
         persistSettings()
       }
       updateBackendStatusText(kiwiStatusSummary(frequencyHz: clamped, mode: mode, reportedBandName: bandName))
+      scheduleListeningHistoryCapture()
 
     case .fmdxCapabilities(let capabilities):
       fmdxCapabilities = capabilities
@@ -1818,6 +1874,10 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .fmdx(let telemetry):
       let previousTelemetry = fmdxTelemetry
+      let previousStationTitle = preferredHistoryStationTitle(
+        backend: .fmDxWebserver,
+        telemetry: previousTelemetry
+      )
       fmdxTelemetry = telemetry
       NowPlayingMetadataController.shared.setTitle(nowPlayingTitle(for: telemetry))
       var changedSettings = false
@@ -1856,8 +1916,16 @@ final class RadioSessionViewModel: ObservableObject {
       }
       if changedSettings {
         persistSettings()
+        scheduleListeningHistoryCapture()
       }
       announceRDSChangeIfNeeded(previous: previousTelemetry, current: telemetry)
+      let currentStationTitle = preferredHistoryStationTitle(
+        backend: .fmDxWebserver,
+        telemetry: telemetry
+      )
+      if currentStationTitle != previousStationTitle, currentStationTitle != nil {
+        recordCurrentListeningHistory()
+      }
       evaluateAutoFMDXFilterProfile(using: telemetry)
 
     case .kiwi(let telemetry):
@@ -1985,6 +2053,88 @@ final class RadioSessionViewModel: ObservableObject {
     let finalValue = (normalized?.isEmpty == false) ? normalized : nil
     guard backendStatusText != finalValue else { return }
     backendStatusText = finalValue
+  }
+
+  private func scheduleRestoreAfterConnection(
+    profileID: UUID,
+    frequencyHz: Int?,
+    mode: DemodulationMode?
+  ) {
+    guard frequencyHz != nil || mode != nil else { return }
+
+    deferredRestoreTask?.cancel()
+    deferredRestoreTask = Task { [weak self] in
+      guard let self else { return }
+      let deadline = Date().addingTimeInterval(10)
+
+      while !Task.isCancelled && Date() < deadline {
+        if self.state == .connected,
+          self.connectedProfileID == profileID,
+          !self.isWaitingForInitialServerTuningSync() {
+          if let mode {
+            self.setMode(mode)
+          }
+          if let frequencyHz {
+            self.setFrequencyHz(frequencyHz)
+          }
+          return
+        }
+
+        try? await Task.sleep(nanoseconds: 300_000_000)
+      }
+    }
+  }
+
+  private func scheduleListeningHistoryCapture(delaySeconds: TimeInterval = 4.0) {
+    guard state == .connected else { return }
+    guard currentConnectedProfile != nil else { return }
+    guard !isScannerRunning else { return }
+
+    listeningHistoryCaptureTask?.cancel()
+    listeningHistoryCaptureTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+      if Task.isCancelled { return }
+      await MainActor.run {
+        self?.recordCurrentListeningHistory()
+      }
+    }
+  }
+
+  private func recordCurrentListeningHistory() {
+    guard state == .connected else { return }
+    guard !isScannerRunning else { return }
+    guard let profile = currentConnectedProfile else { return }
+    guard connectedProfileID == profile.id else { return }
+    guard !isWaitingForInitialServerTuningSync() else { return }
+
+    historyStore.recordListening(
+      profile: profile,
+      frequencyHz: settings.frequencyHz,
+      mode: settings.mode,
+      stationTitle: preferredHistoryStationTitle(
+        backend: profile.backend,
+        telemetry: fmdxTelemetry
+      )
+    )
+  }
+
+  private func preferredHistoryStationTitle(
+    backend: SDRBackend,
+    telemetry: FMDXTelemetry?
+  ) -> String? {
+    switch backend {
+    case .fmDxWebserver:
+      return preferredRDSStationName(from: telemetry) ?? stableRDSRadioText(from: telemetry)
+
+    case .openWebRX:
+      if let bookmark = serverBookmarks.first(where: { $0.frequencyHz == settings.frequencyHz }) {
+        return bookmark.name
+      }
+      return openWebRXBandEntry(for: settings.frequencyHz)?.name
+
+    case .kiwiSDR:
+      return currentKiwiBandName
+    }
   }
 
   private func hydrateCachedReceiverData(for profile: SDRConnectionProfile) {

@@ -503,3 +503,12 @@
 "directory.sort.source" = "Fonte";
 "directory.cache.using_cached" = "Mostra i dati della directory in cache.";
 "directory.cache.using_cached_with_date" = "Mostra i dati della directory in cache da %@.";
+
+"history.recent_receivers.section" = "Ricevitori recenti";
+"history.recent_receivers.hint" = "Tocca due volte per ricollegarti a questo ricevitore";
+"history.recent_listening.section" = "Ascoltati di recente";
+"history.recent_listening.hint" = "Tocca due volte per collegarti e ripristinare questo ascolto";
+"history.clear_receivers" = "Cancella ricevitori recenti";
+"history.clear_listening" = "Cancella cronologia di ascolto";
+"history.last_used" = "Ultimo utilizzo: %@";
+"history.recent_listening.detail" = "%@ | %@ | %@";
