@@ -22,6 +22,94 @@ private enum ReceiverAccessibilityFocus: Hashable {
   case tuneStepControl
 }
 
+private enum KiwiWaterfallPreset: String, CaseIterable, Identifiable {
+  case balanced
+  case dx
+  case overview
+  case fast
+  case custom
+
+  var id: String { rawValue }
+
+  static var selectableCases: [KiwiWaterfallPreset] {
+    [.balanced, .dx, .overview, .fast]
+  }
+
+  var localizedTitle: String {
+    switch self {
+    case .balanced:
+      return L10n.text("kiwi.waterfall.preset.balanced")
+    case .dx:
+      return L10n.text("kiwi.waterfall.preset.dx")
+    case .overview:
+      return L10n.text("kiwi.waterfall.preset.overview")
+    case .fast:
+      return L10n.text("kiwi.waterfall.preset.fast")
+    case .custom:
+      return L10n.text("kiwi.waterfall.preset.custom")
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .balanced:
+      return L10n.text("kiwi.waterfall.preset.balanced.detail")
+    case .dx:
+      return L10n.text("kiwi.waterfall.preset.dx.detail")
+    case .overview:
+      return L10n.text("kiwi.waterfall.preset.overview.detail")
+    case .fast:
+      return L10n.text("kiwi.waterfall.preset.fast.detail")
+    case .custom:
+      return L10n.text("kiwi.waterfall.preset.custom.detail")
+    }
+  }
+
+  var values: (speed: Int, zoom: Int, minDB: Int, maxDB: Int)? {
+    switch self {
+    case .balanced:
+      return (2, 0, -145, -20)
+    case .dx:
+      return (1, 8, -160, -45)
+    case .overview:
+      return (4, 0, -130, -10)
+    case .fast:
+      return (8, 2, -145, -25)
+    case .custom:
+      return nil
+    }
+  }
+
+  static func matching(settings: RadioSessionSettings) -> KiwiWaterfallPreset {
+    for preset in selectableCases {
+      guard let values = preset.values else { continue }
+      if settings.kiwiWaterfallSpeed == values.speed
+        && settings.kiwiWaterfallZoom == values.zoom
+        && settings.kiwiWaterfallMinDB == values.minDB
+        && settings.kiwiWaterfallMaxDB == values.maxDB {
+        return preset
+      }
+    }
+    return .custom
+  }
+}
+
+private enum OpenWebRXBookmarkSort: String, CaseIterable, Identifiable {
+  case frequency
+  case name
+
+  var id: String { rawValue }
+
+  var localizedTitle: String {
+    switch self {
+    case .frequency:
+      return L10n.text("openwebrx.bookmarks.sort.frequency")
+    case .name:
+      return L10n.text("openwebrx.bookmarks.sort.name")
+    }
+  }
+}
+
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -314,17 +402,19 @@ struct ReceiverView: View {
           Text(L10n.text("openwebrx.bookmarks_empty"))
             .foregroundStyle(.secondary)
         } else {
-          ForEach(radioSession.serverBookmarks) { bookmark in
-            Button {
-              radioSession.applyServerBookmark(bookmark)
-            } label: {
-              VStack(alignment: .leading, spacing: 4) {
-                Text(bookmark.name)
-                Text(FrequencyFormatter.mhzText(fromHz: bookmark.frequencyHz))
-                  .font(.footnote)
-                  .foregroundStyle(.secondary)
+          NavigationLink {
+            OpenWebRXBookmarksView(
+              bookmarks: radioSession.serverBookmarks,
+              activeFrequencyHz: radioSession.settings.frequencyHz,
+              onSelect: { bookmark in
+                radioSession.applyServerBookmark(bookmark)
               }
-            }
+            )
+          } label: {
+            LabeledContent(
+              L10n.text("openwebrx.bookmarks_browse"),
+              value: openWebRXBookmarkSummary()
+            )
           }
         }
       }
@@ -340,25 +430,22 @@ struct ReceiverView: View {
           Text(L10n.text("openwebrx.band_plan_loading"))
             .foregroundStyle(.secondary)
         } else {
-          ForEach(radioSession.openWebRXBandPlan) { band in
-            NavigationLink {
-              OpenWebRXBandDetailView(
-                band: band,
-                onTuneBandCenter: {
-                  radioSession.tuneToBand(band)
-                },
-                onTuneFrequency: { item in
-                  radioSession.tuneToBand(band, using: item)
-                }
-              )
-            } label: {
-              VStack(alignment: .leading, spacing: 4) {
-                Text(band.name)
-                Text(band.rangeText)
-                  .font(.footnote)
-                  .foregroundStyle(.secondary)
+          NavigationLink {
+            OpenWebRXBandPlanListView(
+              bands: radioSession.openWebRXBandPlan,
+              activeFrequencyHz: radioSession.settings.frequencyHz,
+              onTuneBandCenter: { band in
+                radioSession.tuneToBand(band)
+              },
+              onTuneFrequency: { band, item in
+                radioSession.tuneToBand(band, using: item)
               }
-            }
+            )
+          } label: {
+            LabeledContent(
+              L10n.text("openwebrx.band_plan_browse"),
+              value: openWebRXBandPlanSummary()
+            )
           }
         }
       }
@@ -559,6 +646,32 @@ struct ReceiverView: View {
           if let speed = Int(value) {
             radioSession.setKiwiWaterfallSpeed(speed)
           }
+        }
+
+        selectionNavigationLink(
+          title: L10n.text("kiwi.waterfall.preset"),
+          value: currentKiwiWaterfallPreset().localizedTitle,
+          selectedID: currentKiwiWaterfallPreset().rawValue,
+          options: KiwiWaterfallPreset.selectableCases.map {
+            SelectionListOption(
+              id: $0.rawValue,
+              title: $0.localizedTitle,
+              detail: $0.localizedDetail
+            )
+          },
+          disabled: radioSession.state != .connected
+        ) { value in
+          guard let preset = KiwiWaterfallPreset(rawValue: value),
+            let values = preset.values
+          else {
+            return
+          }
+          radioSession.applyKiwiWaterfallSettings(
+            speed: values.speed,
+            zoom: values.zoom,
+            minDB: values.minDB,
+            maxDB: values.maxDB
+          )
         }
 
         VStack(alignment: .leading, spacing: 6) {
@@ -1633,6 +1746,11 @@ struct ReceiverView: View {
     return radioSession.openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequency })?.name
   }
 
+  private func activeOpenWebRXBookmark() -> SDRServerBookmark? {
+    let frequency = radioSession.settings.frequencyHz
+    return radioSession.serverBookmarks.first(where: { $0.frequencyHz == frequency })
+  }
+
   private func selectedOpenWebRXProfileName() -> String {
     let selectedID = radioSession.selectedOpenWebRXProfileID
     return radioSession.openWebRXProfiles.first(where: { $0.id == selectedID })?.name
@@ -1643,6 +1761,24 @@ struct ReceiverView: View {
   private func activeOpenWebRXBandEntry() -> SDRBandPlanEntry? {
     let frequency = radioSession.settings.frequencyHz
     return radioSession.openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequency })
+  }
+
+  private func openWebRXBookmarkSummary() -> String {
+    if let activeBookmark = activeOpenWebRXBookmark() {
+      return activeBookmark.name
+    }
+    return L10n.text("openwebrx.bookmarks_count", radioSession.serverBookmarks.count)
+  }
+
+  private func openWebRXBandPlanSummary() -> String {
+    if let activeBand = activeOpenWebRXBandEntry() {
+      return activeBand.name
+    }
+    return L10n.text("openwebrx.band_plan_count", radioSession.openWebRXBandPlan.count)
+  }
+
+  private func currentKiwiWaterfallPreset() -> KiwiWaterfallPreset {
+    KiwiWaterfallPreset.matching(settings: radioSession.settings)
   }
 
   private func normalizeFrequencyHz(_ value: Int, for backend: SDRBackend?) -> Int {
@@ -2130,6 +2266,205 @@ private struct OpenWebRXBandDetailView: View {
     .scrollContentBackground(.hidden)
     .navigationTitle(band.name)
     .navigationBarTitleDisplayMode(.inline)
+    .appScreenBackground()
+  }
+}
+
+private struct OpenWebRXBookmarksView: View {
+  let bookmarks: [SDRServerBookmark]
+  let activeFrequencyHz: Int
+  let onSelect: (SDRServerBookmark) -> Void
+
+  @State private var searchText = ""
+  @State private var sort: OpenWebRXBookmarkSort = .frequency
+  @Environment(\.dismiss) private var dismiss
+
+  private var filteredBookmarks: [SDRServerBookmark] {
+    let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    let filtered = bookmarks.filter { bookmark in
+      guard !query.isEmpty else { return true }
+      let tokens = [
+        bookmark.name,
+        FrequencyFormatter.mhzText(fromHz: bookmark.frequencyHz),
+        bookmark.modulation?.displayName ?? "",
+        bookmark.source
+      ]
+      return tokens.contains { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    switch sort {
+    case .frequency:
+      return filtered.sorted { lhs, rhs in
+        if lhs.frequencyHz != rhs.frequencyHz {
+          return lhs.frequencyHz < rhs.frequencyHz
+        }
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+      }
+    case .name:
+      return filtered.sorted { lhs, rhs in
+        let comparison = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
+        if comparison != .orderedSame {
+          return comparison == .orderedAscending
+        }
+        return lhs.frequencyHz < rhs.frequencyHz
+      }
+    }
+  }
+
+  var body: some View {
+    List {
+      Section {
+        NavigationLink {
+          SelectionListView(
+            title: L10n.text("openwebrx.bookmarks.sort"),
+            options: OpenWebRXBookmarkSort.allCases.map {
+              SelectionListOption(id: $0.rawValue, title: $0.localizedTitle, detail: nil)
+            },
+            selectedID: sort.rawValue
+          ) { value in
+            if let sort = OpenWebRXBookmarkSort(rawValue: value) {
+              self.sort = sort
+            }
+          }
+        } label: {
+          LabeledContent(
+            L10n.text("openwebrx.bookmarks.sort"),
+            value: sort.localizedTitle
+          )
+        }
+      }
+      .appSectionStyle()
+
+      if filteredBookmarks.isEmpty {
+        Section {
+          Text(L10n.text("openwebrx.bookmarks.empty_filtered"))
+            .foregroundStyle(.secondary)
+        }
+        .appSectionStyle()
+      } else {
+        Section(L10n.text("openwebrx.bookmarks_section")) {
+          ForEach(filteredBookmarks) { bookmark in
+            Button {
+              onSelect(bookmark)
+              dismiss()
+            } label: {
+              HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(bookmark.name)
+                  Text(FrequencyFormatter.mhzText(fromHz: bookmark.frequencyHz))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if bookmark.frequencyHz == activeFrequencyHz {
+                  Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                }
+              }
+              .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+          }
+        }
+        .appSectionStyle()
+      }
+    }
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .navigationTitle(L10n.text("openwebrx.bookmarks_section"))
+    .navigationBarTitleDisplayMode(.inline)
+    .searchable(text: $searchText, prompt: L10n.text("openwebrx.bookmarks.search_prompt"))
+    .appScreenBackground()
+  }
+}
+
+private struct OpenWebRXBandPlanListView: View {
+  let bands: [SDRBandPlanEntry]
+  let activeFrequencyHz: Int
+  let onTuneBandCenter: (SDRBandPlanEntry) -> Void
+  let onTuneFrequency: (SDRBandPlanEntry, SDRBandFrequency) -> Void
+
+  @State private var searchText = ""
+
+  private var filteredBands: [SDRBandPlanEntry] {
+    let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    let filtered = bands.filter { band in
+      guard !query.isEmpty else { return true }
+      let rangeTokens = [
+        band.name,
+        band.rangeText,
+        FrequencyFormatter.mhzText(fromHz: band.lowerBoundHz),
+        FrequencyFormatter.mhzText(fromHz: band.upperBoundHz)
+      ]
+      if rangeTokens.contains(where: { $0.localizedCaseInsensitiveContains(query) }) {
+        return true
+      }
+      return band.frequencies.contains(where: {
+        $0.name.localizedCaseInsensitiveContains(query)
+          || FrequencyFormatter.mhzText(fromHz: $0.frequencyHz).localizedCaseInsensitiveContains(query)
+      })
+    }
+
+    return filtered.sorted { lhs, rhs in
+      if lhs.lowerBoundHz != rhs.lowerBoundHz {
+        return lhs.lowerBoundHz < rhs.lowerBoundHz
+      }
+      return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    }
+  }
+
+  var body: some View {
+    List {
+      if filteredBands.isEmpty {
+        Section {
+          Text(L10n.text("openwebrx.band_plan.empty_filtered"))
+            .foregroundStyle(.secondary)
+        }
+        .appSectionStyle()
+      } else {
+        Section(L10n.text("openwebrx.band_plan_section")) {
+          ForEach(filteredBands) { band in
+            NavigationLink {
+              OpenWebRXBandDetailView(
+                band: band,
+                onTuneBandCenter: {
+                  onTuneBandCenter(band)
+                },
+                onTuneFrequency: { item in
+                  onTuneFrequency(band, item)
+                }
+              )
+            } label: {
+              HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(band.name)
+                  Text(band.rangeText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if (band.lowerBoundHz...band.upperBoundHz).contains(activeFrequencyHz) {
+                  Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                }
+              }
+            }
+          }
+        }
+        .appSectionStyle()
+      }
+    }
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .navigationTitle(L10n.text("openwebrx.band_plan_section"))
+    .navigationBarTitleDisplayMode(.inline)
+    .searchable(text: $searchText, prompt: L10n.text("openwebrx.band_plan.search_prompt"))
     .appScreenBackground()
   }
 }

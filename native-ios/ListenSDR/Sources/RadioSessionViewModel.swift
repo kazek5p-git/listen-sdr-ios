@@ -858,6 +858,23 @@ final class RadioSessionViewModel: ObservableObject {
     sendKiwiWaterfallControl()
   }
 
+  func applyKiwiWaterfallSettings(
+    speed: Int,
+    zoom: Int,
+    minDB: Int,
+    maxDB: Int
+  ) {
+    settings.kiwiWaterfallSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(speed)
+    settings.kiwiWaterfallZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(zoom)
+    settings.kiwiWaterfallMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(minDB)
+    settings.kiwiWaterfallMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(maxDB)
+    if settings.kiwiWaterfallMaxDB <= settings.kiwiWaterfallMinDB {
+      settings.kiwiWaterfallMaxDB = min(30, settings.kiwiWaterfallMinDB + 10)
+    }
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
   func setShowRdsErrorCounters(_ enabled: Bool) {
     settings.showRdsErrorCounters = enabled
     persistSettings()
