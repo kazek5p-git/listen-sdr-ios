@@ -621,6 +621,12 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
+  func setOpenReceiverAfterHistoryRestore(_ enabled: Bool) {
+    guard settings.openReceiverAfterHistoryRestore != enabled else { return }
+    settings.openReceiverAfterHistoryRestore = enabled
+    persistSettings()
+  }
+
   func tune(byStepCount stepCount: Int) {
     let delta = stepCount * settings.tuneStepHz
     setFrequencyHz(settings.frequencyHz + delta)

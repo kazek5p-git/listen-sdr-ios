@@ -249,6 +249,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var fmdxAudioPacketHoldSeconds: Double
   var audioSuggestionScope: AudioSuggestionScope
   var tuningGestureDirection: TuningGestureDirection
+  var openReceiverAfterHistoryRestore: Bool
 
   var voiceOverAnnouncesRDSChanges: Bool {
     get { voiceOverRDSAnnouncementMode != .off }
@@ -290,7 +291,8 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxAudioMaxLatencySeconds: 1.8,
     fmdxAudioPacketHoldSeconds: 0.14,
     audioSuggestionScope: .fmDxOnly,
-    tuningGestureDirection: .natural
+    tuningGestureDirection: .natural,
+    openReceiverAfterHistoryRestore: false
   )
 
   private enum CodingKeys: String, CodingKey {
@@ -325,6 +327,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case fmdxAudioPacketHoldSeconds
     case audioSuggestionScope
     case tuningGestureDirection
+    case openReceiverAfterHistoryRestore
   }
 
   init(
@@ -357,7 +360,8 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxAudioMaxLatencySeconds: Double,
     fmdxAudioPacketHoldSeconds: Double,
     audioSuggestionScope: AudioSuggestionScope,
-    tuningGestureDirection: TuningGestureDirection
+    tuningGestureDirection: TuningGestureDirection,
+    openReceiverAfterHistoryRestore: Bool
   ) {
     self.frequencyHz = frequencyHz
     self.tuneStepHz = Self.normalizedTuneStep(tuneStepHz)
@@ -395,6 +399,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(fmdxAudioPacketHoldSeconds)
     self.audioSuggestionScope = audioSuggestionScope
     self.tuningGestureDirection = tuningGestureDirection
+    self.openReceiverAfterHistoryRestore = openReceiverAfterHistoryRestore
   }
 
   init(from decoder: Decoder) throws {
@@ -479,6 +484,8 @@ struct RadioSessionSettings: Codable, Equatable {
       ?? Self.default.audioSuggestionScope
     tuningGestureDirection = try container.decodeIfPresent(TuningGestureDirection.self, forKey: .tuningGestureDirection)
       ?? Self.default.tuningGestureDirection
+    openReceiverAfterHistoryRestore = try container.decodeIfPresent(Bool.self, forKey: .openReceiverAfterHistoryRestore)
+      ?? Self.default.openReceiverAfterHistoryRestore
   }
 
   func encode(to encoder: Encoder) throws {
@@ -513,6 +520,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(fmdxAudioPacketHoldSeconds, forKey: .fmdxAudioPacketHoldSeconds)
     try container.encode(audioSuggestionScope, forKey: .audioSuggestionScope)
     try container.encode(tuningGestureDirection, forKey: .tuningGestureDirection)
+    try container.encode(openReceiverAfterHistoryRestore, forKey: .openReceiverAfterHistoryRestore)
   }
 
   static func normalizedTuneStep(_ value: Int) -> Int {

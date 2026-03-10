@@ -367,6 +367,9 @@
 "settings.accessibility.voiceover_rds.hint" = "Wenn VoiceOver aktiv ist, werden neue Stationsnamen oder RDS-Texte nach einer Anderung vorgelesen.";
 "settings.accessibility.voiceover_rds_mode" = "VoiceOver-RDS-Ausgabe";
 "settings.accessibility.voiceover_rds_mode.hint" = "Waehlt, ob VoiceOver nur Stationsinformationen oder vollstaendige RDS-Aenderungen vorliest.";
+"settings.history.section" = "Verlauf";
+"settings.history.open_receiver_after_restore" = "Nach Verlaufseintrag zum Empfaenger-Tab wechseln";
+"settings.history.open_receiver_after_restore.hint" = "Nach dem Wiederherstellen eines Verlaufseintrags wechselt die App automatisch zum Empfaenger-Tab.";
 "settings.accessibility.voiceover_rds_mode.off" = "Aus";
 "settings.accessibility.voiceover_rds_mode.station_only" = "Nur Station";
 "settings.accessibility.voiceover_rds_mode.full" = "Vollstaendiges RDS";
@@ -513,6 +516,10 @@
 "history.clear_listening" = "H?rverlauf l?schen";
 "history.last_used" = "Zuletzt verwendet: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.recent_listening.receiver" = "Empfaenger";
+"history.recent_listening.frequency" = "Frequenz";
+"history.recent_listening.last_heard" = "%@ | %@";
+"history.recent_listening.accessibility" = "%@, Empfaenger %@, Frequenz %@, Modus %@, zuletzt gehoert %@";
 "history.section.expand" = "Abschnitt erweitern";
 "history.section.collapse" = "Abschnitt einklappen";
 "history.section.expanded" = "Erweitert";

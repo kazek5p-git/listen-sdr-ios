@@ -3,6 +3,7 @@ import SwiftUI
 @main
 @MainActor
 struct ListenSDRApp: App {
+  @StateObject private var navigationState = AppNavigationState()
   @StateObject private var profileStore = ProfileStore()
   @StateObject private var radioSession = RadioSessionViewModel()
   @StateObject private var favoritesStore = FavoritesStore()
@@ -15,6 +16,7 @@ struct ListenSDRApp: App {
     WindowGroup {
       ContentView()
         .environmentObject(profileStore)
+        .environmentObject(navigationState)
         .environmentObject(radioSession)
         .environmentObject(favoritesStore)
         .environmentObject(recordingStore)

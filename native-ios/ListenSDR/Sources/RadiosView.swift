@@ -113,6 +113,7 @@ private enum HistoryListeningSort: String, CaseIterable, Identifiable {
 }
 
 struct RadiosView: View {
+  @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var favoritesStore: FavoritesStore
@@ -578,6 +579,8 @@ struct RadiosView: View {
   private func recentListeningRow(for record: RecentListeningRecord) -> some View {
     let candidateProfile = record.makeProfile()
     let modeName = record.mode?.displayName ?? candidateProfile.backend.displayName
+    let frequencyText = FrequencyFormatter.mhzText(fromHz: record.frequencyHz)
+    let heardAtText = record.lastHeardAt.formatted(date: .abbreviated, time: .shortened)
 
     Button {
       restoreListeningRecord(record)
@@ -586,22 +589,27 @@ struct RadiosView: View {
         Text(record.primaryTitle)
           .font(.headline)
 
-        Text(
-          [
-            FrequencyFormatter.mhzText(fromHz: record.frequencyHz),
-            modeName
-          ]
-            .joined(separator: " | ")
-        )
+        Text([frequencyText, modeName].joined(separator: " | "))
         .font(.subheadline)
         .foregroundStyle(.secondary)
 
+        LabeledContent(
+          L10n.text("history.recent_listening.receiver"),
+          value: record.receiverName
+        )
+        .font(.footnote)
+
+        LabeledContent(
+          L10n.text("history.recent_listening.frequency"),
+          value: frequencyText
+        )
+        .font(.footnote)
+
         Text(
           L10n.text(
-            "history.recent_listening.detail",
-            record.receiverName,
+            "history.recent_listening.last_heard",
             record.backend.displayName,
-            record.lastHeardAt.formatted(date: .abbreviated, time: .shortened)
+            heardAtText
           )
         )
         .font(.footnote)
@@ -638,6 +646,17 @@ struct RadiosView: View {
         Label(L10n.text("Delete"), systemImage: "trash")
       }
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(
+      L10n.text(
+        "history.recent_listening.accessibility",
+        record.primaryTitle,
+        record.receiverName,
+        frequencyText,
+        modeName,
+        heardAtText
+      )
+    )
     .accessibilityHint(L10n.text("history.recent_listening.hint"))
   }
 
@@ -689,6 +708,9 @@ struct RadiosView: View {
   private func restoreListeningRecord(_ record: RecentListeningRecord) {
     let storedProfile = profileStore.upsertImportedProfile(record.makeProfile())
     profileStore.updateSelection(storedProfile.id)
+    if radioSession.settings.openReceiverAfterHistoryRestore {
+      navigationState.selectedTab = .receiver
+    }
     if radioSession.state == .connected && radioSession.connectedProfileID == storedProfile.id {
       if let mode = record.mode {
         radioSession.setMode(mode)

@@ -367,6 +367,9 @@
 "settings.accessibility.voiceover_rds.hint" = "Cuando VoiceOver esta activo, lee el nuevo nombre de emisora o el texto RDS despues de un cambio.";
 "settings.accessibility.voiceover_rds_mode" = "Lectura RDS con VoiceOver";
 "settings.accessibility.voiceover_rds_mode.hint" = "Elige si VoiceOver debe leer solo la informacion de la emisora o tambien las actualizaciones completas de RDS.";
+"settings.history.section" = "Historial";
+"settings.history.open_receiver_after_restore" = "Abrir la pestana Receptor al restaurar desde el historial";
+"settings.history.open_receiver_after_restore.hint" = "Al restaurar una entrada del historial, la app cambiara automaticamente a la pestana Receptor.";
 "settings.accessibility.voiceover_rds_mode.off" = "Desactivado";
 "settings.accessibility.voiceover_rds_mode.station_only" = "Solo emisora";
 "settings.accessibility.voiceover_rds_mode.full" = "RDS completo";
@@ -513,6 +516,10 @@
 "history.clear_listening" = "Borrar historial de escucha";
 "history.last_used" = "?ltimo uso: %@";
 "history.recent_listening.detail" = "%@ | %@ | %@";
+"history.recent_listening.receiver" = "Receptor";
+"history.recent_listening.frequency" = "Frecuencia";
+"history.recent_listening.last_heard" = "%@ | %@";
+"history.recent_listening.accessibility" = "%@, receptor %@, frecuencia %@, modo %@, escuchado por ultima vez %@";
 "history.section.expand" = "Expandir seccion";
 "history.section.collapse" = "Contraer seccion";
 "history.section.expanded" = "Expandida";

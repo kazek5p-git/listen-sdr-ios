@@ -124,6 +124,18 @@ struct SettingsView: View {
         }
         .appSectionStyle()
 
+        Section(L10n.text("settings.history.section")) {
+          Toggle(
+            L10n.text("settings.history.open_receiver_after_restore"),
+            isOn: Binding(
+              get: { radioSession.settings.openReceiverAfterHistoryRestore },
+              set: { radioSession.setOpenReceiverAfterHistoryRestore($0) }
+            )
+          )
+          .accessibilityHint(L10n.text("settings.history.open_receiver_after_restore.hint"))
+        }
+        .appSectionStyle()
+
         Section(L10n.text("settings.scanner.section")) {
           VStack(alignment: .leading, spacing: 6) {
             LabeledContent(

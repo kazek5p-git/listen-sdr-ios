@@ -1,22 +1,26 @@
 import SwiftUI
 
 struct ContentView: View {
+  @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
 
   var body: some View {
-    TabView {
+    TabView(selection: $navigationState.selectedTab) {
       ReceiverView()
+        .tag(AppTab.receiver)
         .tabItem {
           Label("Receiver", systemImage: "dial.high")
         }
 
       RadiosView()
+        .tag(AppTab.radios)
         .tabItem {
           Label("Radios", systemImage: "dot.radiowaves.left.and.right")
         }
 
       SettingsView()
+        .tag(AppTab.settings)
         .tabItem {
           Label("Settings", systemImage: "gearshape")
         }
