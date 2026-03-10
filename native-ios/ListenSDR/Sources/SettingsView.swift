@@ -39,15 +39,6 @@ struct SettingsView: View {
           .accessibilityHint(L10n.text("settings.dx.night_mode.hint"))
 
           Toggle(
-            L10n.text("settings.dx.auto_filter"),
-            isOn: Binding(
-              get: { radioSession.settings.autoFilterProfileEnabled },
-              set: { radioSession.setAutoFilterProfileEnabled($0) }
-            )
-          )
-          .accessibilityHint(L10n.text("settings.dx.auto_filter.hint"))
-
-          Toggle(
             L10n.text("settings.dx.adaptive_scan"),
             isOn: Binding(
               get: { radioSession.settings.adaptiveScannerEnabled },

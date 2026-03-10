@@ -133,6 +133,9 @@ final class RadioSessionViewModel: ObservableObject {
     if settings.shazamIntegrationEnabled {
       settings.shazamIntegrationEnabled = false
     }
+    if settings.autoFilterProfileEnabled {
+      settings.autoFilterProfileEnabled = false
+    }
     settings.tuneStepHz = RadioSessionSettings.normalizedTuneStep(settings.tuneStepHz)
     settings.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(settings.scannerDwellSeconds)
     settings.scannerHoldSeconds = RadioSessionSettings.clampedScannerHoldSeconds(settings.scannerHoldSeconds)
@@ -787,8 +790,8 @@ final class RadioSessionViewModel: ObservableObject {
     ShazamRecognitionController.shared.setIntegrationEnabled(false)
   }
 
-  func setAutoFilterProfileEnabled(_ enabled: Bool) {
-    settings.autoFilterProfileEnabled = enabled
+  func setAutoFilterProfileEnabled(_ _: Bool) {
+    settings.autoFilterProfileEnabled = false
     persistSettings()
     autoFilterPendingProfile = nil
     autoFilterStableSamples = 0
@@ -1083,7 +1086,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.noiseReductionEnabled = true
     settings.imsEnabled = true
     settings.showRdsErrorCounters = false
-    settings.autoFilterProfileEnabled = true
+    settings.autoFilterProfileEnabled = false
     settings.adaptiveScannerEnabled = true
     settings.scannerDwellSeconds = 1.1
     settings.scannerHoldSeconds = 5.5
@@ -1101,6 +1104,7 @@ final class RadioSessionViewModel: ObservableObject {
     let previousFrequency = settings.frequencyHz
     var merged = snapshot
     merged.dxNightModeEnabled = settings.dxNightModeEnabled
+    merged.autoFilterProfileEnabled = false
     if !includeFrequency {
       merged.frequencyHz = previousFrequency
     }

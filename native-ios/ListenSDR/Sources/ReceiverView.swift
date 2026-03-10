@@ -309,9 +309,6 @@ struct ReceiverView: View {
     if profile.backend == .fmDxWebserver {
       Section(L10n.text("fmdx.controls")) {
         fmDxAudioModePicker()
-        if radioSession.fmdxSupportsFilterControls || !radioSession.fmdxCapabilities.bandwidths.isEmpty {
-          fmDxFilterProfilePicker()
-        }
         fmDxFilterToggleRow()
 
         fmDxAntennaPicker()
