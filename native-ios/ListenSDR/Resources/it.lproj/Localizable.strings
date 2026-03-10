@@ -528,3 +528,8 @@
 "radios.search.scope.history_and_radios" = "Cronologia e radio salvate";
 "radios.search.prompt" = "Cerca nella cronologia o nelle radio salvate";
 "radios.search.empty" = "Nessun risultato di ricerca.";
+"history.sort.receivers" = "Ordine ricevitori";
+"history.sort.listening" = "Ordine ascolto";
+"history.sort.option.recent" = "Piu recenti";
+"history.sort.option.name" = "Nome";
+"history.sort.option.frequency" = "Frequenza";

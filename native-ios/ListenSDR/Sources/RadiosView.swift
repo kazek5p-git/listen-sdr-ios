@@ -77,6 +77,41 @@ private enum RadiosSearchScope: String, CaseIterable, Identifiable {
   }
 }
 
+private enum HistoryReceiverSort: String, CaseIterable, Identifiable {
+  case recent
+  case name
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .recent:
+      return L10n.text("history.sort.option.recent")
+    case .name:
+      return L10n.text("history.sort.option.name")
+    }
+  }
+}
+
+private enum HistoryListeningSort: String, CaseIterable, Identifiable {
+  case recent
+  case name
+  case frequency
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .recent:
+      return L10n.text("history.sort.option.recent")
+    case .name:
+      return L10n.text("history.sort.option.name")
+    case .frequency:
+      return L10n.text("history.sort.option.frequency")
+    }
+  }
+}
+
 struct RadiosView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -86,6 +121,8 @@ struct RadiosView: View {
   @State private var isDirectoryPresented = false
   @State private var historySectionFilter: HistorySectionFilter = .all
   @State private var historyBackendFilter: HistoryBackendFilter = .all
+  @State private var historyReceiverSort: HistoryReceiverSort = .recent
+  @State private var historyListeningSort: HistoryListeningSort = .recent
   @State private var searchText = ""
   @State private var searchScope: RadiosSearchScope = .historyOnly
 
@@ -115,6 +152,8 @@ struct RadiosView: View {
               historyBackendFilter.matches($0.backend)
                 && (!isSearching || recentListeningMatchesQuery($0, query: query))
             }
+            let sortedRecentReceivers = applyReceiverSort(to: filteredRecentReceivers)
+            let sortedRecentListening = applyListeningSort(to: filteredRecentListening)
             let filteredFavoriteProfiles =
               isSearching && searchScope == .historyAndRadios
               ? favoriteProfiles.filter { profileMatchesQuery($0, query: query) }
@@ -200,13 +239,55 @@ struct RadiosView: View {
                     value: historyBackendFilter.displayName
                   )
                 }
+
+                if !historyStore.recentReceivers.isEmpty {
+                  NavigationLink {
+                    SelectionListView(
+                      title: L10n.text("history.sort.receivers"),
+                      options: HistoryReceiverSort.allCases.map {
+                        SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+                      },
+                      selectedID: historyReceiverSort.rawValue
+                    ) { value in
+                      if let sort = HistoryReceiverSort(rawValue: value) {
+                        historyReceiverSort = sort
+                      }
+                    }
+                  } label: {
+                    LabeledContent(
+                      L10n.text("history.sort.receivers"),
+                      value: historyReceiverSort.displayName
+                    )
+                  }
+                }
+
+                if !historyStore.recentListening.isEmpty {
+                  NavigationLink {
+                    SelectionListView(
+                      title: L10n.text("history.sort.listening"),
+                      options: HistoryListeningSort.allCases.map {
+                        SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+                      },
+                      selectedID: historyListeningSort.rawValue
+                    ) { value in
+                      if let sort = HistoryListeningSort(rawValue: value) {
+                        historyListeningSort = sort
+                      }
+                    }
+                  } label: {
+                    LabeledContent(
+                      L10n.text("history.sort.listening"),
+                      value: historyListeningSort.displayName
+                    )
+                  }
+                }
               }
               .appSectionStyle()
             }
 
-            if showsReceiversHistory && !filteredRecentReceivers.isEmpty {
+            if showsReceiversHistory && !sortedRecentReceivers.isEmpty {
               Section(L10n.text("history.recent_receivers.section")) {
-                ForEach(filteredRecentReceivers) { record in
+                ForEach(sortedRecentReceivers) { record in
                   recentReceiverRow(for: record)
                 }
 
@@ -218,9 +299,9 @@ struct RadiosView: View {
               }
             }
 
-            if showsListeningHistory && !filteredRecentListening.isEmpty {
+            if showsListeningHistory && !sortedRecentListening.isEmpty {
               Section(L10n.text("history.recent_listening.section")) {
-                ForEach(filteredRecentListening) { record in
+                ForEach(sortedRecentListening) { record in
                   recentListeningRow(for: record)
                 }
 
@@ -612,6 +693,60 @@ struct RadiosView: View {
     ]
 
     return tokens.contains { $0.localizedCaseInsensitiveContains(query) }
+  }
+
+  private func applyReceiverSort(to records: [RecentReceiverRecord]) -> [RecentReceiverRecord] {
+    switch historyReceiverSort {
+    case .recent:
+      return records.sorted { lhs, rhs in
+        if lhs.lastUsedAt != rhs.lastUsedAt {
+          return lhs.lastUsedAt > rhs.lastUsedAt
+        }
+        return lhs.receiverName.localizedCaseInsensitiveCompare(rhs.receiverName) == .orderedAscending
+      }
+    case .name:
+      return records.sorted { lhs, rhs in
+        let comparison = lhs.receiverName.localizedCaseInsensitiveCompare(rhs.receiverName)
+        if comparison != .orderedSame {
+          return comparison == .orderedAscending
+        }
+        return lhs.lastUsedAt > rhs.lastUsedAt
+      }
+    }
+  }
+
+  private func applyListeningSort(to records: [RecentListeningRecord]) -> [RecentListeningRecord] {
+    switch historyListeningSort {
+    case .recent:
+      return records.sorted { lhs, rhs in
+        if lhs.lastHeardAt != rhs.lastHeardAt {
+          return lhs.lastHeardAt > rhs.lastHeardAt
+        }
+        return lhs.primaryTitle.localizedCaseInsensitiveCompare(rhs.primaryTitle) == .orderedAscending
+      }
+    case .name:
+      return records.sorted { lhs, rhs in
+        let comparison = lhs.primaryTitle.localizedCaseInsensitiveCompare(rhs.primaryTitle)
+        if comparison != .orderedSame {
+          return comparison == .orderedAscending
+        }
+        if lhs.frequencyHz != rhs.frequencyHz {
+          return lhs.frequencyHz < rhs.frequencyHz
+        }
+        return lhs.lastHeardAt > rhs.lastHeardAt
+      }
+    case .frequency:
+      return records.sorted { lhs, rhs in
+        if lhs.frequencyHz != rhs.frequencyHz {
+          return lhs.frequencyHz < rhs.frequencyHz
+        }
+        let comparison = lhs.primaryTitle.localizedCaseInsensitiveCompare(rhs.primaryTitle)
+        if comparison != .orderedSame {
+          return comparison == .orderedAscending
+        }
+        return lhs.lastHeardAt > rhs.lastHeardAt
+      }
+    }
   }
 
   private func backendIconName(for backend: SDRBackend) -> String {

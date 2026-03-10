@@ -535,3 +535,8 @@
 "radios.search.scope.history_and_radios" = "Historia i zapisane radia";
 "radios.search.prompt" = "Szukaj w historii lub zapisanych radiach";
 "radios.search.empty" = "Brak wynik?w wyszukiwania.";
+"history.sort.receivers" = "Sortowanie odbiorników";
+"history.sort.listening" = "Sortowanie odsłuchu";
+"history.sort.option.recent" = "Najnowsze";
+"history.sort.option.name" = "Nazwa";
+"history.sort.option.frequency" = "Częstotliwość";

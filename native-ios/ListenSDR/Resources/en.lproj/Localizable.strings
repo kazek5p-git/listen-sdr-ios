@@ -384,3 +384,8 @@
 "radios.search.scope.history_and_radios" = "History and saved radios";
 "radios.search.prompt" = "Search history or saved radios";
 "radios.search.empty" = "No search results.";
+"history.sort.receivers" = "Receiver sort";
+"history.sort.listening" = "Listening sort";
+"history.sort.option.recent" = "Most recent";
+"history.sort.option.name" = "Name";
+"history.sort.option.frequency" = "Frequency";
