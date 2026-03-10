@@ -114,6 +114,7 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
   func setIntegrationEnabled(_ enabled: Bool) {
     integrationEnabled = enabled
     if !enabled {
+      NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
       cancelRecognition(clearResult: true)
     }
   }
@@ -130,6 +131,7 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
     }
 
     cancelRecognition(clearResult: true)
+    NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
     activeBackend = backend
     session = SHSession()
     session?.delegate = self
@@ -138,6 +140,7 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
     currentSamplePosition = 0
     activeRequestID = UUID()
     state = .listening
+    updateBackendCaptureState(enabled: true, for: backend)
 
     let requestID = activeRequestID
     let timeoutSeconds = listenDurationSeconds + matchTimeoutSeconds
@@ -150,17 +153,28 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
       }
       if case .matching = self.state {
         self.state = .noMatch
+        NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
         self.cleanupActiveRecognition()
       }
     }
   }
 
   func cancelRecognition(clearResult: Bool = false) {
+    updateBackendCaptureState(enabled: false, for: activeBackend)
     timeoutTask?.cancel()
     timeoutTask = nil
     cleanupActiveRecognition()
     if clearResult || state == .listening || state == .matching {
       state = .idle
+    }
+    if clearResult {
+      NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
+    }
+  }
+
+  nonisolated func consumeFromAnyThread(samples: [Float], sampleRate: Double) {
+    Task { @MainActor [weak self] in
+      self?.consume(samples: samples, sampleRate: sampleRate)
     }
   }
 
@@ -203,6 +217,7 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
           }
         } catch {
           self.state = .unavailable(L10n.text("shazam.error"))
+          NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
           self.cleanupActiveRecognition()
         }
       }
@@ -211,10 +226,8 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
 
   func supportsRecognition(for backend: SDRBackend) -> Bool {
     switch backend {
-    case .kiwiSDR, .openWebRX:
+    case .kiwiSDR, .openWebRX, .fmDxWebserver:
       return true
-    case .fmDxWebserver:
-      return false
     }
   }
 
@@ -226,6 +239,7 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
 
       guard let item = match.mediaItems.first else {
         self.state = .noMatch
+        NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
         self.cleanupActiveRecognition()
         return
       }
@@ -234,6 +248,7 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
         ?? L10n.text("shazam.result.unknown_title")
       let artist = self.normalized(self.stringValue(for: "artist", in: item))
         ?? self.normalized(self.stringValue(for: "subtitle", in: item))
+      NowPlayingMetadataController.shared.setRecognizedTrack(title: title, artist: artist)
       self.state = .matched(title: title, artist: artist)
       self.cleanupActiveRecognition()
     }
@@ -243,10 +258,12 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
     guard case .listening = state else { return }
     guard let session, let signatureGenerator else {
       state = .noMatch
+      NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
       cleanupActiveRecognition()
       return
     }
 
+    updateBackendCaptureState(enabled: false, for: activeBackend)
     let signature = signatureGenerator.signature()
     state = .matching
     session.match(signature)
@@ -270,5 +287,10 @@ final class ShazamRecognitionController: NSObject, ObservableObject, SHSessionDe
     guard let value else { return nil }
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed
+  }
+
+  private func updateBackendCaptureState(enabled: Bool, for backend: SDRBackend?) {
+    guard backend == .fmDxWebserver else { return }
+    FMDXMP3AudioPlayer.shared.setRecognitionCaptureEnabled(enabled)
   }
 }

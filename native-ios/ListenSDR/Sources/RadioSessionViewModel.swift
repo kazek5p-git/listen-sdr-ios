@@ -461,6 +461,7 @@ final class RadioSessionViewModel: ObservableObject {
       return
     }
 
+    let previousFrequencyHz = settings.frequencyHz
     if activeBackend == .fmDxWebserver {
       let roundedToKHz = Int((Double(value) / 1_000.0).rounded()) * 1_000
       settings.frequencyHz = min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
@@ -468,6 +469,7 @@ final class RadioSessionViewModel: ObservableObject {
       let range = frequencyRange(for: activeBackend)
       settings.frequencyHz = min(max(value, range.lowerBound), range.upperBound)
     }
+    clearRecognizedTrackIfTunedAway(from: previousFrequencyHz, to: settings.frequencyHz)
     let tuneStepChanged = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     if tuneStepChanged, activeBackend == .openWebRX {
@@ -1420,6 +1422,7 @@ final class RadioSessionViewModel: ObservableObject {
       var changed = false
       let clamped = min(max(frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
+        clearRecognizedTrackIfTunedAway(from: settings.frequencyHz, to: clamped)
         settings.frequencyHz = clamped
         changed = true
       }
@@ -1441,6 +1444,7 @@ final class RadioSessionViewModel: ObservableObject {
       var changed = false
       let clamped = min(max(frequencyHz, kiwiFrequencyRangeHz.lowerBound), kiwiFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
+        clearRecognizedTrackIfTunedAway(from: settings.frequencyHz, to: clamped)
         settings.frequencyHz = clamped
         changed = true
       }
@@ -1501,6 +1505,7 @@ final class RadioSessionViewModel: ObservableObject {
           clearFMDXTuneConfirmationState()
         }
         if abs(backendFrequencyHz - settings.frequencyHz) >= 1_000 {
+          clearRecognizedTrackIfTunedAway(from: settings.frequencyHz, to: backendFrequencyHz)
           settings.frequencyHz = backendFrequencyHz
           changedSettings = true
         }
@@ -1676,6 +1681,11 @@ final class RadioSessionViewModel: ObservableObject {
     if backend != .fmDxWebserver {
       NowPlayingMetadataController.shared.setTitle(nil)
     }
+  }
+
+  private func clearRecognizedTrackIfTunedAway(from oldFrequencyHz: Int, to newFrequencyHz: Int) {
+    guard oldFrequencyHz != newFrequencyHz else { return }
+    NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
   }
 
   private func nowPlayingTitle(for telemetry: FMDXTelemetry) -> String? {

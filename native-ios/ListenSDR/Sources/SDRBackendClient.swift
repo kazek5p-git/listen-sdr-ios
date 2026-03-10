@@ -1657,6 +1657,8 @@ final class FMDXMP3AudioPlayer {
 
   private var desiredVolume: Float = 0.85
   private var muted = false
+  private var shazamCaptureEnabled = false
+  private let recognitionDecoder = FMDXMP3RecognitionDecoder()
 
   private init() {
     packetDescriptions = Array(
@@ -1722,6 +1724,19 @@ final class FMDXMP3AudioPlayer {
     workerQueue.async {
       self.muted = value
       self.applyVolumeLocked()
+    }
+  }
+
+  func setRecognitionCaptureEnabled(_ enabled: Bool) {
+    workerQueue.async {
+      self.shazamCaptureEnabled = enabled
+      if enabled {
+        if let description = self.streamDescription {
+          self.recognitionDecoder.updateStreamDescription(description)
+        }
+      } else {
+        self.recognitionDecoder.reset()
+      }
     }
   }
 
@@ -1866,6 +1881,8 @@ final class FMDXMP3AudioPlayer {
     consecutiveBufferStarvation = 0
     lastSuccessfulEnqueueAt = .distantPast
     enqueuedBuffersBeforeStart = 0
+    shazamCaptureEnabled = false
+    recognitionDecoder.reset()
 
     DispatchQueue.main.async {
       NowPlayingMetadataController.shared.stopPlayback()
@@ -1890,6 +1907,9 @@ final class FMDXMP3AudioPlayer {
 
       streamDescription = description
       ensureAudioQueueLocked(for: description, fileStreamID: fileStreamID)
+      if shazamCaptureEnabled {
+        recognitionDecoder.updateStreamDescription(description)
+      }
 
     case kAudioFileStreamProperty_MagicCookieData:
       applyMagicCookieLocked(from: fileStreamID)
@@ -1915,6 +1935,11 @@ final class FMDXMP3AudioPlayer {
 
         let packetStart = inputData.advanced(by: Int(packetDescription.mStartOffset))
         appendPacketLocked(packetData: packetStart, packetSize: packetSize)
+        capturePacketForRecognitionLocked(
+          packetData: packetStart,
+          packetSize: packetSize,
+          packetDescription: packetDescription
+        )
       }
     } else if let bytesPerPacket = streamDescription?.mBytesPerPacket, bytesPerPacket > 0 {
       let packetSize = Int(bytesPerPacket)
@@ -1922,10 +1947,28 @@ final class FMDXMP3AudioPlayer {
       while byteOffset + packetSize <= Int(numberBytes) {
         let packetStart = inputData.advanced(by: byteOffset)
         appendPacketLocked(packetData: packetStart, packetSize: packetSize)
+        capturePacketForRecognitionLocked(
+          packetData: packetStart,
+          packetSize: packetSize,
+          packetDescription: AudioStreamPacketDescription(
+            mStartOffset: 0,
+            mVariableFramesInPacket: 0,
+            mDataByteSize: UInt32(packetSize)
+          )
+        )
         byteOffset += packetSize
       }
     } else {
       appendPacketLocked(packetData: inputData, packetSize: Int(numberBytes))
+      capturePacketForRecognitionLocked(
+        packetData: inputData,
+        packetSize: Int(numberBytes),
+        packetDescription: AudioStreamPacketDescription(
+          mStartOffset: 0,
+          mVariableFramesInPacket: 0,
+          mDataByteSize: numberBytes
+        )
+      )
     }
 
     flushActiveBufferIfNeeded(force: false)
@@ -2056,6 +2099,26 @@ final class FMDXMP3AudioPlayer {
       severity: severity,
       category: "FM-DX Audio",
       message: message
+    )
+  }
+
+  private func capturePacketForRecognitionLocked(
+    packetData: UnsafeRawPointer,
+    packetSize: Int,
+    packetDescription: AudioStreamPacketDescription
+  ) {
+    guard shazamCaptureEnabled else { return }
+    guard let decoded = recognitionDecoder.decodePacket(
+      packetData: packetData,
+      packetSize: packetSize,
+      packetDescription: packetDescription
+    ) else {
+      return
+    }
+
+    ShazamRecognitionController.shared.consumeFromAnyThread(
+      samples: decoded.samples,
+      sampleRate: decoded.sampleRate
     )
   }
 

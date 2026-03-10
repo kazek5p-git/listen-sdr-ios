@@ -10,6 +10,8 @@ final class NowPlayingMetadataController {
   private var activeSource = "Live SDR stream"
   private var activeReceiverName: String?
   private var activeTitle: String?
+  private var recognizedTitle: String?
+  private var recognizedArtist: String?
   private var playbackMuted = false
 
   private init() {}
@@ -20,6 +22,8 @@ final class NowPlayingMetadataController {
   }
 
   func stopPlayback() {
+    recognizedTitle = nil
+    recognizedArtist = nil
     MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     MPNowPlayingInfoCenter.default().playbackState = .stopped
   }
@@ -31,6 +35,12 @@ final class NowPlayingMetadataController {
 
   func setTitle(_ title: String?) {
     activeTitle = normalized(title)
+    refreshNowPlayingInfoIfVisible()
+  }
+
+  func setRecognizedTrack(title: String?, artist: String?) {
+    recognizedTitle = normalized(title)
+    recognizedArtist = normalized(artist)
     refreshNowPlayingInfoIfVisible()
   }
 
@@ -60,10 +70,16 @@ final class NowPlayingMetadataController {
 
   private func refreshNowPlayingInfo() {
     let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Listen SDR"
-    let displayTitle = activeTitle ?? activeReceiverName ?? appName
-    let displayArtist = activeTitle != nil
-      ? (activeReceiverName ?? activeSource)
-      : activeSource
+    let displayTitle = recognizedTitle ?? activeTitle ?? activeReceiverName ?? appName
+
+    let displayArtist: String
+    if recognizedTitle != nil {
+      displayArtist = recognizedArtist ?? activeReceiverName ?? activeSource
+    } else if activeTitle != nil {
+      displayArtist = activeReceiverName ?? activeSource
+    } else {
+      displayArtist = activeSource
+    }
 
     var nowPlayingInfo: [String: Any] = [
       MPMediaItemPropertyTitle: displayTitle,
