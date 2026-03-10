@@ -521,3 +521,10 @@
 "history.filter.backend" = "Empf?ngertyp";
 "history.filter.backend.all" = "Alle Empf?ngertypen";
 "history.empty_filtered" = "Keine Verlaufseintr?ge passen zum aktuellen Filter.";
+
+"radios.search.section" = "Suche";
+"radios.search.scope" = "Suchbereich";
+"radios.search.scope.history_only" = "Nur Verlauf";
+"radios.search.scope.history_and_radios" = "Verlauf und gespeicherte Empf?nger";
+"radios.search.prompt" = "Verlauf oder gespeicherte Empf?nger durchsuchen";
+"radios.search.empty" = "Keine Suchergebnisse.";

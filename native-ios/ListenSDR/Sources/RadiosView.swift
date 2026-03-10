@@ -61,6 +61,22 @@ private enum HistoryBackendFilter: String, CaseIterable, Identifiable {
   }
 }
 
+private enum RadiosSearchScope: String, CaseIterable, Identifiable {
+  case historyOnly
+  case historyAndRadios
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .historyOnly:
+      return L10n.text("radios.search.scope.history_only")
+    case .historyAndRadios:
+      return L10n.text("radios.search.scope.history_and_radios")
+    }
+  }
+}
+
 struct RadiosView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -70,6 +86,8 @@ struct RadiosView: View {
   @State private var isDirectoryPresented = false
   @State private var historySectionFilter: HistorySectionFilter = .all
   @State private var historyBackendFilter: HistoryBackendFilter = .all
+  @State private var searchText = ""
+  @State private var searchScope: RadiosSearchScope = .historyOnly
 
   var body: some View {
     NavigationStack {
@@ -84,23 +102,64 @@ struct RadiosView: View {
           )
         } else {
           List {
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let isSearching = !query.isEmpty
             let favoriteProfiles = favoritesStore.favoriteProfiles(in: profileStore.profiles)
             let favoriteIDs = Set(favoriteProfiles.map(\.id))
-            let otherProfiles = profileStore.profiles.filter { !favoriteIDs.contains($0.id) }
+            let baseOtherProfiles = profileStore.profiles.filter { !favoriteIDs.contains($0.id) }
             let filteredRecentReceivers = historyStore.recentReceivers.filter {
               historyBackendFilter.matches($0.backend)
+                && (!isSearching || recentReceiverMatchesQuery($0, query: query))
             }
             let filteredRecentListening = historyStore.recentListening.filter {
               historyBackendFilter.matches($0.backend)
+                && (!isSearching || recentListeningMatchesQuery($0, query: query))
             }
+            let filteredFavoriteProfiles =
+              isSearching && searchScope == .historyAndRadios
+              ? favoriteProfiles.filter { profileMatchesQuery($0, query: query) }
+              : favoriteProfiles
+            let filteredOtherProfiles =
+              isSearching && searchScope == .historyAndRadios
+              ? baseOtherProfiles.filter { profileMatchesQuery($0, query: query) }
+              : baseOtherProfiles
             let showsReceiversHistory =
               historySectionFilter == .all || historySectionFilter == .receivers
             let showsListeningHistory =
               historySectionFilter == .all || historySectionFilter == .listening
             let hasAnyHistory = !historyStore.recentReceivers.isEmpty || !historyStore.recentListening.isEmpty
+            let showRadioSections = !isSearching || searchScope == .historyAndRadios
             let noHistoryMatchesFilter =
               (showsReceiversHistory ? filteredRecentReceivers.isEmpty : true)
               && (showsListeningHistory ? filteredRecentListening.isEmpty : true)
+            let noRadioMatchesFilter =
+              filteredFavoriteProfiles.isEmpty && filteredOtherProfiles.isEmpty
+            let noSearchMatches =
+              isSearching
+              && noHistoryMatchesFilter
+              && (!showRadioSections || noRadioMatchesFilter)
+
+            Section(L10n.text("radios.search.section")) {
+              NavigationLink {
+                SelectionListView(
+                  title: L10n.text("radios.search.scope"),
+                  options: RadiosSearchScope.allCases.map {
+                    SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+                  },
+                  selectedID: searchScope.rawValue
+                ) { value in
+                  if let scope = RadiosSearchScope(rawValue: value) {
+                    searchScope = scope
+                  }
+                }
+              } label: {
+                LabeledContent(
+                  L10n.text("radios.search.scope"),
+                  value: searchScope.displayName
+                )
+              }
+            }
+            .appSectionStyle()
 
             if hasAnyHistory {
               Section(L10n.text("history.filters.section")) {
@@ -173,7 +232,7 @@ struct RadiosView: View {
               }
             }
 
-            if hasAnyHistory && noHistoryMatchesFilter {
+            if hasAnyHistory && noHistoryMatchesFilter && !isSearching {
               Section {
                 Text(L10n.text("history.empty_filtered"))
                   .foregroundStyle(.secondary)
@@ -181,20 +240,28 @@ struct RadiosView: View {
               .appSectionStyle()
             }
 
-            if !favoriteProfiles.isEmpty {
+            if showRadioSections && !filteredFavoriteProfiles.isEmpty {
               Section(L10n.text("favorites.receivers.section")) {
-                ForEach(favoriteProfiles) { profile in
+                ForEach(filteredFavoriteProfiles) { profile in
                   profileRow(for: profile, isFavorite: true)
                 }
               }
             }
 
-            if !otherProfiles.isEmpty {
+            if showRadioSections && !filteredOtherProfiles.isEmpty {
               Section(L10n.text("Radios")) {
-                ForEach(otherProfiles) { profile in
+                ForEach(filteredOtherProfiles) { profile in
                   profileRow(for: profile, isFavorite: false)
                 }
               }
+            }
+
+            if noSearchMatches {
+              Section {
+                Text(L10n.text("radios.search.empty"))
+                  .foregroundStyle(.secondary)
+              }
+              .appSectionStyle()
             }
           }
           .listStyle(.insetGrouped)
@@ -202,6 +269,7 @@ struct RadiosView: View {
         }
       }
       .navigationTitle("Radios")
+      .searchable(text: $searchText, prompt: L10n.text("radios.search.prompt"))
       .toolbar {
         ToolbarItem(placement: .navigationBarLeading) {
           Button {
@@ -503,6 +571,47 @@ struct RadiosView: View {
     favoritesStore.stations(for: record.makeProfile()).contains {
       $0.frequencyHz == record.frequencyHz && $0.mode == record.mode
     }
+  }
+
+  private func recentReceiverMatchesQuery(_ record: RecentReceiverRecord, query: String) -> Bool {
+    guard !query.isEmpty else { return true }
+
+    let tokens = [
+      record.receiverName,
+      record.backend.displayName,
+      record.host,
+      record.makeProfile().endpointDescription
+    ]
+
+    return tokens.contains { $0.localizedCaseInsensitiveContains(query) }
+  }
+
+  private func recentListeningMatchesQuery(_ record: RecentListeningRecord, query: String) -> Bool {
+    guard !query.isEmpty else { return true }
+
+    let tokens = [
+      record.primaryTitle,
+      record.stationTitle ?? "",
+      record.receiverName,
+      record.backend.displayName,
+      FrequencyFormatter.mhzText(fromHz: record.frequencyHz),
+      "\(record.frequencyHz)"
+    ]
+
+    return tokens.contains { $0.localizedCaseInsensitiveContains(query) }
+  }
+
+  private func profileMatchesQuery(_ profile: SDRConnectionProfile, query: String) -> Bool {
+    guard !query.isEmpty else { return true }
+
+    let tokens = [
+      profile.name,
+      profile.backend.displayName,
+      profile.host,
+      profile.endpointDescription
+    ]
+
+    return tokens.contains { $0.localizedCaseInsensitiveContains(query) }
   }
 
   private func backendIconName(for backend: SDRBackend) -> String {

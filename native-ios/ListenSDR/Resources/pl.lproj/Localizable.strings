@@ -528,3 +528,10 @@
 "history.filter.backend" = "Typ odbiornika";
 "history.filter.backend.all" = "Wszystkie typy odbiornik?w";
 "history.empty_filtered" = "Brak element?w historii dla bie??cego filtra.";
+
+"radios.search.section" = "Wyszukiwanie";
+"radios.search.scope" = "Zakres wyszukiwania";
+"radios.search.scope.history_only" = "Tylko historia";
+"radios.search.scope.history_and_radios" = "Historia i zapisane radia";
+"radios.search.prompt" = "Szukaj w historii lub zapisanych radiach";
+"radios.search.empty" = "Brak wynik?w wyszukiwania.";

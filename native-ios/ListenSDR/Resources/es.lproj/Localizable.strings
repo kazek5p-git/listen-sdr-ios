@@ -521,3 +521,10 @@
 "history.filter.backend" = "Tipo de receptor";
 "history.filter.backend.all" = "Todos los tipos de receptor";
 "history.empty_filtered" = "Ning?n elemento del historial coincide con el filtro actual.";
+
+"radios.search.section" = "Buscar";
+"radios.search.scope" = "Alcance de la b?squeda";
+"radios.search.scope.history_only" = "Solo historial";
+"radios.search.scope.history_and_radios" = "Historial y radios guardadas";
+"radios.search.prompt" = "Buscar en historial o radios guardadas";
+"radios.search.empty" = "Sin resultados de b?squeda.";

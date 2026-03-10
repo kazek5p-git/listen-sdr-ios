@@ -377,3 +377,10 @@
 "history.filter.backend" = "Receiver type";
 "history.filter.backend.all" = "All receiver types";
 "history.empty_filtered" = "No history items match the current filter.";
+
+"radios.search.section" = "Search";
+"radios.search.scope" = "Search scope";
+"radios.search.scope.history_only" = "History only";
+"radios.search.scope.history_and_radios" = "History and saved radios";
+"radios.search.prompt" = "Search history or saved radios";
+"radios.search.empty" = "No search results.";
