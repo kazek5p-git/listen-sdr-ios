@@ -392,15 +392,20 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
-  func selectOpenWebRXProfile(_ profileID: String) {
-    guard state == .connected, let client else { return }
+  func selectOpenWebRXProfile(_ profileID: String, for profile: SDRConnectionProfile? = nil) {
+    selectedOpenWebRXProfileID = profileID
+    let cacheKey = profile.map(ReceiverIdentity.key(for:)) ?? activeProfileCacheKey
+    if let cacheKey {
+      receiverDataCache.update(receiverID: cacheKey) { cached in
+        cached.selectedOpenWebRXProfileID = profileID
+      }
+    }
+
+    guard state == .connected, activeBackend == .openWebRX, let client else { return }
 
     Task {
       do {
         try await client.sendControl(.selectOpenWebRXProfile(profileID))
-        await MainActor.run {
-          self.selectedOpenWebRXProfileID = profileID
-        }
       } catch {
         await MainActor.run {
           self.lastError = error.localizedDescription
@@ -1803,10 +1808,22 @@ final class RadioSessionViewModel: ObservableObject {
     switch telemetryEvent {
     case .openWebRXProfiles(let profiles, let selectedID):
       openWebRXProfiles = profiles
-      selectedOpenWebRXProfileID = selectedID
+      let preferredID: String?
+      if let currentPreferred = selectedOpenWebRXProfileID,
+        profiles.contains(where: { $0.id == currentPreferred }) {
+        preferredID = currentPreferred
+      } else {
+        preferredID = selectedID
+      }
+      selectedOpenWebRXProfileID = preferredID
       persistCachedReceiverData { cached in
         cached.openWebRXProfiles = profiles
-        cached.selectedOpenWebRXProfileID = selectedID
+        cached.selectedOpenWebRXProfileID = preferredID
+      }
+      if state == .connected,
+        let preferredID,
+        preferredID != selectedID {
+        selectOpenWebRXProfile(preferredID)
       }
 
     case .openWebRXBookmarks(let bookmarks):

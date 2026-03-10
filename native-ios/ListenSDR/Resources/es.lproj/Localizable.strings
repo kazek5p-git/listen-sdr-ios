@@ -269,6 +269,7 @@
 "openwebrx.controls" = "Controles OpenWebRX";
 "openwebrx.controls.waiting_profiles" = "Esperando la lista de perfiles de OpenWebRX...";
 "openwebrx.controls.connect_to_load" = "Conectate para cargar perfiles del servidor OpenWebRX y datos de banda.";
+"openwebrx.controls.cached_profiles" = "Se usan perfiles en cache. El perfil elegido se aplicara despues de conectar.";
 "openwebrx.server_profile" = "Perfil del servidor";
 "openwebrx.squelch" = "Squelch";
 "openwebrx.squelch_hint" = "Activar compuerta de squelch para audio OpenWebRX";

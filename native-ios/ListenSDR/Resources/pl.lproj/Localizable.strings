@@ -269,6 +269,7 @@
 "openwebrx.controls" = "Sterowanie OpenWebRX";
 "openwebrx.controls.waiting_profiles" = "Oczekiwanie na listę profili OpenWebRX...";
 "openwebrx.controls.connect_to_load" = "Połącz się, aby załadować profile serwera OpenWebRX i dane pasm.";
+"openwebrx.controls.cached_profiles" = "Używane są profile z pamięci podręcznej. Wybrany profil zostanie zastosowany po połączeniu.";
 "openwebrx.server_profile" = "Profil serwera";
 "openwebrx.squelch" = "Blokada szumów";
 "openwebrx.squelch_hint" = "Włącz blokadę szumów dla audio OpenWebRX";

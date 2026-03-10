@@ -399,30 +399,36 @@ struct ReceiverView: View {
   private func openWebRXControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .openWebRX {
       Section(L10n.text("openwebrx.controls")) {
-        if radioSession.state == .connected &&
-          radioSession.connectedProfileID == profile.id {
-          if radioSession.openWebRXProfiles.isEmpty {
+        if radioSession.openWebRXProfiles.isEmpty {
+          if radioSession.state == .connected &&
+            radioSession.connectedProfileID == profile.id {
             Text(L10n.text("openwebrx.controls.waiting_profiles"))
               .foregroundStyle(.secondary)
           } else {
-            selectionNavigationLink(
-              title: L10n.text("openwebrx.server_profile"),
-              value: selectedOpenWebRXProfileName(),
-              selectedID: radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? "",
-              options: radioSession.openWebRXProfiles.map {
-                SelectionListOption(id: $0.id, title: $0.name, detail: nil)
-              },
-              disabled: radioSession.state != .connected
-            ) { value in
-              if !value.isEmpty {
-                radioSession.selectOpenWebRXProfile(value)
-              }
-            }
+            Text(L10n.text("openwebrx.controls.connect_to_load"))
+              .foregroundStyle(.secondary)
+              .font(.footnote)
           }
         } else {
-          Text(L10n.text("openwebrx.controls.connect_to_load"))
-            .foregroundStyle(.secondary)
-            .font(.footnote)
+          selectionNavigationLink(
+            title: L10n.text("openwebrx.server_profile"),
+            value: selectedOpenWebRXProfileName(),
+            selectedID: radioSession.selectedOpenWebRXProfileID ?? radioSession.openWebRXProfiles.first?.id ?? "",
+            options: radioSession.openWebRXProfiles.map {
+              SelectionListOption(id: $0.id, title: $0.name, detail: nil)
+            }
+          ) { value in
+            if !value.isEmpty {
+              radioSession.selectOpenWebRXProfile(value, for: profile)
+            }
+          }
+
+          if radioSession.state != .connected ||
+            radioSession.connectedProfileID != profile.id {
+            Text(L10n.text("openwebrx.controls.cached_profiles"))
+              .foregroundStyle(.secondary)
+              .font(.footnote)
+          }
         }
 
         Toggle(
@@ -432,7 +438,6 @@ struct ReceiverView: View {
             set: { radioSession.setSquelchEnabled($0) }
           )
         )
-        .disabled(radioSession.state != .connected)
         .accessibilityHint(L10n.text("openwebrx.squelch_hint"))
 
         if radioSession.settings.squelchEnabled {
@@ -450,7 +455,6 @@ struct ReceiverView: View {
               step: 1
             )
           }
-          .disabled(radioSession.state != .connected)
           .accessibilityElement(children: .combine)
           .accessibilityLabel(L10n.text("openwebrx.squelch_level"))
           .accessibilityValue("\(radioSession.settings.openWebRXSquelchLevel) dB")
@@ -693,8 +697,7 @@ struct ReceiverView: View {
               title: $0.localizedTitle,
               detail: $0.localizedDetail
             )
-          },
-          disabled: radioSession.state != .connected
+          }
         ) { value in
           guard let preset = KiwiSignalPreset(rawValue: value),
             let values = preset.values
@@ -714,7 +717,6 @@ struct ReceiverView: View {
             set: { radioSession.setAGCEnabled($0) }
           )
         )
-        .disabled(radioSession.state != .connected)
         .accessibilityHint(L10n.text("kiwi.agc_hint"))
 
         if !radioSession.settings.agcEnabled {
@@ -732,7 +734,6 @@ struct ReceiverView: View {
           .accessibilityElement(children: .combine)
           .accessibilityLabel(L10n.text("RF gain"))
           .accessibilityValue("\(Int(radioSession.settings.rfGain))")
-          .disabled(radioSession.state != .connected)
         }
 
         Toggle(
@@ -742,7 +743,6 @@ struct ReceiverView: View {
             set: { radioSession.setSquelchEnabled($0) }
           )
         )
-        .disabled(radioSession.state != .connected)
         .accessibilityHint(L10n.text("kiwi.squelch_hint"))
 
         if radioSession.settings.squelchEnabled {
@@ -760,7 +760,6 @@ struct ReceiverView: View {
               step: 1
             )
           }
-          .disabled(radioSession.state != .connected)
           .accessibilityElement(children: .combine)
           .accessibilityLabel(L10n.text("kiwi.squelch_level"))
           .accessibilityValue("\(radioSession.settings.kiwiSquelchThreshold)")
@@ -772,8 +771,7 @@ struct ReceiverView: View {
           selectedID: "\(radioSession.settings.kiwiWaterfallSpeed)",
           options: [1, 2, 4, 8].map {
             SelectionListOption(id: "\($0)", title: "x\($0)", detail: nil)
-          },
-          disabled: radioSession.state != .connected
+          }
         ) { value in
           if let speed = Int(value) {
             radioSession.setKiwiWaterfallSpeed(speed)
@@ -790,8 +788,7 @@ struct ReceiverView: View {
               title: $0.localizedTitle,
               detail: $0.localizedDetail
             )
-          },
-          disabled: radioSession.state != .connected
+          }
         ) { value in
           guard let preset = KiwiWaterfallPreset(rawValue: value),
             let values = preset.values
@@ -820,7 +817,6 @@ struct ReceiverView: View {
             step: 1
           )
         }
-        .disabled(radioSession.state != .connected)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.text("kiwi.waterfall.zoom"))
         .accessibilityValue("\(radioSession.settings.kiwiWaterfallZoom)")
@@ -839,7 +835,6 @@ struct ReceiverView: View {
             step: 1
           )
         }
-        .disabled(radioSession.state != .connected)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.text("kiwi.waterfall.min_db"))
         .accessibilityValue("\(radioSession.settings.kiwiWaterfallMinDB) dB")
@@ -858,7 +853,6 @@ struct ReceiverView: View {
             step: 1
           )
         }
-        .disabled(radioSession.state != .connected)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.text("kiwi.waterfall.max_db"))
         .accessibilityValue("\(radioSession.settings.kiwiWaterfallMaxDB) dB")

@@ -117,6 +117,7 @@
 "openwebrx.controls" = "OpenWebRX Controls";
 "openwebrx.controls.waiting_profiles" = "Waiting for OpenWebRX profile list...";
 "openwebrx.controls.connect_to_load" = "Connect to load OpenWebRX server profiles and live band data.";
+"openwebrx.controls.cached_profiles" = "Using cached profiles. The selected profile will be applied after connection.";
 "openwebrx.server_profile" = "Server profile";
 "openwebrx.squelch" = "Squelch";
 "openwebrx.squelch_hint" = "Enable squelch gate for OpenWebRX audio";
