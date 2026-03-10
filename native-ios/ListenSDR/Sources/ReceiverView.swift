@@ -1232,19 +1232,32 @@ struct ReceiverView: View {
     isEnabled: Bool,
     action: @escaping () -> Void
   ) -> some View {
-    Button(action: action) {
-      Text(title)
-        .font(.footnote.weight(.semibold))
-        .multilineTextAlignment(.center)
-        .lineLimit(2)
-        .minimumScaleFactor(0.7)
-        .frame(maxWidth: .infinity, minHeight: 44)
+    Group {
+      if isOn {
+        Button(action: action) {
+          fmdxToggleChipLabel(title: title)
+        }
+        .buttonStyle(.borderedProminent)
+      } else {
+        Button(action: action) {
+          fmdxToggleChipLabel(title: title)
+        }
+        .buttonStyle(.bordered)
+      }
     }
-    .buttonStyle(isOn ? .borderedProminent : .bordered)
     .controlSize(.small)
     .disabled(!isEnabled)
     .accessibilityLabel(accessibilityTitle)
     .accessibilityValue(isOn ? L10n.text("common.on") : L10n.text("common.off"))
+  }
+
+  private func fmdxToggleChipLabel(title: String) -> some View {
+    Text(title)
+      .font(.footnote.weight(.semibold))
+      .multilineTextAlignment(.center)
+      .lineLimit(2)
+      .minimumScaleFactor(0.7)
+      .frame(maxWidth: .infinity, minHeight: 44)
   }
 
   private func metricCard(title: String, value: String) -> some View {
