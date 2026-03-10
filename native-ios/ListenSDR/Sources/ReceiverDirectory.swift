@@ -750,11 +750,11 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     Task { await refresh(force: false) }
     autoRefreshTask = Task { [weak self] in
       while !Task.isCancelled {
-        try? await Task.sleep(nanoseconds: refreshIntervalSeconds * 1_000_000_000)
+        guard let self else { return }
+        try? await Task.sleep(nanoseconds: self.refreshIntervalSeconds * 1_000_000_000)
         if Task.isCancelled {
           return
         }
-        guard let self else { return }
         await self.refresh(force: false)
       }
     }

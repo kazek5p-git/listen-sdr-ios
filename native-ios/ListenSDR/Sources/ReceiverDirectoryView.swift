@@ -280,11 +280,12 @@ struct ReceiverDirectoryView: View {
       }
       .tint(.yellow)
     }
-    .accessibilityCustomAction(
-      isFavorite ? L10n.text("favorites.receiver.remove") : L10n.text("favorites.receiver.add")
+    .accessibilityAction(
+      named: Text(
+        isFavorite ? L10n.text("favorites.receiver.remove") : L10n.text("favorites.receiver.add")
+      )
     ) {
       favoritesStore.toggleReceiver(entry)
-      return true
     }
     .accessibilityLabel(entry.name)
     .accessibilityValue(

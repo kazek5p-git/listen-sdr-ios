@@ -2299,10 +2299,12 @@ final class FMDXMP3AudioPlayer {
       return
     }
 
-    ShazamRecognitionController.shared.consumeFromAnyThread(
-      samples: decoded.samples,
-      sampleRate: decoded.sampleRate
-    )
+    Task { @MainActor in
+      ShazamRecognitionController.shared.consumeFromAnyThread(
+        samples: decoded.samples,
+        sampleRate: decoded.sampleRate
+      )
+    }
   }
 
   private static let fileStreamPropertyListener: AudioFileStream_PropertyListenerProc = {
