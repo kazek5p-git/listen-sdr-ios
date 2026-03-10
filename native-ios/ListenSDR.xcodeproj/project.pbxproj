@@ -17,6 +17,7 @@
 		39AB7F078B8E0DF8C6A8ECA6 /* BandTuningProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */; };
 		4D7ABA4F816056972029EBCC /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1030E7AA0B8CC314535900F8 /* AppTheme.swift */; };
 		500270F413D3D43354467A46 /* ShazamRecognitionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396F525F7C563EB82217FAE2 /* ShazamRecognitionController.swift */; };
+		5967771C17B99BA4D3D3DA7C /* FMDXMP3RecognitionDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72C5938E7A8C2B5768343F49 /* FMDXMP3RecognitionDecoder.swift */; };
 		5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */; };
 		5B6794859996E3232249EE49 /* BackendTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C372985075C01F819DD5C32F /* BackendTelemetry.swift */; };
 		60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */; };
@@ -61,6 +62,7 @@
 		530A6B024830FC4082BDBF66 /* ListenSDR.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ListenSDR.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53C8E30919D0CCF77C1D172C /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
 		5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectory.swift; sourceTree = "<group>"; };
+		72C5938E7A8C2B5768343F49 /* FMDXMP3RecognitionDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXMP3RecognitionDecoder.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		7F806ECE48FB8AF9299DF745 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/Localizable.strings; sourceTree = "<group>"; };
 		86D584BECE59BE8BE8B2AFF1 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				DAE460852390C71A3267E19E /* DiagnosticsStore.swift */,
 				E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */,
 				88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */,
+				72C5938E7A8C2B5768343F49 /* FMDXMP3RecognitionDecoder.swift */,
 				2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */,
 				18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */,
 				224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */,
@@ -235,6 +238,7 @@
 				1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */,
 				D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */,
 				9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */,
+				5967771C17B99BA4D3D3DA7C /* FMDXMP3RecognitionDecoder.swift in Sources */,
 				F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */,
 				FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */,
 				904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */,
@@ -346,7 +350,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -421,7 +425,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
