@@ -396,7 +396,7 @@
 "settings.audio.section" = "Audio FM-DX";
 "settings.audio.startup_buffer" = "Bufor startowy";
 "settings.audio.startup_buffer.hint" = "Większa wartość zmniejsza przycinki, ale zwiększa opóźnienie.";
-"settings.audio.max_latency" = "Maksymalne opóźnienie live";
+"settings.audio.max_latency" = "Maksymalne opóźnienie na żywo";
 "settings.audio.max_latency.hint" = "Po przekroczeniu tej wartości aplikacja obcina kolejkę audio.";
 "settings.audio.packet_hold" = "Czas składania pakietu";
 "settings.audio.packet_hold.hint" = "Mniejsza wartość zmniejsza opóźnienie, większa może pomóc przy niestabilnym strumieniu.";
@@ -419,7 +419,7 @@
 "settings.audio.suggestion.current" = "Aktualny preset już zgadza się z sugestią.";
 "settings.audio.suggestion.unavailable" = "Połącz się z odbiornikiem FM-DX, aby dostać sugestie audio na żywo.";
 "settings.audio.suggestion.reason.output_gaps" = "Audio miało ostatnio przerwy. Bezpieczniejsze buforowanie powinno zmniejszyć dropy.";
-"settings.audio.suggestion.reason.latency_trim" = "Opóźnienie live ostatnio za bardzo urosło. Preset o niższej latencji powinien reagować szybciej.";
+"settings.audio.suggestion.reason.latency_trim" = "Opóźnienie na żywo ostatnio za bardzo urosło. Preset o niższej latencji powinien reagować szybciej.";
 "settings.audio.suggestion.reason.large_queue" = "Player trzyma większą kolejkę. Stabilniejszy preset powinien lepiej pasować do tego streamu.";
 "settings.audio.suggestion.reason.short_queue" = "Stream utrzymuje krótką kolejkę i wygląda zdrowo, więc niższa latencja powinna być bezpieczna.";
 "settings.audio.suggestion.reason.balanced" = "Zachowanie streamu wygląda normalnie. Zbalansowany preset powinien wystarczyć.";
