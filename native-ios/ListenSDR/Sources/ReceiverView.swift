@@ -1631,21 +1631,21 @@ struct ReceiverView: View {
     isEnabled: Bool,
     action: @escaping () -> Void
   ) -> some View {
-    Group {
-      if isOn {
-        FocusRetainingButton(action, retainsAccessibilityFocus: retainAccessibilityFocus) {
-          fmdxToggleChipLabel(title: title)
-        }
-        .buttonStyle(.borderedProminent)
-      } else {
-        FocusRetainingButton(action, retainsAccessibilityFocus: retainAccessibilityFocus) {
-          fmdxToggleChipLabel(title: title)
-        }
-        .buttonStyle(.bordered)
-      }
+    FocusRetainingButton(action, retainsAccessibilityFocus: retainAccessibilityFocus) {
+      fmdxToggleChipLabel(title: title)
     }
-    .controlSize(.small)
+    .buttonStyle(.plain)
+    .foregroundStyle(isOn ? Color.white : Color.primary)
+    .background(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(isOn ? AppTheme.tint : AppTheme.chipFill)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(isOn ? AppTheme.tint.opacity(0.9) : AppTheme.cardStroke, lineWidth: 1)
+    )
     .disabled(!isEnabled)
+    .opacity(isEnabled ? 1 : 0.5)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityTitle)
     .modifier(
