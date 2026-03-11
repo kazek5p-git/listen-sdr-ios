@@ -1324,8 +1324,6 @@ struct ReceiverView: View {
           changeTuneStep(by: -1, backend: backend)
         case .trailing, .bottom:
           changeTuneStep(by: 1, backend: backend)
-        default:
-          break
         }
       }
     }
