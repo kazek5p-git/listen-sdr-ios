@@ -400,7 +400,7 @@ final class RadioSessionViewModel: ObservableObject {
     disconnect()
 
     Task { [weak self] in
-      try? await Task.sleep(nanoseconds: manualReconnectDelayNanoseconds)
+      try? await Task.sleep(nanoseconds: self?.manualReconnectDelayNanoseconds ?? 120_000_000)
       if Task.isCancelled {
         return
       }

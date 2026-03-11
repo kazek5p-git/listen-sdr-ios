@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 enum DiagnosticsExportBuilder {
   static func createExportFile(
     profileStore: ProfileStore,

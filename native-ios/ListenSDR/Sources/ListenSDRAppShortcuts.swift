@@ -59,50 +59,48 @@ struct ListenSDRShortcutsProvider: AppShortcutsProvider {
   static var shortcutTileColor: ShortcutTileColor = .blue
 
   static var appShortcuts: [AppShortcut] {
-    [
-      AppShortcut(
-        intent: ConnectLastReceiverIntent(),
-        phrases: [
-          "Connect last receiver in \(.applicationName)",
-          "Open last receiver in \(.applicationName)"
-        ],
-        shortTitle: "shortcuts.connect_last.short_title",
-        systemImageName: "dot.radiowaves.left.and.right"
-      ),
-      AppShortcut(
-        intent: OpenFMDXIntent(),
-        phrases: [
-          "Open FM-DX in \(.applicationName)",
-          "Connect FM-DX in \(.applicationName)"
-        ],
-        shortTitle: "shortcuts.open_fmdx.short_title",
-        systemImageName: "radio"
-      ),
-      AppShortcut(
-        intent: ToggleMuteIntent(),
-        phrases: [
-          "Toggle mute in \(.applicationName)",
-          "Mute audio in \(.applicationName)"
-        ],
-        shortTitle: "shortcuts.toggle_mute.short_title",
-        systemImageName: "speaker.slash"
-      ),
-      AppShortcut(
-        intent: StartRecordingIntent(),
-        phrases: [
-          "Start recording in \(.applicationName)"
-        ],
-        shortTitle: "shortcuts.start_recording.short_title",
-        systemImageName: "record.circle"
-      ),
-      AppShortcut(
-        intent: StopRecordingIntent(),
-        phrases: [
-          "Stop recording in \(.applicationName)"
-        ],
-        shortTitle: "shortcuts.stop_recording.short_title",
-        systemImageName: "stop.circle"
-      )
-    ]
+    AppShortcut(
+      intent: ConnectLastReceiverIntent(),
+      phrases: [
+        "Connect last receiver in \(.applicationName)",
+        "Open last receiver in \(.applicationName)"
+      ],
+      shortTitle: "shortcuts.connect_last.short_title",
+      systemImageName: "dot.radiowaves.left.and.right"
+    )
+    AppShortcut(
+      intent: OpenFMDXIntent(),
+      phrases: [
+        "Open FM-DX in \(.applicationName)",
+        "Connect FM-DX in \(.applicationName)"
+      ],
+      shortTitle: "shortcuts.open_fmdx.short_title",
+      systemImageName: "radio"
+    )
+    AppShortcut(
+      intent: ToggleMuteIntent(),
+      phrases: [
+        "Toggle mute in \(.applicationName)",
+        "Mute audio in \(.applicationName)"
+      ],
+      shortTitle: "shortcuts.toggle_mute.short_title",
+      systemImageName: "speaker.slash"
+    )
+    AppShortcut(
+      intent: StartRecordingIntent(),
+      phrases: [
+        "Start recording in \(.applicationName)"
+      ],
+      shortTitle: "shortcuts.start_recording.short_title",
+      systemImageName: "record.circle"
+    )
+    AppShortcut(
+      intent: StopRecordingIntent(),
+      phrases: [
+        "Stop recording in \(.applicationName)"
+      ],
+      shortTitle: "shortcuts.stop_recording.short_title",
+      systemImageName: "stop.circle"
+    )
   }
 }
