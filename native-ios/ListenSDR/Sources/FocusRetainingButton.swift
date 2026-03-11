@@ -21,18 +21,6 @@ struct FocusRetainingButton<Label: View>: View {
     self.label = label
   }
 
-  init(
-    role: ButtonRole? = nil,
-    restoreDelayNanoseconds: UInt64 = 120_000_000,
-    action: @escaping () -> Void,
-    @ViewBuilder label: @escaping () -> Label
-  ) {
-    self.role = role
-    self.restoreDelayNanoseconds = restoreDelayNanoseconds
-    self.action = action
-    self.label = label
-  }
-
   var body: some View {
     Button(role: role) {
       action()

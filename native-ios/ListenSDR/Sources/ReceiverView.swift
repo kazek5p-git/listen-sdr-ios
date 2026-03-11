@@ -332,7 +332,7 @@ struct ReceiverView: View {
           .accessibilityValue(error)
       }
 
-      FocusRetainingButton(action: {
+      FocusRetainingButton({
         handleConnectionButtonTap(for: profile)
       }) {
         Text(connectionButtonTitle(for: profile))
@@ -1034,7 +1034,9 @@ struct ReceiverView: View {
           LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
         }
         if !telemetry.afMHz.isEmpty {
-          ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
+          let limitedAFCount = min(telemetry.afMHz.count, 16)
+          ForEach(0..<limitedAFCount, id: \.self) { index in
+            let afMHz = telemetry.afMHz[index]
             let afHz = frequencyHz(fromMHz: afMHz)
             HStack {
               FocusRetainingButton {
@@ -1165,9 +1167,9 @@ struct ReceiverView: View {
             .joined(separator: " | ")
         )
 
-        FocusRetainingButton(role: .destructive, action: {
+        FocusRetainingButton({
           recordingStore.stopRecording()
-        }) {
+        }, role: .destructive) {
           Label(L10n.text("recordings.stop"), systemImage: "stop.circle")
         }
       } else {
@@ -1611,12 +1613,12 @@ struct ReceiverView: View {
   ) -> some View {
     Group {
       if isOn {
-        FocusRetainingButton(action: action) {
+        FocusRetainingButton(action) {
           fmdxToggleChipLabel(title: title)
         }
         .buttonStyle(.borderedProminent)
       } else {
-        FocusRetainingButton(action: action) {
+        FocusRetainingButton(action) {
           fmdxToggleChipLabel(title: title)
         }
         .buttonStyle(.bordered)
@@ -1690,7 +1692,7 @@ struct ReceiverView: View {
       .textFieldStyle(.roundedBorder)
       .focused($isInlineFrequencyFocused)
       .accessibilityLabel(L10n.text("Frequency input"))
-      .accessibilityHint(frequencyInputHint(for: backend))
+      .accessibilityHint(Text(frequencyInputHint(for: backend)))
       .submitLabel(.done)
       .onSubmit {
         submitInlineFrequencyInput(for: backend)
