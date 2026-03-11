@@ -181,7 +181,7 @@ struct RadiosView: View {
               && noHistoryMatchesFilter
               && (!showRadioSections || noRadioMatchesFilter)
 
-            Section(L10n.text("radios.search.section")) {
+            Section {
               NavigationLink {
                 SelectionListView(
                   title: L10n.text("radios.search.scope"),
@@ -200,11 +200,13 @@ struct RadiosView: View {
                   value: searchScope.displayName
                 )
               }
+            } header: {
+              AppSectionHeader(title: L10n.text("radios.search.section"))
             }
             .appSectionStyle()
 
             if hasAnyHistory {
-              Section(L10n.text("history.filters.section")) {
+              Section {
                 NavigationLink {
                   SelectionListView(
                     title: L10n.text("history.filter.scope"),
@@ -284,6 +286,8 @@ struct RadiosView: View {
                     )
                   }
                 }
+              } header: {
+                AppSectionHeader(title: L10n.text("history.filters.section"))
               }
               .appSectionStyle()
             }
@@ -341,18 +345,22 @@ struct RadiosView: View {
             }
 
             if showRadioSections && !filteredFavoriteProfiles.isEmpty {
-              Section(L10n.text("favorites.receivers.section")) {
+              Section {
                 ForEach(filteredFavoriteProfiles) { profile in
                   profileRow(for: profile, isFavorite: true)
                 }
+              } header: {
+                AppSectionHeader(title: L10n.text("favorites.receivers.section"))
               }
             }
 
             if showRadioSections && !filteredOtherProfiles.isEmpty {
-              Section(L10n.text("Radios")) {
+              Section {
                 ForEach(filteredOtherProfiles) { profile in
                   profileRow(for: profile, isFavorite: false)
                 }
+              } header: {
+                AppSectionHeader(title: L10n.text("Radios"))
               }
             }
 
@@ -697,6 +705,7 @@ struct RadiosView: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityAddTraits(.isHeader)
     .accessibilityLabel(title)
     .accessibilityValue(
       L10n.text(

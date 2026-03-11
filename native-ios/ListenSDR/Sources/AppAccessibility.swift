@@ -1,0 +1,159 @@
+import SwiftUI
+import UIKit
+
+enum ReceiverAccessibilityFocus: Hashable {
+  case frequencyControl
+  case tuneStepControl
+}
+
+@MainActor
+final class AppAccessibilityState: ObservableObject {
+  @Published var selectedTab: AppTab = .receiver
+
+  var isReceiverTabActive: Bool {
+    selectedTab == .receiver
+  }
+}
+
+enum AppAccessibilityAnnouncementCenter {
+  static func post(_ text: String?) {
+    guard UIAccessibility.isVoiceOverRunning else { return }
+    guard let text, !text.isEmpty else { return }
+    UIAccessibility.post(notification: .announcement, argument: text)
+  }
+}
+
+struct AppSectionHeader: View {
+  let title: String
+
+  var body: some View {
+    Text(title)
+      .textCase(nil)
+      .accessibilityAddTraits(.isHeader)
+  }
+}
+
+struct FocusRetainingButton<Label: View>: View {
+  let role: ButtonRole?
+  let restoreDelayNanoseconds: UInt64
+  let action: () -> Void
+  @ViewBuilder let label: () -> Label
+
+  @AccessibilityFocusState private var isAccessibilityFocused: Bool
+
+  init(
+    _ action: @escaping () -> Void,
+    role: ButtonRole? = nil,
+    restoreDelayNanoseconds: UInt64 = 120_000_000,
+    @ViewBuilder label: @escaping () -> Label
+  ) {
+    self.role = role
+    self.restoreDelayNanoseconds = restoreDelayNanoseconds
+    self.action = action
+    self.label = label
+  }
+
+  var body: some View {
+    Button(role: role) {
+      action()
+      restoreFocusIfNeeded()
+    } label: {
+      label()
+    }
+    .accessibilityFocused($isAccessibilityFocused)
+  }
+
+  private func restoreFocusIfNeeded() {
+    guard UIAccessibility.isVoiceOverRunning else { return }
+
+    Task { @MainActor in
+      try? await Task.sleep(nanoseconds: restoreDelayNanoseconds)
+      isAccessibilityFocused = true
+    }
+  }
+}
+
+struct AppAccessibilityRotorHost: View {
+  @EnvironmentObject private var profileStore: ProfileStore
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
+
+  var body: some View {
+    let backend = profileStore.selectedProfile?.backend
+    let isEnabled = backend != nil
+
+    return GlobalVoiceOverRotorBridge(
+      isEnabled: isEnabled,
+      frequencyRotorName: L10n.text("receiver.voiceover_rotor.frequency"),
+      tuneStepRotorName: L10n.text("receiver.voiceover_rotor.tune_step"),
+      onTuneIncrement: {
+        guard let backend else { return }
+        radioSession.tune(byStepCount: frequencyAdjustmentStepCount(forIncrement: true))
+        announceFrequency(for: backend)
+      },
+      onTuneDecrement: {
+        guard let backend else { return }
+        radioSession.tune(byStepCount: frequencyAdjustmentStepCount(forIncrement: false))
+        announceFrequency(for: backend)
+      },
+      onStepIncrement: {
+        guard let backend else { return }
+        cycleTuneStep(by: 1, backend: backend)
+      },
+      onStepDecrement: {
+        guard let backend else { return }
+        cycleTuneStep(by: -1, backend: backend)
+      }
+    )
+    .frame(width: 0, height: 0)
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
+  }
+
+  private func frequencyAdjustmentStepCount(forIncrement isIncrement: Bool) -> Int {
+    let baseStep = radioSession.settings.tuningGestureDirection.frequencyAdjustmentStepCount
+    return isIncrement ? baseStep : -baseStep
+  }
+
+  private func cycleTuneStep(by offset: Int, backend: SDRBackend) {
+    let steps = radioSession.tuneStepOptions(for: backend)
+    guard !steps.isEmpty else { return }
+
+    let currentStep = radioSession.settings.tuneStepHz
+    let currentIndex: Int
+    if let exactIndex = steps.firstIndex(of: currentStep) {
+      currentIndex = exactIndex
+    } else {
+      currentIndex = steps.enumerated().min(by: {
+        abs($0.element - currentStep) < abs($1.element - currentStep)
+      })?.offset ?? 0
+    }
+
+    let nextIndex = min(max(currentIndex + offset, 0), steps.count - 1)
+    guard nextIndex != currentIndex else { return }
+
+    radioSession.setTuneStepHz(steps[nextIndex])
+    let stepText = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
+    AppAccessibilityAnnouncementCenter.post(
+      L10n.text("receiver.tune_step.changed", stepText)
+    )
+  }
+
+  private func announceFrequency(for backend: SDRBackend) {
+    let value = radioSession.settings.frequencyHz
+    let announcement: String
+
+    switch backend {
+    case .fmDxWebserver:
+      announcement = FrequencyFormatter.fmDxMHzText(fromHz: value)
+    case .kiwiSDR, .openWebRX:
+      if value < 1_000_000 {
+        let kilohertz = Int((Double(value) / 1_000.0).rounded())
+        announcement = "\(kilohertz) kHz"
+      } else {
+        announcement = FrequencyFormatter.mhzText(fromHz: value)
+      }
+    }
+
+    AppAccessibilityAnnouncementCenter.post(announcement)
+  }
+}

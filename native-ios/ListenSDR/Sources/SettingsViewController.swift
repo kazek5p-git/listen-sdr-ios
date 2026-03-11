@@ -1,7 +1,18 @@
 import Foundation
 import Combine
+import UIKit
 
 struct SettingsViewState: Equatable {
+  struct AudioQualityInsight: Equatable {
+    let score: Int
+    let level: FMDXAudioQualityLevel
+  }
+
+  struct AudioSuggestionInsight: Equatable {
+    let preset: FMDXAudioTuningPreset
+    let localizedReason: String
+  }
+
   var hasSavedSettingsSnapshot: Bool
   var dxNightModeEnabled: Bool
   var adaptiveScannerEnabled: Bool
@@ -17,6 +28,8 @@ struct SettingsViewState: Equatable {
   var fmdxAudioStartupBufferSeconds: Double
   var fmdxAudioMaxLatencySeconds: Double
   var fmdxAudioPacketHoldSeconds: Double
+  var audioQualityInsight: AudioQualityInsight?
+  var audioSuggestionInsight: AudioSuggestionInsight?
   var canReconnectSelectedProfile: Bool
 
   static let empty = SettingsViewState(
@@ -35,6 +48,8 @@ struct SettingsViewState: Equatable {
     fmdxAudioStartupBufferSeconds: RadioSessionSettings.default.fmdxAudioStartupBufferSeconds,
     fmdxAudioMaxLatencySeconds: RadioSessionSettings.default.fmdxAudioMaxLatencySeconds,
     fmdxAudioPacketHoldSeconds: RadioSessionSettings.default.fmdxAudioPacketHoldSeconds,
+    audioQualityInsight: nil,
+    audioSuggestionInsight: nil,
     canReconnectSelectedProfile: false
   )
 }
@@ -43,12 +58,19 @@ struct SettingsViewState: Equatable {
 final class SettingsViewController: ObservableObject {
   @Published private(set) var state: SettingsViewState = .empty
 
+  private weak var accessibilityState: AppAccessibilityState?
   private weak var radioSession: RadioSessionViewModel?
   private weak var profileStore: ProfileStore?
   private var cancellables: Set<AnyCancellable> = []
 
-  func bind(radioSession: RadioSessionViewModel, profileStore: ProfileStore) {
-    let isSameBinding = self.radioSession === radioSession && self.profileStore === profileStore
+  func bind(
+    radioSession: RadioSessionViewModel,
+    profileStore: ProfileStore,
+    accessibilityState: AppAccessibilityState
+  ) {
+    let isSameBinding = self.radioSession === radioSession
+      && self.profileStore === profileStore
+      && self.accessibilityState === accessibilityState
     guard !isSameBinding else {
       refreshState(force: true)
       return
@@ -56,6 +78,7 @@ final class SettingsViewController: ObservableObject {
 
     self.radioSession = radioSession
     self.profileStore = profileStore
+    self.accessibilityState = accessibilityState
     cancellables.removeAll()
     refreshState(force: true)
 
@@ -68,6 +91,14 @@ final class SettingsViewController: ObservableObject {
       .store(in: &cancellables)
 
     profileStore.objectWillChange
+      .sink { [weak self] _ in
+        Task { @MainActor [weak self] in
+          self?.refreshState()
+        }
+      }
+      .store(in: &cancellables)
+
+    accessibilityState.objectWillChange
       .sink { [weak self] _ in
         Task { @MainActor [weak self] in
           self?.refreshState()
@@ -187,6 +218,21 @@ final class SettingsViewController: ObservableObject {
     let currentTuneStep = tuneStepOptions.contains(radioSession.settings.tuneStepHz)
       ? radioSession.settings.tuneStepHz
       : (tuneStepOptions.first ?? radioSession.settings.tuneStepHz)
+    let shouldFreezeLiveAudioInsights = UIAccessibility.isVoiceOverRunning
+      && accessibilityState?.selectedTab == .settings
+    let audioQualityInsight: SettingsViewState.AudioQualityInsight? = shouldFreezeLiveAudioInsights
+      ? state.audioQualityInsight
+      : radioSession.fmdxAudioQualityReport.map {
+        SettingsViewState.AudioQualityInsight(score: $0.score, level: $0.level)
+      }
+    let audioSuggestionInsight: SettingsViewState.AudioSuggestionInsight? = shouldFreezeLiveAudioInsights
+      ? state.audioSuggestionInsight
+      : radioSession.audioPresetSuggestion.map {
+        SettingsViewState.AudioSuggestionInsight(
+          preset: $0.preset,
+          localizedReason: $0.localizedReason
+        )
+      }
 
     return SettingsViewState(
       hasSavedSettingsSnapshot: radioSession.hasSavedSettingsSnapshot,
@@ -204,6 +250,8 @@ final class SettingsViewController: ObservableObject {
       fmdxAudioStartupBufferSeconds: radioSession.settings.fmdxAudioStartupBufferSeconds,
       fmdxAudioMaxLatencySeconds: radioSession.settings.fmdxAudioMaxLatencySeconds,
       fmdxAudioPacketHoldSeconds: radioSession.settings.fmdxAudioPacketHoldSeconds,
+      audioQualityInsight: audioQualityInsight,
+      audioSuggestionInsight: audioSuggestionInsight,
       canReconnectSelectedProfile: profileStore?.selectedProfile != nil
     )
   }

@@ -9,7 +9,7 @@ struct ReceiverDirectoryView: View {
   var body: some View {
     NavigationStack {
       List {
-        Section("Backend") {
+        Section {
           Picker("Backend source", selection: $viewModel.selectedBackend) {
             ForEach(viewModel.supportedBackends) { backend in
               Text(backend.displayName).tag(backend)
@@ -17,10 +17,12 @@ struct ReceiverDirectoryView: View {
           }
           .pickerStyle(.segmented)
           .accessibilityLabel(L10n.text("Receiver backend list"))
+        } header: {
+          AppSectionHeader(title: "Backend")
         }
         .appSectionStyle()
 
-        Section(L10n.text("directory.filters.section")) {
+        Section {
           NavigationLink {
             SelectionListView(
               title: L10n.text("directory.filters.status"),
@@ -85,6 +87,8 @@ struct ReceiverDirectoryView: View {
             L10n.text("directory.filters.favorites_only"),
             isOn: $viewModel.favoritesOnly
           )
+        } header: {
+          AppSectionHeader(title: L10n.text("directory.filters.section"))
         }
         .appSectionStyle()
 
@@ -127,13 +131,13 @@ struct ReceiverDirectoryView: View {
             .accessibilityLabel(L10n.text("Checking receiver availability"))
           }
         } header: {
-          Text("Status")
+          AppSectionHeader(title: "Status")
         } footer: {
           Text(viewModel.sourceSummaryText)
         }
         .appSectionStyle()
 
-        Section("Receivers") {
+        Section {
           let filteredEntries = viewModel.filteredEntries(favoriteReceiverIDs: favoritesStore.favoriteReceiverIDs)
 
           if filteredEntries.isEmpty {
@@ -149,6 +153,8 @@ struct ReceiverDirectoryView: View {
               directoryRow(for: entry)
             }
           }
+        } header: {
+          AppSectionHeader(title: "Receivers")
         }
       }
       .listStyle(.insetGrouped)

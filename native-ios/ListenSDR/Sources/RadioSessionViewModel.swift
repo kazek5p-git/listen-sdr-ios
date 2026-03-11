@@ -122,6 +122,7 @@ final class RadioSessionViewModel: ObservableObject {
   private let manualSettingsSnapshotKey = "ListenSDR.manualSettingsSnapshot.v1"
   private let receiverDataCache = ReceiverDataCache.shared
   private let historyStore = ListeningHistoryStore.shared
+  private weak var accessibilityState: AppAccessibilityState?
   private var nightModeSnapshot: RadioSessionSettings?
   private var manualSettingsSnapshot: RadioSessionSettings?
   private var autoFilterPendingProfile: FMDXFilterProfile?
@@ -175,6 +176,10 @@ final class RadioSessionViewModel: ObservableObject {
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
     applyFMDXAudioTuning()
     persistSettings()
+  }
+
+  func bind(accessibilityState: AppAccessibilityState) {
+    self.accessibilityState = accessibilityState
   }
 
   var fmdxSupportsAM: Bool {
@@ -2548,6 +2553,7 @@ final class RadioSessionViewModel: ObservableObject {
     guard UIAccessibility.isVoiceOverRunning else { return }
     guard activeBackend == .fmDxWebserver else { return }
     guard state == .connected else { return }
+    guard accessibilityState?.isReceiverTabActive ?? true else { return }
 
     let now = Date()
     guard let announcement = rdsAnnouncement(previous: previous, current: current) else { return }
@@ -2559,7 +2565,7 @@ final class RadioSessionViewModel: ObservableObject {
     lastRDSAnnouncementText = announcement.text
     lastRDSAnnouncementAt = now
     lastRDSAnnouncementKind = announcement.kind
-    UIAccessibility.post(notification: .announcement, argument: announcement.text)
+    AppAccessibilityAnnouncementCenter.post(announcement.text)
   }
 
   private func rdsAnnouncement(

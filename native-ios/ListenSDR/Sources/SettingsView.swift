@@ -23,7 +23,7 @@ struct SettingsView: View {
   }
 
   private var sessionSection: some View {
-    Section(L10n.text("settings.session.section")) {
+    Section {
       FocusRetainingButton {
         settingsController.saveCurrentSettingsSnapshot()
       } label: {
@@ -44,12 +44,14 @@ struct SettingsView: View {
       )
       .font(.footnote)
       .foregroundStyle(.secondary)
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.session.section"))
     }
     .appSectionStyle()
   }
 
   private var dxSection: some View {
-    Section(L10n.text("settings.dx.section")) {
+    Section {
       Toggle(
         L10n.text("settings.dx.night_mode"),
         isOn: Binding(
@@ -67,12 +69,14 @@ struct SettingsView: View {
         )
       )
       .accessibilityHint(L10n.text("settings.dx.adaptive_scan.hint"))
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.dx.section"))
     }
     .appSectionStyle()
   }
 
   private var tuningSection: some View {
-    Section(L10n.text("settings.tuning.section")) {
+    Section {
       NavigationLink {
         SelectionListView(
           title: L10n.text("settings.tuning.direction"),
@@ -121,12 +125,14 @@ struct SettingsView: View {
       }
       .accessibilityHint(L10n.text("settings.tuning.global_step.hint"))
       .disabled(settingsController.state.tuneStepOptions.isEmpty)
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.tuning.section"))
     }
     .appSectionStyle()
   }
 
   private var accessibilitySection: some View {
-    Section(L10n.text("settings.accessibility.section")) {
+    Section {
       NavigationLink {
         SelectionListView(
           title: L10n.text("settings.accessibility.voiceover_rds_mode"),
@@ -146,12 +152,14 @@ struct SettingsView: View {
         )
       }
       .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds_mode.hint"))
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.accessibility.section"))
     }
     .appSectionStyle()
   }
 
   private var historySection: some View {
-    Section(L10n.text("settings.history.section")) {
+    Section {
       Toggle(
         L10n.text("settings.history.open_receiver_after_restore"),
         isOn: Binding(
@@ -160,12 +168,14 @@ struct SettingsView: View {
         )
       )
       .accessibilityHint(L10n.text("settings.history.open_receiver_after_restore.hint"))
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.history.section"))
     }
     .appSectionStyle()
   }
 
   private var scannerSection: some View {
-    Section(L10n.text("settings.scanner.section")) {
+    Section {
       VStack(alignment: .leading, spacing: 6) {
         LabeledContent(
           L10n.text("settings.scanner.dwell"),
@@ -195,6 +205,8 @@ struct SettingsView: View {
           step: 0.1
         )
       }
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.scanner.section"))
     }
     .appSectionStyle()
   }
@@ -287,7 +299,7 @@ struct SettingsView: View {
         Text(L10n.text("settings.audio.reset"))
       }
     } header: {
-      Text(L10n.text("settings.audio.section"))
+      AppSectionHeader(title: L10n.text("settings.audio.section"))
     } footer: {
       Text(L10n.text("settings.audio.footer"))
     }
@@ -295,18 +307,20 @@ struct SettingsView: View {
   }
 
   private var diagnosticsSection: some View {
-    Section(L10n.text("settings.diagnostics.section")) {
+    Section {
       NavigationLink {
         DiagnosticsView()
       } label: {
         Label(L10n.text("settings.diagnostics.open"), systemImage: "waveform.path.ecg")
       }
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.diagnostics.section"))
     }
     .appSectionStyle()
   }
 
   private var quickActionsSection: some View {
-    Section(L10n.text("Quick Actions")) {
+    Section {
       FocusRetainingButton {
         settingsController.reconnectSelectedProfile()
       } label: {
@@ -319,6 +333,8 @@ struct SettingsView: View {
       } label: {
         Text(L10n.text("Reset DSP"))
       }
+    } header: {
+      AppSectionHeader(title: L10n.text("Quick Actions"))
     }
     .appSectionStyle()
   }
@@ -350,11 +366,11 @@ struct SettingsView: View {
 }
 
 private struct SettingsLiveAudioInsightSection: View {
-  @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var settingsController: SettingsViewController
 
   var body: some View {
     Group {
-      if let quality = radioSession.fmdxAudioQualityReport {
+      if let quality = settingsController.state.audioQualityInsight {
         HStack(spacing: 10) {
           Image(systemName: qualitySymbol(for: quality.level))
             .foregroundStyle(qualityColor(for: quality.level))
@@ -387,7 +403,7 @@ private struct SettingsLiveAudioInsightSection: View {
           .foregroundStyle(.secondary)
       }
 
-      if let suggestion = radioSession.audioPresetSuggestion {
+      if let suggestion = settingsController.state.audioSuggestionInsight {
         VStack(alignment: .leading, spacing: 6) {
           LabeledContent(
             L10n.text("settings.audio.suggestion"),
@@ -398,9 +414,9 @@ private struct SettingsLiveAudioInsightSection: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
 
-          if suggestion.preset != radioSession.currentFMDXAudioPreset {
+          if suggestion.preset != settingsController.state.currentFMDXAudioPreset {
             FocusRetainingButton {
-              radioSession.applyFMDXAudioPreset(suggestion.preset)
+              settingsController.applyFMDXAudioPreset(suggestion.preset)
             } label: {
               Text(L10n.text("settings.audio.suggestion.apply"))
             }
@@ -411,7 +427,7 @@ private struct SettingsLiveAudioInsightSection: View {
           }
         }
         .accessibilityElement(children: .contain)
-      } else if radioSession.settings.audioSuggestionScope == .off {
+      } else if settingsController.state.audioSuggestionScope == .off {
         Text(L10n.text("settings.audio.suggestion.disabled"))
           .font(.footnote)
           .foregroundStyle(.secondary)

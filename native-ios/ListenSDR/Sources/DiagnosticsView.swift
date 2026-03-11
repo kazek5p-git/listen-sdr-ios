@@ -67,7 +67,7 @@ struct DiagnosticsView: View {
 
   var body: some View {
     List {
-      Section("Quick Actions") {
+      Section {
         FocusRetainingButton {
           guard let profile = profileStore.selectedProfile else { return }
           radioSession.reconnect(to: profile)
@@ -131,10 +131,12 @@ struct DiagnosticsView: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+      } header: {
+        AppSectionHeader(title: "Quick Actions")
       }
 
       if !audioSuggestionEntries.isEmpty {
-        Section(L10n.text("diagnostics.audio_suggestions.section")) {
+        Section {
           ForEach(audioSuggestionEntries) { entry in
             VStack(alignment: .leading, spacing: 4) {
               HStack {
@@ -163,11 +165,13 @@ struct DiagnosticsView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L10n.text("diagnostics.entry_accessibility", entry.category, entry.message))
           }
+        } header: {
+          AppSectionHeader(title: L10n.text("diagnostics.audio_suggestions.section"))
         }
       }
 
       if let quality = radioSession.fmdxAudioQualityReport {
-        Section(L10n.text("diagnostics.audio_quality.section")) {
+        Section {
           LabeledContent(
             L10n.text("diagnostics.audio_quality.score"),
             value: "\(quality.score)/100"
@@ -267,10 +271,12 @@ struct DiagnosticsView: View {
               value: "\(String(format: "%.1f", signal)) dBf"
             )
           }
+        } header: {
+          AppSectionHeader(title: L10n.text("diagnostics.audio_quality.section"))
         }
       }
 
-      Section("Logs") {
+      Section {
         if generalLogEntries.isEmpty {
           UnavailableContentView(
             title: L10n.text("No Diagnostics Yet"),
@@ -309,6 +315,8 @@ struct DiagnosticsView: View {
             .accessibilityLabel(L10n.text("diagnostics.entry_accessibility", entry.category, entry.message))
           }
         }
+      } header: {
+        AppSectionHeader(title: "Logs")
       }
     }
     .listStyle(.insetGrouped)

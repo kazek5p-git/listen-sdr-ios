@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 private enum ScanSource: String, CaseIterable, Identifiable {
   case serverBookmarks
@@ -15,11 +14,6 @@ private enum ScanSource: String, CaseIterable, Identifiable {
       return L10n.text("scan_source.quick_list")
     }
   }
-}
-
-private enum ReceiverAccessibilityFocus: Hashable {
-  case frequencyControl
-  case tuneStepControl
 }
 
 private enum KiwiWaterfallPreset: String, CaseIterable, Identifiable {
@@ -249,7 +243,7 @@ struct ReceiverView: View {
   private func favoritesSection(for profile: SDRConnectionProfile) -> some View {
     let favoriteStations = favoritesStore.stations(for: profile)
 
-    return Section(L10n.text("favorites.section")) {
+    return Section {
       FocusRetainingButton {
         favoritesStore.toggleReceiver(profile)
       } label: {
@@ -301,35 +295,29 @@ struct ReceiverView: View {
           }
         }
       }
+    } header: {
+      AppSectionHeader(title: L10n.text("favorites.section"))
     }
     .appSectionStyle()
   }
 
   private func connectionSection(for profile: SDRConnectionProfile) -> some View {
-    Section(L10n.text("Connection")) {
+    Section {
       LabeledContent(L10n.text("Profile"), value: profile.name)
-        .accessibilityLabel(L10n.text("Selected profile"))
-        .accessibilityValue(profile.name)
 
       LabeledContent(L10n.text("Backend"), value: profile.backend.displayName)
       LabeledContent(L10n.text("Endpoint"), value: profile.endpointDescription)
 
       LabeledContent(L10n.text("Status"), value: radioSession.statusText)
-        .accessibilityLabel(L10n.text("Connection status"))
-        .accessibilityValue(radioSession.statusText)
 
       if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
         LabeledContent(L10n.text("Receiver data"), value: backendStatus)
-          .accessibilityLabel(L10n.text("Receiver live data"))
-          .accessibilityValue(backendStatus)
       }
 
       if let error = radioSession.lastError {
         Text(error)
           .foregroundStyle(.red)
           .font(.footnote)
-          .accessibilityLabel(L10n.text("Last error"))
-          .accessibilityValue(error)
       }
 
       FocusRetainingButton({
@@ -351,12 +339,14 @@ struct ReceiverView: View {
         .buttonStyle(.bordered)
         .accessibilityHint(L10n.text("Try connecting to this receiver again"))
       }
+    } header: {
+      AppSectionHeader(title: L10n.text("Connection"))
     }
     .appSectionStyle()
   }
 
   private func tuningSection(for profile: SDRConnectionProfile) -> some View {
-    Section("Tuning") {
+    Section {
       frequencyInputSection(for: profile.backend)
 
       frequencyTuningControl(for: profile.backend)
@@ -386,6 +376,8 @@ struct ReceiverView: View {
           .font(.footnote)
           .foregroundStyle(.orange)
       }
+    } header: {
+      AppSectionHeader(title: "Tuning")
     }
     .appSectionStyle()
   }
@@ -393,7 +385,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func openWebRXControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .openWebRX {
-      Section(L10n.text("openwebrx.controls")) {
+      Section {
         if radioSession.openWebRXProfiles.isEmpty {
           if radioSession.state == .connected &&
             radioSession.connectedProfileID == profile.id {
@@ -496,6 +488,8 @@ struct ReceiverView: View {
             }
           }
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("openwebrx.controls"))
       }
       .appSectionStyle()
     }
@@ -504,7 +498,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func openWebRXServerBookmarksSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .openWebRX {
-      Section(L10n.text("openwebrx.bookmarks_section")) {
+      Section {
         if radioSession.serverBookmarks.isEmpty {
           Text(L10n.text("openwebrx.bookmarks_empty"))
             .foregroundStyle(.secondary)
@@ -524,6 +518,8 @@ struct ReceiverView: View {
             )
           }
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("openwebrx.bookmarks_section"))
       }
       .appSectionStyle()
     }
@@ -532,7 +528,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func openWebRXBandPlanSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .openWebRX {
-      Section(L10n.text("openwebrx.band_plan_section")) {
+      Section {
         if radioSession.openWebRXBandPlan.isEmpty {
           Text(L10n.text("openwebrx.band_plan_loading"))
             .foregroundStyle(.secondary)
@@ -555,6 +551,8 @@ struct ReceiverView: View {
             )
           }
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("openwebrx.band_plan_section"))
       }
       .appSectionStyle()
     }
@@ -563,12 +561,14 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
-      Section(L10n.text("fmdx.controls")) {
+      Section {
         fmDxPrimaryToggleRow()
         fmDxAGCToggleRow()
 
         fmDxAntennaPicker()
         fmDxBandwidthPicker()
+      } header: {
+        AppSectionHeader(title: L10n.text("fmdx.controls"))
       }
       .appSectionStyle()
     }
@@ -647,7 +647,7 @@ struct ReceiverView: View {
       .appSectionStyle()
 
       if isFMDXStationListExpanded {
-        Section(L10n.text("fmdx.server_presets.section")) {
+        Section {
           if stationList.isEmpty {
             Text(L10n.text("fmdx.server_presets.empty"))
               .foregroundStyle(.secondary)
@@ -657,6 +657,8 @@ struct ReceiverView: View {
               fmdxServerBookmarkRow(preset: preset)
             }
           }
+        } header: {
+          AppSectionHeader(title: L10n.text("fmdx.server_presets.section"))
         }
         .appSectionStyle()
       }
@@ -679,7 +681,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func kiwiControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .kiwiSDR {
-      Section(L10n.text("kiwi.controls")) {
+      Section {
         selectionNavigationLink(
           title: L10n.text("kiwi.signal_preset"),
           value: currentKiwiSignalPreset().localizedTitle,
@@ -849,6 +851,8 @@ struct ReceiverView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.text("kiwi.waterfall.max_db"))
         .accessibilityValue("\(radioSession.settings.kiwiWaterfallMaxDB) dB")
+      } header: {
+        AppSectionHeader(title: L10n.text("kiwi.controls"))
       }
       .appSectionStyle()
     }
@@ -912,7 +916,7 @@ struct ReceiverView: View {
   }
 
   private func scannerSection(for profile: SDRConnectionProfile, scannerChannels: [ScanChannel]) -> some View {
-    Section("Scanner") {
+    Section {
       selectionNavigationLink(
         title: "Channel source",
         value: scanSource.displayName,
@@ -1012,6 +1016,8 @@ struct ReceiverView: View {
           : L10n.text("scanner.mode.fixed")
       )
       .font(.footnote)
+    } header: {
+      AppSectionHeader(title: "Scanner")
     }
     .appSectionStyle()
   }
@@ -1019,7 +1025,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
-      Section(L10n.text("fmdx.live.section")) {
+      Section {
         fmDxSignalMetricsRow(telemetry: telemetry)
         if let users = telemetry.users {
           LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
@@ -1076,6 +1082,8 @@ struct ReceiverView: View {
         } label: {
           Label(L10n.text("fmdx.live.more_details"), systemImage: "text.badge.plus")
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("fmdx.live.section"))
       }
       .appSectionStyle()
     }
@@ -1104,7 +1112,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func kiwiLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .kiwiSDR, let telemetry = radioSession.kiwiTelemetry {
-      Section(L10n.text("kiwi.live.section")) {
+      Section {
         if let rssi = telemetry.rssiDBm {
           LabeledContent(L10n.text("kiwi.live.smeter"), value: String(format: "%.1f dBm", rssi))
         } else {
@@ -1126,13 +1134,15 @@ struct ReceiverView: View {
           Text(L10n.text("kiwi.live.waterfall_loading"))
             .foregroundStyle(.secondary)
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("kiwi.live.section"))
       }
       .appSectionStyle()
     }
   }
 
   private func audioSection(for profile: SDRConnectionProfile) -> some View {
-    Section("Audio") {
+    Section {
       VStack(alignment: .leading, spacing: 6) {
         Text(L10n.text("audio.volume_percent", Int((radioSession.settings.audioVolume * 100).rounded())))
         Slider(
@@ -1194,6 +1204,8 @@ struct ReceiverView: View {
           value: "\(recordingStore.recordings.count)"
         )
       }
+    } header: {
+      AppSectionHeader(title: "Audio")
     }
     .appSectionStyle()
   }
@@ -1247,10 +1259,6 @@ struct ReceiverView: View {
     let options = radioSession.tuneStepOptions(for: backend).map(FrequencyFormatter.tuneStepText(fromHz:))
 
     return VStack(alignment: .leading, spacing: 10) {
-      Text(L10n.text("receiver.tune_step.label"))
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-
       HStack(spacing: 12) {
         Button {
           changeTuneStep(by: -1, backend: backend)
@@ -1272,6 +1280,7 @@ struct ReceiverView: View {
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.7)
+            .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
 
@@ -1330,13 +1339,12 @@ struct ReceiverView: View {
       Text(L10n.text("fmdx.band"))
         .font(.subheadline)
         .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
 
       HStack(spacing: 10) {
         fmdxBandButton(title: L10n.text("fmdx.band.fm"), mode: .fm, isSelected: selectedBand == .fm)
         fmdxBandButton(title: L10n.text("fmdx.band.am"), mode: .am, isSelected: selectedBand == .am)
       }
-      .accessibilityElement(children: .contain)
-      .accessibilityLabel(L10n.text("fmdx.band"))
 
       if !supportsAM {
         Text(L10n.text("fmdx.band.am_unavailable_hint"))
@@ -1479,8 +1487,9 @@ struct ReceiverView: View {
     radioSession.setTuneStepHz(stepHz)
 
     let stepText = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
-    let announcement = L10n.text("receiver.tune_step.changed", stepText)
-    UIAccessibility.post(notification: .announcement, argument: announcement)
+    AppAccessibilityAnnouncementCenter.post(
+      L10n.text("receiver.tune_step.changed", stepText)
+    )
   }
 
   private func frequencyTuningControl(for backend: SDRBackend) -> some View {
@@ -1502,9 +1511,10 @@ struct ReceiverView: View {
           Text(frequencyValue)
             .font(.title2.monospacedDigit().weight(.semibold))
 
-          Text(L10n.text("receiver.tune_step.label") + ": " + tuneStepLabel)
+          Text(tuneStepLabel)
             .font(.footnote)
             .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
 
@@ -1670,6 +1680,7 @@ struct ReceiverView: View {
       Text(frequencyInputHint(for: backend))
         .font(.footnote)
         .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
 
       TextField(
         frequencyInputPlaceholder(for: backend),
@@ -2363,6 +2374,8 @@ struct SelectionListView: View {
           }
           .buttonStyle(.plain)
         }
+      } header: {
+        AppSectionHeader(title: title)
       }
       .appSectionStyle()
     }
@@ -2392,11 +2405,13 @@ private struct OpenWebRXBandDetailView: View {
         } label: {
           Label(L10n.text("Tune band center"), systemImage: "scope")
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("openwebrx.band_plan_section"))
       }
       .appSectionStyle()
 
       if !band.frequencies.isEmpty {
-        Section(L10n.text("openwebrx.band_frequencies")) {
+        Section {
           ForEach(band.frequencies) { item in
             Button {
               onTuneFrequency(item)
@@ -2410,6 +2425,8 @@ private struct OpenWebRXBandDetailView: View {
               }
             }
           }
+        } header: {
+          AppSectionHeader(title: L10n.text("openwebrx.band_frequencies"))
         }
         .appSectionStyle()
       }
@@ -2484,6 +2501,8 @@ private struct OpenWebRXBookmarksView: View {
             value: sort.localizedTitle
           )
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("openwebrx.bookmarks.sort"))
       }
       .appSectionStyle()
 
@@ -2494,7 +2513,7 @@ private struct OpenWebRXBookmarksView: View {
         }
         .appSectionStyle()
       } else {
-        Section(L10n.text("openwebrx.bookmarks_section")) {
+        Section {
           ForEach(filteredBookmarks) { bookmark in
             Button {
               onSelect(bookmark)
@@ -2520,6 +2539,8 @@ private struct OpenWebRXBookmarksView: View {
             }
             .buttonStyle(.plain)
           }
+        } header: {
+          AppSectionHeader(title: L10n.text("openwebrx.bookmarks_section"))
         }
         .appSectionStyle()
       }
@@ -2577,7 +2598,7 @@ private struct OpenWebRXBandPlanListView: View {
         }
         .appSectionStyle()
       } else {
-        Section(L10n.text("openwebrx.band_plan_section")) {
+        Section {
           ForEach(filteredBands) { band in
             NavigationLink {
               OpenWebRXBandDetailView(
@@ -2608,6 +2629,8 @@ private struct OpenWebRXBandPlanListView: View {
               }
             }
           }
+        } header: {
+          AppSectionHeader(title: L10n.text("openwebrx.band_plan_section"))
         }
         .appSectionStyle()
       }
@@ -2627,7 +2650,7 @@ private struct FMDXRDSDetailsView: View {
 
   var body: some View {
     List {
-      Section(L10n.text("fmdx.live.more_details")) {
+      Section {
         if let pty = telemetry.pty {
           LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
         }
@@ -2672,11 +2695,13 @@ private struct FMDXRDSDetailsView: View {
               .font(.footnote)
           }
         }
+      } header: {
+        AppSectionHeader(title: L10n.text("fmdx.live.more_details"))
       }
       .appSectionStyle()
 
       if let tx = telemetry.txInfo {
-        Section(L10n.text("TX")) {
+        Section {
           if let station = tx.station, !station.isEmpty {
             LabeledContent(L10n.text("TX"), value: station)
           }
@@ -2698,6 +2723,8 @@ private struct FMDXRDSDetailsView: View {
           if let polarization = tx.polarization, !polarization.isEmpty {
             LabeledContent(L10n.text("fmdx.field.polarization"), value: polarization)
           }
+        } header: {
+          AppSectionHeader(title: L10n.text("TX"))
         }
         .appSectionStyle()
       }

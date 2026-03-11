@@ -3,6 +3,7 @@ import SwiftUI
 @main
 @MainActor
 struct ListenSDRApp: App {
+  @StateObject private var accessibilityState = AppAccessibilityState()
   @StateObject private var navigationState = AppNavigationState()
   @StateObject private var profileStore = ProfileStore()
   @StateObject private var radioSession = RadioSessionViewModel()
@@ -16,6 +17,7 @@ struct ListenSDRApp: App {
     WindowGroup {
       ContentView()
         .environmentObject(profileStore)
+        .environmentObject(accessibilityState)
         .environmentObject(navigationState)
         .environmentObject(radioSession)
         .environmentObject(settingsController)
@@ -24,7 +26,12 @@ struct ListenSDRApp: App {
         .environmentObject(historyStore)
         .environmentObject(diagnostics)
         .task {
-          settingsController.bind(radioSession: radioSession, profileStore: profileStore)
+          radioSession.bind(accessibilityState: accessibilityState)
+          settingsController.bind(
+            radioSession: radioSession,
+            profileStore: profileStore,
+            accessibilityState: accessibilityState
+          )
           recordingStore.refresh()
         }
     }
