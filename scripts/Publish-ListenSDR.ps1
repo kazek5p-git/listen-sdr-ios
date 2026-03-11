@@ -186,7 +186,7 @@ function Wait-WorkflowCompletion {
 
   while ((Get-Date) -lt $deadline) {
     $json = Invoke-Gh @("run", "list", "--commit", $CommitSha, "--limit", "20", "--json", "databaseId,workflowName,headSha,status,conclusion,url,displayTitle")
-    $runs = @(($json -join [Environment]::NewLine) | ConvertFrom-Json)
+    $runs = @(((($json -join [Environment]::NewLine) | ConvertFrom-Json) | ForEach-Object { $_ }))
     $run = $runs |
       Where-Object { $_.headSha -eq $CommitSha -and $_.workflowName -eq $WorkflowName } |
       Sort-Object databaseId -Descending |
