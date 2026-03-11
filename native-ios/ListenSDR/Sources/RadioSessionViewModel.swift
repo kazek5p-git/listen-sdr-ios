@@ -115,8 +115,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var fmDxTuneDebounceTask: Task<Void, Never>?
   private var fmDxTuneConfirmTask: Task<Void, Never>?
   private var pendingFMDXTuneFrequencyHz: Int?
-  private var pendingFMDXForcedStereoEnabled: Bool?
-  private var pendingFMDXForcedStereoDeadline = Date.distantPast
+  private var pendingFMDXAudioModeIsStereo: Bool?
+  private var pendingFMDXAudioModeDeadline = Date.distantPast
   private var hasFMDXCapabilitySnapshot = false
   private var activeBackend: SDRBackend?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
@@ -196,12 +196,12 @@ final class RadioSessionViewModel: ObservableObject {
     fmdxCapabilities.supportsAGCControl
   }
 
-  var effectiveFMDXForcedStereoEnabled: Bool {
-    if let pendingFMDXForcedStereoEnabled, Date() < pendingFMDXForcedStereoDeadline {
-      return pendingFMDXForcedStereoEnabled
+  var effectiveFMDXAudioModeIsStereo: Bool {
+    if let pendingFMDXAudioModeIsStereo, Date() < pendingFMDXAudioModeDeadline {
+      return pendingFMDXAudioModeIsStereo
     }
 
-    return fmdxTelemetry?.isForcedStereo ?? false
+    return fmdxTelemetry?.isStereo ?? false
   }
 
   var isAwaitingInitialServerTuningSync: Bool {
@@ -270,7 +270,7 @@ final class RadioSessionViewModel: ObservableObject {
     deferredRestoreTask?.cancel()
     deferredRestoreTask = nil
     pendingFMDXTuneFrequencyHz = nil
-    clearPendingFMDXForcedStereoState()
+    clearPendingFMDXAudioModeState()
     isScannerRunning = false
     scannerStatusText = nil
     state = .connecting
@@ -376,7 +376,7 @@ final class RadioSessionViewModel: ObservableObject {
     deferredRestoreTask?.cancel()
     deferredRestoreTask = nil
     pendingFMDXTuneFrequencyHz = nil
-    clearPendingFMDXForcedStereoState()
+    clearPendingFMDXAudioModeState()
 
     Diagnostics.log(category: "Session", message: "Disconnect requested")
 
@@ -776,8 +776,8 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setFMDXForcedStereoEnabled(_ enabled: Bool) {
     guard activeBackend == .fmDxWebserver else { return }
-    pendingFMDXForcedStereoEnabled = enabled
-    pendingFMDXForcedStereoDeadline = Date().addingTimeInterval(2.5)
+    pendingFMDXAudioModeIsStereo = enabled
+    pendingFMDXAudioModeDeadline = Date().addingTimeInterval(2.5)
     sendFMDXControl(.setFMDXForcedStereo(enabled))
   }
 
@@ -2006,7 +2006,7 @@ final class RadioSessionViewModel: ObservableObject {
         settings.imsEnabled = imsEnabled
         changedSettings = true
       }
-      reconcilePendingFMDXForcedStereoState(with: telemetry)
+      reconcilePendingFMDXAudioModeState(with: telemetry)
       if let frequencyMHz = telemetry.frequencyMHz {
         let backendFrequencyHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
         if let pending = pendingFMDXTuneFrequencyHz,
@@ -2291,7 +2291,7 @@ final class RadioSessionViewModel: ObservableObject {
     openWebRXBandPlan = []
     currentKiwiBandName = nil
     fmdxTelemetry = nil
-    clearPendingFMDXForcedStereoState()
+    clearPendingFMDXAudioModeState()
     fmdxCapabilities = .empty
     hasFMDXCapabilitySnapshot = false
     fmdxServerPresets = []
@@ -2320,17 +2320,17 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
-  private func reconcilePendingFMDXForcedStereoState(with telemetry: FMDXTelemetry) {
-    guard let pendingFMDXForcedStereoEnabled else { return }
+  private func reconcilePendingFMDXAudioModeState(with telemetry: FMDXTelemetry) {
+    guard let pendingFMDXAudioModeIsStereo else { return }
 
-    if telemetry.isForcedStereo == pendingFMDXForcedStereoEnabled || Date() >= pendingFMDXForcedStereoDeadline {
-      clearPendingFMDXForcedStereoState()
+    if telemetry.isStereo == pendingFMDXAudioModeIsStereo || Date() >= pendingFMDXAudioModeDeadline {
+      clearPendingFMDXAudioModeState()
     }
   }
 
-  private func clearPendingFMDXForcedStereoState() {
-    pendingFMDXForcedStereoEnabled = nil
-    pendingFMDXForcedStereoDeadline = .distantPast
+  private func clearPendingFMDXAudioModeState() {
+    pendingFMDXAudioModeIsStereo = nil
+    pendingFMDXAudioModeDeadline = .distantPast
   }
 
   private func refreshFMDXAudioAnalysis(forceLog: Bool) {
