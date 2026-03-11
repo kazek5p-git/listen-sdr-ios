@@ -117,6 +117,9 @@ struct FMDXTelemetry: Equatable {
 
 extension FMDXTelemetry {
   var audioMode: FMDXAudioMode? {
+    if let isForcedStereo {
+      return isForcedStereo ? .mono : .stereo
+    }
     guard let isStereo else { return nil }
     return FMDXAudioMode(isStereo: isStereo)
   }

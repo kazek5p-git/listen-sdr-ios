@@ -2328,7 +2328,7 @@ final class RadioSessionViewModel: ObservableObject {
   private func reconcilePendingFMDXAudioModeState(with telemetry: FMDXTelemetry) {
     guard let pendingFMDXAudioModeIsStereo else { return }
 
-    if telemetry.isStereo == pendingFMDXAudioModeIsStereo || Date() >= pendingFMDXAudioModeDeadline {
+    if telemetry.audioMode?.isStereo == pendingFMDXAudioModeIsStereo || Date() >= pendingFMDXAudioModeDeadline {
       clearPendingFMDXAudioModeState()
     }
   }
