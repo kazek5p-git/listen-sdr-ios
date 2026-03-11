@@ -520,6 +520,7 @@
 "history.recent_listening.frequency" = "Frecuencia";
 "history.recent_listening.last_heard" = "%@ | %@";
 "history.recent_listening.accessibility" = "%@, receptor %@, frecuencia %@, modo %@, escuchado por ultima vez %@";
+"history.recent_listening.accessibility.frequency_title" = "Receptor %@, frecuencia %@, modo %@, escuchado por ultima vez %@";
 "history.section.expand" = "Expandir seccion";
 "history.section.collapse" = "Contraer seccion";
 "history.section.expanded" = "Expandida";

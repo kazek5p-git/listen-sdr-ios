@@ -527,6 +527,7 @@
 "history.recent_listening.frequency" = "Częstotliwość";
 "history.recent_listening.last_heard" = "%@ | %@";
 "history.recent_listening.accessibility" = "%@, tuner %@, częstotliwość %@, tryb %@, ostatnio słuchane %@";
+"history.recent_listening.accessibility.frequency_title" = "Tuner %@, częstotliwość %@, tryb %@, ostatnio słuchane %@";
 "history.section.expand" = "Rozwiń sekcję";
 "history.section.collapse" = "Zwiń sekcję";
 "history.section.expanded" = "Rozwinięta";

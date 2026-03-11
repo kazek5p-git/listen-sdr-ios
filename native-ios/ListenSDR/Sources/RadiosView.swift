@@ -578,18 +578,23 @@ struct RadiosView: View {
   @ViewBuilder
   private func recentListeningRow(for record: RecentListeningRecord) -> some View {
     let candidateProfile = record.makeProfile()
+    let primaryTitle = record.primaryTitle
     let modeName = record.mode?.displayName ?? candidateProfile.backend.displayName
     let frequencyText = FrequencyFormatter.mhzText(fromHz: record.frequencyHz)
     let heardAtText = record.lastHeardAt.formatted(date: .abbreviated, time: .shortened)
+    let titleIsFrequency = primaryTitle == frequencyText
+    let summaryText = titleIsFrequency
+      ? modeName
+      : [frequencyText, modeName].joined(separator: " | ")
 
     Button {
       restoreListeningRecord(record)
     } label: {
       VStack(alignment: .leading, spacing: 6) {
-        Text(record.primaryTitle)
+        Text(primaryTitle)
           .font(.headline)
 
-        Text([frequencyText, modeName].joined(separator: " | "))
+        Text(summaryText)
         .font(.subheadline)
         .foregroundStyle(.secondary)
 
@@ -599,11 +604,13 @@ struct RadiosView: View {
         )
         .font(.footnote)
 
-        LabeledContent(
-          L10n.text("history.recent_listening.frequency"),
-          value: frequencyText
-        )
-        .font(.footnote)
+        if !titleIsFrequency {
+          LabeledContent(
+            L10n.text("history.recent_listening.frequency"),
+            value: frequencyText
+          )
+          .font(.footnote)
+        }
 
         Text(
           L10n.text(
@@ -648,14 +655,22 @@ struct RadiosView: View {
     }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(
-      L10n.text(
-        "history.recent_listening.accessibility",
-        record.primaryTitle,
-        record.receiverName,
-        frequencyText,
-        modeName,
-        heardAtText
-      )
+      titleIsFrequency
+        ? L10n.text(
+          "history.recent_listening.accessibility.frequency_title",
+          record.receiverName,
+          frequencyText,
+          modeName,
+          heardAtText
+        )
+        : L10n.text(
+          "history.recent_listening.accessibility",
+          primaryTitle,
+          record.receiverName,
+          frequencyText,
+          modeName,
+          heardAtText
+        )
     )
     .accessibilityHint(L10n.text("history.recent_listening.hint"))
   }
