@@ -860,20 +860,24 @@ struct ReceiverView: View {
   }
 
   private func fmDxAudioModeChip(isEnabled: Bool) -> some View {
-    let isForcedStereo = radioSession.fmdxTelemetry?.isForcedStereo ?? false
+    let isForcedStereo = radioSession.effectiveFMDXForcedStereoEnabled
     let modeText = isForcedStereo
       ? L10n.text("fmdx.stereo_state.stereo")
       : L10n.text("fmdx.stereo_state.mono")
-    let accessibilityValue = isForcedStereo
+    let accessibilityLabel = isForcedStereo
       ? L10n.text("fmdx.audio_mode.accessibility.stereo")
       : L10n.text("fmdx.audio_mode.accessibility.mono")
+    let accessibilityHint = isForcedStereo
+      ? L10n.text("fmdx.audio_mode.accessibility.switch_to_mono")
+      : L10n.text("fmdx.audio_mode.accessibility.switch_to_stereo")
 
     return fmdxToggleChip(
       title: modeText,
-      accessibilityTitle: L10n.text("fmdx.audio_mode"),
-      accessibilityValue: accessibilityValue,
+      accessibilityTitle: accessibilityLabel,
       isOn: isForcedStereo,
-      isEnabled: isEnabled
+      isEnabled: isEnabled,
+      accessibilityHint: accessibilityHint,
+      useDefaultAccessibilityStateValue: false
     ) {
       radioSession.setFMDXForcedStereoEnabled(!isForcedStereo)
     }
@@ -1621,6 +1625,8 @@ struct ReceiverView: View {
     title: String,
     accessibilityTitle: String,
     accessibilityValue: String? = nil,
+    accessibilityHint: String? = nil,
+    useDefaultAccessibilityStateValue: Bool = true,
     isOn: Bool,
     isEnabled: Bool,
     action: @escaping () -> Void
@@ -1640,8 +1646,15 @@ struct ReceiverView: View {
     }
     .controlSize(.small)
     .disabled(!isEnabled)
+    .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityTitle)
-    .accessibilityValue(accessibilityValue ?? (isOn ? L10n.text("common.on") : L10n.text("common.off")))
+    .modifier(
+      FMDXToggleAccessibilityModifier(
+        value: accessibilityValue,
+        hint: accessibilityHint,
+        defaultStateValue: useDefaultAccessibilityStateValue ? (isOn ? L10n.text("common.on") : L10n.text("common.off")) : nil
+      )
+    )
   }
 
   private func fmdxToggleChipLabel(title: String) -> some View {
@@ -1651,6 +1664,33 @@ struct ReceiverView: View {
       .lineLimit(2)
       .minimumScaleFactor(0.7)
       .frame(maxWidth: .infinity, minHeight: 44)
+  }
+
+  private struct FMDXToggleAccessibilityModifier: ViewModifier {
+    let value: String?
+    let hint: String?
+    let defaultStateValue: String?
+
+    func body(content: Content) -> some View {
+      let resolvedValue = {
+        if let value, !value.isEmpty {
+          return value
+        }
+        return defaultStateValue
+      }()
+
+      if let resolvedValue, !resolvedValue.isEmpty, let hint, !hint.isEmpty {
+        content
+          .accessibilityValue(resolvedValue)
+          .accessibilityHint(hint)
+      } else if let resolvedValue, !resolvedValue.isEmpty {
+        content.accessibilityValue(resolvedValue)
+      } else if let hint, !hint.isEmpty {
+        content.accessibilityHint(hint)
+      } else {
+        content
+      }
+    }
   }
 
   private func metricCard(title: String, value: String) -> some View {

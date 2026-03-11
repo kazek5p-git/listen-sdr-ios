@@ -229,8 +229,10 @@
 "fmdx.forced_stereo" = "Stereo forzato";
 "fmdx.stereo_mode" = "Modalita stereo/mono";
 "fmdx.audio_mode" = "Modalita audio";
-"fmdx.audio_mode.accessibility.stereo" = "Stereo attivo";
-"fmdx.audio_mode.accessibility.mono" = "Mono attivo";
+"fmdx.audio_mode.accessibility.stereo" = "Modalità stereo attiva";
+"fmdx.audio_mode.accessibility.mono" = "Modalità mono attiva";
+"fmdx.audio_mode.accessibility.switch_to_mono" = "Passa alla modalità mono";
+"fmdx.audio_mode.accessibility.switch_to_stereo" = "Passa alla modalità stereo";
 "fmdx.audio_state" = "Stato audio";
 "fmdx.audio_mode.value.auto" = "Auto";
 "fmdx.audio_mode.value.stereo_forced" = "Stereo forzato";

@@ -115,6 +115,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var fmDxTuneDebounceTask: Task<Void, Never>?
   private var fmDxTuneConfirmTask: Task<Void, Never>?
   private var pendingFMDXTuneFrequencyHz: Int?
+  private var pendingFMDXForcedStereoEnabled: Bool?
+  private var pendingFMDXForcedStereoDeadline = Date.distantPast
   private var hasFMDXCapabilitySnapshot = false
   private var activeBackend: SDRBackend?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
@@ -194,6 +196,14 @@ final class RadioSessionViewModel: ObservableObject {
     fmdxCapabilities.supportsAGCControl
   }
 
+  var effectiveFMDXForcedStereoEnabled: Bool {
+    if let pendingFMDXForcedStereoEnabled, Date() < pendingFMDXForcedStereoDeadline {
+      return pendingFMDXForcedStereoEnabled
+    }
+
+    return fmdxTelemetry?.isForcedStereo ?? false
+  }
+
   var isAwaitingInitialServerTuningSync: Bool {
     isWaitingForInitialServerTuningSync()
   }
@@ -260,6 +270,7 @@ final class RadioSessionViewModel: ObservableObject {
     deferredRestoreTask?.cancel()
     deferredRestoreTask = nil
     pendingFMDXTuneFrequencyHz = nil
+    clearPendingFMDXForcedStereoState()
     isScannerRunning = false
     scannerStatusText = nil
     state = .connecting
@@ -365,6 +376,7 @@ final class RadioSessionViewModel: ObservableObject {
     deferredRestoreTask?.cancel()
     deferredRestoreTask = nil
     pendingFMDXTuneFrequencyHz = nil
+    clearPendingFMDXForcedStereoState()
 
     Diagnostics.log(category: "Session", message: "Disconnect requested")
 
@@ -764,6 +776,8 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setFMDXForcedStereoEnabled(_ enabled: Bool) {
     guard activeBackend == .fmDxWebserver else { return }
+    pendingFMDXForcedStereoEnabled = enabled
+    pendingFMDXForcedStereoDeadline = Date().addingTimeInterval(2.5)
     sendFMDXControl(.setFMDXForcedStereo(enabled))
   }
 
@@ -1992,6 +2006,7 @@ final class RadioSessionViewModel: ObservableObject {
         settings.imsEnabled = imsEnabled
         changedSettings = true
       }
+      reconcilePendingFMDXForcedStereoState(with: telemetry)
       if let frequencyMHz = telemetry.frequencyMHz {
         let backendFrequencyHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
         if let pending = pendingFMDXTuneFrequencyHz,
@@ -2276,6 +2291,7 @@ final class RadioSessionViewModel: ObservableObject {
     openWebRXBandPlan = []
     currentKiwiBandName = nil
     fmdxTelemetry = nil
+    clearPendingFMDXForcedStereoState()
     fmdxCapabilities = .empty
     hasFMDXCapabilitySnapshot = false
     fmdxServerPresets = []
@@ -2302,6 +2318,19 @@ final class RadioSessionViewModel: ObservableObject {
     if backend != .fmDxWebserver {
       NowPlayingMetadataController.shared.setTitle(nil)
     }
+  }
+
+  private func reconcilePendingFMDXForcedStereoState(with telemetry: FMDXTelemetry) {
+    guard let pendingFMDXForcedStereoEnabled else { return }
+
+    if telemetry.isForcedStereo == pendingFMDXForcedStereoEnabled || Date() >= pendingFMDXForcedStereoDeadline {
+      clearPendingFMDXForcedStereoState()
+    }
+  }
+
+  private func clearPendingFMDXForcedStereoState() {
+    pendingFMDXForcedStereoEnabled = nil
+    pendingFMDXForcedStereoDeadline = .distantPast
   }
 
   private func refreshFMDXAudioAnalysis(forceLog: Bool) {
