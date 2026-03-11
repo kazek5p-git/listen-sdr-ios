@@ -224,7 +224,7 @@ function FastForward-MainIfNeeded {
 }
 
 function Download-UnsignedIpa {
-  param([int]$RunId)
+  param([long]$RunId)
 
   Write-Step "Download IPA artifact"
   $downloadDir = Join-Path $DesktopRoot ("build_" + $RunId + "_download")
