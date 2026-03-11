@@ -32,9 +32,14 @@ function Invoke-Git {
 
 function Invoke-Gh {
   param([string[]]$Arguments)
-  & gh @Arguments
-  if ($LASTEXITCODE -ne 0) {
-    throw "gh failed: $($Arguments -join ' ')"
+  Push-Location $RepoRoot
+  try {
+    & gh @Arguments
+    if ($LASTEXITCODE -ne 0) {
+      throw "gh failed: $($Arguments -join ' ')"
+    }
+  } finally {
+    Pop-Location
   }
 }
 
