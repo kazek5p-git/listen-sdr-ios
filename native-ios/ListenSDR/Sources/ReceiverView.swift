@@ -864,14 +864,14 @@ struct ReceiverView: View {
     let modeText = isForcedStereo
       ? L10n.text("fmdx.stereo_state.stereo")
       : L10n.text("fmdx.stereo_state.mono")
-    let accessibilityText = isForcedStereo
+    let accessibilityValue = isForcedStereo
       ? L10n.text("fmdx.audio_mode.accessibility.stereo")
       : L10n.text("fmdx.audio_mode.accessibility.mono")
 
     return fmdxToggleChip(
       title: modeText,
-      accessibilityTitle: accessibilityText,
-      accessibilityValue: nil,
+      accessibilityTitle: L10n.text("fmdx.audio_mode"),
+      accessibilityValue: accessibilityValue,
       isOn: isForcedStereo,
       isEnabled: isEnabled
     ) {
