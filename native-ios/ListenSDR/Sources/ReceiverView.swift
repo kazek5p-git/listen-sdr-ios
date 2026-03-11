@@ -874,10 +874,10 @@ struct ReceiverView: View {
     return fmdxToggleChip(
       title: modeText,
       accessibilityTitle: accessibilityLabel,
-      isOn: isForcedStereo,
-      isEnabled: isEnabled,
       accessibilityHint: accessibilityHint,
-      useDefaultAccessibilityStateValue: false
+      useDefaultAccessibilityStateValue: false,
+      isOn: isForcedStereo,
+      isEnabled: isEnabled
     ) {
       radioSession.setFMDXForcedStereoEnabled(!isForcedStereo)
     }
@@ -1672,7 +1672,7 @@ struct ReceiverView: View {
     let defaultStateValue: String?
 
     func body(content: Content) -> some View {
-      let resolvedValue = {
+      let resolvedValue: String? = {
         if let value, !value.isEmpty {
           return value
         }
