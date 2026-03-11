@@ -508,23 +508,17 @@ struct RadiosView: View {
     let candidateProfile = record.makeProfile()
     let storedProfile = profileStore.matchingProfile(for: candidateProfile)
     let selectedID = storedProfile?.id
+    let endpointText = candidateProfile.endpointDescription
+    let lastUsedText = record.lastUsedAt.formatted(date: .abbreviated, time: .shortened)
 
     Button {
       connectAndSelect(profile: candidateProfile)
     } label: {
       VStack(alignment: .leading, spacing: 6) {
-        HStack(spacing: 8) {
-          Text(record.receiverName)
-            .font(.headline)
+        Text(record.receiverName)
+          .font(.headline)
 
-          Text(record.backend.displayName)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(AppTheme.chipFill, in: Capsule())
-        }
-
-        Text(candidateProfile.endpointDescription)
+        Text([record.backend.displayName, endpointText].joined(separator: " | "))
           .font(.subheadline)
           .foregroundStyle(.secondary)
           .lineLimit(2)
@@ -532,7 +526,7 @@ struct RadiosView: View {
         Text(
           L10n.text(
             "history.last_used",
-            record.lastUsedAt.formatted(date: .abbreviated, time: .shortened)
+            lastUsedText
           )
         )
         .font(.footnote)
@@ -549,6 +543,16 @@ struct RadiosView: View {
         }
       }
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(
+      L10n.text(
+        "history.recent_receivers.accessibility",
+        record.receiverName,
+        record.backend.displayName,
+        endpointText,
+        lastUsedText
+      )
+    )
     .buttonStyle(.plain)
     .listRowBackground(Color.clear)
     .listRowSeparator(.hidden)

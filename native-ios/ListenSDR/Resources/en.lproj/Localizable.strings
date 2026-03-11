@@ -366,6 +366,7 @@
 
 "history.recent_receivers.section" = "Recent receivers";
 "history.recent_receivers.hint" = "Double tap to reconnect to this receiver";
+"history.recent_receivers.accessibility" = "%@, %@, %@, last used %@";
 "history.recent_listening.section" = "Recently heard";
 "history.recent_listening.hint" = "Double tap to connect and restore this listening entry";
 "history.clear_receivers" = "Clear recent receivers";

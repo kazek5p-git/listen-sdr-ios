@@ -517,6 +517,7 @@
 
 "history.recent_receivers.section" = "Ostatnie odbiorniki";
 "history.recent_receivers.hint" = "Stuknij dwukrotnie, aby połączyć się ponownie z tym odbiornikiem";
+"history.recent_receivers.accessibility" = "%@, %@, %@, ostatnio używany %@";
 "history.recent_listening.section" = "Ostatnio słuchane";
 "history.recent_listening.hint" = "Stuknij dwukrotnie, aby połączyć się i przywrócić ten odsłuch";
 "history.clear_receivers" = "Wyczyść ostatnie odbiorniki";

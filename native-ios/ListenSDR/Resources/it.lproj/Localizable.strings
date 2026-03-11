@@ -510,6 +510,7 @@
 
 "history.recent_receivers.section" = "Ricevitori recenti";
 "history.recent_receivers.hint" = "Tocca due volte per ricollegarti a questo ricevitore";
+"history.recent_receivers.accessibility" = "%@, %@, %@, ultimo utilizzo %@";
 "history.recent_listening.section" = "Ascoltati di recente";
 "history.recent_listening.hint" = "Tocca due volte per collegarti e ripristinare questo ascolto";
 "history.clear_receivers" = "Cancella ricevitori recenti";

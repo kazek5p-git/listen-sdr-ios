@@ -510,6 +510,7 @@
 
 "history.recent_receivers.section" = "Letzte Empf?nger";
 "history.recent_receivers.hint" = "Doppeltippen, um die Verbindung zu diesem Empf?nger erneut herzustellen";
+"history.recent_receivers.accessibility" = "%@, %@, %@, zuletzt verwendet %@";
 "history.recent_listening.section" = "Zuletzt geh?rt";
 "history.recent_listening.hint" = "Doppeltippen, um diesen H?reintrag wiederherzustellen";
 "history.clear_receivers" = "Letzte Empf?nger l?schen";
