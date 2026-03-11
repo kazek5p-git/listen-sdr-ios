@@ -2469,7 +2469,8 @@ actor FMDXWebserverClient: SDRBackendClient {
       try await send("A\(enabled ? 1 : 0)")
 
     case .setFMDXForcedStereo(let enabled):
-      try await send("B\(enabled ? 1 : 0)")
+      // FM-DX protocol uses B0 for stereo and B1 for mono.
+      try await send("B\(enabled ? 0 : 1)")
 
     case .setFMDXAntenna(let value):
       guard let safeValue = sanitizeCommandValue(value) else {
