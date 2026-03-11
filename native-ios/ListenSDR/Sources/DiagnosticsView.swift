@@ -68,7 +68,7 @@ struct DiagnosticsView: View {
   var body: some View {
     List {
       Section("Quick Actions") {
-        Button {
+        FocusRetainingButton {
           guard let profile = profileStore.selectedProfile else { return }
           radioSession.reconnect(to: profile)
         } label: {
@@ -81,7 +81,7 @@ struct DiagnosticsView: View {
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 
-        Button {
+        FocusRetainingButton {
           radioSession.resetDSPSettings()
         } label: {
           Label("Reset DSP", systemImage: "slider.horizontal.3")
@@ -92,7 +92,7 @@ struct DiagnosticsView: View {
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 
-        Button {
+        FocusRetainingButton {
           do {
             exportedDiagnosticsURL = try DiagnosticsExportBuilder.createExportFile(
               profileStore: profileStore,
@@ -118,7 +118,7 @@ struct DiagnosticsView: View {
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 
-        Button {
+        FocusRetainingButton {
           UIPasteboard.general.string = diagnostics.exportText()
           showingCopyConfirmation = true
           Diagnostics.log(category: "Diagnostics", message: "Diagnostics copied to clipboard")

@@ -250,7 +250,7 @@ struct ReceiverView: View {
     let favoriteStations = favoritesStore.stations(for: profile)
 
     return Section(L10n.text("favorites.section")) {
-      Button {
+      FocusRetainingButton {
         favoritesStore.toggleReceiver(profile)
       } label: {
         Label(
@@ -261,7 +261,7 @@ struct ReceiverView: View {
         )
       }
 
-      Button {
+      FocusRetainingButton {
         favoritesStore.toggleStation(
           profile: profile,
           title: currentFavoriteStationTitle(for: profile),
@@ -279,7 +279,7 @@ struct ReceiverView: View {
 
       if !favoriteStations.isEmpty {
         ForEach(favoriteStations) { station in
-          Button {
+          FocusRetainingButton {
             if station.mode != nil {
               radioSession.setMode(station.mode ?? radioSession.settings.mode)
             }
@@ -332,7 +332,7 @@ struct ReceiverView: View {
           .accessibilityValue(error)
       }
 
-      Button(action: {
+      FocusRetainingButton(action: {
         handleConnectionButtonTap(for: profile)
       }) {
         Text(connectionButtonTitle(for: profile))
@@ -342,7 +342,7 @@ struct ReceiverView: View {
       .accessibilityHint(L10n.text("Double tap to change connection state"))
 
       if radioSession.state == .failed {
-        Button {
+        FocusRetainingButton {
           radioSession.reconnect(to: profile)
         } label: {
           Text(L10n.text("Reconnect"))
@@ -461,7 +461,7 @@ struct ReceiverView: View {
 
         if let activeBookmark = activeOpenWebRXBookmark() {
           LabeledContent(L10n.text("openwebrx.active_bookmark"), value: activeBookmark.name)
-          Button {
+          FocusRetainingButton {
             radioSession.applyServerBookmark(activeBookmark)
           } label: {
             Label(L10n.text("openwebrx.active_bookmark.apply"), systemImage: "bookmark.fill")
@@ -470,7 +470,7 @@ struct ReceiverView: View {
         }
 
         if let activeBand = activeOpenWebRXBandEntry() {
-          Button {
+          FocusRetainingButton {
             radioSession.tuneToBand(activeBand)
           } label: {
             Label(L10n.text("openwebrx.active_band.center"), systemImage: "scope")
@@ -631,10 +631,8 @@ struct ReceiverView: View {
       let stationList = radioSession.fmdxServerPresets
 
       Section {
-        Button {
-          withAnimation(.easeInOut(duration: 0.2)) {
-            isFMDXStationListExpanded.toggle()
-          }
+        FocusRetainingButton {
+          isFMDXStationListExpanded.toggle()
         } label: {
           Label(
             L10n.text(
@@ -666,7 +664,7 @@ struct ReceiverView: View {
   }
 
   private func fmdxServerBookmarkRow(preset: SDRServerBookmark) -> some View {
-    Button {
+    FocusRetainingButton {
       radioSession.setFrequencyHz(preset.frequencyHz)
     } label: {
       HStack {
@@ -929,8 +927,10 @@ struct ReceiverView: View {
       }
 
       if scanSource == .quickList {
-        Button(L10n.text("scanner.quick_list.clear")) {
+        FocusRetainingButton {
           quickScanChannels.removeAll()
+        } label: {
+          Text(L10n.text("scanner.quick_list.clear"))
         }
         .disabled(quickScanChannels.isEmpty)
       }
@@ -972,18 +972,22 @@ struct ReceiverView: View {
       }
 
       if radioSession.isScannerRunning {
-        Button("Stop scanner") {
+        FocusRetainingButton {
           radioSession.stopScanner()
+        } label: {
+          Text("Stop scanner")
         }
         .buttonStyle(.borderedProminent)
       } else {
-        Button("Start scanner") {
+        FocusRetainingButton {
           radioSession.startScanner(
             channels: scannerChannels,
             backend: profile.backend,
             dwellSeconds: radioSession.settings.scannerDwellSeconds,
             holdSeconds: radioSession.settings.scannerHoldSeconds
           )
+        } label: {
+          Text("Start scanner")
         }
         .buttonStyle(.borderedProminent)
         .disabled(scannerChannels.isEmpty || radioSession.state != .connected)
@@ -1033,15 +1037,19 @@ struct ReceiverView: View {
           ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
             let afHz = frequencyHz(fromMHz: afMHz)
             HStack {
-              Button(String(format: "%.1f MHz", afMHz)) {
+              FocusRetainingButton {
                 radioSession.setFrequencyHz(afHz)
+              } label: {
+                Text(String(format: "%.1f MHz", afMHz))
               }
               .buttonStyle(.borderless)
 
               Spacer()
 
-              Button(L10n.text("fmdx.af.scan")) {
+              FocusRetainingButton {
                 addQuickScanChannel(frequencyHz: afHz)
+              } label: {
+                Text(L10n.text("fmdx.af.scan"))
               }
               .buttonStyle(.borderless)
             }
@@ -1157,13 +1165,13 @@ struct ReceiverView: View {
             .joined(separator: " | ")
         )
 
-        Button(role: .destructive) {
+        FocusRetainingButton(role: .destructive, action: {
           recordingStore.stopRecording()
-        } label: {
+        }) {
           Label(L10n.text("recordings.stop"), systemImage: "stop.circle")
         }
       } else {
-        Button {
+        FocusRetainingButton {
           recordingStore.startRecording(
             receiverName: profile.name,
             backend: profile.backend,
@@ -1339,7 +1347,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmdxBandButton(title: String, mode: DemodulationMode, isSelected: Bool) -> some View {
     if isSelected {
-      Button {
+      FocusRetainingButton {
         radioSession.setMode(mode)
       } label: {
         HStack(spacing: 6) {
@@ -1354,7 +1362,7 @@ struct ReceiverView: View {
       .accessibilityAddTraits(.isSelected)
       .accessibilityValue(L10n.text("common.selected"))
     } else {
-      Button {
+      FocusRetainingButton {
         radioSession.setMode(mode)
       } label: {
         Text(title)
@@ -1603,12 +1611,12 @@ struct ReceiverView: View {
   ) -> some View {
     Group {
       if isOn {
-        Button(action: action) {
+        FocusRetainingButton(action: action) {
           fmdxToggleChipLabel(title: title)
         }
         .buttonStyle(.borderedProminent)
       } else {
-        Button(action: action) {
+        FocusRetainingButton(action: action) {
           fmdxToggleChipLabel(title: title)
         }
         .buttonStyle(.bordered)
@@ -1690,8 +1698,10 @@ struct ReceiverView: View {
       .toolbar {
         ToolbarItemGroup(placement: .keyboard) {
           Spacer()
-          Button(L10n.text("Apply")) {
+          FocusRetainingButton {
             submitInlineFrequencyInput(for: backend)
+          } label: {
+            Text(L10n.text("Apply"))
           }
         }
       }

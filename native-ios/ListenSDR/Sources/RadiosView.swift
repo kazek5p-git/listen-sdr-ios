@@ -416,7 +416,7 @@ struct RadiosView: View {
 
   @ViewBuilder
   private func profileRow(for profile: SDRConnectionProfile, isFavorite: Bool) -> some View {
-    Button {
+    FocusRetainingButton {
       profileStore.updateSelection(profile.id)
     } label: {
       HStack(alignment: .top, spacing: 12) {
@@ -511,7 +511,7 @@ struct RadiosView: View {
     let endpointText = candidateProfile.endpointDescription
     let lastUsedText = record.lastUsedAt.formatted(date: .abbreviated, time: .shortened)
 
-    Button {
+    FocusRetainingButton {
       connectAndSelect(profile: candidateProfile)
     } label: {
       VStack(alignment: .leading, spacing: 6) {
@@ -591,7 +591,7 @@ struct RadiosView: View {
       ? modeName
       : [frequencyText, modeName].joined(separator: " | ")
 
-    Button {
+    FocusRetainingButton {
       restoreListeningRecord(record)
     } label: {
       VStack(alignment: .leading, spacing: 6) {
@@ -680,10 +680,8 @@ struct RadiosView: View {
   }
 
   private func historySectionToggle(title: String, isExpanded: Binding<Bool>) -> some View {
-    Button {
-      withAnimation(.easeInOut(duration: 0.2)) {
-        isExpanded.wrappedValue.toggle()
-      }
+    FocusRetainingButton {
+      isExpanded.wrappedValue.toggle()
     } label: {
       HStack(spacing: 12) {
         Text(title)

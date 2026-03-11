@@ -3,10 +3,6 @@ import SwiftUI
 struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   @EnvironmentObject private var navigationState: AppNavigationState
-  @EnvironmentObject private var profileStore: ProfileStore
-  @EnvironmentObject private var radioSession: RadioSessionViewModel
-  @EnvironmentObject private var recordingStore: RecordingStore
-  @EnvironmentObject private var historyStore: ListeningHistoryStore
 
   var body: some View {
     TabView(selection: $navigationState.selectedTab) {
@@ -31,25 +27,21 @@ struct ContentView: View {
     .tint(AppTheme.tint)
     .toolbarBackground(.regularMaterial, for: .tabBar)
     .toolbarBackground(.visible, for: .tabBar)
-    .background(globalVoiceOverRotorBridge())
-    .onAppear {
-      SystemRemoteCommandController.shared.bind(radioSession: radioSession)
-      processPendingShortcuts()
-    }
-    .onChange(of: scenePhase) { phase in
-      if phase == .active {
-        processPendingShortcuts()
-      }
-    }
+    .background(GlobalVoiceOverRotorHost())
+    .background(ShortcutCommandHost(scenePhase: scenePhase))
     .appScreenBackground()
   }
+}
 
-  @ViewBuilder
-  private func globalVoiceOverRotorBridge() -> some View {
+private struct GlobalVoiceOverRotorHost: View {
+  @EnvironmentObject private var profileStore: ProfileStore
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
+
+  var body: some View {
     let backend = profileStore.selectedProfile?.backend
     let isEnabled = backend != nil
 
-    GlobalVoiceOverRotorBridge(
+    return GlobalVoiceOverRotorBridge(
       isEnabled: isEnabled,
       frequencyRotorName: L10n.text("receiver.voiceover_rotor.frequency"),
       tuneStepRotorName: L10n.text("receiver.voiceover_rotor.tune_step"),
@@ -124,6 +116,32 @@ struct ContentView: View {
     }
 
     UIAccessibility.post(notification: .announcement, argument: announcement)
+  }
+}
+
+private struct ShortcutCommandHost: View {
+  let scenePhase: ScenePhase
+
+  @EnvironmentObject private var navigationState: AppNavigationState
+  @EnvironmentObject private var profileStore: ProfileStore
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var recordingStore: RecordingStore
+  @EnvironmentObject private var historyStore: ListeningHistoryStore
+
+  var body: some View {
+    Color.clear
+      .frame(width: 0, height: 0)
+      .allowsHitTesting(false)
+      .accessibilityHidden(true)
+      .onAppear {
+        SystemRemoteCommandController.shared.bind(radioSession: radioSession)
+        processPendingShortcuts()
+      }
+      .onChange(of: scenePhase) { phase in
+        if phase == .active {
+          processPendingShortcuts()
+        }
+      }
   }
 
   private func processPendingShortcuts() {
