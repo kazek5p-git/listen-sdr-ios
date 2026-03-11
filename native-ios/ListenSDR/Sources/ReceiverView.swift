@@ -864,10 +864,14 @@ struct ReceiverView: View {
     let modeText = isForcedStereo
       ? L10n.text("fmdx.stereo_state.stereo")
       : L10n.text("fmdx.stereo_state.mono")
+    let accessibilityText = isForcedStereo
+      ? L10n.text("fmdx.audio_mode.accessibility.stereo")
+      : L10n.text("fmdx.audio_mode.accessibility.mono")
 
     return fmdxToggleChip(
       title: modeText,
-      accessibilityTitle: L10n.text("fmdx.audio_mode"),
+      accessibilityTitle: accessibilityText,
+      accessibilityValue: nil,
       isOn: isForcedStereo,
       isEnabled: isEnabled
     ) {
@@ -1616,6 +1620,7 @@ struct ReceiverView: View {
   private func fmdxToggleChip(
     title: String,
     accessibilityTitle: String,
+    accessibilityValue: String? = nil,
     isOn: Bool,
     isEnabled: Bool,
     action: @escaping () -> Void
@@ -1636,7 +1641,7 @@ struct ReceiverView: View {
     .controlSize(.small)
     .disabled(!isEnabled)
     .accessibilityLabel(accessibilityTitle)
-    .accessibilityValue(isOn ? L10n.text("common.on") : L10n.text("common.off"))
+    .accessibilityValue(accessibilityValue ?? (isOn ? L10n.text("common.on") : L10n.text("common.off")))
   }
 
   private func fmdxToggleChipLabel(title: String) -> some View {
