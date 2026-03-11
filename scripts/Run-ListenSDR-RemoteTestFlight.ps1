@@ -12,7 +12,10 @@ param(
   [string]$BundleId = "com.kazek.sdr",
   [string]$RemoteDistributionP12Path = "~/EXPORT_FOR_KAZEK/Apple_Distribution_Mieczysaw_Bk_9N975WV782_AxelPong.p12",
   [string]$RemoteDistributionP12Password = [Environment]::GetEnvironmentVariable("LISTENSDR_REMOTE_P12_PASSWORD", "User"),
-  [switch]$UploadToTestFlight
+  [switch]$UploadToTestFlight,
+  [switch]$WaitForTestFlightProcessing,
+  [int]$StatusPollIntervalSeconds = 30,
+  [int]$StatusTimeoutMinutes = 20
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +25,23 @@ function Assert-LocalFile {
   if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
     throw "$Label not found: $Path"
   }
+}
+
+function Get-LocalBuildVersion {
+  param([string]$RepoPath)
+
+  $infoPlistPath = Join-Path $RepoPath "native-ios\ListenSDR\Info.plist"
+  if (-not (Test-Path $infoPlistPath)) {
+    throw "Info.plist not found: $infoPlistPath"
+  }
+
+  $content = Get-Content $infoPlistPath -Raw
+  $match = [regex]::Match($content, '<key>CFBundleVersion</key>\s*<string>([^<]+)</string>')
+  if (-not $match.Success) {
+    throw "Unable to read CFBundleVersion from Info.plist."
+  }
+
+  return $match.Groups[1].Value.Trim()
 }
 
 Assert-LocalFile -Path $AscApiKeyPath -Label "ASC API key"
@@ -297,4 +317,25 @@ $exitCode = $LASTEXITCODE
 $result | Write-Host
 if ($exitCode -ne 0) {
   throw "Remote archive/export/upload failed."
+}
+
+if ($UploadToTestFlight -and $WaitForTestFlightProcessing) {
+  $buildVersion = Get-LocalBuildVersion -RepoPath $RepoRoot
+  $statusScriptPath = Join-Path $PSScriptRoot "Check-ListenSDR-TestFlightStatus.ps1"
+
+  Write-Host ""
+  Write-Host "==> Wait for TestFlight processing"
+  & powershell -ExecutionPolicy Bypass -File $statusScriptPath `
+    -BundleId $BundleId `
+    -BuildVersion $buildVersion `
+    -WaitUntilProcessed `
+    -PollIntervalSeconds $StatusPollIntervalSeconds `
+    -TimeoutMinutes $StatusTimeoutMinutes `
+    -AscApiKeyPath $AscApiKeyPath `
+    -AscKeyId $AscKeyId `
+    -AscIssuerId $AscIssuerId
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "TestFlight processing wait failed."
+  }
 }
