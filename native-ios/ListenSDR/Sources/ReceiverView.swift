@@ -874,6 +874,7 @@ struct ReceiverView: View {
       accessibilityValue: accessibilityValue,
       accessibilityHint: L10n.text("fmdx.audio_mode.accessibility.toggle"),
       useDefaultAccessibilityStateValue: false,
+      retainAccessibilityFocus: false,
       isOn: mode.isStereo,
       isEnabled: isEnabled
     ) {
@@ -1625,18 +1626,19 @@ struct ReceiverView: View {
     accessibilityValue: String? = nil,
     accessibilityHint: String? = nil,
     useDefaultAccessibilityStateValue: Bool = true,
+    retainAccessibilityFocus: Bool = true,
     isOn: Bool,
     isEnabled: Bool,
     action: @escaping () -> Void
   ) -> some View {
     Group {
       if isOn {
-        FocusRetainingButton(action) {
+        FocusRetainingButton(action, retainsAccessibilityFocus: retainAccessibilityFocus) {
           fmdxToggleChipLabel(title: title)
         }
         .buttonStyle(.borderedProminent)
       } else {
-        FocusRetainingButton(action) {
+        FocusRetainingButton(action, retainsAccessibilityFocus: retainAccessibilityFocus) {
           fmdxToggleChipLabel(title: title)
         }
         .buttonStyle(.bordered)

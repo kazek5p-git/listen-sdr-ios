@@ -68,6 +68,7 @@ struct AppSectionHeader: View {
 struct FocusRetainingButton<Label: View>: View {
   let role: ButtonRole?
   let restoreDelayNanoseconds: UInt64
+  let retainsAccessibilityFocus: Bool
   let action: () -> Void
   @ViewBuilder let label: () -> Label
 
@@ -77,10 +78,12 @@ struct FocusRetainingButton<Label: View>: View {
     _ action: @escaping () -> Void,
     role: ButtonRole? = nil,
     restoreDelayNanoseconds: UInt64 = 120_000_000,
+    retainsAccessibilityFocus: Bool = true,
     @ViewBuilder label: @escaping () -> Label
   ) {
     self.role = role
     self.restoreDelayNanoseconds = restoreDelayNanoseconds
+    self.retainsAccessibilityFocus = retainsAccessibilityFocus
     self.action = action
     self.label = label
   }
@@ -96,6 +99,7 @@ struct FocusRetainingButton<Label: View>: View {
   }
 
   private func restoreFocusIfNeeded() {
+    guard retainsAccessibilityFocus else { return }
     guard UIAccessibility.isVoiceOverRunning else { return }
 
     Task { @MainActor in
