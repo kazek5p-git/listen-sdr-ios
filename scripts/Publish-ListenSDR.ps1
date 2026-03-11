@@ -151,6 +151,30 @@ function Get-HeadSha {
   return $sha
 }
 
+function Get-HeadChangedPaths {
+  $paths = @(& git -C $RepoRoot show --pretty="" --name-only HEAD)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Unable to inspect changed files in HEAD."
+  }
+  return @($paths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Test-UnsignedWorkflowExpected {
+  param([string[]]$Paths)
+  return [bool]($Paths | Where-Object {
+      $_ -match '^native-ios/' -or $_ -eq '.github/workflows/ios-unsigned-ipa.yml'
+    })
+}
+
+function Test-SyncWorkflowExpected {
+  param([string[]]$Paths)
+  return [bool]($Paths | Where-Object {
+      $_ -eq 'native-ios/project.yml' -or
+      $_ -match '^native-ios/ListenSDR/' -or
+      $_ -eq '.github/workflows/sync-xcodeproj.yml'
+    })
+}
+
 function Wait-WorkflowCompletion {
   param(
     [string]$CommitSha,
@@ -283,32 +307,62 @@ Commit-IfNeeded
 Push-Main
 
 $headSha = Get-HeadSha
-Write-Step "Wait for GitHub Actions"
-$unsignedRun = Wait-WorkflowCompletion -CommitSha $headSha -WorkflowName $unsignedWorkflowName
-$syncRun = Wait-WorkflowCompletion -CommitSha $headSha -WorkflowName $syncWorkflowName
+$headPaths = Get-HeadChangedPaths
+$expectsUnsigned = Test-UnsignedWorkflowExpected -Paths $headPaths
+$expectsSync = Test-SyncWorkflowExpected -Paths $headPaths
 
-if ($unsignedRun.conclusion -ne "success") {
-  throw "Unsigned IPA workflow failed: $($unsignedRun.url)"
+$unsignedRun = $null
+$syncRun = $null
+
+if ($expectsUnsigned -or $expectsSync) {
+  Write-Step "Wait for GitHub Actions"
+  if ($expectsUnsigned) {
+    $unsignedRun = Wait-WorkflowCompletion -CommitSha $headSha -WorkflowName $unsignedWorkflowName
+    if ($unsignedRun.conclusion -ne "success") {
+      throw "Unsigned IPA workflow failed: $($unsignedRun.url)"
+    }
+  }
+
+  if ($expectsSync) {
+    $syncRun = Wait-WorkflowCompletion -CommitSha $headSha -WorkflowName $syncWorkflowName
+    if ($syncRun.conclusion -ne "success") {
+      throw "Sync xcodeproj workflow failed: $($syncRun.url)"
+    }
+  }
+
+  FastForward-MainIfNeeded
+} else {
+  Write-Step "Skip workflow wait"
+  Write-Host "HEAD commit does not touch workflow-trigger paths for IPA or xcodeproj sync."
+  Write-Host "Push completed. No IPA build is expected for this commit."
 }
-if ($syncRun.conclusion -ne "success") {
-  throw "Sync xcodeproj workflow failed: $($syncRun.url)"
+
+$ipaPath = $null
+$ipaMetadata = $null
+
+if ($unsignedRun) {
+  $ipaPath = Download-UnsignedIpa -RunId $unsignedRun.databaseId
+  $ipaMetadata = Get-IpaMetadata -IpaPath $ipaPath
+
+  Write-Step "IPA verification"
+  Write-Host ("IPA: " + $ipaPath)
+  Write-Host ("Bundle ID: " + $ipaMetadata.BundleId)
+  Write-Host ("Version: " + $ipaMetadata.Version)
+  Write-Host ("Build: " + $ipaMetadata.Build)
+
+  Install-Ipa -IpaPath $ipaPath
 }
-
-FastForward-MainIfNeeded
-
-$ipaPath = Download-UnsignedIpa -RunId $unsignedRun.databaseId
-$ipaMetadata = Get-IpaMetadata -IpaPath $ipaPath
-
-Write-Step "IPA verification"
-Write-Host ("IPA: " + $ipaPath)
-Write-Host ("Bundle ID: " + $ipaMetadata.BundleId)
-Write-Host ("Version: " + $ipaMetadata.Version)
-Write-Host ("Build: " + $ipaMetadata.Build)
-
-Install-Ipa -IpaPath $ipaPath
 
 Write-Step "Pipeline summary"
 Write-Host ("Commit SHA: " + $headSha)
-Write-Host ("Unsigned IPA run: " + $unsignedRun.databaseId)
-Write-Host ("Sync run: " + $syncRun.databaseId)
-Write-Host ("IPA path: " + $ipaPath)
+Write-Host ("Expected unsigned IPA workflow: " + $expectsUnsigned)
+Write-Host ("Expected sync workflow: " + $expectsSync)
+if ($unsignedRun) {
+  Write-Host ("Unsigned IPA run: " + $unsignedRun.databaseId)
+}
+if ($syncRun) {
+  Write-Host ("Sync run: " + $syncRun.databaseId)
+}
+if ($ipaPath) {
+  Write-Host ("IPA path: " + $ipaPath)
+}
