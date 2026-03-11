@@ -860,14 +860,14 @@ struct ReceiverView: View {
   }
 
   private func fmDxAudioModeChip(isEnabled: Bool) -> some View {
-    let isStereo = radioSession.effectiveFMDXAudioModeIsStereo
-    let modeText = isStereo
+    let mode = radioSession.effectiveFMDXAudioMode
+    let modeText = mode.isStereo
       ? L10n.text("fmdx.stereo_state.stereo")
       : L10n.text("fmdx.stereo_state.mono")
-    let accessibilityLabel = isStereo
+    let accessibilityLabel = mode.isStereo
       ? L10n.text("fmdx.audio_mode.accessibility.stereo")
       : L10n.text("fmdx.audio_mode.accessibility.mono")
-    let accessibilityHint = isStereo
+    let accessibilityHint = mode.isStereo
       ? L10n.text("fmdx.audio_mode.accessibility.switch_to_mono")
       : L10n.text("fmdx.audio_mode.accessibility.switch_to_stereo")
 
@@ -876,10 +876,10 @@ struct ReceiverView: View {
       accessibilityTitle: accessibilityLabel,
       accessibilityHint: accessibilityHint,
       useDefaultAccessibilityStateValue: false,
-      isOn: isStereo,
+      isOn: mode.isStereo,
       isEnabled: isEnabled
     ) {
-      radioSession.setFMDXForcedStereoEnabled(!isStereo)
+      radioSession.setFMDXAudioMode(mode.isStereo ? .mono : .stereo)
     }
   }
 

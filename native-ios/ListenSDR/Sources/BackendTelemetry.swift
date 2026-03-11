@@ -70,6 +70,19 @@ struct FMDXCapabilities: Equatable {
   )
 }
 
+enum FMDXAudioMode: String, Equatable {
+  case mono
+  case stereo
+
+  init(isStereo: Bool) {
+    self = isStereo ? .stereo : .mono
+  }
+
+  var isStereo: Bool {
+    self == .stereo
+  }
+}
+
 struct FMDXTelemetry: Equatable {
   let frequencyMHz: Double?
   let signal: Double?
@@ -100,6 +113,13 @@ struct FMDXTelemetry: Equatable {
   let rt0Errors: String?
   let rt1Errors: String?
   let txInfo: FMDXTxInfo?
+}
+
+extension FMDXTelemetry {
+  var audioMode: FMDXAudioMode? {
+    guard let isStereo else { return nil }
+    return FMDXAudioMode(isStereo: isStereo)
+  }
 }
 
 struct KiwiTelemetry: Equatable {

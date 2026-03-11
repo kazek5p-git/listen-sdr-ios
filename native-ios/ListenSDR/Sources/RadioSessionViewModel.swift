@@ -196,12 +196,16 @@ final class RadioSessionViewModel: ObservableObject {
     fmdxCapabilities.supportsAGCControl
   }
 
-  var effectiveFMDXAudioModeIsStereo: Bool {
+  var effectiveFMDXAudioMode: FMDXAudioMode {
     if let pendingFMDXAudioModeIsStereo, Date() < pendingFMDXAudioModeDeadline {
-      return pendingFMDXAudioModeIsStereo
+      return FMDXAudioMode(isStereo: pendingFMDXAudioModeIsStereo)
     }
 
-    return fmdxTelemetry?.isStereo ?? false
+    return fmdxTelemetry?.audioMode ?? .mono
+  }
+
+  var effectiveFMDXAudioModeIsStereo: Bool {
+    effectiveFMDXAudioMode.isStereo
   }
 
   var isAwaitingInitialServerTuningSync: Bool {
@@ -774,11 +778,11 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
-  func setFMDXForcedStereoEnabled(_ enabled: Bool) {
+  func setFMDXAudioMode(_ mode: FMDXAudioMode) {
     guard activeBackend == .fmDxWebserver else { return }
-    pendingFMDXAudioModeIsStereo = enabled
+    pendingFMDXAudioModeIsStereo = mode.isStereo
     pendingFMDXAudioModeDeadline = Date().addingTimeInterval(2.5)
-    sendFMDXControl(.setFMDXForcedStereo(enabled))
+    sendFMDXControl(.setFMDXForcedStereo(mode.isStereo))
   }
 
   func setFMDXAntenna(_ id: String) {
@@ -2007,6 +2011,7 @@ final class RadioSessionViewModel: ObservableObject {
         changedSettings = true
       }
       reconcilePendingFMDXAudioModeState(with: telemetry)
+      logFMDXAudioModeChangeIfNeeded(previous: previousTelemetry, current: telemetry)
       if let frequencyMHz = telemetry.frequencyMHz {
         let backendFrequencyHz = normalizeFMDXFrequencyHz(fromMHz: frequencyMHz)
         if let pending = pendingFMDXTuneFrequencyHz,
@@ -2331,6 +2336,20 @@ final class RadioSessionViewModel: ObservableObject {
   private func clearPendingFMDXAudioModeState() {
     pendingFMDXAudioModeIsStereo = nil
     pendingFMDXAudioModeDeadline = .distantPast
+  }
+
+  private func logFMDXAudioModeChangeIfNeeded(previous: FMDXTelemetry?, current: FMDXTelemetry) {
+    guard previous?.audioMode != current.audioMode || previous?.isForcedStereo != current.isForcedStereo else {
+      return
+    }
+
+    guard let mode = current.audioMode else { return }
+
+    let forcedState = (current.isForcedStereo ?? false) ? "forced" : "auto"
+    Diagnostics.log(
+      category: "FM-DX",
+      message: "Audio mode confirmed by server: \(mode.rawValue) (\(forcedState))"
+    )
   }
 
   private func refreshFMDXAudioAnalysis(forceLog: Bool) {

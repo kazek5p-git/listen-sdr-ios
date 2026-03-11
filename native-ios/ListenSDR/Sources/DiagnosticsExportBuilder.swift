@@ -96,7 +96,9 @@ enum DiagnosticsExportBuilder {
       if let signal = telemetry.signal {
         lines.append("FM-DX signal: \(String(format: "%.1f", signal)) dBf")
       }
-      lines.append("FM-DX audio mode: \((telemetry.isStereo ?? false) ? "stereo" : "mono")")
+      let audioMode = telemetry.audioMode?.rawValue ?? "unknown"
+      let forcedState = (telemetry.isForcedStereo ?? false) ? "forced" : "auto"
+      lines.append("FM-DX audio mode: \(audioMode) (\(forcedState))")
     }
     if let quality = radioSession.fmdxAudioQualityReport {
       lines.append("FM-DX audio quality: \(quality.level.rawValue) (\(quality.score)/100)")
