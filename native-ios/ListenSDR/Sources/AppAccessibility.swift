@@ -23,6 +23,38 @@ enum AppAccessibilityAnnouncementCenter {
   }
 }
 
+private struct VoiceOverStableModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content.transaction { transaction in
+      if UIAccessibility.isVoiceOverRunning {
+        transaction.animation = nil
+      }
+    }
+  }
+}
+
+private struct AccessibleControlModifier: ViewModifier {
+  let label: String
+  let value: String?
+  let hint: String?
+
+  func body(content: Content) -> some View {
+    let base = content.accessibilityLabel(label)
+
+    if let value, !value.isEmpty, let hint, !hint.isEmpty {
+      base
+        .accessibilityValue(value)
+        .accessibilityHint(hint)
+    } else if let value, !value.isEmpty {
+      base.accessibilityValue(value)
+    } else if let hint, !hint.isEmpty {
+      base.accessibilityHint(hint)
+    } else {
+      base
+    }
+  }
+}
+
 struct AppSectionHeader: View {
   let title: String
 
@@ -155,5 +187,19 @@ struct AppAccessibilityRotorHost: View {
     }
 
     AppAccessibilityAnnouncementCenter.post(announcement)
+  }
+}
+
+extension View {
+  func voiceOverStable() -> some View {
+    modifier(VoiceOverStableModifier())
+  }
+
+  func accessibleControl(
+    label: String,
+    value: String? = nil,
+    hint: String? = nil
+  ) -> some View {
+    modifier(AccessibleControlModifier(label: label, value: value, hint: hint))
   }
 }

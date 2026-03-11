@@ -372,6 +372,7 @@ struct RadiosView: View {
               .appSectionStyle()
             }
           }
+          .voiceOverStable()
           .listStyle(.insetGrouped)
           .scrollContentBackground(.hidden)
         }

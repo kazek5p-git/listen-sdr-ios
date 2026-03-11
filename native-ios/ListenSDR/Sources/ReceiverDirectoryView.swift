@@ -157,6 +157,7 @@ struct ReceiverDirectoryView: View {
           AppSectionHeader(title: "Receivers")
         }
       }
+      .voiceOverStable()
       .listStyle(.insetGrouped)
       .scrollContentBackground(.hidden)
       .navigationTitle("Receiver Directory")

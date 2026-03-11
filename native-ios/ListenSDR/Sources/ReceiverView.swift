@@ -231,6 +231,7 @@ struct ReceiverView: View {
       kiwiLiveSection(for: profile)
       audioSection(for: profile)
     }
+    .voiceOverStable()
     .scrollContentBackground(.hidden)
     .onAppear {
       resetInlineFrequencyInput()
@@ -2377,6 +2378,7 @@ struct SelectionListView: View {
       }
       .appSectionStyle()
     }
+    .voiceOverStable()
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
     .navigationTitle(title)
@@ -2429,6 +2431,7 @@ private struct OpenWebRXBandDetailView: View {
         .appSectionStyle()
       }
     }
+    .voiceOverStable()
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
     .navigationTitle(band.name)
@@ -2543,6 +2546,7 @@ private struct OpenWebRXBookmarksView: View {
         .appSectionStyle()
       }
     }
+    .voiceOverStable()
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
     .navigationTitle(L10n.text("openwebrx.bookmarks_section"))
@@ -2633,6 +2637,7 @@ private struct OpenWebRXBandPlanListView: View {
         .appSectionStyle()
       }
     }
+    .voiceOverStable()
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
     .navigationTitle(L10n.text("openwebrx.band_plan_section"))
@@ -2727,6 +2732,7 @@ private struct FMDXRDSDetailsView: View {
         .appSectionStyle()
       }
     }
+    .voiceOverStable()
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
     .navigationTitle(L10n.text("fmdx.live.more_details"))

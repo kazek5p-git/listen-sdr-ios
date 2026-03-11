@@ -16,6 +16,7 @@ struct SettingsView: View {
         diagnosticsSection
         quickActionsSection
       }
+      .voiceOverStable()
       .scrollContentBackground(.hidden)
       .navigationTitle(L10n.text("Settings"))
       .appScreenBackground()
@@ -176,34 +177,22 @@ struct SettingsView: View {
 
   private var scannerSection: some View {
     Section {
-      VStack(alignment: .leading, spacing: 6) {
-        LabeledContent(
-          L10n.text("settings.scanner.dwell"),
-          value: "\(String(format: "%.1f", settingsController.state.scannerDwellSeconds)) s"
-        )
-        Slider(
-          value: Binding(
-            get: { settingsController.state.scannerDwellSeconds },
-            set: { settingsController.setScannerDwellSeconds($0) }
-          ),
-          in: 0.5...6,
-          step: 0.1
-        )
+      scannerSlider(
+        title: L10n.text("settings.scanner.dwell"),
+        value: settingsController.state.scannerDwellSeconds,
+        range: 0.5...6,
+        step: 0.1
+      ) {
+        settingsController.setScannerDwellSeconds($0)
       }
 
-      VStack(alignment: .leading, spacing: 6) {
-        LabeledContent(
-          L10n.text("settings.scanner.hold"),
-          value: "\(String(format: "%.1f", settingsController.state.scannerHoldSeconds)) s"
-        )
-        Slider(
-          value: Binding(
-            get: { settingsController.state.scannerHoldSeconds },
-            set: { settingsController.setScannerHoldSeconds($0) }
-          ),
-          in: 0.5...12,
-          step: 0.1
-        )
+      scannerSlider(
+        title: L10n.text("settings.scanner.hold"),
+        value: settingsController.state.scannerHoldSeconds,
+        range: 0.5...12,
+        step: 0.1
+      ) {
+        settingsController.setScannerHoldSeconds($0)
       }
     } header: {
       AppSectionHeader(title: L10n.text("settings.scanner.section"))
@@ -352,6 +341,8 @@ struct SettingsView: View {
         title,
         value: "\(String(format: "%.2f", value)) s"
       )
+      .accessibilityHidden(true)
+
       Slider(
         value: Binding(
           get: { value },
@@ -360,7 +351,40 @@ struct SettingsView: View {
         in: range,
         step: step
       )
-      .accessibilityHint(L10n.text(hintKey))
+      .accessibleControl(
+        label: title,
+        value: "\(String(format: "%.2f", value)) s",
+        hint: L10n.text(hintKey)
+      )
+    }
+  }
+
+  private func scannerSlider(
+    title: String,
+    value: Double,
+    range: ClosedRange<Double>,
+    step: Double,
+    onChange: @escaping (Double) -> Void
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(
+        title,
+        value: "\(String(format: "%.1f", value)) s"
+      )
+      .accessibilityHidden(true)
+
+      Slider(
+        value: Binding(
+          get: { value },
+          set: { onChange($0) }
+        ),
+        in: range,
+        step: step
+      )
+      .accessibleControl(
+        label: title,
+        value: "\(String(format: "%.1f", value)) s"
+      )
     }
   }
 }

@@ -57,6 +57,7 @@ struct RecordingsView: View {
         AppSectionHeader(title: L10n.text("recordings.section"))
       }
     }
+    .voiceOverStable()
     .navigationTitle(L10n.text("recordings.section"))
     .navigationBarTitleDisplayMode(.inline)
     .onAppear {

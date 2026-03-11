@@ -319,6 +319,7 @@ struct DiagnosticsView: View {
         AppSectionHeader(title: "Logs")
       }
     }
+    .voiceOverStable()
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
     .navigationTitle("Diagnostics")
