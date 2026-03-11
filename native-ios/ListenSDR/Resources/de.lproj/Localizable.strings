@@ -231,6 +231,7 @@
 "fmdx.audio_mode" = "Audio-Modus";
 "fmdx.audio_mode.accessibility.stereo" = "Stereomodus aktiv";
 "fmdx.audio_mode.accessibility.mono" = "Monomodus aktiv";
+"fmdx.audio_mode.accessibility.toggle" = "Wechselt zwischen Stereo und Mono";
 "fmdx.audio_mode.accessibility.switch_to_mono" = "Wechselt in den Monomodus";
 "fmdx.audio_mode.accessibility.switch_to_stereo" = "Wechselt in den Stereomodus";
 "fmdx.audio_state" = "Audio-Status";
