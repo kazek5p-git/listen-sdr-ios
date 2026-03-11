@@ -9,7 +9,6 @@ struct ListenSDRApp: App {
   @StateObject private var favoritesStore = FavoritesStore()
   @StateObject private var recordingStore = RecordingStore()
   @StateObject private var historyStore = ListeningHistoryStore.shared
-  private let shazam = ShazamRecognitionController.shared
   private let diagnostics = Diagnostics.sharedStore
 
   var body: some Scene {
@@ -21,7 +20,6 @@ struct ListenSDRApp: App {
         .environmentObject(favoritesStore)
         .environmentObject(recordingStore)
         .environmentObject(historyStore)
-        .environmentObject(shazam)
         .environmentObject(diagnostics)
         .task {
           recordingStore.refresh()

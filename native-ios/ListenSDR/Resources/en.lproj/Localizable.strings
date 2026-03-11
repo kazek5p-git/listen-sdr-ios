@@ -235,20 +235,6 @@
 "accessibility.rds_announcement.pi" = "RDS P I %@";
 
 "settings.integrations.section" = "Integrations";
-"settings.integrations.shazam" = "Show Shazam section";
-"settings.integrations.shazam.hint" = "Shows a Shazam section at the bottom of the receiver screen for quick song recognition.";
-"shazam.start" = "Recognize current song";
-"shazam.cancel" = "Cancel recognition";
-"shazam.listening" = "Listening to current audio...";
-"shazam.matching" = "Matching track...";
-"shazam.no_match" = "No match found.";
-"shazam.idle_hint" = "Tap the button to identify the track that is currently playing.";
-"shazam.connect_first" = "Connect to a receiver first to identify current audio.";
-"shazam.unsupported_stream" = "This receiver audio format is not supported by the built-in Shazam integration yet.";
-"shazam.error" = "Shazam recognition failed.";
-"shazam.result.title" = "Song";
-"shazam.result.artist" = "Artist";
-"shazam.result.unknown_title" = "Unknown title";
 "settings.audio.section" = "FM-DX audio";
 "settings.audio.startup_buffer" = "Startup buffer";
 "settings.audio.startup_buffer.hint" = "Higher values reduce stutter, but increase delay.";
@@ -440,3 +426,20 @@
 "kiwi.signal_preset.utility.detail" = "Manual mid RF gain for utility and data listening.";
 "kiwi.signal_preset.custom" = "Custom";
 "kiwi.signal_preset.custom.detail" = "Manual AGC and RF gain values outside presets.";
+
+"diagnostics.export" = "Export diagnostics";
+"shortcuts.connect_last.title" = "Connect Last Receiver";
+"shortcuts.connect_last.description" = "Opens Listen SDR and connects to the most recently used receiver.";
+"shortcuts.connect_last.short_title" = "Last Receiver";
+"shortcuts.open_fmdx.title" = "Open FM-DX";
+"shortcuts.open_fmdx.description" = "Opens Listen SDR and connects to an FM-DX receiver.";
+"shortcuts.open_fmdx.short_title" = "Open FM-DX";
+"shortcuts.toggle_mute.title" = "Toggle Mute";
+"shortcuts.toggle_mute.description" = "Opens Listen SDR and toggles audio mute.";
+"shortcuts.toggle_mute.short_title" = "Toggle Mute";
+"shortcuts.start_recording.title" = "Start Recording";
+"shortcuts.start_recording.description" = "Opens Listen SDR and starts recording the current receiver audio.";
+"shortcuts.start_recording.short_title" = "Start Recording";
+"shortcuts.stop_recording.title" = "Stop Recording";
+"shortcuts.stop_recording.description" = "Opens Listen SDR and stops the current recording.";
+"shortcuts.stop_recording.short_title" = "Stop Recording";

@@ -45,7 +45,6 @@ final class AudioOutputEngine {
       destination[index] = sample
     }
 
-    ShazamRecognitionController.shared.consume(samples: samples, sampleRate: sampleRate)
     AudioRecordingController.shared.consumePCM(samples: samples, sampleRate: sampleRate)
 
     if !engine.isRunning {

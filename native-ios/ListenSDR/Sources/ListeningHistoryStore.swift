@@ -70,12 +70,19 @@ final class ListeningHistoryStore: ObservableObject {
   @Published private(set) var recentReceivers: [RecentReceiverRecord] = []
   @Published private(set) var recentListening: [RecentListeningRecord] = []
 
-  private let recentReceiversKey = "ListenSDR.history.recentReceivers.v1"
-  private let recentListeningKey = "ListenSDR.history.recentListening.v1"
+  private let defaults: UserDefaults
+  private let recentReceiversKey: String
+  private let recentListeningKey: String
   private let maxRecentReceivers = 50
   private let maxRecentListening = 150
 
-  private init() {
+  init(
+    defaults: UserDefaults = .standard,
+    namespace: String = "ListenSDR.history"
+  ) {
+    self.defaults = defaults
+    recentReceiversKey = "\(namespace).recentReceivers.v1"
+    recentListeningKey = "\(namespace).recentListening.v1"
     load()
   }
 
@@ -192,8 +199,6 @@ final class ListeningHistoryStore: ObservableObject {
   }
 
   private func load() {
-    let defaults = UserDefaults.standard
-
     if let data = defaults.data(forKey: recentReceiversKey),
       let decoded = try? JSONDecoder().decode([RecentReceiverRecord].self, from: data) {
       recentReceivers = decoded
@@ -207,11 +212,11 @@ final class ListeningHistoryStore: ObservableObject {
 
   private func persistReceivers() {
     guard let data = try? JSONEncoder().encode(recentReceivers) else { return }
-    UserDefaults.standard.set(data, forKey: recentReceiversKey)
+    defaults.set(data, forKey: recentReceiversKey)
   }
 
   private func persistListening() {
     guard let data = try? JSONEncoder().encode(recentListening) else { return }
-    UserDefaults.standard.set(data, forKey: recentListeningKey)
+    defaults.set(data, forKey: recentListeningKey)
   }
 }

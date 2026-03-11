@@ -379,20 +379,6 @@
 "accessibility.rds_announcement.pi" = "RDS P I %@";
 
 "settings.integrations.section" = "Integrationen";
-"settings.integrations.shazam" = "Shazam-Bereich anzeigen";
-"settings.integrations.shazam.hint" = "Zeigt unten im Empfangerbildschirm einen Shazam-Bereich zur schnellen Titelerkennung an.";
-"shazam.start" = "Aktuellen Titel erkennen";
-"shazam.cancel" = "Erkennung abbrechen";
-"shazam.listening" = "Aktuelles Audio wird analysiert...";
-"shazam.matching" = "Titel wird abgeglichen...";
-"shazam.no_match" = "Kein Treffer gefunden.";
-"shazam.idle_hint" = "Tippen Sie auf die Taste, um den aktuell laufenden Titel zu erkennen.";
-"shazam.connect_first" = "Verbinden Sie sich zuerst mit einem Empfanger, um das aktuelle Audio zu erkennen.";
-"shazam.unsupported_stream" = "Dieses Audioformat des Empfangers wird von der integrierten Shazam-Integration noch nicht unterstutzt.";
-"shazam.error" = "Shazam-Erkennung fehlgeschlagen.";
-"shazam.result.title" = "Titel";
-"shazam.result.artist" = "Interpret";
-"shazam.result.unknown_title" = "Unbekannter Titel";
 "settings.audio.section" = "FM-DX-Audio";
 "settings.audio.startup_buffer" = "Startpuffer";
 "settings.audio.startup_buffer.hint" = "Hoehere Werte verringern Aussetzer, erhoehen aber die Verzoegerung.";
@@ -584,3 +570,20 @@
 "kiwi.signal_preset.utility.detail" = "Manuelles mittleres RF-Gain fuer Utility- und Digitalempfang.";
 "kiwi.signal_preset.custom" = "Benutzerdefiniert";
 "kiwi.signal_preset.custom.detail" = "Manuelle AGC- und RF-Gain-Werte ausserhalb der Presets.";
+
+"diagnostics.export" = "Diagnose exportieren";
+"shortcuts.connect_last.title" = "Letzten Empfänger verbinden";
+"shortcuts.connect_last.description" = "Öffnet Listen SDR und verbindet den zuletzt verwendeten Empfänger.";
+"shortcuts.connect_last.short_title" = "Letzter Empfänger";
+"shortcuts.open_fmdx.title" = "FM-DX öffnen";
+"shortcuts.open_fmdx.description" = "Öffnet Listen SDR und verbindet einen FM-DX-Empfänger.";
+"shortcuts.open_fmdx.short_title" = "FM-DX";
+"shortcuts.toggle_mute.title" = "Stummschaltung umschalten";
+"shortcuts.toggle_mute.description" = "Öffnet Listen SDR und schaltet die Audiowiedergabe stumm oder wieder laut.";
+"shortcuts.toggle_mute.short_title" = "Stummschaltung";
+"shortcuts.start_recording.title" = "Aufnahme starten";
+"shortcuts.start_recording.description" = "Öffnet Listen SDR und startet die Aufnahme des aktuellen Empfängers.";
+"shortcuts.start_recording.short_title" = "Aufnahme starten";
+"shortcuts.stop_recording.title" = "Aufnahme stoppen";
+"shortcuts.stop_recording.description" = "Öffnet Listen SDR und stoppt die aktuelle Aufnahme.";
+"shortcuts.stop_recording.short_title" = "Aufnahme stoppen";

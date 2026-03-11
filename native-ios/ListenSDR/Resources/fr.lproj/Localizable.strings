@@ -379,20 +379,6 @@
 "accessibility.rds_announcement.pi" = "RDS P I %@";
 
 "settings.integrations.section" = "Integrations";
-"settings.integrations.shazam" = "Afficher la section Shazam";
-"settings.integrations.shazam.hint" = "Affiche une section Shazam en bas de l'ecran du recepteur pour reconnaitre rapidement un titre.";
-"shazam.start" = "Identifier le titre en cours";
-"shazam.cancel" = "Annuler l'identification";
-"shazam.listening" = "Ecoute de l'audio en cours...";
-"shazam.matching" = "Recherche du titre...";
-"shazam.no_match" = "Aucune correspondance trouvee.";
-"shazam.idle_hint" = "Touchez le bouton pour identifier le morceau en cours de lecture.";
-"shazam.connect_first" = "Connectez-vous d'abord a un recepteur pour identifier l'audio actuel.";
-"shazam.unsupported_stream" = "Ce format audio du recepteur n'est pas encore pris en charge par l'integration Shazam integree.";
-"shazam.error" = "Echec de la reconnaissance Shazam.";
-"shazam.result.title" = "Titre";
-"shazam.result.artist" = "Artiste";
-"shazam.result.unknown_title" = "Titre inconnu";
 "settings.audio.section" = "Audio FM-DX";
 "settings.audio.startup_buffer" = "Tampon de demarrage";
 "settings.audio.startup_buffer.hint" = "Des valeurs plus elevees reduisent les coupures, mais augmentent le retard.";
@@ -584,3 +570,20 @@
 "kiwi.signal_preset.utility.detail" = "Gain RF manuel moyen pour les services et le numerique.";
 "kiwi.signal_preset.custom" = "Personnalise";
 "kiwi.signal_preset.custom.detail" = "Valeurs AGC et RF manuelles hors presets.";
+
+"diagnostics.export" = "Exporter le diagnostic";
+"shortcuts.connect_last.title" = "Connecter le dernier recepteur";
+"shortcuts.connect_last.description" = "Ouvre Listen SDR et connecte le recepteur utilise en dernier.";
+"shortcuts.connect_last.short_title" = "Dernier recepteur";
+"shortcuts.open_fmdx.title" = "Ouvrir FM-DX";
+"shortcuts.open_fmdx.description" = "Ouvre Listen SDR et connecte un recepteur FM-DX.";
+"shortcuts.open_fmdx.short_title" = "FM-DX";
+"shortcuts.toggle_mute.title" = "Basculer le mode muet";
+"shortcuts.toggle_mute.description" = "Ouvre Listen SDR et active ou desactive le mode muet.";
+"shortcuts.toggle_mute.short_title" = "Mode muet";
+"shortcuts.start_recording.title" = "Demarrer l'enregistrement";
+"shortcuts.start_recording.description" = "Ouvre Listen SDR et demarre l'enregistrement audio actuel.";
+"shortcuts.start_recording.short_title" = "Demarrer";
+"shortcuts.stop_recording.title" = "Arreter l'enregistrement";
+"shortcuts.stop_recording.description" = "Ouvre Listen SDR et arrete l'enregistrement en cours.";
+"shortcuts.stop_recording.short_title" = "Arreter";

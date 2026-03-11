@@ -23,6 +23,10 @@ final class ProfileStore: ObservableObject {
     return profiles.first(where: { $0.id == selectedProfileID })
   }
 
+  func firstProfile(where predicate: (SDRConnectionProfile) -> Bool) -> SDRConnectionProfile? {
+    profiles.first(where: predicate)
+  }
+
   func upsert(_ profile: SDRConnectionProfile) {
     if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
       profiles[index] = profile

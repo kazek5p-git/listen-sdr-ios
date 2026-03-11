@@ -5,7 +5,10 @@ struct DiagnosticsView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var diagnostics: DiagnosticsStore
+  @EnvironmentObject private var historyStore: ListeningHistoryStore
+  @EnvironmentObject private var recordingStore: RecordingStore
   @State private var showingCopyConfirmation = false
+  @State private var exportedDiagnosticsURL: URL?
 
   private var audioSuggestionEntries: [DiagnosticLogEntry] {
     Array(
@@ -82,6 +85,32 @@ struct DiagnosticsView: View {
           radioSession.resetDSPSettings()
         } label: {
           Label("Reset DSP", systemImage: "slider.horizontal.3")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
+        }
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+
+        Button {
+          do {
+            exportedDiagnosticsURL = try DiagnosticsExportBuilder.createExportFile(
+              profileStore: profileStore,
+              radioSession: radioSession,
+              diagnostics: diagnostics,
+              historyStore: historyStore,
+              recordingStore: recordingStore
+            )
+            Diagnostics.log(category: "Diagnostics", message: "Diagnostics export prepared")
+          } catch {
+            Diagnostics.log(
+              severity: .error,
+              category: "Diagnostics",
+              message: "Unable to prepare diagnostics export: \(error.localizedDescription)"
+            )
+          }
+        } label: {
+          Label(L10n.text("diagnostics.export"), systemImage: "square.and.arrow.up")
             .frame(maxWidth: .infinity, alignment: .leading)
             .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
         }
@@ -298,6 +327,21 @@ struct DiagnosticsView: View {
       Button("OK", role: .cancel) {}
     } message: {
       Text("Diagnostics were copied to the clipboard.")
+    }
+    .sheet(
+      isPresented: Binding(
+        get: { exportedDiagnosticsURL != nil },
+        set: { isPresented in
+          if !isPresented, let url = exportedDiagnosticsURL {
+            try? FileManager.default.removeItem(at: url)
+            exportedDiagnosticsURL = nil
+          }
+        }
+      )
+    ) {
+      if let url = exportedDiagnosticsURL {
+        ShareSheet(items: [url])
+      }
     }
     .appScreenBackground()
   }

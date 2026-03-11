@@ -238,7 +238,6 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiWaterfallMaxDB: Int
   var showRdsErrorCounters: Bool
   var voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode
-  var shazamIntegrationEnabled: Bool
   var dxNightModeEnabled: Bool
   var autoFilterProfileEnabled: Bool
   var adaptiveScannerEnabled: Bool
@@ -281,7 +280,6 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMaxDB: -20,
     showRdsErrorCounters: false,
     voiceOverRDSAnnouncementMode: .off,
-    shazamIntegrationEnabled: false,
     dxNightModeEnabled: false,
     autoFilterProfileEnabled: false,
     adaptiveScannerEnabled: false,
@@ -316,7 +314,6 @@ struct RadioSessionSettings: Codable, Equatable {
     case showRdsErrorCounters
     case voiceOverRDSAnnouncementMode
     case voiceOverAnnouncesRDSChanges
-    case shazamIntegrationEnabled
     case dxNightModeEnabled
     case autoFilterProfileEnabled
     case adaptiveScannerEnabled
@@ -350,7 +347,6 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMaxDB: Int,
     showRdsErrorCounters: Bool,
     voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode,
-    shazamIntegrationEnabled: Bool,
     dxNightModeEnabled: Bool,
     autoFilterProfileEnabled: Bool,
     adaptiveScannerEnabled: Bool,
@@ -385,7 +381,6 @@ struct RadioSessionSettings: Codable, Equatable {
     }
     self.showRdsErrorCounters = showRdsErrorCounters
     self.voiceOverRDSAnnouncementMode = voiceOverRDSAnnouncementMode
-    self.shazamIntegrationEnabled = shazamIntegrationEnabled
     self.dxNightModeEnabled = dxNightModeEnabled
     self.autoFilterProfileEnabled = autoFilterProfileEnabled
     self.adaptiveScannerEnabled = adaptiveScannerEnabled
@@ -452,8 +447,6 @@ struct RadioSessionSettings: Codable, Equatable {
           ? .full
           : Self.default.voiceOverRDSAnnouncementMode
       )
-    shazamIntegrationEnabled = try container.decodeIfPresent(Bool.self, forKey: .shazamIntegrationEnabled)
-      ?? Self.default.shazamIntegrationEnabled
     dxNightModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxNightModeEnabled) ?? Self.default.dxNightModeEnabled
     autoFilterProfileEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoFilterProfileEnabled) ?? Self.default.autoFilterProfileEnabled
     adaptiveScannerEnabled = try container.decodeIfPresent(Bool.self, forKey: .adaptiveScannerEnabled) ?? Self.default.adaptiveScannerEnabled
@@ -509,7 +502,6 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(kiwiWaterfallMaxDB, forKey: .kiwiWaterfallMaxDB)
     try container.encode(showRdsErrorCounters, forKey: .showRdsErrorCounters)
     try container.encode(voiceOverRDSAnnouncementMode, forKey: .voiceOverRDSAnnouncementMode)
-    try container.encode(shazamIntegrationEnabled, forKey: .shazamIntegrationEnabled)
     try container.encode(dxNightModeEnabled, forKey: .dxNightModeEnabled)
     try container.encode(autoFilterProfileEnabled, forKey: .autoFilterProfileEnabled)
     try container.encode(adaptiveScannerEnabled, forKey: .adaptiveScannerEnabled)

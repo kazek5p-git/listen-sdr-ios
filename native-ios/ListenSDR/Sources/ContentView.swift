@@ -1,9 +1,12 @@
 import SwiftUI
 
 struct ContentView: View {
+  @Environment(\.scenePhase) private var scenePhase
   @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var recordingStore: RecordingStore
+  @EnvironmentObject private var historyStore: ListeningHistoryStore
 
   var body: some View {
     TabView(selection: $navigationState.selectedTab) {
@@ -31,6 +34,12 @@ struct ContentView: View {
     .background(globalVoiceOverRotorBridge())
     .onAppear {
       SystemRemoteCommandController.shared.bind(radioSession: radioSession)
+      processPendingShortcuts()
+    }
+    .onChange(of: scenePhase) { phase in
+      if phase == .active {
+        processPendingShortcuts()
+      }
     }
     .appScreenBackground()
   }
@@ -115,5 +124,15 @@ struct ContentView: View {
     }
 
     UIAccessibility.post(notification: .announcement, argument: announcement)
+  }
+
+  private func processPendingShortcuts() {
+    AppShortcutCommandCenter.shared.processPendingCommands(
+      navigationState: navigationState,
+      profileStore: profileStore,
+      radioSession: radioSession,
+      recordingStore: recordingStore,
+      historyStore: historyStore
+    )
   }
 }

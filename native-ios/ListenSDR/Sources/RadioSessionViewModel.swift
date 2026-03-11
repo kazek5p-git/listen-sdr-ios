@@ -149,9 +149,6 @@ final class RadioSessionViewModel: ObservableObject {
 
   init() {
     settings = loadPersistedSettings()
-    if settings.shazamIntegrationEnabled {
-      settings.shazamIntegrationEnabled = false
-    }
     if settings.autoFilterProfileEnabled {
       settings.autoFilterProfileEnabled = false
     }
@@ -177,7 +174,6 @@ final class RadioSessionViewModel: ObservableObject {
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
     applyFMDXAudioTuning()
-    ShazamRecognitionController.shared.setIntegrationEnabled(false)
     persistSettings()
   }
 
@@ -199,6 +195,23 @@ final class RadioSessionViewModel: ObservableObject {
 
   var currentTuningBackend: SDRBackend? {
     activeBackend
+  }
+
+  var connectedProfileSnapshot: SDRConnectionProfile? {
+    currentConnectedProfile
+  }
+
+  var currentRecordingContext: AudioRecordingContext? {
+    guard state == .connected else { return nil }
+    guard let profile = currentConnectedProfile else { return nil }
+    let format: AudioRecordingFormat = profile.backend == .fmDxWebserver ? .mp3 : .wav
+    return AudioRecordingContext(
+      receiverName: profile.name,
+      backend: profile.backend,
+      frequencyHz: settings.frequencyHz,
+      mode: settings.mode,
+      format: format
+    )
   }
 
   var currentFMDXAudioPreset: FMDXAudioTuningPreset {
@@ -573,7 +586,6 @@ final class RadioSessionViewModel: ObservableObject {
       return
     }
 
-    let previousFrequencyHz = settings.frequencyHz
     if activeBackend == .fmDxWebserver {
       let roundedToKHz = Int((Double(value) / 1_000.0).rounded()) * 1_000
       settings.frequencyHz = min(max(roundedToKHz, fmDxMinFrequencyHz), fmDxMaxFrequencyHz)
@@ -581,7 +593,6 @@ final class RadioSessionViewModel: ObservableObject {
       let range = frequencyRange(for: activeBackend)
       settings.frequencyHz = min(max(value, range.lowerBound), range.upperBound)
     }
-    clearRecognizedTrackIfTunedAway(from: previousFrequencyHz, to: settings.frequencyHz)
     let tuneStepChanged = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     if tuneStepChanged, activeBackend == .openWebRX {
@@ -705,6 +716,10 @@ final class RadioSessionViewModel: ObservableObject {
     FMDXMP3AudioPlayer.shared.setMuted(muted)
     NowPlayingMetadataController.shared.setMuted(muted)
     persistSettings()
+  }
+
+  func toggleAudioMuted() {
+    setAudioMuted(!settings.audioMuted)
   }
 
   func setAGCEnabled(_ enabled: Bool) {
@@ -939,12 +954,6 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setVoiceOverRDSAnnouncementsEnabled(_ enabled: Bool) {
     setVoiceOverRDSAnnouncementMode(enabled ? .full : .off)
-  }
-
-  func setShazamIntegrationEnabled(_ _: Bool) {
-    settings.shazamIntegrationEnabled = false
-    persistSettings()
-    ShazamRecognitionController.shared.setIntegrationEnabled(false)
   }
 
   func setAutoFilterProfileEnabled(_ _: Bool) {
@@ -1887,7 +1896,6 @@ final class RadioSessionViewModel: ObservableObject {
       var changed = false
       let clamped = min(max(frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
-        clearRecognizedTrackIfTunedAway(from: settings.frequencyHz, to: clamped)
         settings.frequencyHz = clamped
         changed = true
       }
@@ -1910,7 +1918,6 @@ final class RadioSessionViewModel: ObservableObject {
       var changed = false
       let clamped = min(max(frequencyHz, kiwiFrequencyRangeHz.lowerBound), kiwiFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
-        clearRecognizedTrackIfTunedAway(from: settings.frequencyHz, to: clamped)
         settings.frequencyHz = clamped
         changed = true
       }
@@ -1987,7 +1994,6 @@ final class RadioSessionViewModel: ObservableObject {
           clearFMDXTuneConfirmationState()
         }
         if abs(backendFrequencyHz - settings.frequencyHz) >= 1_000 {
-          clearRecognizedTrackIfTunedAway(from: settings.frequencyHz, to: backendFrequencyHz)
           settings.frequencyHz = backendFrequencyHz
           changedSettings = true
         }
@@ -2259,7 +2265,6 @@ final class RadioSessionViewModel: ObservableObject {
 
   private func resetRuntimeState(for backend: SDRBackend?) {
     _ = backend
-    ShazamRecognitionController.shared.cancelRecognition(clearResult: true)
     openWebRXProfiles = []
     selectedOpenWebRXProfileID = nil
     serverBookmarks = []
@@ -2504,11 +2509,6 @@ final class RadioSessionViewModel: ObservableObject {
       preset: .balanced,
       reasonKey: "settings.audio.suggestion.reason.balanced"
     )
-  }
-
-  private func clearRecognizedTrackIfTunedAway(from oldFrequencyHz: Int, to newFrequencyHz: Int) {
-    guard oldFrequencyHz != newFrequencyHz else { return }
-    NowPlayingMetadataController.shared.setRecognizedTrack(title: nil, artist: nil)
   }
 
   private func nowPlayingTitle(for telemetry: FMDXTelemetry) -> String? {

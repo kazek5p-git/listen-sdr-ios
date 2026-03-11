@@ -379,20 +379,6 @@
 "accessibility.rds_announcement.pi" = "RDS P I %@";
 
 "settings.integrations.section" = "Integraciones";
-"settings.integrations.shazam" = "Mostrar seccion Shazam";
-"settings.integrations.shazam.hint" = "Muestra una seccion de Shazam al final de la pantalla del receptor para reconocer canciones rapidamente.";
-"shazam.start" = "Reconocer cancion actual";
-"shazam.cancel" = "Cancelar reconocimiento";
-"shazam.listening" = "Escuchando el audio actual...";
-"shazam.matching" = "Buscando coincidencia...";
-"shazam.no_match" = "No se encontro coincidencia.";
-"shazam.idle_hint" = "Pulsa el boton para identificar la cancion que suena ahora mismo.";
-"shazam.connect_first" = "Conectate primero a un receptor para identificar el audio actual.";
-"shazam.unsupported_stream" = "Este formato de audio del receptor todavia no es compatible con la integracion Shazam integrada.";
-"shazam.error" = "Fallo el reconocimiento con Shazam.";
-"shazam.result.title" = "Cancion";
-"shazam.result.artist" = "Artista";
-"shazam.result.unknown_title" = "Titulo desconocido";
 "settings.audio.section" = "Audio FM-DX";
 "settings.audio.startup_buffer" = "Buffer de inicio";
 "settings.audio.startup_buffer.hint" = "Los valores mas altos reducen cortes, pero aumentan el retardo.";
@@ -584,3 +570,20 @@
 "kiwi.signal_preset.utility.detail" = "Ganancia RF manual media para servicios y modos digitales.";
 "kiwi.signal_preset.custom" = "Personalizado";
 "kiwi.signal_preset.custom.detail" = "Valores manuales de AGC y RF fuera de los preajustes.";
+
+"diagnostics.export" = "Exportar diagnostico";
+"shortcuts.connect_last.title" = "Conectar ultimo receptor";
+"shortcuts.connect_last.description" = "Abre Listen SDR y conecta el receptor usado mas recientemente.";
+"shortcuts.connect_last.short_title" = "Ultimo receptor";
+"shortcuts.open_fmdx.title" = "Abrir FM-DX";
+"shortcuts.open_fmdx.description" = "Abre Listen SDR y conecta un receptor FM-DX.";
+"shortcuts.open_fmdx.short_title" = "FM-DX";
+"shortcuts.toggle_mute.title" = "Alternar silencio";
+"shortcuts.toggle_mute.description" = "Abre Listen SDR y alterna el silencio del audio.";
+"shortcuts.toggle_mute.short_title" = "Silencio";
+"shortcuts.start_recording.title" = "Iniciar grabacion";
+"shortcuts.start_recording.description" = "Abre Listen SDR e inicia la grabacion del audio actual.";
+"shortcuts.start_recording.short_title" = "Iniciar grabacion";
+"shortcuts.stop_recording.title" = "Detener grabacion";
+"shortcuts.stop_recording.description" = "Abre Listen SDR y detiene la grabacion actual.";
+"shortcuts.stop_recording.short_title" = "Detener grabacion";

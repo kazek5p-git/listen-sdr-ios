@@ -379,20 +379,6 @@
 "accessibility.rds_announcement.pi" = "RDS P I %@";
 
 "settings.integrations.section" = "Integrazioni";
-"settings.integrations.shazam" = "Mostra sezione Shazam";
-"settings.integrations.shazam.hint" = "Mostra una sezione Shazam in fondo alla schermata del ricevitore per riconoscere rapidamente il brano.";
-"shazam.start" = "Riconosci il brano corrente";
-"shazam.cancel" = "Annulla riconoscimento";
-"shazam.listening" = "Ascolto dell'audio corrente...";
-"shazam.matching" = "Ricerca del brano...";
-"shazam.no_match" = "Nessuna corrispondenza trovata.";
-"shazam.idle_hint" = "Tocca il pulsante per identificare il brano attualmente in riproduzione.";
-"shazam.connect_first" = "Connettiti prima a un ricevitore per identificare l'audio corrente.";
-"shazam.unsupported_stream" = "Questo formato audio del ricevitore non e ancora supportato dall'integrazione Shazam integrata.";
-"shazam.error" = "Riconoscimento Shazam non riuscito.";
-"shazam.result.title" = "Brano";
-"shazam.result.artist" = "Artista";
-"shazam.result.unknown_title" = "Titolo sconosciuto";
 "settings.audio.section" = "Audio FM-DX";
 "settings.audio.startup_buffer" = "Buffer iniziale";
 "settings.audio.startup_buffer.hint" = "Valori piu alti riducono gli scatti, ma aumentano il ritardo.";
@@ -584,3 +570,20 @@
 "kiwi.signal_preset.utility.detail" = "Guadagno RF manuale medio per servizi e modi digitali.";
 "kiwi.signal_preset.custom" = "Personalizzato";
 "kiwi.signal_preset.custom.detail" = "Valori AGC e RF manuali fuori dai preset.";
+
+"diagnostics.export" = "Esporta diagnostica";
+"shortcuts.connect_last.title" = "Connetti ultimo ricevitore";
+"shortcuts.connect_last.description" = "Apre Listen SDR e connette il ricevitore usato piu di recente.";
+"shortcuts.connect_last.short_title" = "Ultimo ricevitore";
+"shortcuts.open_fmdx.title" = "Apri FM-DX";
+"shortcuts.open_fmdx.description" = "Apre Listen SDR e connette un ricevitore FM-DX.";
+"shortcuts.open_fmdx.short_title" = "FM-DX";
+"shortcuts.toggle_mute.title" = "Attiva o disattiva muto";
+"shortcuts.toggle_mute.description" = "Apre Listen SDR e cambia lo stato del muto audio.";
+"shortcuts.toggle_mute.short_title" = "Muto";
+"shortcuts.start_recording.title" = "Avvia registrazione";
+"shortcuts.start_recording.description" = "Apre Listen SDR e avvia la registrazione dell'audio corrente.";
+"shortcuts.start_recording.short_title" = "Avvia registrazione";
+"shortcuts.stop_recording.title" = "Ferma registrazione";
+"shortcuts.stop_recording.description" = "Apre Listen SDR e ferma la registrazione corrente.";
+"shortcuts.stop_recording.short_title" = "Ferma registrazione";
