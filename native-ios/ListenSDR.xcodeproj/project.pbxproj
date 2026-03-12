@@ -60,6 +60,7 @@
 		F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */; };
 		F1D937053202CA81759996E2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7B8C0A52D13309CB9883A20A /* Localizable.strings */; };
 		F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */; };
+		FD2A46F7134EB59E0B1C8FAD /* KiwiWaterfallProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */; };
 		FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */; };
 /* End PBXBuildFile section */
 
@@ -99,6 +100,7 @@
 		538629FD19959273EAEB0434 /* ReceiverIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverIdentity.swift; sourceTree = "<group>"; };
 		53C8E30919D0CCF77C1D172C /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
 		5854269FF520F5087EA1E2F3 /* ListenSDRFeedbackSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRFeedbackSender.swift; sourceTree = "<group>"; };
+		5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiWaterfallProcessing.swift; sourceTree = "<group>"; };
 		5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectory.swift; sourceTree = "<group>"; };
 		6294264E832985350801F669 /* ReceiverDataCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDataCache.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
@@ -170,6 +172,7 @@
 				18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */,
 				224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */,
 				5281754BC533DD08BFC3F0FB /* KiwiNoiseProcessing.swift */,
+				5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */,
 				CA8430FABA0F566E0392A547 /* L10n.swift */,
 				E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */,
 				06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */,
@@ -344,6 +347,7 @@
 				FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */,
 				904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */,
 				C528E9B1F9B1F3A37D859DB8 /* KiwiNoiseProcessing.swift in Sources */,
+				FD2A46F7134EB59E0B1C8FAD /* KiwiWaterfallProcessing.swift in Sources */,
 				A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */,
 				F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */,
 				7F21A7B2B4BE8EAEB9DF08B9 /* ListenSDRAppShortcuts.swift in Sources */,
