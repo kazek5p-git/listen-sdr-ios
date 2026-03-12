@@ -682,6 +682,14 @@ struct ReceiverView: View {
   @ViewBuilder
   private func kiwiControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .kiwiSDR {
+      let currentPassband = radioSession.currentKiwiPassband
+      let passbandLimitHz = radioSession.kiwiPassbandLimitHz
+      let defaultPassband = RadioSessionSettings.normalizedKiwiBandpass(
+        radioSession.settings.mode.normalized(for: .kiwiSDR).kiwiDefaultBandpass,
+        mode: radioSession.settings.mode,
+        sampleRateHz: radioSession.kiwiTelemetry?.sampleRateHz
+      )
+
       Section {
         selectionNavigationLink(
           title: L10n.text("kiwi.signal_preset"),
@@ -760,6 +768,33 @@ struct ReceiverView: View {
           .accessibilityLabel(L10n.text("kiwi.squelch_level"))
           .accessibilityValue("\(radioSession.settings.kiwiSquelchThreshold)")
         }
+
+        kiwiPassbandSlider(
+          title: L10n.text("kiwi.passband.low_cut"),
+          valueText: "\(currentPassband.lowCut) Hz",
+          value: Binding(
+            get: { Double(radioSession.currentKiwiPassband.lowCut) },
+            set: { radioSession.setKiwiPassbandLowCut(Int($0.rounded())) }
+          ),
+          range: Double(-passbandLimitHz)...Double(currentPassband.highCut - RadioSessionSettings.kiwiMinimumPassbandHz)
+        )
+
+        kiwiPassbandSlider(
+          title: L10n.text("kiwi.passband.high_cut"),
+          valueText: "\(currentPassband.highCut) Hz",
+          value: Binding(
+            get: { Double(radioSession.currentKiwiPassband.highCut) },
+            set: { radioSession.setKiwiPassbandHighCut(Int($0.rounded())) }
+          ),
+          range: Double(currentPassband.lowCut + RadioSessionSettings.kiwiMinimumPassbandHz)...Double(passbandLimitHz)
+        )
+
+        FocusRetainingButton {
+          radioSession.resetKiwiPassband()
+        } label: {
+          Text(L10n.text("kiwi.passband.reset"))
+        }
+        .disabled(currentPassband == defaultPassband)
 
         selectionNavigationLink(
           title: L10n.text("kiwi.waterfall.speed"),
@@ -857,6 +892,25 @@ struct ReceiverView: View {
       }
       .appSectionStyle()
     }
+  }
+
+  private func kiwiPassbandSlider(
+    title: String,
+    valueText: String,
+    value: Binding<Double>,
+    range: ClosedRange<Double>
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(title, value: valueText)
+      Slider(
+        value: value,
+        in: range,
+        step: 1
+      )
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(title)
+    .accessibilityValue(valueText)
   }
 
   private func fmDxAudioModeChip(isEnabled: Bool) -> some View {

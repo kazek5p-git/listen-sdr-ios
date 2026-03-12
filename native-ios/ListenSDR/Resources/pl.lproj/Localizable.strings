@@ -287,6 +287,9 @@
 "kiwi.squelch_hint" = "Włącz blokadę szumów dla audio KiwiSDR";
 "openwebrx.squelch_level" = "Poziom blokady szumów";
 "kiwi.squelch_level" = "Próg blokady szumów";
+"kiwi.passband.low_cut" = "Dolne cięcie pasma";
+"kiwi.passband.high_cut" = "Górne cięcie pasma";
+"kiwi.passband.reset" = "Przywróć domyślne pasmo";
 "kiwi.waterfall.speed" = "Prędkość wodospadu";
 "kiwi.waterfall.zoom" = "Powiększenie wodospadu";
 "kiwi.waterfall.min_db" = "Minimum wodospadu";

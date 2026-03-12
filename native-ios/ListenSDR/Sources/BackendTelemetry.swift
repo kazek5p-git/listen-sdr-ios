@@ -129,6 +129,7 @@ struct KiwiTelemetry: Equatable {
   let rssiDBm: Double?
   let waterfallBins: [UInt8]
   let sampleRateHz: Int
+  let passband: ReceiverBandpass?
 }
 
 enum BackendTelemetryEvent: Equatable {
@@ -136,7 +137,7 @@ enum BackendTelemetryEvent: Equatable {
   case openWebRXBookmarks([SDRServerBookmark])
   case openWebRXBandPlan([SDRBandPlanEntry])
   case openWebRXTuning(frequencyHz: Int, mode: DemodulationMode?)
-  case kiwiTuning(frequencyHz: Int, mode: DemodulationMode?, bandName: String?)
+  case kiwiTuning(frequencyHz: Int, mode: DemodulationMode?, bandName: String?, passband: ReceiverBandpass?)
   case fmdxCapabilities(FMDXCapabilities)
   case fmdxPresets([SDRServerBookmark])
   case fmdx(FMDXTelemetry)
@@ -147,6 +148,7 @@ enum BackendControlCommand {
   case selectOpenWebRXProfile(String)
   case setOpenWebRXSquelchLevel(Int)
   case setKiwiWaterfall(speed: Int, zoom: Int, minDB: Int, maxDB: Int, centerFrequencyHz: Int)
+  case setKiwiPassband(lowCut: Int, highCut: Int, frequencyHz: Int, mode: DemodulationMode)
   case setFMDXFrequencyHz(Int)
   case setFMDXFilter(eqEnabled: Bool, imsEnabled: Bool)
   case setFMDXAGC(Bool)

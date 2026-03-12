@@ -103,10 +103,6 @@ private func kiwiMode(from mode: DemodulationMode) -> String {
   mode.kiwiProtocolMode
 }
 
-private func kiwiBandpass(for mode: DemodulationMode) -> ReceiverBandpass {
-  mode.kiwiDefaultBandpass
-}
-
 private func openWebRXMode(from mode: DemodulationMode) -> String {
   mode.openWebRXProtocolMode
 }
@@ -174,9 +170,11 @@ actor KiwiSDRClient: SDRBackendClient {
   private var latestTunedFrequencyHz: Int?
   private var latestTunedMode: DemodulationMode?
   private var latestBandName: String?
+  private var latestPassband: ReceiverBandpass?
   private var lastReportedTunedFrequencyHz: Int?
   private var lastReportedTunedMode: DemodulationMode?
   private var lastReportedBandName: String?
+  private var lastReportedPassband: ReceiverBandpass?
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -259,9 +257,11 @@ actor KiwiSDRClient: SDRBackendClient {
     latestTunedFrequencyHz = nil
     latestTunedMode = nil
     latestBandName = nil
+    latestPassband = nil
     lastReportedTunedFrequencyHz = nil
     lastReportedTunedMode = nil
     lastReportedBandName = nil
+    lastReportedPassband = nil
 
     await MainActor.run {
       SharedAudioOutput.engine.stop()
@@ -273,7 +273,7 @@ actor KiwiSDRClient: SDRBackendClient {
     guard sndSocket != nil else { throw SDRClientError.notConnected }
 
     let mode = kiwiMode(from: settings.mode)
-    let passband = kiwiBandpass(for: settings.mode)
+    let passband = settings.kiwiPassband(for: settings.mode, sampleRateHz: sampleRateHz)
     let frequencyKHz = Double(settings.frequencyHz) / 1000.0
     let formattedFrequency = String(format: "%.3f", frequencyKHz)
 
@@ -335,6 +335,22 @@ actor KiwiSDRClient: SDRBackendClient {
       try await sendWF("SET maxdb=\(safeMaxDB) mindb=\(safeMinDB)")
       try await sendWF("SET zoom=\(safeZoom) cf=\(formattedCenter)")
       log("Kiwi waterfall updated: speed=\(safeSpeed), zoom=\(safeZoom), db=\(safeMinDB)...\(safeMaxDB)")
+
+    case .setKiwiPassband(let lowCut, let highCut, let frequencyHz, let mode):
+      let normalizedBandpass = RadioSessionSettings.normalizedKiwiBandpass(
+        ReceiverBandpass(lowCut: lowCut, highCut: highCut),
+        mode: mode,
+        sampleRateHz: sampleRateHz
+      )
+      let frequencyKHz = Double(frequencyHz) / 1000.0
+      let formattedFrequency = String(format: "%.3f", frequencyKHz)
+      try await sendSND(
+        "SET mod=\(mode.kiwiProtocolMode) low_cut=\(normalizedBandpass.lowCut) high_cut=\(normalizedBandpass.highCut) freq=\(formattedFrequency)"
+      )
+      latestPassband = normalizedBandpass
+      emitKiwiTelemetry(force: true)
+      emitKiwiTuning()
+      log("Kiwi passband updated: \(normalizedBandpass.lowCut)...\(normalizedBandpass.highCut) Hz")
 
     default:
       throw SDRClientError.unsupported("KiwiSDR does not support this control.")
@@ -431,6 +447,8 @@ actor KiwiSDRClient: SDRBackendClient {
   private func handleKiwiMessage(_ payload: String, stream: StreamKind) async {
     let entries = payload.split(separator: " ")
     var tuningChanged = false
+    var pendingLowCut: Int?
+    var pendingHighCut: Int?
 
     for entry in entries {
       let parts = entry.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
@@ -466,6 +484,16 @@ actor KiwiSDRClient: SDRBackendClient {
           let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
           latestBandName = normalized.isEmpty ? nil : normalized
           tuningChanged = true
+        }
+
+      case "low_cut":
+        if let value, let parsedValue = parseKiwiPassbandCut(value) {
+          pendingLowCut = parsedValue
+        }
+
+      case "high_cut":
+        if let value, let parsedValue = parseKiwiPassbandCut(value) {
+          pendingHighCut = parsedValue
         }
 
       case "load_cfg":
@@ -514,6 +542,23 @@ actor KiwiSDRClient: SDRBackendClient {
 
       default:
         break
+      }
+    }
+
+    if pendingLowCut != nil || pendingHighCut != nil {
+      let currentMode = latestTunedMode ?? .am
+      let currentPassband = latestPassband ?? RadioSessionSettings.default.kiwiPassband(for: currentMode, sampleRateHz: sampleRateHz)
+      let mergedPassband = RadioSessionSettings.normalizedKiwiBandpass(
+        ReceiverBandpass(
+          lowCut: pendingLowCut ?? currentPassband.lowCut,
+          highCut: pendingHighCut ?? currentPassband.highCut
+        ),
+        mode: currentMode,
+        sampleRateHz: sampleRateHz
+      )
+      if latestPassband != mergedPassband {
+        latestPassband = mergedPassband
+        tuningChanged = true
       }
     }
 
@@ -596,7 +641,8 @@ actor KiwiSDRClient: SDRBackendClient {
     let telemetry = KiwiTelemetry(
       rssiDBm: latestRSSI,
       waterfallBins: latestWaterfallBins,
-      sampleRateHz: sampleRateHz
+      sampleRateHz: sampleRateHz,
+      passband: latestPassband
     )
     if telemetry == latestTelemetry {
       return
@@ -610,6 +656,7 @@ actor KiwiSDRClient: SDRBackendClient {
       latestTunedFrequencyHz != lastReportedTunedFrequencyHz
         || latestTunedMode != lastReportedTunedMode
         || latestBandName != lastReportedBandName
+        || latestPassband != lastReportedPassband
     else {
       return
     }
@@ -617,6 +664,7 @@ actor KiwiSDRClient: SDRBackendClient {
     lastReportedTunedFrequencyHz = latestTunedFrequencyHz
     lastReportedTunedMode = latestTunedMode
     lastReportedBandName = latestBandName
+    lastReportedPassband = latestPassband
 
     guard let frequencyHz = latestTunedFrequencyHz else {
       return
@@ -625,7 +673,8 @@ actor KiwiSDRClient: SDRBackendClient {
       .kiwiTuning(
         frequencyHz: frequencyHz,
         mode: latestTunedMode,
-        bandName: latestBandName
+        bandName: latestBandName,
+        passband: latestPassband
       )
     )
   }
@@ -670,11 +719,50 @@ actor KiwiSDRClient: SDRBackendClient {
       tuningChanged = true
     }
 
+    let currentMode = latestTunedMode ?? .am
+    let lowCut = parseKiwiPassbandCut(dictionary["low_cut"])
+    let highCut = parseKiwiPassbandCut(dictionary["high_cut"])
+    if lowCut != nil || highCut != nil {
+      let currentPassband = latestPassband ?? RadioSessionSettings.default.kiwiPassband(for: currentMode, sampleRateHz: sampleRateHz)
+      let mergedPassband = RadioSessionSettings.normalizedKiwiBandpass(
+        ReceiverBandpass(
+          lowCut: lowCut ?? currentPassband.lowCut,
+          highCut: highCut ?? currentPassband.highCut
+        ),
+        mode: currentMode,
+        sampleRateHz: sampleRateHz
+      )
+      if latestPassband != mergedPassband {
+        latestPassband = mergedPassband
+        tuningChanged = true
+      }
+    }
+
     if let bandText = dictionary["band"] as? String {
       let normalized = bandText.trimmingCharacters(in: .whitespacesAndNewlines)
       latestBandName = normalized.isEmpty ? nil : normalized
       tuningChanged = true
     }
+  }
+
+  private func parseKiwiPassbandCut(_ rawValue: Any?) -> Int? {
+    switch rawValue {
+    case let number as NSNumber:
+      return number.intValue
+    case let text as String:
+      return parseKiwiPassbandCut(text)
+    default:
+      return nil
+    }
+  }
+
+  private func parseKiwiPassbandCut(_ rawValue: String?) -> Int? {
+    guard let rawValue else { return nil }
+    if let integer = Int(rawValue) {
+      return integer
+    }
+    guard let doubleValue = Double(rawValue), doubleValue.isFinite else { return nil }
+    return Int(doubleValue.rounded())
   }
 
   private func enqueueTelemetry(_ event: BackendTelemetryEvent) {

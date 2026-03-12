@@ -135,6 +135,9 @@
 "kiwi.squelch_hint" = "Enable squelch gate for KiwiSDR audio";
 "openwebrx.squelch_level" = "Squelch level";
 "kiwi.squelch_level" = "Squelch threshold";
+"kiwi.passband.low_cut" = "Passband low cut";
+"kiwi.passband.high_cut" = "Passband high cut";
+"kiwi.passband.reset" = "Reset passband";
 "kiwi.waterfall.speed" = "Waterfall speed";
 "kiwi.waterfall.zoom" = "Waterfall zoom";
 "kiwi.waterfall.min_db" = "Waterfall minimum";

@@ -232,6 +232,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var squelchEnabled: Bool
   var openWebRXSquelchLevel: Int
   var kiwiSquelchThreshold: Int
+  var kiwiPassbandsByMode: [String: ReceiverBandpass]
   var kiwiWaterfallSpeed: Int
   var kiwiWaterfallZoom: Int
   var kiwiWaterfallMinDB: Int
@@ -274,6 +275,7 @@ struct RadioSessionSettings: Codable, Equatable {
     squelchEnabled: false,
     openWebRXSquelchLevel: -95,
     kiwiSquelchThreshold: 6,
+    kiwiPassbandsByMode: [:],
     kiwiWaterfallSpeed: 2,
     kiwiWaterfallZoom: 0,
     kiwiWaterfallMinDB: -145,
@@ -307,6 +309,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case squelchEnabled
     case openWebRXSquelchLevel
     case kiwiSquelchThreshold
+    case kiwiPassbandsByMode
     case kiwiWaterfallSpeed
     case kiwiWaterfallZoom
     case kiwiWaterfallMinDB
@@ -341,6 +344,7 @@ struct RadioSessionSettings: Codable, Equatable {
     squelchEnabled: Bool,
     openWebRXSquelchLevel: Int,
     kiwiSquelchThreshold: Int,
+    kiwiPassbandsByMode: [String: ReceiverBandpass],
     kiwiWaterfallSpeed: Int,
     kiwiWaterfallZoom: Int,
     kiwiWaterfallMinDB: Int,
@@ -372,6 +376,15 @@ struct RadioSessionSettings: Codable, Equatable {
     self.squelchEnabled = squelchEnabled
     self.openWebRXSquelchLevel = Self.clampedOpenWebRXSquelchLevel(openWebRXSquelchLevel)
     self.kiwiSquelchThreshold = Self.clampedKiwiSquelchThreshold(kiwiSquelchThreshold)
+    self.kiwiPassbandsByMode = [:]
+    for (rawMode, bandpass) in kiwiPassbandsByMode {
+      let normalizedMode = DemodulationMode(rawValue: rawMode)?.normalized(for: .kiwiSDR) ?? .am
+      self.kiwiPassbandsByMode[normalizedMode.rawValue] = Self.normalizedKiwiBandpass(
+        bandpass,
+        mode: normalizedMode,
+        sampleRateHz: nil
+      )
+    }
     self.kiwiWaterfallSpeed = Self.normalizedKiwiWaterfallSpeed(kiwiWaterfallSpeed)
     self.kiwiWaterfallZoom = Self.clampedKiwiWaterfallZoom(kiwiWaterfallZoom)
     self.kiwiWaterfallMinDB = Self.clampedKiwiWaterfallMinDB(kiwiWaterfallMinDB)
@@ -420,6 +433,18 @@ struct RadioSessionSettings: Codable, Equatable {
     let rawKiwiSquelchThreshold = try container.decodeIfPresent(Int.self, forKey: .kiwiSquelchThreshold)
       ?? Self.default.kiwiSquelchThreshold
     kiwiSquelchThreshold = Self.clampedKiwiSquelchThreshold(rawKiwiSquelchThreshold)
+
+    let rawKiwiPassbandsByMode = try container.decodeIfPresent([String: ReceiverBandpass].self, forKey: .kiwiPassbandsByMode)
+      ?? Self.default.kiwiPassbandsByMode
+    kiwiPassbandsByMode = [:]
+    for (rawMode, bandpass) in rawKiwiPassbandsByMode {
+      let normalizedMode = DemodulationMode(rawValue: rawMode)?.normalized(for: .kiwiSDR) ?? .am
+      kiwiPassbandsByMode[normalizedMode.rawValue] = Self.normalizedKiwiBandpass(
+        bandpass,
+        mode: normalizedMode,
+        sampleRateHz: nil
+      )
+    }
 
     let rawKiwiWaterfallSpeed = try container.decodeIfPresent(Int.self, forKey: .kiwiWaterfallSpeed)
       ?? Self.default.kiwiWaterfallSpeed
@@ -496,6 +521,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(squelchEnabled, forKey: .squelchEnabled)
     try container.encode(openWebRXSquelchLevel, forKey: .openWebRXSquelchLevel)
     try container.encode(kiwiSquelchThreshold, forKey: .kiwiSquelchThreshold)
+    try container.encode(kiwiPassbandsByMode, forKey: .kiwiPassbandsByMode)
     try container.encode(kiwiWaterfallSpeed, forKey: .kiwiWaterfallSpeed)
     try container.encode(kiwiWaterfallZoom, forKey: .kiwiWaterfallZoom)
     try container.encode(kiwiWaterfallMinDB, forKey: .kiwiWaterfallMinDB)
@@ -528,6 +554,82 @@ struct RadioSessionSettings: Codable, Equatable {
 
   static func clampedKiwiSquelchThreshold(_ value: Int) -> Int {
     min(max(value, 0), 30)
+  }
+
+  static let kiwiMinimumPassbandHz = 4
+
+  static func kiwiPassbandLimitHz(sampleRateHz: Int?) -> Int {
+    let halfRate = max((sampleRateHz ?? 0) / 2, 5_000)
+    return max(halfRate, kiwiMinimumPassbandHz)
+  }
+
+  static func normalizedKiwiBandpass(
+    _ bandpass: ReceiverBandpass,
+    mode: DemodulationMode,
+    sampleRateHz: Int?
+  ) -> ReceiverBandpass {
+    let normalizedMode = mode.normalized(for: .kiwiSDR)
+    let limitHz = kiwiPassbandLimitHz(sampleRateHz: sampleRateHz)
+    let fallback = normalizedMode.kiwiDefaultBandpass
+    var lowCut = min(max(bandpass.lowCut, -limitHz), limitHz)
+    var highCut = min(max(bandpass.highCut, -limitHz), limitHz)
+
+    if lowCut >= highCut {
+      lowCut = min(max(fallback.lowCut, -limitHz), limitHz)
+      highCut = min(max(fallback.highCut, -limitHz), limitHz)
+    }
+
+    let minWidth = kiwiMinimumPassbandHz
+    if (highCut - lowCut) < minWidth {
+      let center = (lowCut + highCut) / 2
+      lowCut = center - (minWidth / 2)
+      highCut = lowCut + minWidth
+      if lowCut < -limitHz {
+        lowCut = -limitHz
+        highCut = lowCut + minWidth
+      }
+      if highCut > limitHz {
+        highCut = limitHz
+        lowCut = highCut - minWidth
+      }
+    }
+
+    if lowCut >= highCut {
+      let fallbackLow = min(max(fallback.lowCut, -limitHz), limitHz)
+      let fallbackHigh = min(max(fallback.highCut, -limitHz), limitHz)
+      return ReceiverBandpass(lowCut: min(fallbackLow, fallbackHigh - minWidth), highCut: max(fallbackHigh, fallbackLow + minWidth))
+    }
+
+    return ReceiverBandpass(lowCut: lowCut, highCut: highCut)
+  }
+
+  func kiwiPassband(for mode: DemodulationMode, sampleRateHz: Int?) -> ReceiverBandpass {
+    let normalizedMode = mode.normalized(for: .kiwiSDR)
+    if let storedBandpass = kiwiPassbandsByMode[normalizedMode.rawValue] {
+      return Self.normalizedKiwiBandpass(storedBandpass, mode: normalizedMode, sampleRateHz: sampleRateHz)
+    }
+    return Self.normalizedKiwiBandpass(
+      normalizedMode.kiwiDefaultBandpass,
+      mode: normalizedMode,
+      sampleRateHz: sampleRateHz
+    )
+  }
+
+  mutating func setKiwiPassband(
+    _ bandpass: ReceiverBandpass,
+    for mode: DemodulationMode,
+    sampleRateHz: Int?
+  ) {
+    let normalizedMode = mode.normalized(for: .kiwiSDR)
+    kiwiPassbandsByMode[normalizedMode.rawValue] = Self.normalizedKiwiBandpass(
+      bandpass,
+      mode: normalizedMode,
+      sampleRateHz: sampleRateHz
+    )
+  }
+
+  mutating func resetKiwiPassband(for mode: DemodulationMode) {
+    kiwiPassbandsByMode.removeValue(forKey: mode.normalized(for: .kiwiSDR).rawValue)
   }
 
   static func normalizedKiwiWaterfallSpeed(_ value: Int) -> Int {

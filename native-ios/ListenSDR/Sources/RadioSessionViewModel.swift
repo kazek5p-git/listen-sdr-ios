@@ -114,6 +114,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var scannerTask: Task<Void, Never>?
   private var fmDxTuneDebounceTask: Task<Void, Never>?
   private var fmDxTuneConfirmTask: Task<Void, Never>?
+  private var kiwiPassbandDebounceTask: Task<Void, Never>?
   private var pendingFMDXTuneFrequencyHz: Int?
   private var pendingFMDXAudioModeIsStereo: Bool?
   private var pendingFMDXAudioModeDeadline = Date.distantPast
@@ -241,6 +242,14 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
+  var currentKiwiPassband: ReceiverBandpass {
+    settings.kiwiPassband(for: settings.mode, sampleRateHz: kiwiTelemetry?.sampleRateHz)
+  }
+
+  var kiwiPassbandLimitHz: Int {
+    RadioSessionSettings.kiwiPassbandLimitHz(sampleRateHz: kiwiTelemetry?.sampleRateHz)
+  }
+
   func connect(
     to profile: SDRConnectionProfile,
     restoringFrequencyHz: Int? = nil,
@@ -269,6 +278,8 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneDebounceTask = nil
     fmDxTuneConfirmTask?.cancel()
     fmDxTuneConfirmTask = nil
+    kiwiPassbandDebounceTask?.cancel()
+    kiwiPassbandDebounceTask = nil
     listeningHistoryCaptureTask?.cancel()
     listeningHistoryCaptureTask = nil
     deferredRestoreTask?.cancel()
@@ -375,6 +386,8 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneDebounceTask = nil
     fmDxTuneConfirmTask?.cancel()
     fmDxTuneConfirmTask = nil
+    kiwiPassbandDebounceTask?.cancel()
+    kiwiPassbandDebounceTask = nil
     listeningHistoryCaptureTask?.cancel()
     listeningHistoryCaptureTask = nil
     deferredRestoreTask?.cancel()
@@ -904,6 +917,40 @@ final class RadioSessionViewModel: ObservableObject {
     applyIfConnected()
   }
 
+  func setKiwiPassbandLowCut(_ value: Int) {
+    let current = currentKiwiPassband
+    let limitHz = kiwiPassbandLimitHz
+    let minWidth = RadioSessionSettings.kiwiMinimumPassbandHz
+    let lowCut = min(max(value, -limitHz), current.highCut - minWidth)
+    settings.setKiwiPassband(
+      ReceiverBandpass(lowCut: lowCut, highCut: current.highCut),
+      for: settings.mode,
+      sampleRateHz: kiwiTelemetry?.sampleRateHz
+    )
+    persistSettings()
+    sendKiwiPassbandControl()
+  }
+
+  func setKiwiPassbandHighCut(_ value: Int) {
+    let current = currentKiwiPassband
+    let limitHz = kiwiPassbandLimitHz
+    let minWidth = RadioSessionSettings.kiwiMinimumPassbandHz
+    let highCut = max(min(value, limitHz), current.lowCut + minWidth)
+    settings.setKiwiPassband(
+      ReceiverBandpass(lowCut: current.lowCut, highCut: highCut),
+      for: settings.mode,
+      sampleRateHz: kiwiTelemetry?.sampleRateHz
+    )
+    persistSettings()
+    sendKiwiPassbandControl()
+  }
+
+  func resetKiwiPassband() {
+    settings.resetKiwiPassband(for: settings.mode)
+    persistSettings()
+    sendKiwiPassbandControl()
+  }
+
   func setKiwiWaterfallSpeed(_ value: Int) {
     settings.kiwiWaterfallSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(value)
     persistSettings()
@@ -1104,6 +1151,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.imsEnabled = RadioSessionSettings.default.imsEnabled
     settings.noiseReductionEnabled = RadioSessionSettings.default.noiseReductionEnabled
     settings.squelchEnabled = RadioSessionSettings.default.squelchEnabled
+    settings.kiwiPassbandsByMode = [:]
     persistSettings()
     if activeBackend == .fmDxWebserver {
       if fmdxCapabilities.supportsAGCControl {
@@ -1215,6 +1263,43 @@ final class RadioSessionViewModel: ObservableObject {
           severity: .warning,
           category: "Session",
           message: "Kiwi waterfall control failed, fallback apply used: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  private func sendKiwiPassbandControl() {
+    guard state == .connected, activeBackend == .kiwiSDR, let client else { return }
+    if isWaitingForInitialServerTuningSync() {
+      updateBackendStatusText(L10n.text("session.status.sync_tuning"))
+      return
+    }
+
+    kiwiPassbandDebounceTask?.cancel()
+    let snapshotMode = settings.mode
+    let snapshotFrequencyHz = settings.frequencyHz
+    let snapshotPassband = currentKiwiPassband
+
+    kiwiPassbandDebounceTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 120_000_000)
+      if Task.isCancelled { return }
+      do {
+        try await client.sendControl(
+          .setKiwiPassband(
+            lowCut: snapshotPassband.lowCut,
+            highCut: snapshotPassband.highCut,
+            frequencyHz: snapshotFrequencyHz,
+            mode: snapshotMode
+          )
+        )
+      } catch {
+        await MainActor.run {
+          self?.lastError = error.localizedDescription
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Session",
+          message: "Kiwi passband update failed: \(error.localizedDescription)"
         )
       }
     }
@@ -1952,7 +2037,7 @@ final class RadioSessionViewModel: ObservableObject {
       updateBackendStatusText(openWebRXStatusSummary(frequencyHz: clamped, mode: mode))
       scheduleListeningHistoryCapture()
 
-    case .kiwiTuning(let frequencyHz, let mode, let bandName):
+    case .kiwiTuning(let frequencyHz, let mode, let bandName, let passband):
       hasInitialServerTuningSync = true
       NowPlayingMetadataController.shared.setTitle(nil)
       var changed = false
@@ -1964,6 +2049,22 @@ final class RadioSessionViewModel: ObservableObject {
       if let mode, settings.mode != mode {
         settings.mode = mode
         changed = true
+      }
+      let activeMode = mode ?? settings.mode
+      if let passband {
+        let normalizedPassband = RadioSessionSettings.normalizedKiwiBandpass(
+          passband,
+          mode: activeMode,
+          sampleRateHz: kiwiTelemetry?.sampleRateHz
+        )
+        if settings.kiwiPassband(for: activeMode, sampleRateHz: kiwiTelemetry?.sampleRateHz) != normalizedPassband {
+          settings.setKiwiPassband(
+            normalizedPassband,
+            for: activeMode,
+            sampleRateHz: kiwiTelemetry?.sampleRateHz
+          )
+          changed = true
+        }
       }
       currentKiwiBandName = normalizedBandName(bandName)
       if syncTuneStepToCurrentBandIfNeeded() {
@@ -2056,6 +2157,19 @@ final class RadioSessionViewModel: ObservableObject {
 
     case .kiwi(let telemetry):
       kiwiTelemetry = telemetry
+      let normalizedPassband = RadioSessionSettings.normalizedKiwiBandpass(
+        telemetry.passband ?? settings.kiwiPassband(for: settings.mode, sampleRateHz: telemetry.sampleRateHz),
+        mode: settings.mode,
+        sampleRateHz: telemetry.sampleRateHz
+      )
+      if settings.kiwiPassband(for: settings.mode, sampleRateHz: telemetry.sampleRateHz) != normalizedPassband {
+        settings.setKiwiPassband(
+          normalizedPassband,
+          for: settings.mode,
+          sampleRateHz: telemetry.sampleRateHz
+        )
+        persistSettings()
+      }
       NowPlayingMetadataController.shared.setTitle(nil)
     }
   }
@@ -2323,6 +2437,8 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneDebounceTask?.cancel()
     fmDxTuneDebounceTask = nil
     clearFMDXTuneConfirmationState()
+    kiwiPassbandDebounceTask?.cancel()
+    kiwiPassbandDebounceTask = nil
     autoFilterPendingProfile = nil
     autoFilterStableSamples = 0
     suppressAutoFilterUntil = Date.distantPast

@@ -287,6 +287,9 @@
 "kiwi.squelch_hint" = "Squelch fuer KiwiSDR-Audio aktivieren";
 "openwebrx.squelch_level" = "Squelch-Pegel";
 "kiwi.squelch_level" = "Squelch-Schwelle";
+"kiwi.passband.low_cut" = "Untere Filtergrenze";
+"kiwi.passband.high_cut" = "Obere Filtergrenze";
+"kiwi.passband.reset" = "Filter zuruecksetzen";
 "kiwi.waterfall.speed" = "Waterfall-Geschwindigkeit";
 "kiwi.waterfall.zoom" = "Waterfall-Zoom";
 "kiwi.waterfall.min_db" = "Waterfall-Minimum";
