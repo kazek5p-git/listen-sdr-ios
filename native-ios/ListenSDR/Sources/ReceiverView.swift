@@ -1122,6 +1122,44 @@ struct ReceiverView: View {
         .accessibilityLabel(L10n.text("kiwi.waterfall.zoom"))
         .accessibilityValue("\(radioSession.settings.kiwiWaterfallZoom)")
 
+        VStack(alignment: .leading, spacing: 8) {
+          LabeledContent(
+            L10n.text("kiwi.waterfall.position"),
+            value: radioSession.settings.kiwiWaterfallPanOffsetBins == 0
+              ? L10n.text("kiwi.waterfall.position.centered")
+              : L10n.text("kiwi.waterfall.position.adjusted")
+          )
+
+          HStack(spacing: 12) {
+            FocusRetainingButton {
+              radioSession.panKiwiWaterfallLeft()
+            } label: {
+              Text(L10n.text("kiwi.waterfall.pan_left"))
+                .frame(maxWidth: .infinity)
+            }
+            .disabled(radioSession.kiwiTelemetry?.waterfallFFTSize == nil)
+
+            FocusRetainingButton {
+              radioSession.centerKiwiWaterfall()
+            } label: {
+              Text(L10n.text("kiwi.waterfall.center"))
+                .frame(maxWidth: .infinity)
+            }
+            .disabled(
+              radioSession.kiwiTelemetry?.waterfallFFTSize == nil
+                || radioSession.settings.kiwiWaterfallPanOffsetBins == 0
+            )
+
+            FocusRetainingButton {
+              radioSession.panKiwiWaterfallRight()
+            } label: {
+              Text(L10n.text("kiwi.waterfall.pan_right"))
+                .frame(maxWidth: .infinity)
+            }
+            .disabled(radioSession.kiwiTelemetry?.waterfallFFTSize == nil)
+          }
+        }
+
         VStack(alignment: .leading, spacing: 6) {
           LabeledContent(
             L10n.text("kiwi.waterfall.min_db"),

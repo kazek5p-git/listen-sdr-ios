@@ -1067,6 +1067,31 @@ final class RadioSessionViewModel: ObservableObject {
     sendKiwiWaterfallControl()
   }
 
+  func panKiwiWaterfallLeft() {
+    guard let step = kiwiWaterfallPanStepBins() else { return }
+    settings.kiwiWaterfallPanOffsetBins = RadioSessionSettings.clampedKiwiWaterfallPanOffsetBins(
+      settings.kiwiWaterfallPanOffsetBins - step
+    )
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func panKiwiWaterfallRight() {
+    guard let step = kiwiWaterfallPanStepBins() else { return }
+    settings.kiwiWaterfallPanOffsetBins = RadioSessionSettings.clampedKiwiWaterfallPanOffsetBins(
+      settings.kiwiWaterfallPanOffsetBins + step
+    )
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func centerKiwiWaterfall() {
+    guard settings.kiwiWaterfallPanOffsetBins != 0 else { return }
+    settings.kiwiWaterfallPanOffsetBins = 0
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
   func setKiwiWaterfallMinDB(_ value: Int) {
     let clamped = RadioSessionSettings.clampedKiwiWaterfallMinDB(value)
     settings.kiwiWaterfallMinDB = clamped
@@ -1278,6 +1303,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.kiwiWaterfallInterpolation = RadioSessionSettings.default.kiwiWaterfallInterpolation
     settings.kiwiWaterfallCICCompensation = RadioSessionSettings.default.kiwiWaterfallCICCompensation
     settings.kiwiWaterfallZoom = RadioSessionSettings.default.kiwiWaterfallZoom
+    settings.kiwiWaterfallPanOffsetBins = RadioSessionSettings.default.kiwiWaterfallPanOffsetBins
     settings.kiwiWaterfallMinDB = RadioSessionSettings.default.kiwiWaterfallMinDB
     settings.kiwiWaterfallMaxDB = RadioSessionSettings.default.kiwiWaterfallMaxDB
     persistSettings()
@@ -1371,6 +1397,7 @@ final class RadioSessionViewModel: ObservableObject {
     let minDB = settings.kiwiWaterfallMinDB
     let maxDB = settings.kiwiWaterfallMaxDB
     let centerFrequencyHz = settings.frequencyHz
+    let panOffsetBins = settings.kiwiWaterfallPanOffsetBins
     let windowFunction = settings.kiwiWaterfallWindowFunction
     let interpolation = settings.kiwiWaterfallInterpolation
     let cicCompensation = settings.kiwiWaterfallCICCompensation
@@ -1384,6 +1411,7 @@ final class RadioSessionViewModel: ObservableObject {
             minDB: minDB,
             maxDB: maxDB,
             centerFrequencyHz: centerFrequencyHz,
+            panOffsetBins: panOffsetBins,
             windowFunction: windowFunction,
             interpolation: interpolation,
             cicCompensation: cicCompensation
@@ -1400,6 +1428,28 @@ final class RadioSessionViewModel: ObservableObject {
         )
       }
     }
+  }
+
+  private func kiwiWaterfallViewportContext() -> KiwiWaterfallViewportContext? {
+    guard
+      let telemetry = kiwiTelemetry,
+      let bandwidthHz = telemetry.bandwidthHz,
+      let waterfallFFTSize = telemetry.waterfallFFTSize,
+      let zoomMax = telemetry.zoomMax
+    else {
+      return nil
+    }
+
+    let context = KiwiWaterfallViewportContext(
+      bandwidthHz: bandwidthHz,
+      fftSize: waterfallFFTSize,
+      zoomMax: zoomMax
+    )
+    return context.isValid ? context : nil
+  }
+
+  private func kiwiWaterfallPanStepBins() -> Int? {
+    kiwiWaterfallViewportContext()?.recommendedPanStepBins(at: settings.kiwiWaterfallZoom)
   }
 
   private func sendKiwiPassbandControl() {
@@ -1605,6 +1655,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.scannerHoldSeconds = 5.5
     settings.kiwiWaterfallSpeed = 1
     settings.kiwiWaterfallZoom = 0
+    settings.kiwiWaterfallPanOffsetBins = 0
     if activeBackend == .fmDxWebserver {
       settings.mode = .fm
       settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: .fm)
@@ -1770,6 +1821,14 @@ final class RadioSessionViewModel: ObservableObject {
       let kiwiZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(settings.kiwiWaterfallZoom)
       if settings.kiwiWaterfallZoom != kiwiZoom {
         settings.kiwiWaterfallZoom = kiwiZoom
+        changed = true
+      }
+
+      let kiwiPanOffsetBins = RadioSessionSettings.clampedKiwiWaterfallPanOffsetBins(
+        settings.kiwiWaterfallPanOffsetBins
+      )
+      if settings.kiwiWaterfallPanOffsetBins != kiwiPanOffsetBins {
+        settings.kiwiWaterfallPanOffsetBins = kiwiPanOffsetBins
         changed = true
       }
 
@@ -2277,6 +2336,9 @@ final class RadioSessionViewModel: ObservableObject {
       }
       updateBackendStatusText(kiwiStatusSummary(frequencyHz: clamped, mode: mode, reportedBandName: bandName))
       scheduleListeningHistoryCapture()
+      if activeBackend == .kiwiSDR, state == .connected {
+        sendKiwiWaterfallControl()
+      }
 
     case .fmdxCapabilities(let capabilities):
       fmdxCapabilities = capabilities
@@ -2358,6 +2420,7 @@ final class RadioSessionViewModel: ObservableObject {
       evaluateAutoFMDXFilterProfile(using: telemetry)
 
     case .kiwi(let telemetry):
+      let previousViewportContext = kiwiWaterfallViewportContext()
       kiwiTelemetry = telemetry
       let normalizedPassband = RadioSessionSettings.normalizedKiwiBandpass(
         telemetry.passband ?? settings.kiwiPassband(for: settings.mode, sampleRateHz: telemetry.sampleRateHz),
@@ -2371,6 +2434,11 @@ final class RadioSessionViewModel: ObservableObject {
           sampleRateHz: telemetry.sampleRateHz
         )
         persistSettings()
+      }
+      if previousViewportContext != kiwiWaterfallViewportContext(),
+        activeBackend == .kiwiSDR,
+        state == .connected {
+        sendKiwiWaterfallControl()
       }
       NowPlayingMetadataController.shared.setTitle(nil)
     }

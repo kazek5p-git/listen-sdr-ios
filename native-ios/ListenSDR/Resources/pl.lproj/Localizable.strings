@@ -310,6 +310,12 @@
 "kiwi.waterfall.cic_compensation" = "Kompensacja CIC";
 "kiwi.waterfall.reset_fft" = "Przywróć FFT wodospadu";
 "kiwi.waterfall.zoom" = "Powiększenie wodospadu";
+"kiwi.waterfall.position" = "Pozycja wodospadu";
+"kiwi.waterfall.position.centered" = "Wyśrodkowany";
+"kiwi.waterfall.position.adjusted" = "Przesunięty";
+"kiwi.waterfall.pan_left" = "Przesuń w lewo";
+"kiwi.waterfall.center" = "Wyśrodkuj";
+"kiwi.waterfall.pan_right" = "Przesuń w prawo";
 "kiwi.waterfall.min_db" = "Minimum wodospadu";
 "kiwi.waterfall.max_db" = "Maksimum wodospadu";
 

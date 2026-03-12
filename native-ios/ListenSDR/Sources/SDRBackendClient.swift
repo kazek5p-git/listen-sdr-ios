@@ -165,12 +165,15 @@ actor KiwiSDRClient: SDRBackendClient {
   private var telemetryQueue: [BackendTelemetryEvent] = []
   private var latestRSSI: Double?
   private var latestWaterfallBins: [UInt8] = []
+  private var latestWaterfallFFTSize: Int?
   private var lastTelemetryAt: Date = .distantPast
   private var latestTelemetry: KiwiTelemetry?
   private var latestTunedFrequencyHz: Int?
   private var latestTunedMode: DemodulationMode?
   private var latestBandName: String?
   private var latestPassband: ReceiverBandpass?
+  private var kiwiBandwidthHz: Int?
+  private var kiwiZoomMax: Int?
   private var lastReportedTunedFrequencyHz: Int?
   private var lastReportedTunedMode: DemodulationMode?
   private var lastReportedBandName: String?
@@ -220,7 +223,7 @@ actor KiwiSDRClient: SDRBackendClient {
       try await sendWF("SET wf_comp=0")
       try await sendWF("SET wf_speed=2")
       try await sendWF("SET maxdb=-20 mindb=-145")
-      try await sendWF("SET zoom=0 cf=0")
+      try await sendWF("SET zoom=0 start=0")
       try await sendWF("SET keepalive")
     } catch {
       log("Waterfall stream unavailable: \(error.localizedDescription)", severity: .warning)
@@ -251,6 +254,7 @@ actor KiwiSDRClient: SDRBackendClient {
     adpcmDecoder.reset()
     latestRSSI = nil
     latestWaterfallBins = []
+    latestWaterfallFFTSize = nil
     telemetryQueue.removeAll()
     lastTelemetryAt = .distantPast
     latestTelemetry = nil
@@ -258,6 +262,8 @@ actor KiwiSDRClient: SDRBackendClient {
     latestTunedMode = nil
     latestBandName = nil
     latestPassband = nil
+    kiwiBandwidthHz = nil
+    kiwiZoomMax = nil
     lastReportedTunedFrequencyHz = nil
     lastReportedTunedMode = nil
     lastReportedBandName = nil
@@ -295,7 +301,13 @@ actor KiwiSDRClient: SDRBackendClient {
     }
     try? await sendWF("SET wf_speed=\(wfSpeed)")
     try? await sendWF("SET maxdb=\(wfMaxDB) mindb=\(wfMinDB)")
-    try? await sendWF("SET zoom=\(wfZoom) cf=\(formattedFrequency)")
+    if let viewportStartBin = kiwiWaterfallStartBin(
+      frequencyHz: settings.frequencyHz,
+      zoom: wfZoom,
+      panOffsetBins: settings.kiwiWaterfallPanOffsetBins
+    ) {
+      try? await sendWF("SET zoom=\(min(wfZoom, kiwiZoomMax ?? wfZoom)) start=\(viewportStartBin)")
+    }
     try? await sendWF("SET window_func=\(wfWindowFunction)")
     try? await sendWF("SET interp=\(wfInterpolation + (settings.kiwiWaterfallCICCompensation ? 10 : 0))")
     log("Applied tuning: mode=\(mode) freq=\(formattedFrequency) kHz")
@@ -337,6 +349,7 @@ actor KiwiSDRClient: SDRBackendClient {
       let minDB,
       let maxDB,
       let centerFrequencyHz,
+      let panOffsetBins,
       let windowFunction,
       let interpolation,
       let cicCompensation
@@ -350,15 +363,20 @@ actor KiwiSDRClient: SDRBackendClient {
       if safeMaxDB <= safeMinDB {
         safeMaxDB = min(0, safeMinDB + 10)
       }
-      let centerKHz = Double(centerFrequencyHz) / 1000.0
-      let formattedCenter = String(format: "%.3f", centerKHz)
       try await sendWF("SET wf_speed=\(safeSpeed)")
       try await sendWF("SET maxdb=\(safeMaxDB) mindb=\(safeMinDB)")
-      try await sendWF("SET zoom=\(safeZoom) cf=\(formattedCenter)")
+      if let viewportStartBin = kiwiWaterfallStartBin(
+        frequencyHz: centerFrequencyHz,
+        zoom: safeZoom,
+        panOffsetBins: panOffsetBins
+      ) {
+        let safeViewportZoom = min(safeZoom, kiwiZoomMax ?? safeZoom)
+        try await sendWF("SET zoom=\(safeViewportZoom) start=\(viewportStartBin)")
+      }
       try await sendWF("SET window_func=\(safeWindowFunction)")
       try await sendWF("SET interp=\(safeInterpolation + (cicCompensation ? 10 : 0))")
       log(
-        "Kiwi waterfall updated: speed=\(safeSpeed), zoom=\(safeZoom), db=\(safeMinDB)...\(safeMaxDB), win=\(safeWindowFunction), interp=\(safeInterpolation), cic=\(cicCompensation ? 1 : 0)"
+        "Kiwi waterfall updated: speed=\(safeSpeed), zoom=\(safeZoom), db=\(safeMinDB)...\(safeMaxDB), win=\(safeWindowFunction), interp=\(safeInterpolation), cic=\(cicCompensation ? 1 : 0), pan=\(panOffsetBins)"
       )
 
       case .setKiwiPassband(let lowCut, let highCut, let frequencyHz, let mode):
@@ -626,6 +644,18 @@ actor KiwiSDRClient: SDRBackendClient {
           emitKiwiTelemetry(force: true)
         }
 
+      case "bandwidth":
+        if let value, let bandwidth = Int(value), bandwidth > 0 {
+          kiwiBandwidthHz = bandwidth
+          emitKiwiTelemetry(force: true)
+        }
+
+      case "zoom_max":
+        if let value, let zoomMax = Int(value), zoomMax >= 0 {
+          kiwiZoomMax = zoomMax
+          emitKiwiTelemetry(force: true)
+        }
+
       case "freq":
         if let value, let parsedFrequencyHz = parseKiwiFrequencyHz(value) {
           latestTunedFrequencyHz = parsedFrequencyHz
@@ -770,6 +800,7 @@ actor KiwiSDRClient: SDRBackendClient {
     let bins = Array(payload.dropFirst(12))
     guard !bins.isEmpty else { return }
 
+    latestWaterfallFFTSize = bins.count
     latestWaterfallBins = downsampleBins(bins, targetCount: 320)
     emitKiwiTelemetry(force: false)
   }
@@ -801,7 +832,10 @@ actor KiwiSDRClient: SDRBackendClient {
       rssiDBm: latestRSSI,
       waterfallBins: latestWaterfallBins,
       sampleRateHz: sampleRateHz,
-      passband: latestPassband
+      passband: latestPassband,
+      bandwidthHz: kiwiBandwidthHz,
+      waterfallFFTSize: latestWaterfallFFTSize,
+      zoomMax: kiwiZoomMax
     )
     if telemetry == latestTelemetry {
       return
@@ -854,6 +888,36 @@ actor KiwiSDRClient: SDRBackendClient {
     }
     // Very small values are typically MHz with a decimal point (e.g. 7.050).
     return Int((absolute * 1_000_000.0).rounded())
+  }
+
+  private func kiwiWaterfallViewportContext() -> KiwiWaterfallViewportContext? {
+    guard
+      let bandwidthHz = kiwiBandwidthHz,
+      let fftSize = latestWaterfallFFTSize,
+      let zoomMax = kiwiZoomMax
+    else {
+      return nil
+    }
+
+    let context = KiwiWaterfallViewportContext(
+      bandwidthHz: bandwidthHz,
+      fftSize: fftSize,
+      zoomMax: zoomMax
+    )
+    return context.isValid ? context : nil
+  }
+
+  private func kiwiWaterfallStartBin(
+    frequencyHz: Int,
+    zoom: Int,
+    panOffsetBins: Int
+  ) -> Int? {
+    guard let context = kiwiWaterfallViewportContext() else { return nil }
+    return context.startBin(
+      frequencyHz: frequencyHz,
+      zoom: zoom,
+      panOffsetBins: RadioSessionSettings.clampedKiwiWaterfallPanOffsetBins(panOffsetBins)
+    )
   }
 
   private func applyKiwiConfigPayload(_ payload: String, tuningChanged: inout Bool) {

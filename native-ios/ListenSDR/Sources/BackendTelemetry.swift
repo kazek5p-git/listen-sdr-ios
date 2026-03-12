@@ -130,6 +130,9 @@ struct KiwiTelemetry: Equatable {
   let waterfallBins: [UInt8]
   let sampleRateHz: Int
   let passband: ReceiverBandpass?
+  let bandwidthHz: Int?
+  let waterfallFFTSize: Int?
+  let zoomMax: Int?
 }
 
 enum BackendTelemetryEvent: Equatable {
@@ -153,6 +156,7 @@ enum BackendControlCommand {
     minDB: Int,
     maxDB: Int,
     centerFrequencyHz: Int,
+    panOffsetBins: Int,
     windowFunction: Int,
     interpolation: Int,
     cicCompensation: Bool

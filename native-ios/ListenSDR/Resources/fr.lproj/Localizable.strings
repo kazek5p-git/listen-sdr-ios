@@ -664,3 +664,9 @@
 "kiwi.noise_filter.autonotch" = "Autonotch";
 "kiwi.noise_filter.reset" = "Reset noise filter";
 "kiwi.noise_filter.iq_warning" = "Kiwi noise filtering is not available in IQ mode.";
+"kiwi.waterfall.position" = "Waterfall position";
+"kiwi.waterfall.position.centered" = "Centered";
+"kiwi.waterfall.position.adjusted" = "Adjusted";
+"kiwi.waterfall.pan_left" = "Pan left";
+"kiwi.waterfall.center" = "Center";
+"kiwi.waterfall.pan_right" = "Pan right";

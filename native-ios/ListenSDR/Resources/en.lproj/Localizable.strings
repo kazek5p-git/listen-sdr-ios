@@ -158,6 +158,12 @@
 "kiwi.waterfall.cic_compensation" = "CIC compensation";
 "kiwi.waterfall.reset_fft" = "Reset waterfall FFT";
 "kiwi.waterfall.zoom" = "Waterfall zoom";
+"kiwi.waterfall.position" = "Waterfall position";
+"kiwi.waterfall.position.centered" = "Centered";
+"kiwi.waterfall.position.adjusted" = "Adjusted";
+"kiwi.waterfall.pan_left" = "Pan left";
+"kiwi.waterfall.center" = "Center";
+"kiwi.waterfall.pan_right" = "Pan right";
 "kiwi.waterfall.min_db" = "Waterfall minimum";
 "kiwi.waterfall.max_db" = "Waterfall maximum";
 

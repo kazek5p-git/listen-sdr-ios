@@ -247,6 +247,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiWaterfallInterpolation: Int
   var kiwiWaterfallCICCompensation: Bool
   var kiwiWaterfallZoom: Int
+  var kiwiWaterfallPanOffsetBins: Int
   var kiwiWaterfallMinDB: Int
   var kiwiWaterfallMaxDB: Int
   var showRdsErrorCounters: Bool
@@ -302,6 +303,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallInterpolation: KiwiWaterfallInterpolation.dropSamples.rawValue,
     kiwiWaterfallCICCompensation: true,
     kiwiWaterfallZoom: 0,
+    kiwiWaterfallPanOffsetBins: 0,
     kiwiWaterfallMinDB: -145,
     kiwiWaterfallMaxDB: -20,
     showRdsErrorCounters: false,
@@ -348,6 +350,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case kiwiWaterfallInterpolation
     case kiwiWaterfallCICCompensation
     case kiwiWaterfallZoom
+    case kiwiWaterfallPanOffsetBins
     case kiwiWaterfallMinDB
     case kiwiWaterfallMaxDB
     case showRdsErrorCounters
@@ -395,6 +398,7 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallInterpolation: Int,
     kiwiWaterfallCICCompensation: Bool,
     kiwiWaterfallZoom: Int,
+    kiwiWaterfallPanOffsetBins: Int,
     kiwiWaterfallMinDB: Int,
     kiwiWaterfallMaxDB: Int,
     showRdsErrorCounters: Bool,
@@ -452,6 +456,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.kiwiWaterfallInterpolation = Self.normalizedKiwiWaterfallInterpolation(kiwiWaterfallInterpolation)
     self.kiwiWaterfallCICCompensation = kiwiWaterfallCICCompensation
     self.kiwiWaterfallZoom = Self.clampedKiwiWaterfallZoom(kiwiWaterfallZoom)
+    self.kiwiWaterfallPanOffsetBins = Self.clampedKiwiWaterfallPanOffsetBins(kiwiWaterfallPanOffsetBins)
     self.kiwiWaterfallMinDB = Self.clampedKiwiWaterfallMinDB(kiwiWaterfallMinDB)
     self.kiwiWaterfallMaxDB = Self.clampedKiwiWaterfallMaxDB(kiwiWaterfallMaxDB)
     if self.kiwiWaterfallMaxDB <= self.kiwiWaterfallMinDB {
@@ -568,6 +573,10 @@ struct RadioSessionSettings: Codable, Equatable {
     let rawKiwiWaterfallZoom = try container.decodeIfPresent(Int.self, forKey: .kiwiWaterfallZoom)
       ?? Self.default.kiwiWaterfallZoom
     kiwiWaterfallZoom = Self.clampedKiwiWaterfallZoom(rawKiwiWaterfallZoom)
+    kiwiWaterfallPanOffsetBins = Self.clampedKiwiWaterfallPanOffsetBins(
+      try container.decodeIfPresent(Int.self, forKey: .kiwiWaterfallPanOffsetBins)
+        ?? Self.default.kiwiWaterfallPanOffsetBins
+    )
 
     let rawKiwiWaterfallMinDB = try container.decodeIfPresent(Int.self, forKey: .kiwiWaterfallMinDB)
       ?? Self.default.kiwiWaterfallMinDB
@@ -651,6 +660,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(kiwiWaterfallInterpolation, forKey: .kiwiWaterfallInterpolation)
     try container.encode(kiwiWaterfallCICCompensation, forKey: .kiwiWaterfallCICCompensation)
     try container.encode(kiwiWaterfallZoom, forKey: .kiwiWaterfallZoom)
+    try container.encode(kiwiWaterfallPanOffsetBins, forKey: .kiwiWaterfallPanOffsetBins)
     try container.encode(kiwiWaterfallMinDB, forKey: .kiwiWaterfallMinDB)
     try container.encode(kiwiWaterfallMaxDB, forKey: .kiwiWaterfallMaxDB)
     try container.encode(showRdsErrorCounters, forKey: .showRdsErrorCounters)
@@ -707,6 +717,10 @@ struct RadioSessionSettings: Codable, Equatable {
       clamped += clamped == 41 ? -1 : 1
     }
     return clamped
+  }
+
+  static func clampedKiwiWaterfallPanOffsetBins(_ value: Int) -> Int {
+    min(max(value, -50_000_000), 50_000_000)
   }
 
   static let kiwiMinimumPassbandHz = 4

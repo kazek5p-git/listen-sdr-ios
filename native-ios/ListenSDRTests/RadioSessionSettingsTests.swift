@@ -82,6 +82,7 @@ final class RadioSessionSettingsTests: XCTestCase {
       kiwiWaterfallInterpolation: RadioSessionSettings.default.kiwiWaterfallInterpolation,
       kiwiWaterfallCICCompensation: RadioSessionSettings.default.kiwiWaterfallCICCompensation,
       kiwiWaterfallZoom: RadioSessionSettings.default.kiwiWaterfallZoom,
+      kiwiWaterfallPanOffsetBins: RadioSessionSettings.default.kiwiWaterfallPanOffsetBins,
       kiwiWaterfallMinDB: RadioSessionSettings.default.kiwiWaterfallMinDB,
       kiwiWaterfallMaxDB: RadioSessionSettings.default.kiwiWaterfallMaxDB,
       showRdsErrorCounters: RadioSessionSettings.default.showRdsErrorCounters,
@@ -136,6 +137,7 @@ final class RadioSessionSettingsTests: XCTestCase {
       kiwiWaterfallInterpolation: RadioSessionSettings.default.kiwiWaterfallInterpolation,
       kiwiWaterfallCICCompensation: RadioSessionSettings.default.kiwiWaterfallCICCompensation,
       kiwiWaterfallZoom: RadioSessionSettings.default.kiwiWaterfallZoom,
+      kiwiWaterfallPanOffsetBins: RadioSessionSettings.default.kiwiWaterfallPanOffsetBins,
       kiwiWaterfallMinDB: RadioSessionSettings.default.kiwiWaterfallMinDB,
       kiwiWaterfallMaxDB: RadioSessionSettings.default.kiwiWaterfallMaxDB,
       showRdsErrorCounters: RadioSessionSettings.default.showRdsErrorCounters,
@@ -182,5 +184,56 @@ final class RadioSessionSettingsTests: XCTestCase {
       KiwiWaterfallInterpolation.dropSamples.rawValue
     )
     XCTAssertTrue(RadioSessionSettings.default.kiwiWaterfallCICCompensation)
+  }
+
+  func testKiwiWaterfallPanOffsetIsClamped() {
+    let settings = RadioSessionSettings(
+      frequencyHz: RadioSessionSettings.default.frequencyHz,
+      tuneStepHz: RadioSessionSettings.default.tuneStepHz,
+      preferredTuneStepHz: RadioSessionSettings.default.preferredTuneStepHz,
+      mode: .am,
+      rfGain: RadioSessionSettings.default.rfGain,
+      audioVolume: RadioSessionSettings.default.audioVolume,
+      audioMuted: RadioSessionSettings.default.audioMuted,
+      agcEnabled: RadioSessionSettings.default.agcEnabled,
+      imsEnabled: RadioSessionSettings.default.imsEnabled,
+      noiseReductionEnabled: RadioSessionSettings.default.noiseReductionEnabled,
+      squelchEnabled: RadioSessionSettings.default.squelchEnabled,
+      openWebRXSquelchLevel: RadioSessionSettings.default.openWebRXSquelchLevel,
+      kiwiSquelchThreshold: RadioSessionSettings.default.kiwiSquelchThreshold,
+      kiwiNoiseBlankerAlgorithm: RadioSessionSettings.default.kiwiNoiseBlankerAlgorithm,
+      kiwiNoiseBlankerGate: RadioSessionSettings.default.kiwiNoiseBlankerGate,
+      kiwiNoiseBlankerThreshold: RadioSessionSettings.default.kiwiNoiseBlankerThreshold,
+      kiwiNoiseBlankerWildThreshold: RadioSessionSettings.default.kiwiNoiseBlankerWildThreshold,
+      kiwiNoiseBlankerWildTaps: RadioSessionSettings.default.kiwiNoiseBlankerWildTaps,
+      kiwiNoiseBlankerWildImpulseSamples: RadioSessionSettings.default.kiwiNoiseBlankerWildImpulseSamples,
+      kiwiNoiseFilterAlgorithm: RadioSessionSettings.default.kiwiNoiseFilterAlgorithm,
+      kiwiDenoiseEnabled: RadioSessionSettings.default.kiwiDenoiseEnabled,
+      kiwiAutonotchEnabled: RadioSessionSettings.default.kiwiAutonotchEnabled,
+      kiwiPassbandsByMode: RadioSessionSettings.default.kiwiPassbandsByMode,
+      kiwiWaterfallSpeed: RadioSessionSettings.default.kiwiWaterfallSpeed,
+      kiwiWaterfallWindowFunction: RadioSessionSettings.default.kiwiWaterfallWindowFunction,
+      kiwiWaterfallInterpolation: RadioSessionSettings.default.kiwiWaterfallInterpolation,
+      kiwiWaterfallCICCompensation: RadioSessionSettings.default.kiwiWaterfallCICCompensation,
+      kiwiWaterfallZoom: RadioSessionSettings.default.kiwiWaterfallZoom,
+      kiwiWaterfallPanOffsetBins: 999_999_999,
+      kiwiWaterfallMinDB: RadioSessionSettings.default.kiwiWaterfallMinDB,
+      kiwiWaterfallMaxDB: RadioSessionSettings.default.kiwiWaterfallMaxDB,
+      showRdsErrorCounters: RadioSessionSettings.default.showRdsErrorCounters,
+      voiceOverRDSAnnouncementMode: RadioSessionSettings.default.voiceOverRDSAnnouncementMode,
+      dxNightModeEnabled: RadioSessionSettings.default.dxNightModeEnabled,
+      autoFilterProfileEnabled: RadioSessionSettings.default.autoFilterProfileEnabled,
+      adaptiveScannerEnabled: RadioSessionSettings.default.adaptiveScannerEnabled,
+      scannerDwellSeconds: RadioSessionSettings.default.scannerDwellSeconds,
+      scannerHoldSeconds: RadioSessionSettings.default.scannerHoldSeconds,
+      fmdxAudioStartupBufferSeconds: RadioSessionSettings.default.fmdxAudioStartupBufferSeconds,
+      fmdxAudioMaxLatencySeconds: RadioSessionSettings.default.fmdxAudioMaxLatencySeconds,
+      fmdxAudioPacketHoldSeconds: RadioSessionSettings.default.fmdxAudioPacketHoldSeconds,
+      audioSuggestionScope: RadioSessionSettings.default.audioSuggestionScope,
+      tuningGestureDirection: RadioSessionSettings.default.tuningGestureDirection,
+      openReceiverAfterHistoryRestore: RadioSessionSettings.default.openReceiverAfterHistoryRestore
+    )
+
+    XCTAssertEqual(settings.kiwiWaterfallPanOffsetBins, 50_000_000)
   }
 }
