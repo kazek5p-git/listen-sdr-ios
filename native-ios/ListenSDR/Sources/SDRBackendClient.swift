@@ -546,6 +546,10 @@ actor KiwiSDRClient: SDRBackendClient {
         }
 
       case "badp":
+        if value == "0" {
+          break
+        }
+
         let message: String
         if let value {
           message = kiwiAuthenticationErrorDescription(code: value)
