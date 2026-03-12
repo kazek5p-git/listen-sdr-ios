@@ -284,12 +284,20 @@ actor KiwiSDRClient: SDRBackendClient {
     let wfZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(settings.kiwiWaterfallZoom)
     let wfMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(settings.kiwiWaterfallMinDB)
     var wfMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(settings.kiwiWaterfallMaxDB)
+    let wfWindowFunction = RadioSessionSettings.normalizedKiwiWaterfallWindowFunction(
+      settings.kiwiWaterfallWindowFunction
+    )
+    let wfInterpolation = RadioSessionSettings.normalizedKiwiWaterfallInterpolation(
+      settings.kiwiWaterfallInterpolation
+    )
     if wfMaxDB <= wfMinDB {
       wfMaxDB = min(0, wfMinDB + 10)
     }
     try? await sendWF("SET wf_speed=\(wfSpeed)")
     try? await sendWF("SET maxdb=\(wfMaxDB) mindb=\(wfMinDB)")
     try? await sendWF("SET zoom=\(wfZoom) cf=\(formattedFrequency)")
+    try? await sendWF("SET window_func=\(wfWindowFunction)")
+    try? await sendWF("SET interp=\(wfInterpolation + (settings.kiwiWaterfallCICCompensation ? 10 : 0))")
     log("Applied tuning: mode=\(mode) freq=\(formattedFrequency) kHz")
 
     if settings.agcEnabled {
@@ -323,11 +331,22 @@ actor KiwiSDRClient: SDRBackendClient {
 
   func sendControl(_ command: BackendControlCommand) async throws {
     switch command {
-    case .setKiwiWaterfall(let speed, let zoom, let minDB, let maxDB, let centerFrequencyHz):
+    case .setKiwiWaterfall(
+      let speed,
+      let zoom,
+      let minDB,
+      let maxDB,
+      let centerFrequencyHz,
+      let windowFunction,
+      let interpolation,
+      let cicCompensation
+    ):
       let safeSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(speed)
       let safeZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(zoom)
       let safeMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(minDB)
       var safeMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(maxDB)
+      let safeWindowFunction = RadioSessionSettings.normalizedKiwiWaterfallWindowFunction(windowFunction)
+      let safeInterpolation = RadioSessionSettings.normalizedKiwiWaterfallInterpolation(interpolation)
       if safeMaxDB <= safeMinDB {
         safeMaxDB = min(0, safeMinDB + 10)
       }
@@ -336,7 +355,11 @@ actor KiwiSDRClient: SDRBackendClient {
       try await sendWF("SET wf_speed=\(safeSpeed)")
       try await sendWF("SET maxdb=\(safeMaxDB) mindb=\(safeMinDB)")
       try await sendWF("SET zoom=\(safeZoom) cf=\(formattedCenter)")
-      log("Kiwi waterfall updated: speed=\(safeSpeed), zoom=\(safeZoom), db=\(safeMinDB)...\(safeMaxDB)")
+      try await sendWF("SET window_func=\(safeWindowFunction)")
+      try await sendWF("SET interp=\(safeInterpolation + (cicCompensation ? 10 : 0))")
+      log(
+        "Kiwi waterfall updated: speed=\(safeSpeed), zoom=\(safeZoom), db=\(safeMinDB)...\(safeMaxDB), win=\(safeWindowFunction), interp=\(safeInterpolation), cic=\(cicCompensation ? 1 : 0)"
+      )
 
       case .setKiwiPassband(let lowCut, let highCut, let frequencyHz, let mode):
         let normalizedBandpass = RadioSessionSettings.normalizedKiwiBandpass(

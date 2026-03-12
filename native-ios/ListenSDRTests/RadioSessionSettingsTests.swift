@@ -78,6 +78,9 @@ final class RadioSessionSettingsTests: XCTestCase {
       kiwiAutonotchEnabled: false,
       kiwiPassbandsByMode: [:],
       kiwiWaterfallSpeed: RadioSessionSettings.default.kiwiWaterfallSpeed,
+      kiwiWaterfallWindowFunction: RadioSessionSettings.default.kiwiWaterfallWindowFunction,
+      kiwiWaterfallInterpolation: RadioSessionSettings.default.kiwiWaterfallInterpolation,
+      kiwiWaterfallCICCompensation: RadioSessionSettings.default.kiwiWaterfallCICCompensation,
       kiwiWaterfallZoom: RadioSessionSettings.default.kiwiWaterfallZoom,
       kiwiWaterfallMinDB: RadioSessionSettings.default.kiwiWaterfallMinDB,
       kiwiWaterfallMaxDB: RadioSessionSettings.default.kiwiWaterfallMaxDB,
@@ -129,6 +132,9 @@ final class RadioSessionSettingsTests: XCTestCase {
       kiwiAutonotchEnabled: true,
       kiwiPassbandsByMode: [:],
       kiwiWaterfallSpeed: RadioSessionSettings.default.kiwiWaterfallSpeed,
+      kiwiWaterfallWindowFunction: RadioSessionSettings.default.kiwiWaterfallWindowFunction,
+      kiwiWaterfallInterpolation: RadioSessionSettings.default.kiwiWaterfallInterpolation,
+      kiwiWaterfallCICCompensation: RadioSessionSettings.default.kiwiWaterfallCICCompensation,
       kiwiWaterfallZoom: RadioSessionSettings.default.kiwiWaterfallZoom,
       kiwiWaterfallMinDB: RadioSessionSettings.default.kiwiWaterfallMinDB,
       kiwiWaterfallMaxDB: RadioSessionSettings.default.kiwiWaterfallMaxDB,
@@ -149,5 +155,32 @@ final class RadioSessionSettingsTests: XCTestCase {
 
     XCTAssertTrue(settings.kiwiDenoiseEnabled)
     XCTAssertFalse(settings.kiwiAutonotchEnabled)
+  }
+
+  func testKiwiWaterfallSpeedNormalizationSupportsOfficialValuesAndLegacyFastValue() {
+    XCTAssertEqual(
+      RadioSessionSettings.normalizedKiwiWaterfallSpeed(KiwiWaterfallRate.off.rawValue),
+      KiwiWaterfallRate.off.rawValue
+    )
+    XCTAssertEqual(
+      RadioSessionSettings.normalizedKiwiWaterfallSpeed(KiwiWaterfallRate.fast.rawValue),
+      KiwiWaterfallRate.fast.rawValue
+    )
+    XCTAssertEqual(
+      RadioSessionSettings.normalizedKiwiWaterfallSpeed(8),
+      KiwiWaterfallRate.fast.rawValue
+    )
+  }
+
+  func testKiwiWaterfallFFTDefaultsMatchOfficialUpstreamDefaults() {
+    XCTAssertEqual(
+      RadioSessionSettings.default.kiwiWaterfallWindowFunction,
+      KiwiWaterfallWindowFunction.blackmanHarris.rawValue
+    )
+    XCTAssertEqual(
+      RadioSessionSettings.default.kiwiWaterfallInterpolation,
+      KiwiWaterfallInterpolation.dropSamples.rawValue
+    )
+    XCTAssertTrue(RadioSessionSettings.default.kiwiWaterfallCICCompensation)
   }
 }

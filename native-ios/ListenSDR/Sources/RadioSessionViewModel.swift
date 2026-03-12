@@ -1043,6 +1043,24 @@ final class RadioSessionViewModel: ObservableObject {
     sendKiwiWaterfallControl()
   }
 
+  func setKiwiWaterfallWindowFunction(_ value: Int) {
+    settings.kiwiWaterfallWindowFunction = RadioSessionSettings.normalizedKiwiWaterfallWindowFunction(value)
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func setKiwiWaterfallInterpolation(_ value: Int) {
+    settings.kiwiWaterfallInterpolation = RadioSessionSettings.normalizedKiwiWaterfallInterpolation(value)
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func setKiwiWaterfallCICCompensation(_ enabled: Bool) {
+    settings.kiwiWaterfallCICCompensation = enabled
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
   func setKiwiWaterfallZoom(_ value: Int) {
     settings.kiwiWaterfallZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(value)
     persistSettings()
@@ -1082,6 +1100,14 @@ final class RadioSessionViewModel: ObservableObject {
     if settings.kiwiWaterfallMaxDB <= settings.kiwiWaterfallMinDB {
       settings.kiwiWaterfallMaxDB = min(30, settings.kiwiWaterfallMinDB + 10)
     }
+    persistSettings()
+    sendKiwiWaterfallControl()
+  }
+
+  func resetKiwiWaterfallFFT() {
+    settings.kiwiWaterfallWindowFunction = RadioSessionSettings.default.kiwiWaterfallWindowFunction
+    settings.kiwiWaterfallInterpolation = RadioSessionSettings.default.kiwiWaterfallInterpolation
+    settings.kiwiWaterfallCICCompensation = RadioSessionSettings.default.kiwiWaterfallCICCompensation
     persistSettings()
     sendKiwiWaterfallControl()
   }
@@ -1247,6 +1273,13 @@ final class RadioSessionViewModel: ObservableObject {
     settings.kiwiDenoiseEnabled = RadioSessionSettings.default.kiwiDenoiseEnabled
     settings.kiwiAutonotchEnabled = RadioSessionSettings.default.kiwiAutonotchEnabled
     settings.kiwiPassbandsByMode = [:]
+    settings.kiwiWaterfallSpeed = RadioSessionSettings.default.kiwiWaterfallSpeed
+    settings.kiwiWaterfallWindowFunction = RadioSessionSettings.default.kiwiWaterfallWindowFunction
+    settings.kiwiWaterfallInterpolation = RadioSessionSettings.default.kiwiWaterfallInterpolation
+    settings.kiwiWaterfallCICCompensation = RadioSessionSettings.default.kiwiWaterfallCICCompensation
+    settings.kiwiWaterfallZoom = RadioSessionSettings.default.kiwiWaterfallZoom
+    settings.kiwiWaterfallMinDB = RadioSessionSettings.default.kiwiWaterfallMinDB
+    settings.kiwiWaterfallMaxDB = RadioSessionSettings.default.kiwiWaterfallMaxDB
     persistSettings()
     if activeBackend == .fmDxWebserver {
       if fmdxCapabilities.supportsAGCControl {
@@ -1338,6 +1371,9 @@ final class RadioSessionViewModel: ObservableObject {
     let minDB = settings.kiwiWaterfallMinDB
     let maxDB = settings.kiwiWaterfallMaxDB
     let centerFrequencyHz = settings.frequencyHz
+    let windowFunction = settings.kiwiWaterfallWindowFunction
+    let interpolation = settings.kiwiWaterfallInterpolation
+    let cicCompensation = settings.kiwiWaterfallCICCompensation
 
     Task {
       do {
@@ -1347,7 +1383,10 @@ final class RadioSessionViewModel: ObservableObject {
             zoom: zoom,
             minDB: minDB,
             maxDB: maxDB,
-            centerFrequencyHz: centerFrequencyHz
+            centerFrequencyHz: centerFrequencyHz,
+            windowFunction: windowFunction,
+            interpolation: interpolation,
+            cicCompensation: cicCompensation
           )
         )
       } catch {
@@ -1709,6 +1748,22 @@ final class RadioSessionViewModel: ObservableObject {
       let kiwiSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(settings.kiwiWaterfallSpeed)
       if settings.kiwiWaterfallSpeed != kiwiSpeed {
         settings.kiwiWaterfallSpeed = kiwiSpeed
+        changed = true
+      }
+
+      let kiwiWindowFunction = RadioSessionSettings.normalizedKiwiWaterfallWindowFunction(
+        settings.kiwiWaterfallWindowFunction
+      )
+      if settings.kiwiWaterfallWindowFunction != kiwiWindowFunction {
+        settings.kiwiWaterfallWindowFunction = kiwiWindowFunction
+        changed = true
+      }
+
+      let kiwiInterpolation = RadioSessionSettings.normalizedKiwiWaterfallInterpolation(
+        settings.kiwiWaterfallInterpolation
+      )
+      if settings.kiwiWaterfallInterpolation != kiwiInterpolation {
+        settings.kiwiWaterfallInterpolation = kiwiInterpolation
         changed = true
       }
 

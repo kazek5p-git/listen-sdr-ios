@@ -62,13 +62,13 @@ private enum KiwiWaterfallPreset: String, CaseIterable, Identifiable {
   var values: (speed: Int, zoom: Int, minDB: Int, maxDB: Int)? {
     switch self {
     case .balanced:
-      return (2, 0, -145, -20)
+      return (KiwiWaterfallRate.slow.rawValue, 0, -145, -20)
     case .dx:
-      return (1, 8, -160, -45)
+      return (KiwiWaterfallRate.oneHertz.rawValue, 8, -160, -45)
     case .overview:
-      return (4, 0, -130, -10)
+      return (KiwiWaterfallRate.medium.rawValue, 0, -130, -10)
     case .fast:
-      return (8, 2, -145, -25)
+      return (KiwiWaterfallRate.fast.rawValue, 2, -145, -25)
     case .custom:
       return nil
     }
@@ -85,6 +85,55 @@ private enum KiwiWaterfallPreset: String, CaseIterable, Identifiable {
       }
     }
     return .custom
+  }
+}
+
+private extension KiwiWaterfallRate {
+  var localizedTitle: String {
+    switch self {
+    case .off:
+      return L10n.text("kiwi.waterfall.speed.off")
+    case .oneHertz:
+      return L10n.text("kiwi.waterfall.speed.1hz")
+    case .slow:
+      return L10n.text("kiwi.waterfall.speed.slow")
+    case .medium:
+      return L10n.text("kiwi.waterfall.speed.medium")
+    case .fast:
+      return L10n.text("kiwi.waterfall.speed.fast")
+    }
+  }
+}
+
+private extension KiwiWaterfallWindowFunction {
+  var localizedTitle: String {
+    switch self {
+    case .hanning:
+      return L10n.text("kiwi.waterfall.window.hanning")
+    case .hamming:
+      return L10n.text("kiwi.waterfall.window.hamming")
+    case .blackmanHarris:
+      return L10n.text("kiwi.waterfall.window.blackman_harris")
+    case .none:
+      return L10n.text("kiwi.waterfall.window.none")
+    }
+  }
+}
+
+private extension KiwiWaterfallInterpolation {
+  var localizedTitle: String {
+    switch self {
+    case .max:
+      return L10n.text("kiwi.waterfall.interp.max")
+    case .min:
+      return L10n.text("kiwi.waterfall.interp.min")
+    case .last:
+      return L10n.text("kiwi.waterfall.interp.last")
+    case .dropSamples:
+      return L10n.text("kiwi.waterfall.interp.drop_samples")
+    case .cma:
+      return L10n.text("kiwi.waterfall.interp.cma")
+    }
   }
 }
 
@@ -971,10 +1020,11 @@ struct ReceiverView: View {
 
         selectionNavigationLink(
           title: L10n.text("kiwi.waterfall.speed"),
-          value: "x\(radioSession.settings.kiwiWaterfallSpeed)",
+          value: KiwiWaterfallRate(rawValue: radioSession.settings.kiwiWaterfallSpeed)?.localizedTitle
+            ?? KiwiWaterfallRate.slow.localizedTitle,
           selectedID: "\(radioSession.settings.kiwiWaterfallSpeed)",
-          options: [1, 2, 4, 8].map {
-            SelectionListOption(id: "\($0)", title: "x\($0)", detail: nil)
+          options: KiwiWaterfallRate.allCases.map {
+            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
           }
         ) { value in
           if let speed = Int(value) {
@@ -1006,6 +1056,53 @@ struct ReceiverView: View {
             maxDB: values.maxDB
           )
         }
+
+        selectionNavigationLink(
+          title: L10n.text("kiwi.waterfall.window_function"),
+          value: KiwiWaterfallWindowFunction(rawValue: radioSession.settings.kiwiWaterfallWindowFunction)?.localizedTitle
+            ?? KiwiWaterfallWindowFunction.blackmanHarris.localizedTitle,
+          selectedID: "\(radioSession.settings.kiwiWaterfallWindowFunction)",
+          options: KiwiWaterfallWindowFunction.allCases.map {
+            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+          }
+        ) { value in
+          if let rawValue = Int(value) {
+            radioSession.setKiwiWaterfallWindowFunction(rawValue)
+          }
+        }
+
+        selectionNavigationLink(
+          title: L10n.text("kiwi.waterfall.interpolation"),
+          value: KiwiWaterfallInterpolation(rawValue: radioSession.settings.kiwiWaterfallInterpolation)?.localizedTitle
+            ?? KiwiWaterfallInterpolation.dropSamples.localizedTitle,
+          selectedID: "\(radioSession.settings.kiwiWaterfallInterpolation)",
+          options: KiwiWaterfallInterpolation.allCases.map {
+            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+          }
+        ) { value in
+          if let rawValue = Int(value) {
+            radioSession.setKiwiWaterfallInterpolation(rawValue)
+          }
+        }
+
+        Toggle(
+          L10n.text("kiwi.waterfall.cic_compensation"),
+          isOn: Binding(
+            get: { radioSession.settings.kiwiWaterfallCICCompensation },
+            set: { radioSession.setKiwiWaterfallCICCompensation($0) }
+          )
+        )
+
+        FocusRetainingButton {
+          radioSession.resetKiwiWaterfallFFT()
+        } label: {
+          Text(L10n.text("kiwi.waterfall.reset_fft"))
+        }
+        .disabled(
+          radioSession.settings.kiwiWaterfallWindowFunction == RadioSessionSettings.default.kiwiWaterfallWindowFunction
+            && radioSession.settings.kiwiWaterfallInterpolation == RadioSessionSettings.default.kiwiWaterfallInterpolation
+            && radioSession.settings.kiwiWaterfallCICCompensation == RadioSessionSettings.default.kiwiWaterfallCICCompensation
+        )
 
         VStack(alignment: .leading, spacing: 6) {
           LabeledContent(

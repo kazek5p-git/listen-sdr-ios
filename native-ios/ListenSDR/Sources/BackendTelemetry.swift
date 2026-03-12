@@ -147,7 +147,16 @@ enum BackendTelemetryEvent: Equatable {
 enum BackendControlCommand {
   case selectOpenWebRXProfile(String)
   case setOpenWebRXSquelchLevel(Int)
-  case setKiwiWaterfall(speed: Int, zoom: Int, minDB: Int, maxDB: Int, centerFrequencyHz: Int)
+  case setKiwiWaterfall(
+    speed: Int,
+    zoom: Int,
+    minDB: Int,
+    maxDB: Int,
+    centerFrequencyHz: Int,
+    windowFunction: Int,
+    interpolation: Int,
+    cicCompensation: Bool
+  )
   case setKiwiPassband(lowCut: Int, highCut: Int, frequencyHz: Int, mode: DemodulationMode)
   case setKiwiNoiseBlanker(
     algorithm: KiwiNoiseBlankerAlgorithm,

@@ -243,6 +243,9 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiAutonotchEnabled: Bool
   var kiwiPassbandsByMode: [String: ReceiverBandpass]
   var kiwiWaterfallSpeed: Int
+  var kiwiWaterfallWindowFunction: Int
+  var kiwiWaterfallInterpolation: Int
+  var kiwiWaterfallCICCompensation: Bool
   var kiwiWaterfallZoom: Int
   var kiwiWaterfallMinDB: Int
   var kiwiWaterfallMaxDB: Int
@@ -294,7 +297,10 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiDenoiseEnabled: false,
     kiwiAutonotchEnabled: false,
     kiwiPassbandsByMode: [:],
-    kiwiWaterfallSpeed: 2,
+    kiwiWaterfallSpeed: KiwiWaterfallRate.slow.rawValue,
+    kiwiWaterfallWindowFunction: KiwiWaterfallWindowFunction.blackmanHarris.rawValue,
+    kiwiWaterfallInterpolation: KiwiWaterfallInterpolation.dropSamples.rawValue,
+    kiwiWaterfallCICCompensation: true,
     kiwiWaterfallZoom: 0,
     kiwiWaterfallMinDB: -145,
     kiwiWaterfallMaxDB: -20,
@@ -338,6 +344,9 @@ struct RadioSessionSettings: Codable, Equatable {
     case kiwiAutonotchEnabled
     case kiwiPassbandsByMode
     case kiwiWaterfallSpeed
+    case kiwiWaterfallWindowFunction
+    case kiwiWaterfallInterpolation
+    case kiwiWaterfallCICCompensation
     case kiwiWaterfallZoom
     case kiwiWaterfallMinDB
     case kiwiWaterfallMaxDB
@@ -382,6 +391,9 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiAutonotchEnabled: Bool,
     kiwiPassbandsByMode: [String: ReceiverBandpass],
     kiwiWaterfallSpeed: Int,
+    kiwiWaterfallWindowFunction: Int,
+    kiwiWaterfallInterpolation: Int,
+    kiwiWaterfallCICCompensation: Bool,
     kiwiWaterfallZoom: Int,
     kiwiWaterfallMinDB: Int,
     kiwiWaterfallMaxDB: Int,
@@ -436,6 +448,9 @@ struct RadioSessionSettings: Codable, Equatable {
       )
     }
     self.kiwiWaterfallSpeed = Self.normalizedKiwiWaterfallSpeed(kiwiWaterfallSpeed)
+    self.kiwiWaterfallWindowFunction = Self.normalizedKiwiWaterfallWindowFunction(kiwiWaterfallWindowFunction)
+    self.kiwiWaterfallInterpolation = Self.normalizedKiwiWaterfallInterpolation(kiwiWaterfallInterpolation)
+    self.kiwiWaterfallCICCompensation = kiwiWaterfallCICCompensation
     self.kiwiWaterfallZoom = Self.clampedKiwiWaterfallZoom(kiwiWaterfallZoom)
     self.kiwiWaterfallMinDB = Self.clampedKiwiWaterfallMinDB(kiwiWaterfallMinDB)
     self.kiwiWaterfallMaxDB = Self.clampedKiwiWaterfallMaxDB(kiwiWaterfallMaxDB)
@@ -539,6 +554,17 @@ struct RadioSessionSettings: Codable, Equatable {
       ?? Self.default.kiwiWaterfallSpeed
     kiwiWaterfallSpeed = Self.normalizedKiwiWaterfallSpeed(rawKiwiWaterfallSpeed)
 
+    let rawKiwiWaterfallWindowFunction = try container.decodeIfPresent(Int.self, forKey: .kiwiWaterfallWindowFunction)
+      ?? Self.default.kiwiWaterfallWindowFunction
+    kiwiWaterfallWindowFunction = Self.normalizedKiwiWaterfallWindowFunction(rawKiwiWaterfallWindowFunction)
+
+    let rawKiwiWaterfallInterpolation = try container.decodeIfPresent(Int.self, forKey: .kiwiWaterfallInterpolation)
+      ?? Self.default.kiwiWaterfallInterpolation
+    kiwiWaterfallInterpolation = Self.normalizedKiwiWaterfallInterpolation(rawKiwiWaterfallInterpolation)
+
+    kiwiWaterfallCICCompensation = try container.decodeIfPresent(Bool.self, forKey: .kiwiWaterfallCICCompensation)
+      ?? Self.default.kiwiWaterfallCICCompensation
+
     let rawKiwiWaterfallZoom = try container.decodeIfPresent(Int.self, forKey: .kiwiWaterfallZoom)
       ?? Self.default.kiwiWaterfallZoom
     kiwiWaterfallZoom = Self.clampedKiwiWaterfallZoom(rawKiwiWaterfallZoom)
@@ -621,6 +647,9 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(kiwiAutonotchEnabled, forKey: .kiwiAutonotchEnabled)
     try container.encode(kiwiPassbandsByMode, forKey: .kiwiPassbandsByMode)
     try container.encode(kiwiWaterfallSpeed, forKey: .kiwiWaterfallSpeed)
+    try container.encode(kiwiWaterfallWindowFunction, forKey: .kiwiWaterfallWindowFunction)
+    try container.encode(kiwiWaterfallInterpolation, forKey: .kiwiWaterfallInterpolation)
+    try container.encode(kiwiWaterfallCICCompensation, forKey: .kiwiWaterfallCICCompensation)
     try container.encode(kiwiWaterfallZoom, forKey: .kiwiWaterfallZoom)
     try container.encode(kiwiWaterfallMinDB, forKey: .kiwiWaterfallMinDB)
     try container.encode(kiwiWaterfallMaxDB, forKey: .kiwiWaterfallMaxDB)
@@ -772,11 +801,30 @@ struct RadioSessionSettings: Codable, Equatable {
   }
 
   static func normalizedKiwiWaterfallSpeed(_ value: Int) -> Int {
-    let options = [1, 2, 4, 8]
+    if value == 8 {
+      return KiwiWaterfallRate.fast.rawValue
+    }
+    let options = KiwiWaterfallRate.allCases.map(\.rawValue)
     if options.contains(value) {
       return value
     }
     return options.min(by: { abs($0 - value) < abs($1 - value) }) ?? Self.default.kiwiWaterfallSpeed
+  }
+
+  static func normalizedKiwiWaterfallWindowFunction(_ value: Int) -> Int {
+    let options = KiwiWaterfallWindowFunction.allCases.map(\.rawValue)
+    if options.contains(value) {
+      return value
+    }
+    return options.min(by: { abs($0 - value) < abs($1 - value) }) ?? Self.default.kiwiWaterfallWindowFunction
+  }
+
+  static func normalizedKiwiWaterfallInterpolation(_ value: Int) -> Int {
+    let options = KiwiWaterfallInterpolation.allCases.map(\.rawValue)
+    if options.contains(value) {
+      return value
+    }
+    return options.min(by: { abs($0 - value) < abs($1 - value) }) ?? Self.default.kiwiWaterfallInterpolation
   }
 
   static func clampedKiwiWaterfallZoom(_ value: Int) -> Int {
