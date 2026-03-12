@@ -72,8 +72,8 @@ enum DemodulationMode: String, Codable, CaseIterable, Identifiable {
 
     case .openWebRX:
       switch self {
-      case let mode where Self.openWebRXSupportedModes.contains(mode):
-        return mode
+      case .am, .fm, .nfm, .usb, .lsb, .cw:
+        return self
       case .amn, .amw, .iq, .drm, .sam, .sau, .sal, .sas, .qam:
         return .am
       case .nnfm:
