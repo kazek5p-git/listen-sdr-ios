@@ -2478,6 +2478,9 @@ actor FMDXWebserverClient: SDRBackendClient {
     case .setKiwiWaterfall:
       throw SDRClientError.unsupported("FM-DX does not support Kiwi waterfall control.")
 
+    case .setKiwiPassband:
+      throw SDRClientError.unsupported("FM-DX does not support Kiwi passband control.")
+
     case .setFMDXFrequencyHz(let frequencyHz):
       try await sendFrequency(frequencyHz)
 
