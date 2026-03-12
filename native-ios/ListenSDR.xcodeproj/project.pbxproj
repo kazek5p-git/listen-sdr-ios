@@ -34,6 +34,7 @@
 		69F0FB74D682EA07F95087E3 /* ListeningHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */; };
 		71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8CEEFF5137077F585714EE /* AudioDecoders.swift */; };
 		721B688F74C2905447CF723D /* SystemRemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */; };
+		7D25DAE60B06F3AA4E27B9F6 /* KiwiWaterfallViewportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */; };
 		7F21A7B2B4BE8EAEB9DF08B9 /* ListenSDRAppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9508B28DC86C178D8A2BD7 /* ListenSDRAppShortcuts.swift */; };
 		817BC8EE996142812994AAA3 /* ReceiverDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */; };
 		82428741563F6BEB47648217 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 293251298AE8C5A5C89DFF78 /* Assets.xcassets */; };
@@ -50,6 +51,7 @@
 		A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8430FABA0F566E0392A547 /* L10n.swift */; };
 		A83F58F1D406EC3C8894D954 /* RadiosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC198DC08EE579F8E7D22664 /* RadiosView.swift */; };
 		ACA7E73CDBC90170E8094621 /* AppShortcutCommandCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EAE78AE7AA5A2BB4FA77A82 /* AppShortcutCommandCenter.swift */; };
+		C012120DC124FCF2743295A2 /* KiwiWaterfallViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 301576C788F755FF6721E79F /* KiwiWaterfallViewport.swift */; };
 		C528E9B1F9B1F3A37D859DB8 /* KiwiNoiseProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5281754BC533DD08BFC3F0FB /* KiwiNoiseProcessing.swift */; };
 		D3CA5A465A2F2806BBEBD178 /* ListenSDRFeedbackFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB68F42E636A470995C63355 /* ListenSDRFeedbackFormView.swift */; };
 		D3F4C7905F934163B69D3D83 /* DiagnosticsExportBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08F4C0EC7957D2F44890F03 /* DiagnosticsExportBuilder.swift */; };
@@ -87,6 +89,7 @@
 		2C1A91F49239EA191572FD45 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2C476CA16083ED45EBA81466 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		2EAE78AE7AA5A2BB4FA77A82 /* AppShortcutCommandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShortcutCommandCenter.swift; sourceTree = "<group>"; };
+		301576C788F755FF6721E79F /* KiwiWaterfallViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiWaterfallViewport.swift; sourceTree = "<group>"; };
 		30CF02B6D5C9776336DA7B30 /* RadioSessionSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettingsTests.swift; sourceTree = "<group>"; };
 		317CE6791652B8E4C5A4327D /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
@@ -135,6 +138,7 @@
 		DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnavailableContentView.swift; sourceTree = "<group>"; };
 		E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningHistoryStore.swift; sourceTree = "<group>"; };
 		E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiWaterfallViewportTests.swift; sourceTree = "<group>"; };
 		F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettings.swift; sourceTree = "<group>"; };
 		FF8CEEFF5137077F585714EE /* AudioDecoders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDecoders.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -173,6 +177,7 @@
 				224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */,
 				5281754BC533DD08BFC3F0FB /* KiwiNoiseProcessing.swift */,
 				5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */,
+				301576C788F755FF6721E79F /* KiwiWaterfallViewport.swift */,
 				CA8430FABA0F566E0392A547 /* L10n.swift */,
 				E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */,
 				06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */,
@@ -230,6 +235,7 @@
 			children = (
 				B30168AE215D849558215B5A /* DemodulationModeTests.swift */,
 				1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */,
+				E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */,
 				AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */,
 				30CF02B6D5C9776336DA7B30 /* RadioSessionSettingsTests.swift */,
 				950DF21350969254EFC903CF /* ReceiverIdentityTests.swift */,
@@ -348,6 +354,7 @@
 				904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */,
 				C528E9B1F9B1F3A37D859DB8 /* KiwiNoiseProcessing.swift in Sources */,
 				FD2A46F7134EB59E0B1C8FAD /* KiwiWaterfallProcessing.swift in Sources */,
+				C012120DC124FCF2743295A2 /* KiwiWaterfallViewport.swift in Sources */,
 				A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */,
 				F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */,
 				7F21A7B2B4BE8EAEB9DF08B9 /* ListenSDRAppShortcuts.swift in Sources */,
@@ -384,6 +391,7 @@
 			files = (
 				6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */,
 				8EEE5FD254E0DE0BAF51E579 /* FrequencyInputParserTests.swift in Sources */,
+				7D25DAE60B06F3AA4E27B9F6 /* KiwiWaterfallViewportTests.swift in Sources */,
 				442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */,
 				33F3F8C45A5BB961112E001B /* RadioSessionSettingsTests.swift in Sources */,
 				2E24DB309E0344833D3B83FD /* ReceiverIdentityTests.swift in Sources */,
