@@ -28,6 +28,7 @@
 		60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */; };
 		658BC2FBCD202B84E793D6DD /* ReceiverDataCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6294264E832985350801F669 /* ReceiverDataCache.swift */; };
 		67470D4EA59E0FC4620CD74B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A91F49239EA191572FD45 /* SettingsView.swift */; };
+		6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30168AE215D849558215B5A /* DemodulationModeTests.swift */; };
 		69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */; };
 		69F0FB74D682EA07F95087E3 /* ListeningHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */; };
 		71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8CEEFF5137077F585714EE /* AudioDecoders.swift */; };
@@ -113,6 +114,7 @@
 		AB68F42E636A470995C63355 /* ListenSDRFeedbackFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRFeedbackFormView.swift; sourceTree = "<group>"; };
 		AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningHistoryStoreTests.swift; sourceTree = "<group>"; };
 		AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B30168AE215D849558215B5A /* DemodulationModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationModeTests.swift; sourceTree = "<group>"; };
 		BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectoryView.swift; sourceTree = "<group>"; };
 		BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputEngine.swift; sourceTree = "<group>"; };
 		C372985075C01F819DD5C32F /* BackendTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendTelemetry.swift; sourceTree = "<group>"; };
@@ -218,6 +220,7 @@
 		E3EE7FF8D5264A2F25A49F4F /* ListenSDRTests */ = {
 			isa = PBXGroup;
 			children = (
+				B30168AE215D849558215B5A /* DemodulationModeTests.swift */,
 				1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */,
 				AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */,
 				950DF21350969254EFC903CF /* ReceiverIdentityTests.swift */,
@@ -368,6 +371,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */,
 				8EEE5FD254E0DE0BAF51E579 /* FrequencyInputParserTests.swift in Sources */,
 				442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */,
 				2E24DB309E0344833D3B83FD /* ReceiverIdentityTests.swift in Sources */,
