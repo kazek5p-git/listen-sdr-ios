@@ -3,6 +3,9 @@ import SwiftUI
 struct ListenSDRFeedbackFormView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var diagnostics: DiagnosticsStore
+  @EnvironmentObject private var historyStore: ListeningHistoryStore
+  @EnvironmentObject private var recordingStore: RecordingStore
   @Environment(\.dismiss) private var dismiss
 
   let kind: ListenSDRFeedbackKind
@@ -127,7 +130,15 @@ struct ListenSDRFeedbackFormView: View {
 
     let context = ListenSDRFeedbackContext.current(
       profile: profileStore.selectedProfile,
-      settings: radioSession.settings
+      settings: radioSession.settings,
+      radioSession: radioSession
+    )
+    let diagnosticsText = DiagnosticsExportBuilder.buildText(
+      profileStore: profileStore,
+      radioSession: radioSession,
+      diagnostics: diagnostics,
+      historyStore: historyStore,
+      recordingStore: recordingStore
     )
 
     Task {
@@ -136,7 +147,8 @@ struct ListenSDRFeedbackFormView: View {
           kind: kind,
           senderName: trimmedSender,
           message: trimmedMessage,
-          context: context
+          context: context,
+          diagnosticsText: diagnosticsText
         )
 
         await MainActor.run {

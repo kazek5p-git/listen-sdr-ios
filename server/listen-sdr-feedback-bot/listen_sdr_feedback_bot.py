@@ -15,6 +15,7 @@ BIND_HOST = os.environ.get("LISTEN_SDR_BIND_HOST", "127.0.0.1").strip() or "127.
 BIND_PORT = int(os.environ.get("LISTEN_SDR_PORT", "18787").strip())
 BOT_BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 HTTP_TIMEOUT = 20
+TELEGRAM_TEXT_LIMIT = 3900
 
 if RAW_RECIPIENT_IDS:
     RECIPIENT_IDS = [
@@ -60,9 +61,47 @@ def send_message(chat_id: int, text: str):
     )
 
 
+def split_message(text: str, limit: int = TELEGRAM_TEXT_LIMIT) -> list[str]:
+    normalized = text.strip()
+    if not normalized:
+        return [""]
+    if len(normalized) <= limit:
+        return [normalized]
+
+    chunks: list[str] = []
+    remaining = normalized
+    while remaining:
+        if len(remaining) <= limit:
+            chunks.append(remaining)
+            break
+
+        split_at = remaining.rfind("\n\n", 0, limit)
+        if split_at == -1:
+            split_at = remaining.rfind("\n", 0, limit)
+        if split_at == -1:
+            split_at = limit
+
+        chunk = remaining[:split_at].strip()
+        if not chunk:
+            chunk = remaining[:limit].strip()
+            split_at = limit
+
+        chunks.append(chunk)
+        remaining = remaining[split_at:].lstrip()
+
+    if len(chunks) == 1:
+        return chunks
+
+    return [
+        f"[{index + 1}/{len(chunks)}]\n{chunk}"
+        for index, chunk in enumerate(chunks)
+    ]
+
+
 def send_feedback_to_recipients(text: str):
     for recipient_id in RECIPIENT_IDS:
-        send_message(recipient_id, text)
+        for chunk in split_message(text):
+            send_message(recipient_id, chunk)
 
 
 def normalize_message_text(text: str) -> str:
@@ -78,12 +117,12 @@ def format_feedback(
     submitted_at: str,
     extra: dict | None = None,
 ) -> str:
-    type_label = "Błąd" if kind == "bug" else "Sugestia"
+    type_label = "B\u0142\u0105d" if kind == "bug" else "Sugestia"
     lines = [
-        "Nowe zgłoszenie Listen SDR",
+        "Nowe zg\u0142oszenie Listen SDR",
         f"Typ: {type_label}",
         f"Nadawca: {sender_name}",
-        f"Źródło: {source}",
+        f"\u0179r\u00f3d\u0142o: {source}",
         f"Czas: {submitted_at}",
     ]
 
@@ -95,7 +134,10 @@ def format_feedback(
         system_version = extra.get("systemVersion")
         device_model = extra.get("deviceModel")
         voice_over = extra.get("voiceOverEnabled")
+        session = extra.get("session")
+        audio_output = extra.get("audioOutput")
         receiver = extra.get("receiver")
+        diagnostics_text = extra.get("diagnosticsText")
 
         if app_name or app_version or build_number:
             version_parts = [part for part in [app_name, app_version] if part]
@@ -104,13 +146,45 @@ def format_feedback(
                 version_text = f"{version_text} (build {build_number})".strip()
             lines.append(f"Aplikacja: {version_text}".strip())
         if locale_identifier:
-            lines.append(f"Język/system locale: {locale_identifier}")
+            lines.append(f"J\u0119zyk/system locale: {locale_identifier}")
         if system_version:
             lines.append(f"System: {system_version}")
         if device_model:
-            lines.append(f"Urządzenie: {device_model}")
+            lines.append(f"Urz\u0105dzenie: {device_model}")
         if voice_over is not None:
             lines.append(f"VoiceOver: {'Tak' if voice_over else 'Nie'}")
+
+        if isinstance(session, dict):
+            if session.get("state"):
+                lines.append(f"Stan sesji: {session['state']}")
+            if session.get("statusText"):
+                lines.append(f"Status sesji: {session['statusText']}")
+            if session.get("backendStatusText"):
+                lines.append(f"Status backendu: {session['backendStatusText']}")
+            if session.get("lastError"):
+                lines.append(f"Ostatni b\u0142\u0105d: {session['lastError']}")
+            if session.get("audioMuted") is not None:
+                lines.append(f"Wyciszenie audio: {'Tak' if session['audioMuted'] else 'Nie'}")
+            if session.get("audioVolumePercent") is not None:
+                lines.append(f"G\u0142o\u015bno\u015b\u0107 audio: {session['audioVolumePercent']}%")
+
+        if isinstance(audio_output, dict):
+            lines.append(
+                "Audio wyj\u015bciowe: "
+                f"running={audio_output.get('engineRunning')} "
+                f"queued={audio_output.get('queuedBuffers')} "
+                f"session={audio_output.get('sessionConfigured')} "
+                f"out={audio_output.get('outputSampleRateHz')}Hz"
+            )
+            if audio_output.get("lastInputSampleRateHz") is not None:
+                lines.append(f"Ostatni input audio: {audio_output['lastInputSampleRateHz']} Hz")
+            if audio_output.get("secondsSinceLastEnqueue") is not None:
+                lines.append(
+                    f"Ostatni enqueue audio: {audio_output['secondsSinceLastEnqueue']:.2f} s temu"
+                )
+            if audio_output.get("lastStartError"):
+                lines.append(f"Ostatni b\u0142\u0105d startu audio: {audio_output['lastStartError']}")
+
         if isinstance(receiver, dict):
             receiver_name = receiver.get("name")
             receiver_backend = receiver.get("backend")
@@ -124,9 +198,18 @@ def format_feedback(
             if receiver_endpoint:
                 lines.append(f"Adres odbiornika: {receiver_endpoint}")
             if receiver_frequency:
-                lines.append(f"Częstotliwość: {receiver_frequency} Hz")
+                lines.append(f"Cz\u0119stotliwo\u015b\u0107: {receiver_frequency} Hz")
             if receiver_mode:
                 lines.append(f"Tryb: {receiver_mode}")
+
+        lines.append("")
+        lines.append(message)
+
+        if diagnostics_text:
+            lines.append("")
+            lines.append("Diagnostyka:")
+            lines.append(str(diagnostics_text).strip())
+        return "\n".join(lines)
 
     lines.append("")
     lines.append(message)
@@ -134,7 +217,7 @@ def format_feedback(
 
 
 class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
-    server_version = "ListenSDRFeedbackBot/1.1"
+    server_version = "ListenSDRFeedbackBot/1.2"
 
     def log_message(self, format, *args):  # noqa: A003
         logging.info("HTTP %s - %s", self.address_string(), format % args)

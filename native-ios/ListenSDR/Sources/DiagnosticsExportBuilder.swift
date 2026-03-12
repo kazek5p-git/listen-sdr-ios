@@ -81,6 +81,20 @@ enum DiagnosticsExportBuilder {
     lines.append("Tune step: \(radioSession.settings.tuneStepHz) Hz")
     lines.append("Muted: \(radioSession.settings.audioMuted)")
     lines.append("Volume: \(String(format: "%.2f", radioSession.settings.audioVolume))")
+    let sharedAudioSnapshot = SharedAudioOutput.engine.runtimeSnapshot()
+    lines.append("Shared audio running: \(sharedAudioSnapshot.engineRunning)")
+    lines.append("Shared audio queued buffers: \(sharedAudioSnapshot.queuedBuffers)")
+    lines.append("Shared audio session configured: \(sharedAudioSnapshot.sessionConfigured)")
+    lines.append("Shared audio output rate: \(sharedAudioSnapshot.outputSampleRateHz) Hz")
+    if let inputRate = sharedAudioSnapshot.lastInputSampleRateHz {
+      lines.append("Shared audio last input rate: \(inputRate) Hz")
+    }
+    if let secondsSinceLastEnqueue = sharedAudioSnapshot.secondsSinceLastEnqueue {
+      lines.append("Shared audio last enqueue: \(String(format: "%.2f", secondsSinceLastEnqueue)) s ago")
+    }
+    if let lastStartError = sharedAudioSnapshot.lastStartError, !lastStartError.isEmpty {
+      lines.append("Shared audio last start error: \(lastStartError)")
+    }
     lines.append("")
 
     lines.append("[Receiver data]")
@@ -90,6 +104,22 @@ enum DiagnosticsExportBuilder {
     lines.append("FM-DX station list entries: \(radioSession.fmdxServerPresets.count)")
     if let kiwiBand = radioSession.currentKiwiBandName {
       lines.append("Kiwi band: \(kiwiBand)")
+    }
+    if let kiwiTelemetry = radioSession.kiwiTelemetry {
+      if let rssi = kiwiTelemetry.rssiDBm {
+        lines.append("Kiwi RSSI: \(String(format: "%.1f", rssi)) dBm")
+      }
+      lines.append("Kiwi sample rate: \(kiwiTelemetry.sampleRateHz) Hz")
+      if let bandwidth = kiwiTelemetry.bandwidthHz {
+        lines.append("Kiwi bandwidth: \(bandwidth) Hz")
+      }
+      if let fftSize = kiwiTelemetry.waterfallFFTSize {
+        lines.append("Kiwi waterfall FFT: \(fftSize)")
+      }
+      if let zoomMax = kiwiTelemetry.zoomMax {
+        lines.append("Kiwi waterfall zoom max: \(zoomMax)")
+      }
+      lines.append("Kiwi waterfall bins: \(kiwiTelemetry.waterfallBins.count)")
     }
     if let telemetry = radioSession.fmdxTelemetry {
       lines.append("FM-DX station: \(telemetry.ps ?? "-")")

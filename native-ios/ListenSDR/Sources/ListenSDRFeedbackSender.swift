@@ -28,6 +28,25 @@ enum ListenSDRFeedbackKind: String, CaseIterable, Identifiable {
 }
 
 struct ListenSDRFeedbackContext {
+  struct SessionSnapshot {
+    let state: String
+    let statusText: String
+    let backendStatusText: String?
+    let lastError: String?
+    let audioMuted: Bool
+    let audioVolumePercent: Int
+  }
+
+  struct AudioOutputSnapshot {
+    let outputSampleRateHz: Int
+    let lastInputSampleRateHz: Int?
+    let queuedBuffers: Int
+    let engineRunning: Bool
+    let sessionConfigured: Bool
+    let secondsSinceLastEnqueue: Double?
+    let lastStartError: String?
+  }
+
   struct ReceiverSnapshot {
     let name: String
     let backend: String
@@ -42,17 +61,22 @@ struct ListenSDRFeedbackContext {
   let systemVersion: String
   let deviceModel: String
   let voiceOverEnabled: Bool
+  let session: SessionSnapshot
+  let audioOutput: AudioOutputSnapshot
   let receiver: ReceiverSnapshot?
 
+  @MainActor
   static func current(
     profile: SDRConnectionProfile?,
-    settings: RadioSessionSettings
+    settings: RadioSessionSettings,
+    radioSession: RadioSessionViewModel
   ) -> ListenSDRFeedbackContext {
     let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     let buildNumber = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
     let localeIdentifier = Locale.current.identifier
     let systemVersion = "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
     let deviceModel = hardwareIdentifier()
+    let audioOutputSnapshot = SharedAudioOutput.engine.runtimeSnapshot()
     let receiver = profile.map {
       ReceiverSnapshot(
         name: $0.name,
@@ -70,8 +94,38 @@ struct ListenSDRFeedbackContext {
       systemVersion: systemVersion,
       deviceModel: deviceModel,
       voiceOverEnabled: UIAccessibility.isVoiceOverRunning,
+      session: SessionSnapshot(
+        state: connectionStateText(radioSession.state),
+        statusText: radioSession.statusText,
+        backendStatusText: radioSession.backendStatusText,
+        lastError: radioSession.lastError,
+        audioMuted: settings.audioMuted,
+        audioVolumePercent: Int((settings.audioVolume * 100).rounded())
+      ),
+      audioOutput: AudioOutputSnapshot(
+        outputSampleRateHz: audioOutputSnapshot.outputSampleRateHz,
+        lastInputSampleRateHz: audioOutputSnapshot.lastInputSampleRateHz,
+        queuedBuffers: audioOutputSnapshot.queuedBuffers,
+        engineRunning: audioOutputSnapshot.engineRunning,
+        sessionConfigured: audioOutputSnapshot.sessionConfigured,
+        secondsSinceLastEnqueue: audioOutputSnapshot.secondsSinceLastEnqueue,
+        lastStartError: audioOutputSnapshot.lastStartError
+      ),
       receiver: receiver
     )
+  }
+
+  private static func connectionStateText(_ state: ConnectionState) -> String {
+    switch state {
+    case .disconnected:
+      return "disconnected"
+    case .connecting:
+      return "connecting"
+    case .connected:
+      return "connected"
+    case .failed:
+      return "failed"
+    }
   }
 
   private static func hardwareIdentifier() -> String {
@@ -88,6 +142,25 @@ struct ListenSDRFeedbackContext {
 }
 
 private struct ListenSDRFeedbackPayload: Encodable {
+  struct SessionPayload: Encodable {
+    let state: String
+    let statusText: String
+    let backendStatusText: String?
+    let lastError: String?
+    let audioMuted: Bool
+    let audioVolumePercent: Int
+  }
+
+  struct AudioOutputPayload: Encodable {
+    let outputSampleRateHz: Int
+    let lastInputSampleRateHz: Int?
+    let queuedBuffers: Int
+    let engineRunning: Bool
+    let sessionConfigured: Bool
+    let secondsSinceLastEnqueue: Double?
+    let lastStartError: String?
+  }
+
   struct ReceiverPayload: Encodable {
     let name: String
     let backend: String
@@ -108,13 +181,17 @@ private struct ListenSDRFeedbackPayload: Encodable {
   let systemVersion: String
   let deviceModel: String
   let voiceOverEnabled: Bool
+  let session: SessionPayload
+  let audioOutput: AudioOutputPayload
   let receiver: ReceiverPayload?
+  let diagnosticsText: String?
 
   init(
     kind: ListenSDRFeedbackKind,
     senderName: String,
     message: String,
-    context: ListenSDRFeedbackContext
+    context: ListenSDRFeedbackContext,
+    diagnosticsText: String?
   ) {
     source = "listen-sdr-ios"
     self.kind = kind.rawValue
@@ -128,6 +205,23 @@ private struct ListenSDRFeedbackPayload: Encodable {
     systemVersion = context.systemVersion
     deviceModel = context.deviceModel
     voiceOverEnabled = context.voiceOverEnabled
+    session = SessionPayload(
+      state: context.session.state,
+      statusText: context.session.statusText,
+      backendStatusText: context.session.backendStatusText,
+      lastError: context.session.lastError,
+      audioMuted: context.session.audioMuted,
+      audioVolumePercent: context.session.audioVolumePercent
+    )
+    audioOutput = AudioOutputPayload(
+      outputSampleRateHz: context.audioOutput.outputSampleRateHz,
+      lastInputSampleRateHz: context.audioOutput.lastInputSampleRateHz,
+      queuedBuffers: context.audioOutput.queuedBuffers,
+      engineRunning: context.audioOutput.engineRunning,
+      sessionConfigured: context.audioOutput.sessionConfigured,
+      secondsSinceLastEnqueue: context.audioOutput.secondsSinceLastEnqueue,
+      lastStartError: context.audioOutput.lastStartError
+    )
     receiver = context.receiver.map {
       ReceiverPayload(
         name: $0.name,
@@ -137,6 +231,7 @@ private struct ListenSDRFeedbackPayload: Encodable {
         mode: $0.mode
       )
     }
+    self.diagnosticsText = diagnosticsText
   }
 }
 
@@ -182,7 +277,8 @@ enum ListenSDRFeedbackSender {
     kind: ListenSDRFeedbackKind,
     senderName: String,
     message: String,
-    context: ListenSDRFeedbackContext
+    context: ListenSDRFeedbackContext,
+    diagnosticsText: String?
   ) async throws {
     guard let endpointURL else {
       throw ListenSDRFeedbackSendError.invalidEndpoint
@@ -192,7 +288,8 @@ enum ListenSDRFeedbackSender {
       kind: kind,
       senderName: senderName,
       message: message,
-      context: context
+      context: context,
+      diagnosticsText: diagnosticsText
     )
 
     var request = URLRequest(url: endpointURL)

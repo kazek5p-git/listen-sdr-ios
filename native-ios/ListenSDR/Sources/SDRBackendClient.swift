@@ -174,6 +174,8 @@ actor KiwiSDRClient: SDRBackendClient {
   private var latestPassband: ReceiverBandpass?
   private var kiwiBandwidthHz: Int?
   private var kiwiZoomMax: Int?
+  private var receivedAudioFrameCount = 0
+  private var audioWatchdogTask: Task<Void, Never>?
   private var lastReportedTunedFrequencyHz: Int?
   private var lastReportedTunedMode: DemodulationMode?
   private var lastReportedBandName: String?
@@ -196,6 +198,10 @@ actor KiwiSDRClient: SDRBackendClient {
     }
     sndKeepAliveTask = Task { [soundTask] in
       await self.keepAliveLoop(task: soundTask)
+    }
+    audioWatchdogTask = Task {
+      try? await Task.sleep(nanoseconds: 6_000_000_000)
+      await self.logMissingAudioIfNeeded()
     }
 
     try await sendSND("SET auth t=kiwi p=\(kiwiToken(profile.password))")
@@ -242,6 +248,8 @@ actor KiwiSDRClient: SDRBackendClient {
     sndKeepAliveTask = nil
     wfKeepAliveTask?.cancel()
     wfKeepAliveTask = nil
+    audioWatchdogTask?.cancel()
+    audioWatchdogTask = nil
 
     sndSocket?.cancel(with: .normalClosure, reason: nil)
     sndSocket = nil
@@ -264,6 +272,7 @@ actor KiwiSDRClient: SDRBackendClient {
     latestPassband = nil
     kiwiBandwidthHz = nil
     kiwiZoomMax = nil
+    receivedAudioFrameCount = 0
     lastReportedTunedFrequencyHz = nil
     lastReportedTunedMode = nil
     lastReportedBandName = nil
@@ -784,11 +793,33 @@ actor KiwiSDRClient: SDRBackendClient {
 
     let floats = int16ToFloatPCM(pcm)
     guard !floats.isEmpty else { return }
+    receivedAudioFrameCount += 1
+    audioWatchdogTask?.cancel()
+    audioWatchdogTask = nil
+    if receivedAudioFrameCount <= 3 {
+      let rms = sqrt(floats.reduce(0) { $0 + ($1 * $1) } / Float(max(floats.count, 1)))
+      log(
+        String(
+          format: "Audio frame #%d received (flags=0x%02X, rate=%d Hz, rms=%.4f, compressed=%d)",
+          receivedAudioFrameCount,
+          Int(flags),
+          sampleRateHz,
+          rms,
+          isCompressed ? 1 : 0
+        )
+      )
+    }
 
     let sampleRate = Double(sampleRateHz)
     await MainActor.run {
       SharedAudioOutput.engine.enqueueMono(samples: floats, sampleRate: sampleRate)
     }
+  }
+
+  private func logMissingAudioIfNeeded() {
+    guard sndSocket != nil else { return }
+    guard receivedAudioFrameCount == 0 else { return }
+    log("Connected, but no Kiwi audio frames were received within 6 seconds.", severity: .warning)
   }
 
   private func handleKiwiWaterfall(_ body: Data) async {
@@ -1081,6 +1112,8 @@ actor OpenWebRXClient: SDRBackendClient {
   private var bandPlanLoaded = false
   private var officialBandPlan: [SDRBandPlanEntry] = []
   private var serverBandPlan: [SDRBandPlanEntry] = []
+  private var receivedAudioFrameCount = 0
+  private var audioWatchdogTask: Task<Void, Never>?
   private var lastReportedFrequencyHz: Int?
   private var lastReportedMode: DemodulationMode?
   private var hasReceivedInitialServerTuning = false
@@ -1100,6 +1133,10 @@ actor OpenWebRXClient: SDRBackendClient {
 
     receiveTask = Task { [task] in
       await self.receiveLoop(task: task)
+    }
+    audioWatchdogTask = Task {
+      try? await Task.sleep(nanoseconds: 6_000_000_000)
+      await self.logMissingAudioIfNeeded()
     }
 
     try await send("SERVER DE CLIENT client=ListenSDR type=receiver")
@@ -1148,6 +1185,9 @@ actor OpenWebRXClient: SDRBackendClient {
     bandPlanLoaded = false
     officialBandPlan = []
     serverBandPlan = []
+    receivedAudioFrameCount = 0
+    audioWatchdogTask?.cancel()
+    audioWatchdogTask = nil
     lastReportedFrequencyHz = nil
     lastReportedMode = nil
     hasReceivedInitialServerTuning = false
@@ -1402,17 +1442,17 @@ actor OpenWebRXClient: SDRBackendClient {
 
     switch frameType {
     case 2:
-      await playAudio(payload, sampleRate: Double(outputRateHz))
+      await playAudio(payload, sampleRate: Double(outputRateHz), frameType: frameType)
 
     case 4:
-      await playAudio(payload, sampleRate: Double(hdOutputRateHz))
+      await playAudio(payload, sampleRate: Double(hdOutputRateHz), frameType: frameType)
 
     default:
       break
     }
   }
 
-  private func playAudio(_ payload: Data, sampleRate: Double) async {
+  private func playAudio(_ payload: Data, sampleRate: Double, frameType: UInt8) async {
     guard !payload.isEmpty else { return }
 
     let pcm: [Int16]
@@ -1424,10 +1464,32 @@ actor OpenWebRXClient: SDRBackendClient {
 
     let floats = int16ToFloatPCM(pcm)
     guard !floats.isEmpty else { return }
+    receivedAudioFrameCount += 1
+    audioWatchdogTask?.cancel()
+    audioWatchdogTask = nil
+    if receivedAudioFrameCount <= 3 {
+      let rms = sqrt(floats.reduce(0) { $0 + ($1 * $1) } / Float(max(floats.count, 1)))
+      log(
+        String(
+          format: "Audio frame #%d received (type=%d, rate=%d Hz, compression=%@, rms=%.4f)",
+          receivedAudioFrameCount,
+          Int(frameType),
+          Int(sampleRate.rounded()),
+          audioCompression,
+          rms
+        )
+      )
+    }
 
     await MainActor.run {
       SharedAudioOutput.engine.enqueueMono(samples: floats, sampleRate: sampleRate)
     }
+  }
+
+  private func logMissingAudioIfNeeded() {
+    guard socket != nil else { return }
+    guard receivedAudioFrameCount == 0 else { return }
+    log("Connected, but no OpenWebRX audio frames were received within 6 seconds.", severity: .warning)
   }
 
   private func extractInt(_ value: Any?) -> Int? {
