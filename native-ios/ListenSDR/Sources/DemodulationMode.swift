@@ -1,6 +1,6 @@
 import Foundation
 
-struct ReceiverBandpass: Equatable {
+struct ReceiverBandpass: Codable, Equatable, Hashable {
   let lowCut: Int
   let highCut: Int
 }
