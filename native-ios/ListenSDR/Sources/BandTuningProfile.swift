@@ -215,12 +215,7 @@ enum BandTuningProfiles {
   }
 
   private static func isFineTuningMode(_ mode: DemodulationMode) -> Bool {
-    switch mode {
-    case .usb, .lsb, .cw:
-      return true
-    case .am, .fm, .nfm:
-      return false
-    }
+    mode.isFineTuningMode
   }
 
   private static func isFMBroadcastBand(name: String, tags: Set<String>, frequencyHz: Int) -> Bool {

@@ -45,11 +45,6 @@ enum SDRClientError: LocalizedError {
   }
 }
 
-private struct ReceiverBandpass {
-  let lowCut: Int
-  let highCut: Int
-}
-
 private func validate(profile: SDRConnectionProfile) throws -> (host: String, port: Int) {
   let host = profile.host.trimmingCharacters(in: .whitespacesAndNewlines)
   guard !host.isEmpty else { throw SDRClientError.invalidHost }
@@ -105,69 +100,19 @@ private func encodeJSONString(_ payload: [String: Any]) throws -> String {
 }
 
 private func kiwiMode(from mode: DemodulationMode) -> String {
-  switch mode {
-  case .am:
-    return "am"
-  case .fm, .nfm:
-    return "nbfm"
-  case .usb:
-    return "usb"
-  case .lsb:
-    return "lsb"
-  case .cw:
-    return "cw"
-  }
+  mode.kiwiProtocolMode
 }
 
 private func kiwiBandpass(for mode: DemodulationMode) -> ReceiverBandpass {
-  switch mode {
-  case .am:
-    return ReceiverBandpass(lowCut: -4900, highCut: 4900)
-  case .fm:
-    return ReceiverBandpass(lowCut: -6000, highCut: 6000)
-  case .nfm:
-    return ReceiverBandpass(lowCut: -3000, highCut: 3000)
-  case .usb:
-    return ReceiverBandpass(lowCut: 300, highCut: 2700)
-  case .lsb:
-    return ReceiverBandpass(lowCut: -2700, highCut: -300)
-  case .cw:
-    return ReceiverBandpass(lowCut: 300, highCut: 700)
-  }
+  mode.kiwiDefaultBandpass
 }
 
 private func openWebRXMode(from mode: DemodulationMode) -> String {
-  switch mode {
-  case .am:
-    return "am"
-  case .fm:
-    return "wfm"
-  case .nfm:
-    return "nfm"
-  case .usb:
-    return "usb"
-  case .lsb:
-    return "lsb"
-  case .cw:
-    return "cw"
-  }
+  mode.openWebRXProtocolMode
 }
 
 private func openWebRXBandpass(for mode: DemodulationMode) -> ReceiverBandpass {
-  switch mode {
-  case .am:
-    return ReceiverBandpass(lowCut: -4900, highCut: 4900)
-  case .fm:
-    return ReceiverBandpass(lowCut: -75_000, highCut: 75_000)
-  case .nfm:
-    return ReceiverBandpass(lowCut: -6000, highCut: 6000)
-  case .usb:
-    return ReceiverBandpass(lowCut: 300, highCut: 2700)
-  case .lsb:
-    return ReceiverBandpass(lowCut: -2700, highCut: -300)
-  case .cw:
-    return ReceiverBandpass(lowCut: 300, highCut: 700)
-  }
+  mode.openWebRXDefaultBandpass
 }
 
 private func kiwiToken(_ raw: String) -> String {
@@ -198,23 +143,7 @@ private func kiwiAuthenticationErrorDescription(code: String) -> String {
 }
 
 private func demodulationModeFromKiwi(_ rawValue: String?) -> DemodulationMode? {
-  guard let rawValue else { return nil }
-  switch rawValue.lowercased() {
-  case "am", "amn":
-    return .am
-  case "fm", "wfm":
-    return .fm
-  case "nfm", "nbfm":
-    return .nfm
-  case "usb", "usn":
-    return .usb
-  case "lsb", "lsn":
-    return .lsb
-  case "cw", "cwn":
-    return .cw
-  default:
-    return nil
-  }
+  DemodulationMode.fromKiwi(rawValue)
 }
 
 actor KiwiSDRClient: SDRBackendClient {

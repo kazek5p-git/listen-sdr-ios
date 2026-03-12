@@ -708,7 +708,8 @@ final class RadioSessionViewModel: ObservableObject {
       scheduleListeningHistoryCapture()
       return
     }
-    settings.mode = mode
+    let targetBackend = activeBackend ?? currentConnectedProfile?.backend ?? .openWebRX
+    settings.mode = normalizeMode(mode, for: targetBackend)
     _ = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     applyIfConnected()
@@ -1456,6 +1457,12 @@ final class RadioSessionViewModel: ObservableObject {
       }
 
     case .kiwiSDR:
+      let normalizedMode = normalizeMode(settings.mode, for: .kiwiSDR)
+      if settings.mode != normalizedMode {
+        settings.mode = normalizedMode
+        changed = true
+      }
+
       if !kiwiFrequencyRangeHz.contains(settings.frequencyHz) {
         settings.frequencyHz = kiwiDefaultFrequencyHz
         changed = true
@@ -1495,6 +1502,12 @@ final class RadioSessionViewModel: ObservableObject {
       }
 
     case .openWebRX:
+      let normalizedMode = normalizeMode(settings.mode, for: .openWebRX)
+      if settings.mode != normalizedMode {
+        settings.mode = normalizedMode
+        changed = true
+      }
+
       let clamped = min(max(settings.frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
       if settings.frequencyHz != clamped {
         settings.frequencyHz = clamped
@@ -1538,6 +1551,10 @@ final class RadioSessionViewModel: ObservableObject {
       )
     )
     return resolvedTuneStepHz(value, using: profile)
+  }
+
+  private func normalizeMode(_ mode: DemodulationMode, for backend: SDRBackend) -> DemodulationMode {
+    mode.normalized(for: backend)
   }
 
   private func normalizeFMDXFrequencyHz(fromMHz value: Double) -> Int {

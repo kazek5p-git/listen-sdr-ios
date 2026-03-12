@@ -154,25 +154,3 @@ enum BackendControlCommand {
   case setFMDXAntenna(String)
   case setFMDXBandwidth(value: String, legacyValue: String?)
 }
-
-extension DemodulationMode {
-  static func fromOpenWebRX(_ rawValue: String?) -> DemodulationMode? {
-    guard let rawValue else { return nil }
-    switch rawValue.lowercased() {
-    case "am":
-      return .am
-    case "fm", "wfm":
-      return .fm
-    case "nfm":
-      return .nfm
-    case "usb":
-      return .usb
-    case "lsb":
-      return .lsb
-    case "cw":
-      return .cw
-    default:
-      return nil
-    }
-  }
-}

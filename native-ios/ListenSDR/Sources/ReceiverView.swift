@@ -1418,45 +1418,19 @@ struct ReceiverView: View {
     switch backend {
     case .fmDxWebserver:
       return [.fm, .am]
-    case .kiwiSDR, .openWebRX:
-      return DemodulationMode.allCases
+    case .kiwiSDR:
+      return DemodulationMode.kiwiSupportedModes
+    case .openWebRX:
+      return DemodulationMode.openWebRXSupportedModes
     }
   }
 
   private func modeSelectionID(for mode: DemodulationMode) -> String {
-    switch mode {
-    case .am:
-      return "am"
-    case .fm:
-      return "fm"
-    case .nfm:
-      return "nfm"
-    case .usb:
-      return "usb"
-    case .lsb:
-      return "lsb"
-    case .cw:
-      return "cw"
-    }
+    mode.rawValue
   }
 
   private func modeFromSelectionID(_ value: String) -> DemodulationMode? {
-    switch value {
-    case "am":
-      return .am
-    case "fm":
-      return .fm
-    case "nfm":
-      return .nfm
-    case "usb":
-      return .usb
-    case "lsb":
-      return .lsb
-    case "cw":
-      return .cw
-    default:
-      return nil
-    }
+    DemodulationMode(rawValue: value)
   }
 
   private func currentModeSelectionValue(for backend: SDRBackend) -> String {
