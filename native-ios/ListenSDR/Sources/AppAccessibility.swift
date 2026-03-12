@@ -136,9 +136,7 @@ struct CyclingOptionCard: View {
     .appCardContainer()
     .contentShape(Rectangle())
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(title)
-    .accessibilityValue(selectedTitle)
-    .accessibilityHint(accessibilityHint)
+    .modifier(AccessibleControlModifier(label: title, value: selectedTitle, hint: accessibilityHint))
     .accessibilityAdjustableAction { direction in
       switch direction {
       case .increment:
