@@ -2,6 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
   @EnvironmentObject private var settingsController: SettingsViewController
+  @State private var isCheckingFeedbackServer = false
+  @State private var feedbackServerStatus: FeedbackServerStatus = .idle
+  @State private var feedbackServerAlert: FeedbackServerAlert?
 
   var body: some View {
     NavigationStack {
@@ -22,6 +25,19 @@ struct SettingsView: View {
       .scrollContentBackground(.hidden)
       .navigationTitle(L10n.text("Settings"))
       .appScreenBackground()
+      .alert(
+        feedbackServerAlert?.title ?? "",
+        isPresented: Binding(
+          get: { feedbackServerAlert != nil },
+          set: { if !$0 { feedbackServerAlert = nil } }
+        )
+      ) {
+        Button(L10n.text("OK")) {
+          feedbackServerAlert = nil
+        }
+      } message: {
+        Text(feedbackServerAlert?.message ?? "")
+      }
     }
   }
 
@@ -343,6 +359,27 @@ struct SettingsView: View {
       } label: {
         Label(L10n.text("settings.feedback.send_suggestion"), systemImage: "lightbulb")
       }
+
+      FocusRetainingButton {
+        startFeedbackServerHealthCheck()
+      } label: {
+        Label(
+          isCheckingFeedbackServer
+            ? L10n.text("settings.feedback.health_check.checking")
+            : L10n.text("settings.feedback.health_check"),
+          systemImage: "network"
+        )
+      }
+      .disabled(isCheckingFeedbackServer)
+      .accessibilityHint(L10n.text("settings.feedback.health_check.hint"))
+
+      if feedbackServerStatus != .idle {
+        LabeledContent(
+          L10n.text("settings.feedback.health_check.status"),
+          value: feedbackServerStatus.localizedTitle
+        )
+        .font(.footnote)
+      }
     } header: {
       AppSectionHeader(title: L10n.text("settings.feedback.section"))
     }
@@ -415,6 +452,70 @@ struct SettingsView: View {
         label: title,
         value: "\(String(format: "%.1f", value)) s"
       )
+    }
+  }
+
+  private func startFeedbackServerHealthCheck() {
+    guard !isCheckingFeedbackServer else { return }
+
+    isCheckingFeedbackServer = true
+    feedbackServerStatus = .checking
+
+    Task {
+      do {
+        let isHealthy = try await ListenSDRFeedbackSender.checkHealth()
+        await MainActor.run {
+          isCheckingFeedbackServer = false
+          if isHealthy {
+            feedbackServerStatus = .success
+            feedbackServerAlert = FeedbackServerAlert(
+              title: L10n.text("settings.feedback.health_check.success.title"),
+              message: L10n.text("settings.feedback.health_check.success.body")
+            )
+          } else {
+            feedbackServerStatus = .failure
+            feedbackServerAlert = FeedbackServerAlert(
+              title: L10n.text("settings.feedback.health_check.failure.title"),
+              message: L10n.text("settings.feedback.health_check.failure.body")
+            )
+          }
+        }
+      } catch {
+        await MainActor.run {
+          isCheckingFeedbackServer = false
+          feedbackServerStatus = .failure
+          feedbackServerAlert = FeedbackServerAlert(
+            title: L10n.text("settings.feedback.health_check.failure.title"),
+            message: L10n.text("settings.feedback.health_check.failure.body")
+          )
+        }
+      }
+    }
+  }
+}
+
+private struct FeedbackServerAlert: Identifiable {
+  let id = UUID()
+  let title: String
+  let message: String
+}
+
+private enum FeedbackServerStatus: Equatable {
+  case idle
+  case checking
+  case success
+  case failure
+
+  var localizedTitle: String {
+    switch self {
+    case .idle:
+      return ""
+    case .checking:
+      return L10n.text("settings.feedback.health_check.checking")
+    case .success:
+      return L10n.text("settings.feedback.health_check.status.success")
+    case .failure:
+      return L10n.text("settings.feedback.health_check.status.failure")
     }
   }
 }

@@ -145,6 +145,10 @@ private struct ListenSDRFeedbackResponse: Decodable {
   let error: String?
 }
 
+private struct ListenSDRFeedbackHealthResponse: Decodable {
+  let ok: Bool
+}
+
 enum ListenSDRFeedbackSendError: LocalizedError {
   case invalidEndpoint
   case network
@@ -164,6 +168,7 @@ enum ListenSDRFeedbackSendError: LocalizedError {
 
 enum ListenSDRFeedbackSender {
   static let endpointURL = URL(string: "https://kazpar.pl/listen-sdr-feedback/api/feedback")
+  static let healthCheckURL = URL(string: "https://kazpar.pl/listen-sdr-feedback/healthz")
 
   private static let session: URLSession = {
     let configuration = URLSessionConfiguration.ephemeral
@@ -212,6 +217,33 @@ enum ListenSDRFeedbackSender {
           throw ListenSDRFeedbackSendError.server(serverResponse?.error)
         }
       }
+    } catch let error as ListenSDRFeedbackSendError {
+      throw error
+    } catch {
+      throw ListenSDRFeedbackSendError.network
+    }
+  }
+
+  static func checkHealth() async throws -> Bool {
+    guard let healthCheckURL else {
+      throw ListenSDRFeedbackSendError.invalidEndpoint
+    }
+
+    var request = URLRequest(url: healthCheckURL)
+    request.httpMethod = "GET"
+
+    do {
+      let (data, response) = try await session.data(for: request)
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw ListenSDRFeedbackSendError.network
+      }
+
+      guard (200...299).contains(httpResponse.statusCode) else {
+        throw ListenSDRFeedbackSendError.network
+      }
+
+      let healthResponse = try JSONDecoder().decode(ListenSDRFeedbackHealthResponse.self, from: data)
+      return healthResponse.ok
     } catch let error as ListenSDRFeedbackSendError {
       throw error
     } catch {

@@ -619,4 +619,14 @@
 "settings.feedback.form.error.body" = "Spróbuj ponownie za chwilę.";
 "settings.feedback.form.sent.title" = "Wysłano";
 "settings.feedback.form.sent.body" = "Twoja wiadomość została przekazana do autora.";
+"settings.feedback.health_check" = "Sprawdź połączenie z serwerem zgłoszeń";
+"settings.feedback.health_check.hint" = "Sprawdza, czy serwer zgłoszeń Listen SDR jest osiągalny.";
+"settings.feedback.health_check.checking" = "Sprawdzanie...";
+"settings.feedback.health_check.status" = "Serwer zgłoszeń";
+"settings.feedback.health_check.status.success" = "Dostępny";
+"settings.feedback.health_check.status.failure" = "Niedostępny";
+"settings.feedback.health_check.success.title" = "Połączenie działa";
+"settings.feedback.health_check.success.body" = "Serwer zgłoszeń jest osiągalny.";
+"settings.feedback.health_check.failure.title" = "Połączenie nieudane";
+"settings.feedback.health_check.failure.body" = "Nie udało się teraz połączyć z serwerem zgłoszeń.";
 "settings.author.section" = "Autor";

@@ -612,4 +612,14 @@
 "settings.feedback.form.error.body" = "Try again in a moment.";
 "settings.feedback.form.sent.title" = "Sent";
 "settings.feedback.form.sent.body" = "Your message has been delivered to the author.";
+"settings.feedback.health_check" = "Check feedback server";
+"settings.feedback.health_check.hint" = "Checks whether the Listen SDR feedback server is reachable.";
+"settings.feedback.health_check.checking" = "Checking...";
+"settings.feedback.health_check.status" = "Feedback server";
+"settings.feedback.health_check.status.success" = "Available";
+"settings.feedback.health_check.status.failure" = "Unavailable";
+"settings.feedback.health_check.success.title" = "Connection works";
+"settings.feedback.health_check.success.body" = "The feedback server is reachable.";
+"settings.feedback.health_check.failure.title" = "Connection failed";
+"settings.feedback.health_check.failure.body" = "The feedback server could not be reached right now.";
 "settings.author.section" = "Author";
