@@ -15,6 +15,8 @@ struct SettingsView: View {
         audioSection
         diagnosticsSection
         quickActionsSection
+        feedbackSection
+        authorSection
       }
       .voiceOverStable()
       .scrollContentBackground(.hidden)
@@ -324,6 +326,34 @@ struct SettingsView: View {
       }
     } header: {
       AppSectionHeader(title: L10n.text("Quick Actions"))
+    }
+    .appSectionStyle()
+  }
+
+  private var feedbackSection: some View {
+    Section {
+      NavigationLink {
+        ListenSDRFeedbackFormView(kind: .bug)
+      } label: {
+        Label(L10n.text("settings.feedback.report_bug"), systemImage: "ant.circle")
+      }
+
+      NavigationLink {
+        ListenSDRFeedbackFormView(kind: .suggestion)
+      } label: {
+        Label(L10n.text("settings.feedback.send_suggestion"), systemImage: "lightbulb")
+      }
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.feedback.section"))
+    }
+    .appSectionStyle()
+  }
+
+  private var authorSection: some View {
+    Section {
+      Text("Kazek5p")
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.author.section"))
     }
     .appSectionStyle()
   }

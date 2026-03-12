@@ -22,50 +22,50 @@ struct ProfileEditorView: View {
   var body: some View {
     NavigationStack {
       Form {
-        Section("General") {
-          TextField("Profile name", text: $draft.name)
-            .accessibilityLabel("Profile name")
-            .accessibilityHint("Name shown in your radio list")
+        Section(L10n.text("General")) {
+          TextField(L10n.text("Profile name"), text: $draft.name)
+            .accessibilityLabel(L10n.text("Profile name"))
+            .accessibilityHint(L10n.text("Name shown in your radio list"))
 
-          Picker("Backend", selection: $draft.backend) {
+          Picker(L10n.text("Backend"), selection: $draft.backend) {
             ForEach(SDRBackend.allCases) { backend in
               Text(backend.displayName).tag(backend)
             }
           }
           .pickerStyle(.segmented)
-          .accessibilityLabel("Receiver backend")
+          .accessibilityLabel(L10n.text("Receiver backend"))
           .onChange(of: draft.backend) { newBackend in
             draft.port = newBackend.defaultPort
           }
         }
         .appSectionStyle()
 
-        Section("Server") {
-          TextField("Host", text: $draft.host)
+        Section(L10n.text("Server")) {
+          TextField(L10n.text("Host"), text: $draft.host)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-            .accessibilityLabel("Host")
+            .accessibilityLabel(L10n.text("Host"))
 
-          TextField("Port", value: $draft.port, format: .number)
+          TextField(L10n.text("Port"), value: $draft.port, format: .number)
             .keyboardType(.numberPad)
-            .accessibilityLabel("Port")
+            .accessibilityLabel(L10n.text("Port"))
 
-          TextField("Path", text: $draft.path)
+          TextField(L10n.text("Path"), text: $draft.path)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-            .accessibilityLabel("Path")
+            .accessibilityLabel(L10n.text("Path"))
 
-          Toggle("Use TLS", isOn: $draft.useTLS)
-            .accessibilityHint("Enable secure HTTPS or WSS transport")
+          Toggle(L10n.text("Use TLS"), isOn: $draft.useTLS)
+            .accessibilityHint(L10n.text("Enable secure HTTPS or WSS transport"))
         }
         .appSectionStyle()
 
-        Section("Authentication") {
-          TextField("Username", text: $draft.username)
+        Section(L10n.text("Authentication")) {
+          TextField(L10n.text("Username"), text: $draft.username)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
 
-          SecureField("Password", text: $draft.password)
+          SecureField(L10n.text("Password"), text: $draft.password)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
         }
@@ -75,11 +75,11 @@ struct ProfileEditorView: View {
       .navigationTitle(title)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel", action: onCancel)
+          Button(L10n.text("Cancel"), action: onCancel)
         }
 
         ToolbarItem(placement: .confirmationAction) {
-          Button("Save") {
+          Button(L10n.text("Save")) {
             onSave(normalizedDraft)
           }
           .disabled(!isValid)

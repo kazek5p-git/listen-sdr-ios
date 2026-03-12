@@ -65,6 +65,95 @@ struct AppSectionHeader: View {
   }
 }
 
+struct CyclingOptionItem: Identifiable, Equatable {
+  let id: String
+  let title: String
+  let detail: String?
+
+  init(id: String, title: String, detail: String? = nil) {
+    self.id = id
+    self.title = title
+    self.detail = detail
+  }
+}
+
+struct CyclingOptionCard: View {
+  let title: String
+  let selectedTitle: String
+  let detail: String?
+  let canDecrement: Bool
+  let canIncrement: Bool
+  let accessibilityHint: String?
+  let decrementAction: () -> Void
+  let incrementAction: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      Text(title)
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
+
+      HStack(spacing: 12) {
+        Button {
+          decrementAction()
+        } label: {
+          Image(systemName: "minus")
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .disabled(!canDecrement)
+        .accessibilityHidden(true)
+
+        VStack(spacing: 4) {
+          Text(selectedTitle)
+            .font(.title3.monospacedDigit().weight(.semibold))
+            .multilineTextAlignment(.center)
+
+          if let detail, !detail.isEmpty {
+            Text(detail)
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+              .multilineTextAlignment(.center)
+              .lineLimit(2)
+              .minimumScaleFactor(0.75)
+          }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
+
+        Button {
+          incrementAction()
+        } label: {
+          Image(systemName: "plus")
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(!canIncrement)
+        .accessibilityHidden(true)
+      }
+    }
+    .appCardContainer()
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(selectedTitle)
+    .accessibilityHint(accessibilityHint)
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        guard canIncrement else { return }
+        incrementAction()
+      case .decrement:
+        guard canDecrement else { return }
+        decrementAction()
+      @unknown default:
+        break
+      }
+    }
+  }
+}
+
 struct FocusRetainingButton<Label: View>: View {
   let role: ButtonRole?
   let restoreDelayNanoseconds: UInt64

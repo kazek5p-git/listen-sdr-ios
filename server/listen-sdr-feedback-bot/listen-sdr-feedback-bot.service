@@ -1,0 +1,17 @@
+[Unit]
+Description=Listen SDR Telegram feedback bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/share/listen-sdr-feedback-bot
+EnvironmentFile=%h/.config/listen-sdr-feedback-bot.env
+ExecStart=/usr/bin/env python3 %h/.local/share/listen-sdr-feedback-bot/listen_sdr_feedback_bot.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

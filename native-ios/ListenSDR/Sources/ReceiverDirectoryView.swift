@@ -4,13 +4,14 @@ struct ReceiverDirectoryView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var favoritesStore: FavoritesStore
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.openURL) private var openURL
   @StateObject private var viewModel = ReceiverDirectoryViewModel()
 
   var body: some View {
     NavigationStack {
       List {
         Section {
-          Picker("Backend source", selection: $viewModel.selectedBackend) {
+          Picker(L10n.text("Backend source"), selection: $viewModel.selectedBackend) {
             ForEach(viewModel.supportedBackends) { backend in
               Text(backend.displayName).tag(backend)
             }
@@ -18,68 +19,49 @@ struct ReceiverDirectoryView: View {
           .pickerStyle(.segmented)
           .accessibilityLabel(L10n.text("Receiver backend list"))
         } header: {
-          AppSectionHeader(title: "Backend")
+          AppSectionHeader(title: L10n.text("Backend"))
         }
         .appSectionStyle()
 
         Section {
-          NavigationLink {
-            SelectionListView(
-              title: L10n.text("directory.filters.status"),
-              options: ReceiverDirectoryStatusFilter.allCases.map {
-                SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
-              },
-              selectedID: viewModel.statusFilter.rawValue
-            ) { value in
-              if let filter = ReceiverDirectoryStatusFilter(rawValue: value) {
-                viewModel.statusFilter = filter
-              }
-            }
-          } label: {
-            LabeledContent(
-              L10n.text("directory.filters.status"),
-              value: viewModel.statusFilter.displayName
-            )
+          CyclingOptionCard(
+            title: L10n.text("directory.filters.status"),
+            selectedTitle: viewModel.statusFilter.displayName,
+            detail: optionPositionDetail(currentIndex: statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0, totalCount: statusFilterOptions.count),
+            canDecrement: canCycle(currentIndex: statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0, totalCount: statusFilterOptions.count, offset: -1),
+            canIncrement: canCycle(currentIndex: statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0, totalCount: statusFilterOptions.count, offset: 1),
+            accessibilityHint: L10n.text("directory.filters.cycler_hint")
+          ) {
+            cycleStatusFilter(by: -1)
+          } incrementAction: {
+            cycleStatusFilter(by: 1)
           }
 
-          NavigationLink {
-            SelectionListView(
-              title: L10n.text("directory.filters.sort"),
-              options: ReceiverDirectorySortOption.allCases.map {
-                SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
-              },
-              selectedID: viewModel.sortOption.rawValue
-            ) { value in
-              if let sortOption = ReceiverDirectorySortOption(rawValue: value) {
-                viewModel.sortOption = sortOption
-              }
-            }
-          } label: {
-            LabeledContent(
-              L10n.text("directory.filters.sort"),
-              value: viewModel.sortOption.displayName
-            )
+          CyclingOptionCard(
+            title: L10n.text("directory.filters.sort"),
+            selectedTitle: viewModel.sortOption.displayName,
+            detail: optionPositionDetail(currentIndex: sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0, totalCount: sortOptions.count),
+            canDecrement: canCycle(currentIndex: sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0, totalCount: sortOptions.count, offset: -1),
+            canIncrement: canCycle(currentIndex: sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0, totalCount: sortOptions.count, offset: 1),
+            accessibilityHint: L10n.text("directory.filters.cycler_hint")
+          ) {
+            cycleSortOption(by: -1)
+          } incrementAction: {
+            cycleSortOption(by: 1)
           }
 
           if !viewModel.availableCountries.isEmpty {
-            NavigationLink {
-              SelectionListView(
-                title: L10n.text("directory.filters.country"),
-                options: [SelectionListOption(id: "", title: L10n.text("directory.filter.country.all"), detail: nil)]
-                  + viewModel.availableCountries.map { country in
-                    SelectionListOption(id: country, title: country, detail: nil)
-                  },
-                selectedID: viewModel.selectedCountry
-              ) { value in
-                viewModel.selectedCountry = value
-              }
-            } label: {
-              LabeledContent(
-                L10n.text("directory.filters.country"),
-                value: viewModel.selectedCountry.isEmpty
-                  ? L10n.text("directory.filter.country.all")
-                  : viewModel.selectedCountry
-              )
+            CyclingOptionCard(
+              title: L10n.text("directory.filters.country"),
+              selectedTitle: selectedCountryTitle,
+              detail: optionPositionDetail(currentIndex: countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0, totalCount: countryOptions.count),
+              canDecrement: canCycle(currentIndex: countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0, totalCount: countryOptions.count, offset: -1),
+              canIncrement: canCycle(currentIndex: countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0, totalCount: countryOptions.count, offset: 1),
+              accessibilityHint: L10n.text("directory.filters.cycler_hint")
+            ) {
+              cycleCountry(by: -1)
+            } incrementAction: {
+              cycleCountry(by: 1)
             }
           }
 
@@ -103,7 +85,7 @@ struct ReceiverDirectoryView: View {
               .font(.footnote)
               .foregroundStyle(.secondary)
           } else {
-            Text("No directory data cached yet.")
+            Text(L10n.text("No directory data cached yet."))
               .font(.footnote)
               .foregroundStyle(.secondary)
           }
@@ -124,14 +106,14 @@ struct ReceiverDirectoryView: View {
           if viewModel.isProbingStatus {
             HStack(spacing: 8) {
               ProgressView()
-              Text("Checking receiver availability...")
+              Text(L10n.text("Checking receiver availability..."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             }
             .accessibilityLabel(L10n.text("Checking receiver availability"))
           }
         } header: {
-          AppSectionHeader(title: "Status")
+          AppSectionHeader(title: L10n.text("Status"))
         } footer: {
           Text(viewModel.sourceSummaryText)
         }
@@ -142,10 +124,10 @@ struct ReceiverDirectoryView: View {
 
           if filteredEntries.isEmpty {
             if viewModel.isLoading {
-              ProgressView("Refreshing directory...")
+              ProgressView(L10n.text("Refreshing directory..."))
                 .frame(maxWidth: .infinity, alignment: .center)
             } else {
-              Text("No receivers found for current filter.")
+              Text(L10n.text("No receivers found for current filter."))
                 .foregroundStyle(.secondary)
             }
           } else {
@@ -154,16 +136,16 @@ struct ReceiverDirectoryView: View {
             }
           }
         } header: {
-          AppSectionHeader(title: "Receivers")
+          AppSectionHeader(title: L10n.text("Receivers"))
         }
       }
       .voiceOverStable()
       .listStyle(.insetGrouped)
       .scrollContentBackground(.hidden)
-      .navigationTitle("Receiver Directory")
+      .navigationTitle(L10n.text("Receiver Directory"))
       .toolbar {
         ToolbarItem(placement: .navigationBarLeading) {
-          Button("Close") {
+          Button(L10n.text("Close")) {
             dismiss()
           }
         }
@@ -186,7 +168,7 @@ struct ReceiverDirectoryView: View {
       }
       .searchable(
         text: $viewModel.searchText,
-        prompt: "Search by name, location or host"
+        prompt: L10n.text("Search by name, location or host")
       )
       .refreshable {
         await viewModel.refresh(force: true)
@@ -287,12 +269,19 @@ struct ReceiverDirectoryView: View {
       }
       .tint(.yellow)
     }
-    .accessibilityAction(
-      named: Text(
-        isFavorite ? L10n.text("favorites.receiver.remove") : L10n.text("favorites.receiver.add")
-      )
-    ) {
-      favoritesStore.toggleReceiver(entry)
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      Button {
+        openReceiverWebsite(for: entry)
+      } label: {
+        Label(
+          L10n.text("directory.receiver.open_website"),
+          systemImage: "globe"
+        )
+      }
+      .tint(.blue)
+    }
+    .accessibilityAction(named: Text(L10n.text("directory.receiver.open_website"))) {
+      openReceiverWebsite(for: entry)
     }
     .accessibilityLabel(entry.name)
     .accessibilityValue(
@@ -359,5 +348,69 @@ struct ReceiverDirectoryView: View {
     case .fmDxWebserver:
       return .orange
     }
+  }
+
+  private var statusFilterOptions: [ReceiverDirectoryStatusFilter] {
+    ReceiverDirectoryStatusFilter.allCases
+  }
+
+  private var sortOptions: [ReceiverDirectorySortOption] {
+    ReceiverDirectorySortOption.allCases
+  }
+
+  private var countryOptions: [String] {
+    [""] + viewModel.availableCountries
+  }
+
+  private var selectedCountryTitle: String {
+    viewModel.selectedCountry.isEmpty
+      ? L10n.text("directory.filter.country.all")
+      : viewModel.selectedCountry
+  }
+
+  private func optionPositionDetail(currentIndex: Int, totalCount: Int) -> String? {
+    guard totalCount > 1 else { return nil }
+    return L10n.text("directory.filters.option_position", currentIndex + 1, totalCount)
+  }
+
+  private func canCycle(currentIndex: Int, totalCount: Int, offset: Int) -> Bool {
+    guard totalCount > 1 else { return false }
+    let nextIndex = currentIndex + offset
+    return (0..<totalCount).contains(nextIndex)
+  }
+
+  private func cycleStatusFilter(by offset: Int) {
+    guard
+      let currentIndex = statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }),
+      canCycle(currentIndex: currentIndex, totalCount: statusFilterOptions.count, offset: offset)
+    else {
+      return
+    }
+    viewModel.statusFilter = statusFilterOptions[currentIndex + offset]
+  }
+
+  private func cycleSortOption(by offset: Int) {
+    guard
+      let currentIndex = sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }),
+      canCycle(currentIndex: currentIndex, totalCount: sortOptions.count, offset: offset)
+    else {
+      return
+    }
+    viewModel.sortOption = sortOptions[currentIndex + offset]
+  }
+
+  private func cycleCountry(by offset: Int) {
+    guard
+      let currentIndex = countryOptions.firstIndex(of: viewModel.selectedCountry),
+      canCycle(currentIndex: currentIndex, totalCount: countryOptions.count, offset: offset)
+    else {
+      return
+    }
+    viewModel.selectedCountry = countryOptions[currentIndex + offset]
+  }
+
+  private func openReceiverWebsite(for entry: ReceiverDirectoryEntry) {
+    guard let url = URL(string: entry.endpointURL) else { return }
+    openURL(url)
   }
 }
