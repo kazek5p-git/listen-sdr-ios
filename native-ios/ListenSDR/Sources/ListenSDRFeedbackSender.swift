@@ -163,7 +163,7 @@ enum ListenSDRFeedbackSendError: LocalizedError {
 }
 
 enum ListenSDRFeedbackSender {
-  static let endpointURL = URL(string: "http://kazpar.pl:18787/api/feedback")
+  static let endpointURL = URL(string: "https://kazpar.pl/listen-sdr-feedback/api/feedback")
 
   private static let session: URLSession = {
     let configuration = URLSessionConfiguration.ephemeral

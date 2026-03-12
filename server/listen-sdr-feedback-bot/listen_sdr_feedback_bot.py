@@ -2,9 +2,6 @@
 import json
 import logging
 import os
-import threading
-import time
-import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -13,15 +10,20 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BOT_TOKEN = os.environ["LISTEN_SDR_BOT_TOKEN"].strip()
 OWNER_ID = int(os.environ["LISTEN_SDR_OWNER_ID"].strip())
-BIND_HOST = os.environ.get("LISTEN_SDR_BIND_HOST", "0.0.0.0").strip() or "0.0.0.0"
+RAW_RECIPIENT_IDS = os.environ.get("LISTEN_SDR_RECIPIENT_IDS", "").strip()
+BIND_HOST = os.environ.get("LISTEN_SDR_BIND_HOST", "127.0.0.1").strip() or "127.0.0.1"
 BIND_PORT = int(os.environ.get("LISTEN_SDR_PORT", "18787").strip())
 BOT_BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 HTTP_TIMEOUT = 20
-USER_STATES = {}
 
-MENU_BUG = "Zgłoś błąd"
-MENU_SUGGESTION = "Napisz sugestię"
-MENU_CANCEL = "Anuluj"
+if RAW_RECIPIENT_IDS:
+    RECIPIENT_IDS = [
+        int(value.strip())
+        for value in RAW_RECIPIENT_IDS.split(",")
+        if value.strip()
+    ]
+else:
+    RECIPIENT_IDS = [OWNER_ID]
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,40 +49,33 @@ def telegram_request(method: str, payload: dict):
         return result["result"]
 
 
-def send_message(chat_id: int, text: str, include_menu: bool = False):
-    payload = {
-        "chat_id": str(chat_id),
-        "text": text,
-        "disable_web_page_preview": "true",
-    }
-    if include_menu:
-        payload["reply_markup"] = json.dumps(
-            {
-                "keyboard": [
-                    [{"text": MENU_BUG}],
-                    [{"text": MENU_SUGGESTION}],
-                    [{"text": MENU_CANCEL}],
-                ],
-                "resize_keyboard": True,
-                "one_time_keyboard": False,
-            }
-        )
-    telegram_request("sendMessage", payload)
+def send_message(chat_id: int, text: str):
+    telegram_request(
+        "sendMessage",
+        {
+            "chat_id": str(chat_id),
+            "text": text,
+            "disable_web_page_preview": "true",
+        },
+    )
+
+
+def send_feedback_to_recipients(text: str):
+    for recipient_id in RECIPIENT_IDS:
+        send_message(recipient_id, text)
 
 
 def normalize_message_text(text: str) -> str:
     return "\n".join(line.rstrip() for line in text.strip().splitlines() if line.strip())
 
 
-def format_user_feedback(
+def format_feedback(
     *,
     kind: str,
     sender_name: str,
     message: str,
     source: str,
     submitted_at: str,
-    chat_id: int | None = None,
-    username: str | None = None,
     extra: dict | None = None,
 ) -> str:
     type_label = "Błąd" if kind == "bug" else "Sugestia"
@@ -91,11 +86,6 @@ def format_user_feedback(
         f"Źródło: {source}",
         f"Czas: {submitted_at}",
     ]
-
-    if chat_id is not None:
-      lines.append(f"Telegram user id: {chat_id}")
-    if username:
-      lines.append(f"Telegram username: @{username}")
 
     if extra:
         app_name = extra.get("appName")
@@ -143,126 +133,22 @@ def format_user_feedback(
     return "\n".join(lines)
 
 
-def reset_user_state(chat_id: int):
-    USER_STATES.pop(chat_id, None)
-
-
-def begin_flow(chat_id: int, kind: str):
-    USER_STATES[chat_id] = {"kind": kind, "step": "sender"}
-    send_message(
-        chat_id,
-        "Podaj imię lub nick, który ma być dołączony do zgłoszenia.",
-        include_menu=True,
-    )
-
-
-def handle_feedback_message(chat_id: int, message_text: str, username: str | None):
-    state = USER_STATES.get(chat_id)
-    if not state:
-        return
-
-    text = normalize_message_text(message_text)
-    if not text:
-        send_message(chat_id, "Wiadomość nie może być pusta.", include_menu=True)
-        return
-
-    if state["step"] == "sender":
-        state["sender_name"] = text
-        state["step"] = "message"
-        send_message(chat_id, "Podaj treść zgłoszenia lub sugestii.", include_menu=True)
-        return
-
-    if state["step"] == "message":
-        kind = state["kind"]
-        sender_name = state["sender_name"]
-        submitted_at = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
-        payload = format_user_feedback(
-            kind=kind,
-            sender_name=sender_name,
-            message=text,
-            source="telegram",
-            submitted_at=submitted_at,
-            chat_id=chat_id,
-            username=username,
-        )
-        send_message(OWNER_ID, payload, include_menu=False)
-        send_message(chat_id, "Dziękuję. Zgłoszenie zostało przekazane.", include_menu=True)
-        reset_user_state(chat_id)
-
-
-def handle_telegram_text(chat_id: int, text: str, username: str | None):
-    normalized = text.strip()
-
-    if normalized == "/start":
-        reset_user_state(chat_id)
-        send_message(
-            chat_id,
-            "Wybierz, co chcesz zrobić.",
-            include_menu=True,
-        )
-        return
-
-    if normalized == "/cancel" or normalized == MENU_CANCEL:
-        reset_user_state(chat_id)
-        send_message(chat_id, "Anulowano bieżące zgłoszenie.", include_menu=True)
-        return
-
-    if normalized == MENU_BUG:
-        begin_flow(chat_id, "bug")
-        return
-
-    if normalized == MENU_SUGGESTION:
-        begin_flow(chat_id, "suggestion")
-        return
-
-    if chat_id in USER_STATES:
-        handle_feedback_message(chat_id, normalized, username)
-        return
-
-    send_message(
-        chat_id,
-        "Nie rozumiem tej wiadomości. Użyj przycisków poniżej albo polecenia /start.",
-        include_menu=True,
-    )
-
-
-def poll_updates():
-    offset = None
-    while True:
-        try:
-            payload = {"timeout": "30"}
-            if offset is not None:
-                payload["offset"] = str(offset)
-
-            result = telegram_request("getUpdates", payload)
-            for update in result:
-                offset = update["update_id"] + 1
-                message = update.get("message")
-                if not message:
-                    continue
-                chat = message.get("chat", {})
-                text = message.get("text")
-                if not text:
-                    continue
-                chat_id = chat.get("id")
-                username = chat.get("username")
-                if chat_id is None:
-                    continue
-                handle_telegram_text(int(chat_id), text, username)
-        except Exception as exc:  # noqa: BLE001
-            logging.exception("Telegram polling failed: %s", exc)
-            time.sleep(5)
-
-
 class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
-    server_version = "ListenSDRFeedbackBot/1.0"
+    server_version = "ListenSDRFeedbackBot/1.1"
 
     def log_message(self, format, *args):  # noqa: A003
         logging.info("HTTP %s - %s", self.address_string(), format % args)
 
     def do_GET(self):  # noqa: N802
         if self.path == "/healthz":
-            self.respond_json(200, {"ok": True, "service": "listen-sdr-feedback-bot"})
+            self.respond_json(
+                200,
+                {
+                    "ok": True,
+                    "service": "listen-sdr-feedback-bot",
+                    "recipients": RECIPIENT_IDS,
+                },
+            )
             return
         self.respond_json(404, {"ok": False, "error": "Not found"})
 
@@ -278,7 +164,9 @@ class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
             sender_name = normalize_message_text(str(payload.get("senderName", "")).strip())
             message = normalize_message_text(str(payload.get("message", "")).strip())
             source = str(payload.get("source", "unknown")).strip() or "unknown"
-            submitted_at = str(payload.get("submittedAt", "")).strip() or datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+            submitted_at = str(payload.get("submittedAt", "")).strip() or datetime.now(
+                timezone.utc
+            ).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
 
             if kind not in {"bug", "suggestion"}:
                 self.respond_json(400, {"ok": False, "error": "Invalid kind"})
@@ -290,7 +178,7 @@ class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.respond_json(400, {"ok": False, "error": "Message is required"})
                 return
 
-            formatted = format_user_feedback(
+            formatted = format_feedback(
                 kind=kind,
                 sender_name=sender_name,
                 message=message,
@@ -298,7 +186,7 @@ class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
                 submitted_at=submitted_at,
                 extra=payload,
             )
-            send_message(OWNER_ID, formatted, include_menu=False)
+            send_feedback_to_recipients(formatted)
             self.respond_json(200, {"ok": True})
         except Exception as exc:  # noqa: BLE001
             logging.exception("Feedback HTTP request failed: %s", exc)
@@ -313,17 +201,10 @@ class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def run_http_server():
-    server = ThreadingHTTPServer((BIND_HOST, BIND_PORT), FeedbackHTTPRequestHandler)
-    logging.info("HTTP feedback endpoint listening on %s:%s", BIND_HOST, BIND_PORT)
-    server.serve_forever()
-
-
 def main():
-    logging.info("Starting Listen SDR feedback bot")
-    http_thread = threading.Thread(target=run_http_server, daemon=True)
-    http_thread.start()
-    poll_updates()
+    logging.info("Starting Listen SDR feedback relay on %s:%s", BIND_HOST, BIND_PORT)
+    server = ThreadingHTTPServer((BIND_HOST, BIND_PORT), FeedbackHTTPRequestHandler)
+    server.serve_forever()
 
 
 if __name__ == "__main__":
