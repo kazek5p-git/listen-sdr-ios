@@ -174,6 +174,34 @@ private enum KiwiSignalPreset: String, CaseIterable, Identifiable {
   }
 }
 
+private extension KiwiNoiseBlankerAlgorithm {
+  var localizedTitle: String {
+    switch self {
+    case .off:
+      return L10n.text("kiwi.noise_blanker.off")
+    case .standard:
+      return L10n.text("kiwi.noise_blanker.standard")
+    case .wild:
+      return L10n.text("kiwi.noise_blanker.wild")
+    }
+  }
+}
+
+private extension KiwiNoiseFilterAlgorithm {
+  var localizedTitle: String {
+    switch self {
+    case .off:
+      return L10n.text("kiwi.noise_filter.off")
+    case .wdsp:
+      return L10n.text("kiwi.noise_filter.wdsp")
+    case .original:
+      return L10n.text("kiwi.noise_filter.original")
+    case .spectral:
+      return L10n.text("kiwi.noise_filter.spectral")
+    }
+  }
+}
+
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
@@ -689,6 +717,8 @@ struct ReceiverView: View {
         mode: radioSession.settings.mode,
         sampleRateHz: radioSession.kiwiTelemetry?.sampleRateHz
       )
+      let currentMode = radioSession.settings.mode.normalized(for: .kiwiSDR)
+      let isIQMode = currentMode == .iq
 
       Section {
         selectionNavigationLink(
@@ -768,6 +798,149 @@ struct ReceiverView: View {
           .accessibilityLabel(L10n.text("kiwi.squelch_level"))
           .accessibilityValue("\(radioSession.settings.kiwiSquelchThreshold)")
         }
+
+        selectionNavigationLink(
+          title: L10n.text("kiwi.noise_blanker"),
+          value: radioSession.settings.kiwiNoiseBlankerAlgorithm.localizedTitle,
+          selectedID: "\(radioSession.settings.kiwiNoiseBlankerAlgorithm.rawValue)",
+          options: KiwiNoiseBlankerAlgorithm.allCases.map {
+            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+          }
+        ) { value in
+          if let rawValue = Int(value), let algorithm = KiwiNoiseBlankerAlgorithm(rawValue: rawValue) {
+            radioSession.setKiwiNoiseBlankerAlgorithm(algorithm)
+          }
+        }
+
+        if isIQMode, radioSession.settings.kiwiNoiseBlankerAlgorithm == .wild {
+          Text(L10n.text("kiwi.noise_blanker.iq_warning"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        }
+
+        switch radioSession.settings.kiwiNoiseBlankerAlgorithm {
+        case .off:
+          EmptyView()
+
+        case .standard:
+          kiwiPassbandSlider(
+            title: L10n.text("kiwi.noise_blanker.gate"),
+            valueText: "\(radioSession.settings.kiwiNoiseBlankerGate) µs",
+            value: Binding(
+              get: { Double(radioSession.settings.kiwiNoiseBlankerGate) },
+              set: { radioSession.setKiwiNoiseBlankerGate(Int($0.rounded())) }
+            ),
+            range: 100 ... 5_000,
+            step: 100
+          )
+
+          kiwiPassbandSlider(
+            title: L10n.text("kiwi.noise_blanker.threshold"),
+            valueText: "\(radioSession.settings.kiwiNoiseBlankerThreshold)%",
+            value: Binding(
+              get: { Double(radioSession.settings.kiwiNoiseBlankerThreshold) },
+              set: { radioSession.setKiwiNoiseBlankerThreshold(Int($0.rounded())) }
+            ),
+            range: 0 ... 100,
+            step: 1
+          )
+
+        case .wild:
+          kiwiPassbandSlider(
+            title: L10n.text("kiwi.noise_blanker.wild_threshold"),
+            valueText: String(format: "%.2f", radioSession.settings.kiwiNoiseBlankerWildThreshold),
+            value: Binding(
+              get: { radioSession.settings.kiwiNoiseBlankerWildThreshold },
+              set: { radioSession.setKiwiNoiseBlankerWildThreshold($0) }
+            ),
+            range: 0.05 ... 3.0,
+            step: 0.05
+          )
+
+          kiwiPassbandSlider(
+            title: L10n.text("kiwi.noise_blanker.wild_taps"),
+            valueText: "\(radioSession.settings.kiwiNoiseBlankerWildTaps)",
+            value: Binding(
+              get: { Double(radioSession.settings.kiwiNoiseBlankerWildTaps) },
+              set: { radioSession.setKiwiNoiseBlankerWildTaps(Int($0.rounded())) }
+            ),
+            range: 6 ... 40,
+            step: 1
+          )
+
+          kiwiPassbandSlider(
+            title: L10n.text("kiwi.noise_blanker.wild_samples"),
+            valueText: "\(radioSession.settings.kiwiNoiseBlankerWildImpulseSamples)",
+            value: Binding(
+              get: { Double(radioSession.settings.kiwiNoiseBlankerWildImpulseSamples) },
+              set: { radioSession.setKiwiNoiseBlankerWildImpulseSamples(Int($0.rounded())) }
+            ),
+            range: 3 ... 41,
+            step: 2
+          )
+        }
+
+        FocusRetainingButton {
+          radioSession.resetKiwiNoiseBlanker()
+        } label: {
+          Text(L10n.text("kiwi.noise_blanker.reset"))
+        }
+        .disabled(
+          radioSession.settings.kiwiNoiseBlankerAlgorithm == RadioSessionSettings.default.kiwiNoiseBlankerAlgorithm
+            && radioSession.settings.kiwiNoiseBlankerGate == RadioSessionSettings.default.kiwiNoiseBlankerGate
+            && radioSession.settings.kiwiNoiseBlankerThreshold == RadioSessionSettings.default.kiwiNoiseBlankerThreshold
+            && abs(radioSession.settings.kiwiNoiseBlankerWildThreshold - RadioSessionSettings.default.kiwiNoiseBlankerWildThreshold) < 0.0001
+            && radioSession.settings.kiwiNoiseBlankerWildTaps == RadioSessionSettings.default.kiwiNoiseBlankerWildTaps
+            && radioSession.settings.kiwiNoiseBlankerWildImpulseSamples == RadioSessionSettings.default.kiwiNoiseBlankerWildImpulseSamples
+        )
+
+        selectionNavigationLink(
+          title: L10n.text("kiwi.noise_filter"),
+          value: radioSession.settings.kiwiNoiseFilterAlgorithm.localizedTitle,
+          selectedID: "\(radioSession.settings.kiwiNoiseFilterAlgorithm.rawValue)",
+          options: KiwiNoiseFilterAlgorithm.allCases.map {
+            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+          }
+        ) { value in
+          if let rawValue = Int(value), let algorithm = KiwiNoiseFilterAlgorithm(rawValue: rawValue) {
+            radioSession.setKiwiNoiseFilterAlgorithm(algorithm)
+          }
+        }
+
+        if isIQMode {
+          Text(L10n.text("kiwi.noise_filter.iq_warning"))
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+        } else if radioSession.settings.kiwiNoiseFilterAlgorithm != .off {
+          Toggle(
+            L10n.text("kiwi.noise_filter.denoiser"),
+            isOn: Binding(
+              get: { radioSession.settings.kiwiDenoiseEnabled },
+              set: { radioSession.setKiwiDenoiseEnabled($0) }
+            )
+          )
+
+          if radioSession.settings.kiwiNoiseFilterAlgorithm != .spectral {
+            Toggle(
+              L10n.text("kiwi.noise_filter.autonotch"),
+              isOn: Binding(
+                get: { radioSession.settings.kiwiAutonotchEnabled },
+                set: { radioSession.setKiwiAutonotchEnabled($0) }
+              )
+            )
+          }
+        }
+
+        FocusRetainingButton {
+          radioSession.resetKiwiNoiseFilter()
+        } label: {
+          Text(L10n.text("kiwi.noise_filter.reset"))
+        }
+        .disabled(
+          radioSession.settings.kiwiNoiseFilterAlgorithm == RadioSessionSettings.default.kiwiNoiseFilterAlgorithm
+            && radioSession.settings.kiwiDenoiseEnabled == RadioSessionSettings.default.kiwiDenoiseEnabled
+            && radioSession.settings.kiwiAutonotchEnabled == RadioSessionSettings.default.kiwiAutonotchEnabled
+        )
 
         kiwiPassbandSlider(
           title: L10n.text("kiwi.passband.low_cut"),
@@ -898,14 +1071,15 @@ struct ReceiverView: View {
     title: String,
     valueText: String,
     value: Binding<Double>,
-    range: ClosedRange<Double>
+    range: ClosedRange<Double>,
+    step: Double = 1
   ) -> some View {
     VStack(alignment: .leading, spacing: 6) {
       LabeledContent(title, value: valueText)
       Slider(
         value: value,
         in: range,
-        step: 1
+        step: step
       )
     }
     .accessibilityElement(children: .combine)

@@ -299,10 +299,12 @@ actor KiwiSDRClient: SDRBackendClient {
       try await sendSND("SET agc=0 hang=0 thresh=-100 slope=6 decay=1000 manGain=\(manualGain)")
     }
 
-    let squelchEnabled = settings.squelchEnabled ? 1 : 0
-    let squelchThreshold = settings.squelchEnabled ? RadioSessionSettings.clampedKiwiSquelchThreshold(settings.kiwiSquelchThreshold) : 0
-    try await sendSND("SET squelch=\(squelchEnabled) max=\(squelchThreshold)")
-  }
+      let squelchEnabled = settings.squelchEnabled ? 1 : 0
+      let squelchThreshold = settings.squelchEnabled ? RadioSessionSettings.clampedKiwiSquelchThreshold(settings.kiwiSquelchThreshold) : 0
+      try await sendSND("SET squelch=\(squelchEnabled) max=\(squelchThreshold)")
+      try await sendKiwiNoiseBlanker(settings: settings)
+      try await sendKiwiNoiseFilter(settings: settings)
+    }
 
   func consumeServerError() async -> String? {
     defer { lastServerMessage = nil }
@@ -336,10 +338,10 @@ actor KiwiSDRClient: SDRBackendClient {
       try await sendWF("SET zoom=\(safeZoom) cf=\(formattedCenter)")
       log("Kiwi waterfall updated: speed=\(safeSpeed), zoom=\(safeZoom), db=\(safeMinDB)...\(safeMaxDB)")
 
-    case .setKiwiPassband(let lowCut, let highCut, let frequencyHz, let mode):
-      let normalizedBandpass = RadioSessionSettings.normalizedKiwiBandpass(
-        ReceiverBandpass(lowCut: lowCut, highCut: highCut),
-        mode: mode,
+      case .setKiwiPassband(let lowCut, let highCut, let frequencyHz, let mode):
+        let normalizedBandpass = RadioSessionSettings.normalizedKiwiBandpass(
+          ReceiverBandpass(lowCut: lowCut, highCut: highCut),
+          mode: mode,
         sampleRateHz: sampleRateHz
       )
       let frequencyKHz = Double(frequencyHz) / 1000.0
@@ -347,13 +349,147 @@ actor KiwiSDRClient: SDRBackendClient {
       try await sendSND(
         "SET mod=\(mode.kiwiProtocolMode) low_cut=\(normalizedBandpass.lowCut) high_cut=\(normalizedBandpass.highCut) freq=\(formattedFrequency)"
       )
-      latestPassband = normalizedBandpass
-      emitKiwiTelemetry(force: true)
-      emitKiwiTuning()
-      log("Kiwi passband updated: \(normalizedBandpass.lowCut)...\(normalizedBandpass.highCut) Hz")
+        latestPassband = normalizedBandpass
+        emitKiwiTelemetry(force: true)
+        emitKiwiTuning()
+        log("Kiwi passband updated: \(normalizedBandpass.lowCut)...\(normalizedBandpass.highCut) Hz")
 
-    default:
-      throw SDRClientError.unsupported("KiwiSDR does not support this control.")
+      case .setKiwiNoiseBlanker(
+        let algorithm,
+        let gate,
+        let threshold,
+        let wildThreshold,
+        let wildTaps,
+        let wildImpulseSamples
+      ):
+        try await sendKiwiNoiseBlanker(
+          algorithm: algorithm,
+          gate: gate,
+          threshold: threshold,
+          wildThreshold: wildThreshold,
+          wildTaps: wildTaps,
+          wildImpulseSamples: wildImpulseSamples
+        )
+        log("Kiwi noise blanker updated: algo=\(algorithm.rawValue)")
+
+      case .setKiwiNoiseFilter(let algorithm, let denoiseEnabled, let autonotchEnabled):
+        try await sendKiwiNoiseFilter(
+          algorithm: algorithm,
+          denoiseEnabled: denoiseEnabled,
+          autonotchEnabled: autonotchEnabled
+        )
+        log(
+          "Kiwi noise filter updated: algo=\(algorithm.rawValue), denoise=\(denoiseEnabled ? 1 : 0), autonotch=\(autonotchEnabled ? 1 : 0)"
+        )
+
+      default:
+        throw SDRClientError.unsupported("KiwiSDR does not support this control.")
+      }
+    }
+
+  private func sendKiwiNoiseBlanker(settings: RadioSessionSettings) async throws {
+    try await sendKiwiNoiseBlanker(
+      algorithm: settings.kiwiNoiseBlankerAlgorithm,
+      gate: settings.kiwiNoiseBlankerGate,
+      threshold: settings.kiwiNoiseBlankerThreshold,
+      wildThreshold: settings.kiwiNoiseBlankerWildThreshold,
+      wildTaps: settings.kiwiNoiseBlankerWildTaps,
+      wildImpulseSamples: settings.kiwiNoiseBlankerWildImpulseSamples
+    )
+  }
+
+  private func sendKiwiNoiseBlanker(
+    algorithm: KiwiNoiseBlankerAlgorithm,
+    gate: Int,
+    threshold: Int,
+    wildThreshold: Double,
+    wildTaps: Int,
+    wildImpulseSamples: Int
+  ) async throws {
+    try await sendSND("SET nb algo=\(algorithm.rawValue)")
+
+    switch algorithm {
+    case .off:
+      break
+
+    case .standard:
+      try await sendSND("SET nb type=0 param=0 pval=\(RadioSessionSettings.clampedKiwiNoiseBlankerGate(gate))")
+      try await sendSND("SET nb type=0 param=1 pval=\(RadioSessionSettings.clampedKiwiNoiseBlankerThreshold(threshold))")
+
+    case .wild:
+      let normalizedThreshold = RadioSessionSettings.clampedKiwiNoiseBlankerWildThreshold(wildThreshold)
+      let normalizedTaps = RadioSessionSettings.clampedKiwiNoiseBlankerWildTaps(wildTaps)
+      let normalizedImpulseSamples = RadioSessionSettings.clampedKiwiNoiseBlankerWildImpulseSamples(wildImpulseSamples)
+      try await sendSND("SET nb type=0 param=0 pval=\(String(format: "%.2f", normalizedThreshold))")
+      try await sendSND("SET nb type=0 param=1 pval=\(normalizedTaps)")
+      try await sendSND("SET nb type=0 param=2 pval=\(normalizedImpulseSamples)")
+    }
+
+    try await sendSND("SET nb type=0 en=\(algorithm == .off ? 0 : 1)")
+  }
+
+  private func sendKiwiNoiseFilter(settings: RadioSessionSettings) async throws {
+    try await sendKiwiNoiseFilter(
+      algorithm: settings.kiwiNoiseFilterAlgorithm,
+      denoiseEnabled: settings.kiwiDenoiseEnabled,
+      autonotchEnabled: settings.kiwiAutonotchEnabled
+    )
+  }
+
+  private func sendKiwiNoiseFilter(
+    algorithm: KiwiNoiseFilterAlgorithm,
+    denoiseEnabled: Bool,
+    autonotchEnabled: Bool
+  ) async throws {
+    try await sendSND("SET nr algo=\(algorithm.rawValue)")
+
+    if algorithm == .off {
+      try await sendSND("SET nr type=0 en=0")
+      try await sendSND("SET nr type=1 en=0")
+      return
+    }
+
+    let noiseFilterDenoiseEnabled = algorithm == .spectral ? true : denoiseEnabled
+    let noiseFilterAutonotchEnabled = algorithm == .spectral ? false : autonotchEnabled
+
+    switch algorithm {
+    case .off:
+      break
+
+    case .wdsp:
+      let p2 = 8.192e-2 / pow(2.0, Double(20 - 10))
+      let p3 = 8192.0 / pow(2.0, Double(23 - 7))
+      try await sendSND("SET nr type=0 param=0 pval=64")
+      try await sendSND("SET nr type=0 param=1 pval=16")
+      try await sendSND("SET nr type=0 param=2 pval=\(p2)")
+      try await sendSND("SET nr type=0 param=3 pval=\(p3)")
+      try await sendSND("SET nr type=1 param=0 pval=64")
+      try await sendSND("SET nr type=1 param=1 pval=16")
+      try await sendSND("SET nr type=1 param=2 pval=\(p2)")
+      try await sendSND("SET nr type=1 param=3 pval=\(p3)")
+
+    case .original:
+      try await sendSND("SET nr type=0 param=0 pval=1")
+      try await sendSND("SET nr type=0 param=1 pval=0.05")
+      try await sendSND("SET nr type=0 param=2 pval=0.98")
+      try await sendSND("SET nr type=0 param=3 pval=0")
+      try await sendSND("SET nr type=1 param=0 pval=48")
+      try await sendSND("SET nr type=1 param=1 pval=0.125")
+      try await sendSND("SET nr type=1 param=2 pval=0.99915")
+      try await sendSND("SET nr type=1 param=3 pval=0")
+
+    case .spectral:
+      try await sendSND("SET nr type=0 param=0 pval=1.0")
+      try await sendSND("SET nr type=0 param=1 pval=0.95")
+      try await sendSND("SET nr type=0 param=2 pval=1000.0")
+      try await sendSND("SET nr type=0 param=3 pval=0")
+    }
+
+    try await sendSND("SET nr type=0 en=\(noiseFilterDenoiseEnabled ? 1 : 0)")
+    if algorithm == .spectral {
+      try await sendSND("SET nr type=1 en=0")
+    } else {
+      try await sendSND("SET nr type=1 en=\(noiseFilterAutonotchEnabled ? 1 : 0)")
     }
   }
 
@@ -2478,8 +2614,14 @@ actor FMDXWebserverClient: SDRBackendClient {
     case .setKiwiWaterfall:
       throw SDRClientError.unsupported("FM-DX does not support Kiwi waterfall control.")
 
-    case .setKiwiPassband:
-      throw SDRClientError.unsupported("FM-DX does not support Kiwi passband control.")
+      case .setKiwiPassband:
+        throw SDRClientError.unsupported("FM-DX does not support Kiwi passband control.")
+
+      case .setKiwiNoiseBlanker:
+        throw SDRClientError.unsupported("FM-DX does not support Kiwi noise blanker control.")
+
+      case .setKiwiNoiseFilter:
+        throw SDRClientError.unsupported("FM-DX does not support Kiwi noise filter control.")
 
     case .setFMDXFrequencyHz(let frequencyHz):
       try await sendFrequency(frequencyHz)

@@ -115,6 +115,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var fmDxTuneDebounceTask: Task<Void, Never>?
   private var fmDxTuneConfirmTask: Task<Void, Never>?
   private var kiwiPassbandDebounceTask: Task<Void, Never>?
+  private var kiwiNoiseDebounceTask: Task<Void, Never>?
   private var pendingFMDXTuneFrequencyHz: Int?
   private var pendingFMDXAudioModeIsStereo: Bool?
   private var pendingFMDXAudioModeDeadline = Date.distantPast
@@ -280,6 +281,8 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneConfirmTask = nil
     kiwiPassbandDebounceTask?.cancel()
     kiwiPassbandDebounceTask = nil
+    kiwiNoiseDebounceTask?.cancel()
+    kiwiNoiseDebounceTask = nil
     listeningHistoryCaptureTask?.cancel()
     listeningHistoryCaptureTask = nil
     deferredRestoreTask?.cancel()
@@ -388,6 +391,8 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneConfirmTask = nil
     kiwiPassbandDebounceTask?.cancel()
     kiwiPassbandDebounceTask = nil
+    kiwiNoiseDebounceTask?.cancel()
+    kiwiNoiseDebounceTask = nil
     listeningHistoryCaptureTask?.cancel()
     listeningHistoryCaptureTask = nil
     deferredRestoreTask?.cancel()
@@ -917,6 +922,87 @@ final class RadioSessionViewModel: ObservableObject {
     applyIfConnected()
   }
 
+  func setKiwiNoiseBlankerAlgorithm(_ algorithm: KiwiNoiseBlankerAlgorithm) {
+    settings.kiwiNoiseBlankerAlgorithm = algorithm
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiNoiseBlankerGate(_ value: Int) {
+    settings.kiwiNoiseBlankerGate = RadioSessionSettings.clampedKiwiNoiseBlankerGate(value)
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiNoiseBlankerThreshold(_ value: Int) {
+    settings.kiwiNoiseBlankerThreshold = RadioSessionSettings.clampedKiwiNoiseBlankerThreshold(value)
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiNoiseBlankerWildThreshold(_ value: Double) {
+    settings.kiwiNoiseBlankerWildThreshold = RadioSessionSettings.clampedKiwiNoiseBlankerWildThreshold(value)
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiNoiseBlankerWildTaps(_ value: Int) {
+    settings.kiwiNoiseBlankerWildTaps = RadioSessionSettings.clampedKiwiNoiseBlankerWildTaps(value)
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiNoiseBlankerWildImpulseSamples(_ value: Int) {
+    settings.kiwiNoiseBlankerWildImpulseSamples = RadioSessionSettings.clampedKiwiNoiseBlankerWildImpulseSamples(value)
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func resetKiwiNoiseBlanker() {
+    settings.resetKiwiNoiseBlanker()
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiNoiseFilterAlgorithm(_ algorithm: KiwiNoiseFilterAlgorithm) {
+    settings.kiwiNoiseFilterAlgorithm = algorithm
+    if algorithm == .spectral {
+      settings.kiwiDenoiseEnabled = true
+      settings.kiwiAutonotchEnabled = false
+    } else if (algorithm == .wdsp || algorithm == .original),
+      settings.kiwiDenoiseEnabled == false,
+      settings.kiwiAutonotchEnabled == false {
+      settings.kiwiDenoiseEnabled = true
+    }
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiDenoiseEnabled(_ enabled: Bool) {
+    settings.kiwiDenoiseEnabled = enabled
+    if settings.kiwiNoiseFilterAlgorithm == .spectral {
+      settings.kiwiDenoiseEnabled = true
+    }
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func setKiwiAutonotchEnabled(_ enabled: Bool) {
+    if settings.kiwiNoiseFilterAlgorithm == .spectral {
+      settings.kiwiAutonotchEnabled = false
+    } else {
+      settings.kiwiAutonotchEnabled = enabled
+    }
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
+  func resetKiwiNoiseFilter() {
+    settings.resetKiwiNoiseFilter()
+    persistSettings()
+    sendKiwiNoiseControl()
+  }
+
   func setKiwiPassbandLowCut(_ value: Int) {
     let current = currentKiwiPassband
     let limitHz = kiwiPassbandLimitHz
@@ -1151,6 +1237,15 @@ final class RadioSessionViewModel: ObservableObject {
     settings.imsEnabled = RadioSessionSettings.default.imsEnabled
     settings.noiseReductionEnabled = RadioSessionSettings.default.noiseReductionEnabled
     settings.squelchEnabled = RadioSessionSettings.default.squelchEnabled
+    settings.kiwiNoiseBlankerAlgorithm = RadioSessionSettings.default.kiwiNoiseBlankerAlgorithm
+    settings.kiwiNoiseBlankerGate = RadioSessionSettings.default.kiwiNoiseBlankerGate
+    settings.kiwiNoiseBlankerThreshold = RadioSessionSettings.default.kiwiNoiseBlankerThreshold
+    settings.kiwiNoiseBlankerWildThreshold = RadioSessionSettings.default.kiwiNoiseBlankerWildThreshold
+    settings.kiwiNoiseBlankerWildTaps = RadioSessionSettings.default.kiwiNoiseBlankerWildTaps
+    settings.kiwiNoiseBlankerWildImpulseSamples = RadioSessionSettings.default.kiwiNoiseBlankerWildImpulseSamples
+    settings.kiwiNoiseFilterAlgorithm = RadioSessionSettings.default.kiwiNoiseFilterAlgorithm
+    settings.kiwiDenoiseEnabled = RadioSessionSettings.default.kiwiDenoiseEnabled
+    settings.kiwiAutonotchEnabled = RadioSessionSettings.default.kiwiAutonotchEnabled
     settings.kiwiPassbandsByMode = [:]
     persistSettings()
     if activeBackend == .fmDxWebserver {
@@ -1300,6 +1395,58 @@ final class RadioSessionViewModel: ObservableObject {
           severity: .warning,
           category: "Session",
           message: "Kiwi passband update failed: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  private func sendKiwiNoiseControl() {
+    guard state == .connected, activeBackend == .kiwiSDR, let client else { return }
+    if isWaitingForInitialServerTuningSync() {
+      updateBackendStatusText(L10n.text("session.status.sync_tuning"))
+      return
+    }
+
+    kiwiNoiseDebounceTask?.cancel()
+    let blankerAlgorithm = settings.kiwiNoiseBlankerAlgorithm
+    let blankerGate = settings.kiwiNoiseBlankerGate
+    let blankerThreshold = settings.kiwiNoiseBlankerThreshold
+    let blankerWildThreshold = settings.kiwiNoiseBlankerWildThreshold
+    let blankerWildTaps = settings.kiwiNoiseBlankerWildTaps
+    let blankerWildImpulseSamples = settings.kiwiNoiseBlankerWildImpulseSamples
+    let filterAlgorithm = settings.kiwiNoiseFilterAlgorithm
+    let denoiseEnabled = settings.kiwiDenoiseEnabled
+    let autonotchEnabled = settings.kiwiAutonotchEnabled
+
+    kiwiNoiseDebounceTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 120_000_000)
+      if Task.isCancelled { return }
+      do {
+        try await client.sendControl(
+          .setKiwiNoiseBlanker(
+            algorithm: blankerAlgorithm,
+            gate: blankerGate,
+            threshold: blankerThreshold,
+            wildThreshold: blankerWildThreshold,
+            wildTaps: blankerWildTaps,
+            wildImpulseSamples: blankerWildImpulseSamples
+          )
+        )
+        try await client.sendControl(
+          .setKiwiNoiseFilter(
+            algorithm: filterAlgorithm,
+            denoiseEnabled: denoiseEnabled,
+            autonotchEnabled: autonotchEnabled
+          )
+        )
+      } catch {
+        await MainActor.run {
+          self?.lastError = error.localizedDescription
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Session",
+          message: "Kiwi noise processing update failed: \(error.localizedDescription)"
         )
       }
     }
@@ -2439,6 +2586,8 @@ final class RadioSessionViewModel: ObservableObject {
     clearFMDXTuneConfirmationState()
     kiwiPassbandDebounceTask?.cancel()
     kiwiPassbandDebounceTask = nil
+    kiwiNoiseDebounceTask?.cancel()
+    kiwiNoiseDebounceTask = nil
     autoFilterPendingProfile = nil
     autoFilterStableSamples = 0
     suppressAutoFilterUntil = Date.distantPast

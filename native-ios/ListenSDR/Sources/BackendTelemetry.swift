@@ -149,6 +149,19 @@ enum BackendControlCommand {
   case setOpenWebRXSquelchLevel(Int)
   case setKiwiWaterfall(speed: Int, zoom: Int, minDB: Int, maxDB: Int, centerFrequencyHz: Int)
   case setKiwiPassband(lowCut: Int, highCut: Int, frequencyHz: Int, mode: DemodulationMode)
+  case setKiwiNoiseBlanker(
+    algorithm: KiwiNoiseBlankerAlgorithm,
+    gate: Int,
+    threshold: Int,
+    wildThreshold: Double,
+    wildTaps: Int,
+    wildImpulseSamples: Int
+  )
+  case setKiwiNoiseFilter(
+    algorithm: KiwiNoiseFilterAlgorithm,
+    denoiseEnabled: Bool,
+    autonotchEnabled: Bool
+  )
   case setFMDXFrequencyHz(Int)
   case setFMDXFilter(eqEnabled: Bool, imsEnabled: Bool)
   case setFMDXAGC(Bool)

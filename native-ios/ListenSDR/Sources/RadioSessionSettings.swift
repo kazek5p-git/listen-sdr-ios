@@ -232,6 +232,15 @@ struct RadioSessionSettings: Codable, Equatable {
   var squelchEnabled: Bool
   var openWebRXSquelchLevel: Int
   var kiwiSquelchThreshold: Int
+  var kiwiNoiseBlankerAlgorithm: KiwiNoiseBlankerAlgorithm
+  var kiwiNoiseBlankerGate: Int
+  var kiwiNoiseBlankerThreshold: Int
+  var kiwiNoiseBlankerWildThreshold: Double
+  var kiwiNoiseBlankerWildTaps: Int
+  var kiwiNoiseBlankerWildImpulseSamples: Int
+  var kiwiNoiseFilterAlgorithm: KiwiNoiseFilterAlgorithm
+  var kiwiDenoiseEnabled: Bool
+  var kiwiAutonotchEnabled: Bool
   var kiwiPassbandsByMode: [String: ReceiverBandpass]
   var kiwiWaterfallSpeed: Int
   var kiwiWaterfallZoom: Int
@@ -275,6 +284,15 @@ struct RadioSessionSettings: Codable, Equatable {
     squelchEnabled: false,
     openWebRXSquelchLevel: -95,
     kiwiSquelchThreshold: 6,
+    kiwiNoiseBlankerAlgorithm: .off,
+    kiwiNoiseBlankerGate: 100,
+    kiwiNoiseBlankerThreshold: 50,
+    kiwiNoiseBlankerWildThreshold: 0.95,
+    kiwiNoiseBlankerWildTaps: 10,
+    kiwiNoiseBlankerWildImpulseSamples: 7,
+    kiwiNoiseFilterAlgorithm: .off,
+    kiwiDenoiseEnabled: false,
+    kiwiAutonotchEnabled: false,
     kiwiPassbandsByMode: [:],
     kiwiWaterfallSpeed: 2,
     kiwiWaterfallZoom: 0,
@@ -309,6 +327,15 @@ struct RadioSessionSettings: Codable, Equatable {
     case squelchEnabled
     case openWebRXSquelchLevel
     case kiwiSquelchThreshold
+    case kiwiNoiseBlankerAlgorithm
+    case kiwiNoiseBlankerGate
+    case kiwiNoiseBlankerThreshold
+    case kiwiNoiseBlankerWildThreshold
+    case kiwiNoiseBlankerWildTaps
+    case kiwiNoiseBlankerWildImpulseSamples
+    case kiwiNoiseFilterAlgorithm
+    case kiwiDenoiseEnabled
+    case kiwiAutonotchEnabled
     case kiwiPassbandsByMode
     case kiwiWaterfallSpeed
     case kiwiWaterfallZoom
@@ -344,6 +371,15 @@ struct RadioSessionSettings: Codable, Equatable {
     squelchEnabled: Bool,
     openWebRXSquelchLevel: Int,
     kiwiSquelchThreshold: Int,
+    kiwiNoiseBlankerAlgorithm: KiwiNoiseBlankerAlgorithm,
+    kiwiNoiseBlankerGate: Int,
+    kiwiNoiseBlankerThreshold: Int,
+    kiwiNoiseBlankerWildThreshold: Double,
+    kiwiNoiseBlankerWildTaps: Int,
+    kiwiNoiseBlankerWildImpulseSamples: Int,
+    kiwiNoiseFilterAlgorithm: KiwiNoiseFilterAlgorithm,
+    kiwiDenoiseEnabled: Bool,
+    kiwiAutonotchEnabled: Bool,
     kiwiPassbandsByMode: [String: ReceiverBandpass],
     kiwiWaterfallSpeed: Int,
     kiwiWaterfallZoom: Int,
@@ -376,6 +412,20 @@ struct RadioSessionSettings: Codable, Equatable {
     self.squelchEnabled = squelchEnabled
     self.openWebRXSquelchLevel = Self.clampedOpenWebRXSquelchLevel(openWebRXSquelchLevel)
     self.kiwiSquelchThreshold = Self.clampedKiwiSquelchThreshold(kiwiSquelchThreshold)
+    self.kiwiNoiseBlankerAlgorithm = kiwiNoiseBlankerAlgorithm
+    self.kiwiNoiseBlankerGate = Self.clampedKiwiNoiseBlankerGate(kiwiNoiseBlankerGate)
+    self.kiwiNoiseBlankerThreshold = Self.clampedKiwiNoiseBlankerThreshold(kiwiNoiseBlankerThreshold)
+    self.kiwiNoiseBlankerWildThreshold = Self.clampedKiwiNoiseBlankerWildThreshold(kiwiNoiseBlankerWildThreshold)
+    self.kiwiNoiseBlankerWildTaps = Self.clampedKiwiNoiseBlankerWildTaps(kiwiNoiseBlankerWildTaps)
+    self.kiwiNoiseBlankerWildImpulseSamples = Self.clampedKiwiNoiseBlankerWildImpulseSamples(kiwiNoiseBlankerWildImpulseSamples)
+    self.kiwiNoiseFilterAlgorithm = kiwiNoiseFilterAlgorithm
+    self.kiwiDenoiseEnabled = kiwiNoiseFilterAlgorithm == .spectral ? true : kiwiDenoiseEnabled
+    self.kiwiAutonotchEnabled = kiwiNoiseFilterAlgorithm == .spectral ? false : kiwiAutonotchEnabled
+    if (self.kiwiNoiseFilterAlgorithm == .wdsp || self.kiwiNoiseFilterAlgorithm == .original),
+      self.kiwiDenoiseEnabled == false,
+      self.kiwiAutonotchEnabled == false {
+      self.kiwiDenoiseEnabled = true
+    }
     self.kiwiPassbandsByMode = [:]
     for (rawMode, bandpass) in kiwiPassbandsByMode {
       let normalizedMode = DemodulationMode(rawValue: rawMode)?.normalized(for: .kiwiSDR) ?? .am
@@ -433,6 +483,45 @@ struct RadioSessionSettings: Codable, Equatable {
     let rawKiwiSquelchThreshold = try container.decodeIfPresent(Int.self, forKey: .kiwiSquelchThreshold)
       ?? Self.default.kiwiSquelchThreshold
     kiwiSquelchThreshold = Self.clampedKiwiSquelchThreshold(rawKiwiSquelchThreshold)
+
+    kiwiNoiseBlankerAlgorithm =
+      try container.decodeIfPresent(KiwiNoiseBlankerAlgorithm.self, forKey: .kiwiNoiseBlankerAlgorithm)
+      ?? Self.default.kiwiNoiseBlankerAlgorithm
+    kiwiNoiseBlankerGate = Self.clampedKiwiNoiseBlankerGate(
+      try container.decodeIfPresent(Int.self, forKey: .kiwiNoiseBlankerGate)
+        ?? Self.default.kiwiNoiseBlankerGate
+    )
+    kiwiNoiseBlankerThreshold = Self.clampedKiwiNoiseBlankerThreshold(
+      try container.decodeIfPresent(Int.self, forKey: .kiwiNoiseBlankerThreshold)
+        ?? Self.default.kiwiNoiseBlankerThreshold
+    )
+    kiwiNoiseBlankerWildThreshold = Self.clampedKiwiNoiseBlankerWildThreshold(
+      try container.decodeIfPresent(Double.self, forKey: .kiwiNoiseBlankerWildThreshold)
+        ?? Self.default.kiwiNoiseBlankerWildThreshold
+    )
+    kiwiNoiseBlankerWildTaps = Self.clampedKiwiNoiseBlankerWildTaps(
+      try container.decodeIfPresent(Int.self, forKey: .kiwiNoiseBlankerWildTaps)
+        ?? Self.default.kiwiNoiseBlankerWildTaps
+    )
+    kiwiNoiseBlankerWildImpulseSamples = Self.clampedKiwiNoiseBlankerWildImpulseSamples(
+      try container.decodeIfPresent(Int.self, forKey: .kiwiNoiseBlankerWildImpulseSamples)
+        ?? Self.default.kiwiNoiseBlankerWildImpulseSamples
+    )
+    kiwiNoiseFilterAlgorithm =
+      try container.decodeIfPresent(KiwiNoiseFilterAlgorithm.self, forKey: .kiwiNoiseFilterAlgorithm)
+      ?? Self.default.kiwiNoiseFilterAlgorithm
+    kiwiDenoiseEnabled = try container.decodeIfPresent(Bool.self, forKey: .kiwiDenoiseEnabled)
+      ?? Self.default.kiwiDenoiseEnabled
+    kiwiAutonotchEnabled = try container.decodeIfPresent(Bool.self, forKey: .kiwiAutonotchEnabled)
+      ?? Self.default.kiwiAutonotchEnabled
+    if kiwiNoiseFilterAlgorithm == .spectral {
+      kiwiDenoiseEnabled = true
+      kiwiAutonotchEnabled = false
+    } else if (kiwiNoiseFilterAlgorithm == .wdsp || kiwiNoiseFilterAlgorithm == .original),
+      kiwiDenoiseEnabled == false,
+      kiwiAutonotchEnabled == false {
+      kiwiDenoiseEnabled = true
+    }
 
     let rawKiwiPassbandsByMode = try container.decodeIfPresent([String: ReceiverBandpass].self, forKey: .kiwiPassbandsByMode)
       ?? Self.default.kiwiPassbandsByMode
@@ -521,6 +610,15 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(squelchEnabled, forKey: .squelchEnabled)
     try container.encode(openWebRXSquelchLevel, forKey: .openWebRXSquelchLevel)
     try container.encode(kiwiSquelchThreshold, forKey: .kiwiSquelchThreshold)
+    try container.encode(kiwiNoiseBlankerAlgorithm, forKey: .kiwiNoiseBlankerAlgorithm)
+    try container.encode(kiwiNoiseBlankerGate, forKey: .kiwiNoiseBlankerGate)
+    try container.encode(kiwiNoiseBlankerThreshold, forKey: .kiwiNoiseBlankerThreshold)
+    try container.encode(kiwiNoiseBlankerWildThreshold, forKey: .kiwiNoiseBlankerWildThreshold)
+    try container.encode(kiwiNoiseBlankerWildTaps, forKey: .kiwiNoiseBlankerWildTaps)
+    try container.encode(kiwiNoiseBlankerWildImpulseSamples, forKey: .kiwiNoiseBlankerWildImpulseSamples)
+    try container.encode(kiwiNoiseFilterAlgorithm, forKey: .kiwiNoiseFilterAlgorithm)
+    try container.encode(kiwiDenoiseEnabled, forKey: .kiwiDenoiseEnabled)
+    try container.encode(kiwiAutonotchEnabled, forKey: .kiwiAutonotchEnabled)
     try container.encode(kiwiPassbandsByMode, forKey: .kiwiPassbandsByMode)
     try container.encode(kiwiWaterfallSpeed, forKey: .kiwiWaterfallSpeed)
     try container.encode(kiwiWaterfallZoom, forKey: .kiwiWaterfallZoom)
@@ -554,6 +652,32 @@ struct RadioSessionSettings: Codable, Equatable {
 
   static func clampedKiwiSquelchThreshold(_ value: Int) -> Int {
     min(max(value, 0), 30)
+  }
+
+  static func clampedKiwiNoiseBlankerGate(_ value: Int) -> Int {
+    let clamped = min(max(value, 100), 5_000)
+    return (clamped / 100) * 100
+  }
+
+  static func clampedKiwiNoiseBlankerThreshold(_ value: Int) -> Int {
+    min(max(value, 0), 100)
+  }
+
+  static func clampedKiwiNoiseBlankerWildThreshold(_ value: Double) -> Double {
+    let clamped = min(max(value, 0.05), 3.0)
+    return (clamped * 20).rounded() / 20
+  }
+
+  static func clampedKiwiNoiseBlankerWildTaps(_ value: Int) -> Int {
+    min(max(value, 6), 40)
+  }
+
+  static func clampedKiwiNoiseBlankerWildImpulseSamples(_ value: Int) -> Int {
+    var clamped = min(max(value, 3), 41)
+    if clamped % 2 == 0 {
+      clamped += clamped == 41 ? -1 : 1
+    }
+    return clamped
   }
 
   static let kiwiMinimumPassbandHz = 4
@@ -630,6 +754,21 @@ struct RadioSessionSettings: Codable, Equatable {
 
   mutating func resetKiwiPassband(for mode: DemodulationMode) {
     kiwiPassbandsByMode.removeValue(forKey: mode.normalized(for: .kiwiSDR).rawValue)
+  }
+
+  mutating func resetKiwiNoiseBlanker() {
+    kiwiNoiseBlankerAlgorithm = Self.default.kiwiNoiseBlankerAlgorithm
+    kiwiNoiseBlankerGate = Self.default.kiwiNoiseBlankerGate
+    kiwiNoiseBlankerThreshold = Self.default.kiwiNoiseBlankerThreshold
+    kiwiNoiseBlankerWildThreshold = Self.default.kiwiNoiseBlankerWildThreshold
+    kiwiNoiseBlankerWildTaps = Self.default.kiwiNoiseBlankerWildTaps
+    kiwiNoiseBlankerWildImpulseSamples = Self.default.kiwiNoiseBlankerWildImpulseSamples
+  }
+
+  mutating func resetKiwiNoiseFilter() {
+    kiwiNoiseFilterAlgorithm = Self.default.kiwiNoiseFilterAlgorithm
+    kiwiDenoiseEnabled = Self.default.kiwiDenoiseEnabled
+    kiwiAutonotchEnabled = Self.default.kiwiAutonotchEnabled
   }
 
   static func normalizedKiwiWaterfallSpeed(_ value: Int) -> Int {
