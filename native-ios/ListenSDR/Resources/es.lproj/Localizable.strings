@@ -190,6 +190,7 @@
 "frequency_input.invalid_generic" = "Frecuencia invalida. Usa valores como 7.050 MHz o 7050000.";
 "frequency_input.fmdx_range" = "FM-DX admite de 64.000 a 110.000 MHz.";
 "frequency_input.hint_fmdx" = "Ejemplos: 102.3 MHz o 1023 (para 102.3 MHz)";
+"frequency_input.hint_compact" = "Introduce la frecuencia seguida o con separador decimal.";
 "frequency_input.hint_generic" = "Ejemplos: 7.050 MHz o 7050000 Hz";
 "frequency_input.placeholder_fmdx" = "102.3 MHz o 1023";
 "frequency_input.placeholder_generic" = "7.050 MHz";

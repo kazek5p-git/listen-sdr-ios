@@ -2190,8 +2190,10 @@ struct ReceiverView: View {
   private func scheduleInlineFrequencyApply(for backend: SDRBackend) {
     guard inlineFrequencyEditing else { return }
     inlineFrequencyApplyTask?.cancel()
+    guard shouldScheduleInlineFrequencyAutoApply(inlineFrequencyInput, backend: backend) else { return }
     inlineFrequencyApplyTask = Task { @MainActor in
-      try? await Task.sleep(nanoseconds: 1_000_000_000)
+      let delayNanoseconds: UInt64 = backend == .fmDxWebserver ? 2_400_000_000 : 1_200_000_000
+      try? await Task.sleep(nanoseconds: delayNanoseconds)
       if Task.isCancelled { return }
       guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else { return }
       _ = applyInlineFrequencyInput(backend)
@@ -2286,6 +2288,31 @@ struct ReceiverView: View {
     return digitCount >= 2
   }
 
+  private func shouldScheduleInlineFrequencyAutoApply(_ input: String, backend: SDRBackend) -> Bool {
+    let normalized = input
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+      .replacingOccurrences(of: " ", with: "")
+
+    guard shouldAttemptInlineFrequencyApply(normalized, backend: backend) else {
+      return false
+    }
+
+    if backend == .fmDxWebserver {
+      if normalized.hasSuffix("mhz") || normalized.hasSuffix("khz") || normalized.hasSuffix("hz") {
+        return true
+      }
+
+      if normalized.contains(".") || normalized.contains(",") {
+        return normalized.range(of: #"^\d{2,3}[.,]\d{1,3}$"#, options: .regularExpression) != nil
+      }
+
+      return normalized.range(of: #"^\d{3,4}$"#, options: .regularExpression) != nil
+    }
+
+    return true
+  }
+
   private func frequencyHz(fromMHz value: Double) -> Int {
     let hz = Int((value * 1_000_000.0).rounded())
     if profileStore.selectedProfile?.backend == .fmDxWebserver {
@@ -2305,6 +2332,9 @@ struct ReceiverView: View {
   private func frequencyInputHint(for backend: SDRBackend?) -> String {
     guard let backend else {
       return L10n.text("frequency_input.hint_generic")
+    }
+    if backend == .fmDxWebserver {
+      return L10n.text("frequency_input.hint_compact")
     }
     let inputProfile = frequencyInputProfile(for: backend)
     if let alternateExample = inputProfile.alternateExample {
