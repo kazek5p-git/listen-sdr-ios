@@ -128,6 +128,7 @@ struct RadiosView: View {
   @State private var searchScope: RadiosSearchScope = .historyOnly
   @State private var isRecentReceiversExpanded = true
   @State private var isRecentListeningExpanded = true
+  @State private var isImportLinkPresented = false
 
   var body: some View {
     NavigationStack {
@@ -390,6 +391,14 @@ struct RadiosView: View {
 
         ToolbarItem(placement: .navigationBarTrailing) {
           Button {
+            isImportLinkPresented = true
+          } label: {
+            Label(L10n.text("Import from link"), systemImage: "link.badge.plus")
+          }
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+          Button {
             editorContext = ProfileEditorContext(
               title: L10n.text("New Radio"),
               profile: SDRConnectionProfile.empty(),
@@ -403,6 +412,9 @@ struct RadiosView: View {
       .appScreenBackground()
       .sheet(isPresented: $isDirectoryPresented) {
         ReceiverDirectoryView()
+      }
+      .sheet(isPresented: $isImportLinkPresented) {
+        ImportReceiverLinkView()
       }
       .sheet(item: $editorContext) { context in
         ProfileEditorView(

@@ -381,22 +381,7 @@ struct ReceiverView: View {
 
   private func connectionSection(for profile: SDRConnectionProfile) -> some View {
     Section {
-      LabeledContent(L10n.text("Profile"), value: profile.name)
-
-      LabeledContent(L10n.text("Backend"), value: profile.backend.displayName)
-      LabeledContent(L10n.text("Endpoint"), value: profile.endpointDescription)
-
-      LabeledContent(L10n.text("Status"), value: radioSession.statusText)
-
-      if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
-        LabeledContent(L10n.text("Receiver data"), value: backendStatus)
-      }
-
-      if let error = radioSession.lastError {
-        Text(error)
-          .foregroundStyle(.red)
-          .font(.footnote)
-      }
+      receiverSummaryCard(for: profile)
 
       FocusRetainingButton({
         handleConnectionButtonTap(for: profile)
@@ -418,9 +403,60 @@ struct ReceiverView: View {
         .accessibilityHint(L10n.text("Try connecting to this receiver again"))
       }
     } header: {
-      AppSectionHeader(title: L10n.text("Connection"))
+      AppSectionHeader(title: L10n.text("receiver.current.section"))
     }
     .appSectionStyle()
+  }
+
+  private func receiverSummaryCard(for profile: SDRConnectionProfile) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(profile.name)
+            .font(.headline)
+
+          Text(profile.backend.displayName)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(receiverAccentColor(for: profile.backend))
+        }
+
+        Spacer(minLength: 8)
+
+        Text(radioSession.statusText)
+          .font(.footnote.weight(.semibold))
+          .padding(.horizontal, 10)
+          .padding(.vertical, 6)
+          .background(receiverStatusBackground, in: Capsule())
+          .foregroundStyle(receiverStatusForeground)
+      }
+
+      Text(profile.endpointDescription)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+        .minimumScaleFactor(0.85)
+
+      if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
+        Text(backendStatus)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .lineLimit(3)
+      }
+
+      if let error = radioSession.lastError {
+        Text(error)
+          .foregroundStyle(.red)
+          .font(.footnote)
+      }
+    }
+    .appCardContainer()
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(profile.name)
+    .accessibilityValue(
+      [profile.backend.displayName, radioSession.statusText, profile.endpointDescription]
+        .joined(separator: ", ")
+    )
+    .accessibilityHint(L10n.text("receiver.current.summary.hint"))
   }
 
   private func tuningSection(for profile: SDRConnectionProfile) -> some View {
@@ -1605,6 +1641,43 @@ struct ReceiverView: View {
     }
 
     radioSession.connect(to: profile)
+  }
+
+  private func receiverAccentColor(for backend: SDRBackend) -> Color {
+    switch backend {
+    case .kiwiSDR:
+      return AppTheme.tint
+    case .openWebRX:
+      return AppTheme.accent
+    case .fmDxWebserver:
+      return .orange
+    }
+  }
+
+  private var receiverStatusBackground: Color {
+    switch radioSession.state {
+    case .connected:
+      return Color.green.opacity(0.18)
+    case .connecting:
+      return Color.orange.opacity(0.18)
+    case .failed:
+      return Color.red.opacity(0.18)
+    case .disconnected:
+      return AppTheme.chipFill
+    }
+  }
+
+  private var receiverStatusForeground: Color {
+    switch radioSession.state {
+    case .connected:
+      return .green
+    case .connecting:
+      return .orange
+    case .failed:
+      return .red
+    case .disconnected:
+      return .secondary
+    }
   }
 
   private func thresholdRange(for backend: SDRBackend) -> ClosedRange<Double> {
