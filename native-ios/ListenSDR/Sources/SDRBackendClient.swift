@@ -3680,7 +3680,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     from script: String,
     requiresPresetMarker: Bool = false
   ) -> [SDRServerBookmark] {
-    if requiresPresetMarker && !looksLikeFMDXPresetScript(script) {
+    if requiresPresetMarker && !script.lowercased().contains("defaultpresetdata") {
       return []
     }
 
