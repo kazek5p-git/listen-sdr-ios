@@ -30,4 +30,15 @@ final class ReceiverLinkImportTests: XCTestCase {
       "/"
     )
   }
+
+  func testNormalizeInspectableURLPreservesRedirectedOpenWebRXPort() {
+    let redirected = URL(string: "https://webrx.sytes.net:8078/")!
+
+    let normalized = ReceiverLinkImportDetector.normalizeInspectableURLForTests(redirected)
+
+    XCTAssertEqual(normalized.scheme, "https")
+    XCTAssertEqual(normalized.host(), "webrx.sytes.net")
+    XCTAssertEqual(normalized.port, 8078)
+    XCTAssertEqual(normalized.path, "/")
+  }
 }

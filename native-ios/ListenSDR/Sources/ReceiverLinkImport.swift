@@ -32,11 +32,12 @@ enum ReceiverLinkImportError: LocalizedError {
 enum ReceiverLinkImportDetector {
   static func analyze(_ rawInput: String) async throws -> ReceiverLinkImportCandidate {
     let url = try normalizedURL(from: rawInput)
-    let inspectedURL = normalizeInspectableURL(url)
-    let pageBody = try await fetchBody(from: inspectedURL)
-    let backend = try detectBackend(from: inspectedURL, html: pageBody)
+    let initialURL = normalizeInspectableURL(url)
+    let page = try await fetchPage(from: initialURL)
+    let inspectedURL = normalizeInspectableURL(page.finalURL)
+    let backend = try detectBackend(from: inspectedURL, html: page.body)
     let normalizedPath = normalizedProfilePath(for: backend, rawPath: inspectedURL.path)
-    let displayName = await suggestedName(for: inspectedURL, backend: backend, html: pageBody)
+    let displayName = await suggestedName(for: inspectedURL, backend: backend, html: page.body)
     let profile = SDRConnectionProfile(
       name: displayName,
       backend: backend,
@@ -51,6 +52,11 @@ enum ReceiverLinkImportDetector {
       profile: profile,
       detectionSummary: L10n.text("receiver.import.detected.from_page", backend.displayName)
     )
+  }
+
+  struct FetchedPage {
+    let finalURL: URL
+    let body: String
   }
 
   static func normalizedURL(from rawInput: String) throws -> URL {
@@ -147,12 +153,16 @@ enum ReceiverLinkImportDetector {
     return components.url ?? url
   }
 
+  static func normalizeInspectableURLForTests(_ url: URL) -> URL {
+    normalizeInspectableURL(url)
+  }
+
   private static func normalizedPath(_ rawPath: String) -> String {
     guard !rawPath.isEmpty else { return "/" }
     return rawPath.hasPrefix("/") ? rawPath : "/\(rawPath)"
   }
 
-  private static func fetchBody(from url: URL) async throws -> String {
+  private static func fetchPage(from url: URL) async throws -> FetchedPage {
     var request = URLRequest(url: url)
     request.timeoutInterval = 10
     request.setValue("Listen SDR", forHTTPHeaderField: "User-Agent")
@@ -163,7 +173,10 @@ enum ReceiverLinkImportDetector {
       throw ReceiverLinkImportError.unsupportedURL
     }
 
-    return String(decoding: data, as: UTF8.self)
+    return FetchedPage(
+      finalURL: httpResponse.url ?? url,
+      body: String(decoding: data, as: UTF8.self)
+    )
   }
 
   private static func suggestedName(for url: URL, backend: SDRBackend, html: String) async -> String {
