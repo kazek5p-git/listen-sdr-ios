@@ -118,9 +118,13 @@ def format_feedback(
     extra: dict | None = None,
 ) -> str:
     type_label = "B\u0142\u0105d" if kind == "bug" else "Sugestia"
+    message_label = "Tre\u015b\u0107 zg\u0142oszenia" if kind == "bug" else "Tre\u015b\u0107 sugestii"
     lines = [
         "Nowe zg\u0142oszenie Listen SDR",
         f"Typ: {type_label}",
+        f"{message_label}:",
+        message.strip(),
+        "",
         f"Nadawca: {sender_name}",
         f"\u0179r\u00f3d\u0142o: {source}",
         f"Czas: {submitted_at}",
@@ -202,17 +206,12 @@ def format_feedback(
             if receiver_mode:
                 lines.append(f"Tryb: {receiver_mode}")
 
-        lines.append("")
-        lines.append(message)
-
         if diagnostics_text:
             lines.append("")
             lines.append("Diagnostyka:")
             lines.append(str(diagnostics_text).strip())
         return "\n".join(lines)
 
-    lines.append("")
-    lines.append(message)
     return "\n".join(lines)
 
 

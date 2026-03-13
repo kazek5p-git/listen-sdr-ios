@@ -579,18 +579,6 @@ struct RadiosView: View {
     .listRowSeparator(.hidden)
     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      Button {
-        favoritesStore.toggleReceiver(candidateProfile)
-      } label: {
-        Label(
-          favoritesStore.isFavoriteReceiver(candidateProfile)
-            ? L10n.text("favorites.receiver.remove")
-            : L10n.text("favorites.receiver.add"),
-          systemImage: favoritesStore.isFavoriteReceiver(candidateProfile) ? "star.slash" : "star"
-        )
-      }
-      .tint(.yellow)
-
       Button(role: .destructive) {
         historyStore.removeRecentReceiver(record)
       } label: {
@@ -655,23 +643,6 @@ struct RadiosView: View {
     .listRowSeparator(.hidden)
     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      Button {
-        favoritesStore.toggleStation(
-          profile: candidateProfile,
-          title: record.stationTitle ?? FrequencyFormatter.mhzText(fromHz: record.frequencyHz),
-          frequencyHz: record.frequencyHz,
-          mode: record.mode
-        )
-      } label: {
-        Label(
-          isFavoriteListeningRecord(record)
-            ? L10n.text("favorites.station.remove_current")
-            : L10n.text("favorites.station.add_current"),
-          systemImage: isFavoriteListeningRecord(record) ? "star.slash" : "star.circle"
-        )
-      }
-      .tint(.yellow)
-
       Button(role: .destructive) {
         historyStore.removeRecentListening(record)
       } label: {
@@ -768,12 +739,6 @@ struct RadiosView: View {
     guard radioSession.settings.openReceiverAfterHistoryRestore else { return }
     DispatchQueue.main.async {
       navigationState.selectedTab = .receiver
-    }
-  }
-
-  private func isFavoriteListeningRecord(_ record: RecentListeningRecord) -> Bool {
-    favoritesStore.stations(for: record.makeProfile()).contains {
-      $0.frequencyHz == record.frequencyHz && $0.mode == record.mode
     }
   }
 

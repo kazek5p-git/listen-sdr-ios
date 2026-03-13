@@ -323,17 +323,6 @@ struct ReceiverView: View {
 
     return Section {
       FocusRetainingButton {
-        favoritesStore.toggleReceiver(profile)
-      } label: {
-        Label(
-          favoritesStore.isFavoriteReceiver(profile)
-            ? L10n.text("favorites.receiver.remove")
-            : L10n.text("favorites.receiver.add"),
-          systemImage: favoritesStore.isFavoriteReceiver(profile) ? "star.slash" : "star"
-        )
-      }
-
-      FocusRetainingButton {
         favoritesStore.toggleStation(
           profile: profile,
           title: currentFavoriteStationTitle(for: profile),
