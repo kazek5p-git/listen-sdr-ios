@@ -371,73 +371,73 @@ struct ReceiverView: View {
   private func connectionSection(for profile: SDRConnectionProfile) -> some View {
     Section {
       receiverSummaryCard(for: profile)
-    } header: {
-      AppSectionHeader(title: L10n.text("receiver.current.section"))
     }
     .appSectionStyle()
   }
 
   private func receiverSummaryCard(for profile: SDRConnectionProfile) -> some View {
     VStack(alignment: .leading, spacing: 10) {
-      HStack(alignment: .firstTextBaseline, spacing: 12) {
-        VStack(alignment: .leading, spacing: 6) {
-          Text(profile.name)
-            .font(.headline)
+      VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+          VStack(alignment: .leading, spacing: 6) {
+            Text(profile.name)
+              .font(.headline)
 
-          HStack(spacing: 6) {
-            Text(profile.backend.displayName)
-              .font(.footnote.weight(.semibold))
-              .foregroundStyle(receiverAccentColor(for: profile.backend))
+            HStack(spacing: 6) {
+              Text(profile.backend.displayName)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(receiverAccentColor(for: profile.backend))
 
-            Text("•")
-              .font(.footnote.weight(.semibold))
-              .foregroundStyle(.tertiary)
+              Image(systemName: "circle.fill")
+                .font(.system(size: 4, weight: .semibold))
+                .foregroundStyle(.tertiary)
 
-            Text(radioSession.statusText)
-              .font(.footnote.weight(.semibold))
-              .foregroundStyle(receiverStatusForeground)
+              Text(radioSession.statusText)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(receiverStatusForeground)
+            }
           }
+
+          Spacer(minLength: 8)
+
+          Image(systemName: connectionStatusSymbolName)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(receiverStatusForeground)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(receiverStatusBackground, in: Capsule())
         }
 
-        Spacer(minLength: 8)
-
-        Image(systemName: connectionStatusSymbolName)
-          .font(.body.weight(.semibold))
-          .foregroundStyle(receiverStatusForeground)
-          .padding(.horizontal, 10)
-          .padding(.vertical, 6)
-          .background(receiverStatusBackground, in: Capsule())
-      }
-
-      Text(profile.endpointDescription)
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.85)
-
-      if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
-        Text(backendStatus)
+        Text(profile.endpointDescription)
           .font(.footnote)
           .foregroundStyle(.secondary)
-          .lineLimit(2)
-      }
+          .lineLimit(1)
+          .minimumScaleFactor(0.85)
 
-      if let error = radioSession.lastError {
-        Text(error)
-          .foregroundStyle(.red)
-          .font(.footnote)
+        if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
+          Text(backendStatus)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+        }
+
+        if let error = radioSession.lastError {
+          Text(error)
+            .foregroundStyle(.red)
+            .font(.footnote)
+        }
       }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(profile.name)
+      .accessibilityValue(
+        [profile.backend.displayName, radioSession.statusText, profile.endpointDescription]
+          .joined(separator: ", ")
+      )
+      .accessibilityHint(L10n.text("receiver.current.summary.hint"))
 
       connectionActionRow(for: profile)
     }
     .appCardContainer()
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(profile.name)
-    .accessibilityValue(
-      [profile.backend.displayName, radioSession.statusText, profile.endpointDescription]
-        .joined(separator: ", ")
-    )
-    .accessibilityHint(L10n.text("receiver.current.summary.hint"))
   }
 
   @ViewBuilder
@@ -929,7 +929,7 @@ struct ReceiverView: View {
         case .standard:
           kiwiPassbandSlider(
             title: L10n.text("kiwi.noise_blanker.gate"),
-            valueText: "\(radioSession.settings.kiwiNoiseBlankerGate) µs",
+            valueText: "\(radioSession.settings.kiwiNoiseBlankerGate) Âµs",
             value: Binding(
               get: { Double(radioSession.settings.kiwiNoiseBlankerGate) },
               set: { radioSession.setKiwiNoiseBlankerGate(Int($0.rounded())) }
