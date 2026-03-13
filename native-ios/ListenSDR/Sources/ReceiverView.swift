@@ -1316,7 +1316,7 @@ struct ReceiverView: View {
       ? scanSource
       : (availableSources.first ?? .serverBookmarks)
 
-    Section {
+    return Section {
       selectionNavigationLink(
         title: L10n.text("scanner.source"),
         value: effectiveSource.displayName,
