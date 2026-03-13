@@ -3505,7 +3505,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     basePath: String
   ) async -> [SDRServerBookmark] {
     if let indexHTML, !indexHTML.isEmpty {
-      let inlineStationList = parseStationListBookmarks(from: indexHTML)
+      let inlineStationList = parseStationListBookmarks(from: indexHTML, requiresPresetMarker: true)
       if !inlineStationList.isEmpty {
         stationListUnavailable = false
         return inlineStationList
@@ -3676,7 +3676,14 @@ actor FMDXWebserverClient: SDRBackendClient {
     throw SDRClientError.unsupported("FM-DX station list script returned unreadable content.")
   }
 
-  private func parseStationListBookmarks(from script: String) -> [SDRServerBookmark] {
+  private func parseStationListBookmarks(
+    from script: String,
+    requiresPresetMarker: Bool = false
+  ) -> [SDRServerBookmark] {
+    if requiresPresetMarker && !looksLikeFMDXPresetScript(script) {
+      return []
+    }
+
     let defaultPresetBlocks = captures(
       for: #"(?is)defaultPresetData\s*=\s*\{([\s\S]*?)\}"#,
       in: script,
@@ -3718,7 +3725,19 @@ actor FMDXWebserverClient: SDRBackendClient {
       return bestFallback
     }
 
+    guard looksLikeFMDXPresetScript(script) else {
+      return []
+    }
+
     return parseLoosePresetBookmarks(from: script)
+  }
+
+  private func looksLikeFMDXPresetScript(_ script: String) -> Bool {
+    let lower = script.lowercased()
+    return lower.contains("defaultpresetdata")
+      || lower.contains("pluginbuttonpresets")
+      || lower.contains("preset buttons")
+      || lower.contains("buttonpresets")
   }
 
   private func parsePresetBlockBookmarks(
