@@ -1949,8 +1949,11 @@ final class FMDXMP3AudioPlayer {
   private let maxPacketsPerBuffer: Int = 1024
   private let minEnqueueBytes: Int = 8 * 1024
   private let minBuffersBeforeStart = 2
-  private let maxQueuedBuffersBeforeTrim = 10
+  private let maxQueuedBuffersBeforeTrim = 14
   private let latencyTrimCooldownSeconds: TimeInterval = 8
+  private let latencyTrimGraceSeconds: TimeInterval = 1.25
+  private let latencyTrimToleranceSeconds: TimeInterval = 0.25
+  private let latencyTrimBufferTolerance = 3
   private let maxConsecutiveBufferStarvation = 180
   private var packetHoldSeconds: TimeInterval = 0.14
   private var startupBufferSeconds: TimeInterval = 0.55
@@ -1978,6 +1981,7 @@ final class FMDXMP3AudioPlayer {
   private var pendingQueuedDuration: TimeInterval = 0
   private var pendingQueuedBuffers = 0
   private var lastLatencyTrimAt = Date.distantPast
+  private var queuedOverLimitSince = Date.distantPast
 
   private var desiredVolume: Float = 0.85
   private var muted = false
@@ -2255,6 +2259,7 @@ final class FMDXMP3AudioPlayer {
     pendingQueuedDuration = 0
     pendingQueuedBuffers = 0
     lastLatencyTrimAt = .distantPast
+    queuedOverLimitSince = .distantPast
 
     DispatchQueue.main.async {
       NowPlayingMetadataController.shared.stopPlayback()
@@ -2504,9 +2509,19 @@ final class FMDXMP3AudioPlayer {
     guard queueStarted else { return }
     guard Date().timeIntervalSince(lastLatencyTrimAt) >= latencyTrimCooldownSeconds else { return }
 
-    let queuedTooLong = pendingQueuedDuration > maxLatencySeconds
-    let tooManyQueuedBuffers = pendingQueuedBuffers > maxQueuedBuffersBeforeTrim
-    guard queuedTooLong || tooManyQueuedBuffers else { return }
+    let queuedTooLong = pendingQueuedDuration > (maxLatencySeconds + latencyTrimToleranceSeconds)
+    let tooManyQueuedBuffers = pendingQueuedBuffers > (maxQueuedBuffersBeforeTrim + latencyTrimBufferTolerance)
+    guard queuedTooLong || tooManyQueuedBuffers else {
+      queuedOverLimitSince = .distantPast
+      return
+    }
+
+    if queuedOverLimitSince == .distantPast {
+      queuedOverLimitSince = Date()
+      return
+    }
+
+    guard Date().timeIntervalSince(queuedOverLimitSince) >= latencyTrimGraceSeconds else { return }
 
     restartOutputQueueLocked(
       reason: "Trimming FM-DX audio latency (\(String(format: "%.2f", pendingQueuedDuration)) s queued, \(pendingQueuedBuffers) buffers)"
@@ -2535,6 +2550,7 @@ final class FMDXMP3AudioPlayer {
     queueStarted = false
     enqueuedBuffersBeforeStart = 0
     consecutiveBufferStarvation = 0
+    queuedOverLimitSince = .distantPast
 
     guard let streamDescription, let fileStreamID else { return }
     ensureAudioQueueLocked(for: streamDescription, fileStreamID: fileStreamID)
