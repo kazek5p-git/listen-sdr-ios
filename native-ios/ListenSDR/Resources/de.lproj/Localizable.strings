@@ -338,6 +338,8 @@
 "fmdx.server_slots.collapse" = "Server-Slots ausblenden (F1-F4)";
 "fmdx.station_list.expand" = "Senderliste erweitern";
 "fmdx.station_list.collapse" = "Senderliste reduzieren";
+"fmdx.af_list.expand" = "AF erweitern";
+"fmdx.af_list.collapse" = "AF reduzieren";
 "fmdx.live.more_details" = "Weitere RDS-Details";
 "fmdx.user_presets.import_server" = "Senderliste in meine Presets importieren";
 "fmdx.user_presets.importing" = "Senderliste wird importiert...";

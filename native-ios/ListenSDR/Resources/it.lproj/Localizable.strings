@@ -338,6 +338,8 @@
 "fmdx.server_slots.collapse" = "Nascondi slot server (F1-F4)";
 "fmdx.station_list.expand" = "Espandi elenco stazioni";
 "fmdx.station_list.collapse" = "Comprimi elenco stazioni";
+"fmdx.af_list.expand" = "Espandi AF";
+"fmdx.af_list.collapse" = "Comprimi AF";
 "fmdx.live.more_details" = "Altri dettagli RDS";
 "fmdx.user_presets.import_server" = "Importa elenco stazioni nei miei preset";
 "fmdx.user_presets.importing" = "Importazione elenco stazioni...";

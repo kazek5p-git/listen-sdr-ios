@@ -264,6 +264,7 @@ struct ReceiverView: View {
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var isFMDXStationListExpanded = true
+  @State private var isFMDXAFExpanded = false
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -1431,19 +1432,34 @@ struct ReceiverView: View {
           LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
         }
         if !telemetry.afMHz.isEmpty {
-          let limitedAFCount = min(telemetry.afMHz.count, 16)
-          ForEach(0..<limitedAFCount, id: \.self) { index in
-            let afMHz = telemetry.afMHz[index]
-            let afHz = frequencyHz(fromMHz: afMHz)
-            FocusRetainingButton {
-              radioSession.setFrequencyHz(afHz)
-            } label: {
-              HStack {
-                Text(String(format: "%.1f MHz", afMHz))
-                Spacer()
+          FocusRetainingButton {
+            isFMDXAFExpanded.toggle()
+          } label: {
+            Label(
+              L10n.text(
+                isFMDXAFExpanded
+                  ? "fmdx.af_list.collapse"
+                  : "fmdx.af_list.expand"
+              ),
+              systemImage: isFMDXAFExpanded ? "chevron.up" : "chevron.down"
+            )
+          }
+
+          if isFMDXAFExpanded {
+            let limitedAFCount = min(telemetry.afMHz.count, 16)
+            ForEach(0..<limitedAFCount, id: \.self) { index in
+              let afMHz = telemetry.afMHz[index]
+              let afHz = frequencyHz(fromMHz: afMHz)
+              FocusRetainingButton {
+                radioSession.setFrequencyHz(afHz)
+              } label: {
+                HStack {
+                  Text(String(format: "%.1f MHz", afMHz))
+                  Spacer()
+                }
               }
+              .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
           }
         }
         if let rt0 = telemetry.rt0, !rt0.isEmpty {

@@ -344,6 +344,8 @@
 "fmdx.server_slots.collapse" = "Ukryj sloty serwera (F1-F4)";
 "fmdx.station_list.expand" = "Rozwiń listę stacji";
 "fmdx.station_list.collapse" = "Zwiń listę stacji";
+"fmdx.af_list.expand" = "Rozwiń AF";
+"fmdx.af_list.collapse" = "Zwiń AF";
 "fmdx.live.more_details" = "Więcej szczegółów RDS";
 "fmdx.user_presets.section" = "Moje presety";
 "fmdx.user_presets.add_current" = "Zapisz bieżącą jako preset";
