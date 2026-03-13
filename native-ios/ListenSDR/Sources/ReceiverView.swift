@@ -2,7 +2,7 @@ import SwiftUI
 
 private enum ScanSource: String, CaseIterable, Identifiable {
   case serverBookmarks
-  case quickList
+  case afList
 
   var id: String { rawValue }
 
@@ -10,8 +10,8 @@ private enum ScanSource: String, CaseIterable, Identifiable {
     switch self {
     case .serverBookmarks:
       return L10n.text("scan_source.server_list")
-    case .quickList:
-      return L10n.text("scan_source.quick_list")
+    case .afList:
+      return L10n.text("scan_source.af_list")
     }
   }
 }
@@ -263,7 +263,6 @@ struct ReceiverView: View {
   @State private var inlineFrequencyEditing = false
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
   @State private var scanSource: ScanSource = .serverBookmarks
-  @State private var quickScanChannels: [ScanChannel] = []
   @State private var isFMDXStationListExpanded = true
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
@@ -1312,27 +1311,23 @@ struct ReceiverView: View {
   }
 
   private func scannerSection(for profile: SDRConnectionProfile, scannerChannels: [ScanChannel]) -> some View {
+    let availableSources = availableScanSources(for: profile)
+    let effectiveSource = availableSources.contains(scanSource)
+      ? scanSource
+      : (availableSources.first ?? .serverBookmarks)
+
     Section {
       selectionNavigationLink(
-        title: "Channel source",
-        value: scanSource.displayName,
-        selectedID: scanSource.rawValue,
-        options: ScanSource.allCases.map {
+        title: L10n.text("scanner.source"),
+        value: effectiveSource.displayName,
+        selectedID: effectiveSource.rawValue,
+        options: availableSources.map {
           SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
         }
       ) { value in
         if let source = ScanSource(rawValue: value) {
           scanSource = source
         }
-      }
-
-      if scanSource == .quickList {
-        FocusRetainingButton {
-          quickScanChannels.removeAll()
-        } label: {
-          Text(L10n.text("scanner.quick_list.clear"))
-        }
-        .disabled(quickScanChannels.isEmpty)
       }
 
       LabeledContent(L10n.text("Channels"), value: "\(scannerChannels.count)")
@@ -1440,23 +1435,15 @@ struct ReceiverView: View {
           ForEach(0..<limitedAFCount, id: \.self) { index in
             let afMHz = telemetry.afMHz[index]
             let afHz = frequencyHz(fromMHz: afMHz)
-            HStack {
-              FocusRetainingButton {
-                radioSession.setFrequencyHz(afHz)
-              } label: {
+            FocusRetainingButton {
+              radioSession.setFrequencyHz(afHz)
+            } label: {
+              HStack {
                 Text(String(format: "%.1f MHz", afMHz))
+                Spacer()
               }
-              .buttonStyle(.borderless)
-
-              Spacer()
-
-              FocusRetainingButton {
-                addQuickScanChannel(frequencyHz: afHz)
-              } label: {
-                Text(L10n.text("fmdx.af.scan"))
-              }
-              .buttonStyle(.borderless)
             }
+            .buttonStyle(.plain)
           }
         }
         if let rt0 = telemetry.rt0, !rt0.isEmpty {
@@ -2292,21 +2279,6 @@ struct ReceiverView: View {
     return hz
   }
 
-  private func addQuickScanChannel(frequencyHz: Int) {
-    let normalizedHz = normalizeFrequencyHz(frequencyHz, for: profileStore.selectedProfile?.backend)
-    let id = "quick|\(normalizedHz)"
-    guard quickScanChannels.contains(where: { $0.id == id }) == false else { return }
-
-    let channel = ScanChannel(
-      id: id,
-      name: L10n.text("fmdx.af_scan_name", FrequencyFormatter.mhzText(fromHz: normalizedHz)),
-      frequencyHz: normalizedHz,
-      mode: .fm
-    )
-    quickScanChannels.append(channel)
-    quickScanChannels.sort { $0.frequencyHz < $1.frequencyHz }
-  }
-
   private func frequencyText(fromHz value: Int, backend: SDRBackend?) -> String {
     if backend == .fmDxWebserver {
       return FrequencyFormatter.fmDxMHzText(fromHz: value)
@@ -2410,10 +2382,15 @@ struct ReceiverView: View {
   }
 
   private func scanChannels(for profile: SDRConnectionProfile) -> [ScanChannel] {
+    let source = effectiveScanSource(for: profile)
     let channels: [ScanChannel]
-    switch scanSource {
+
+    switch source {
     case .serverBookmarks:
-      channels = radioSession.serverBookmarks.map { bookmark in
+      let bookmarks = profile.backend == .fmDxWebserver
+        ? radioSession.fmdxServerPresets
+        : radioSession.serverBookmarks
+      channels = bookmarks.map { bookmark in
         ScanChannel(
           id: "bookmark|\(bookmark.id)",
           name: bookmark.name,
@@ -2421,8 +2398,8 @@ struct ReceiverView: View {
           mode: bookmark.modulation
         )
       }
-    case .quickList:
-      channels = quickScanChannels
+    case .afList:
+      channels = fmdxAFScanChannels()
     }
 
     guard profile.backend == .fmDxWebserver else {
@@ -2456,6 +2433,39 @@ struct ReceiverView: View {
     }
 
     return normalized.sorted { $0.frequencyHz < $1.frequencyHz }
+  }
+
+  private func availableScanSources(for profile: SDRConnectionProfile) -> [ScanSource] {
+    switch profile.backend {
+    case .fmDxWebserver:
+      return [.serverBookmarks, .afList]
+    case .kiwiSDR, .openWebRX:
+      return [.serverBookmarks]
+    }
+  }
+
+  private func effectiveScanSource(for profile: SDRConnectionProfile) -> ScanSource {
+    let availableSources = availableScanSources(for: profile)
+    if availableSources.contains(scanSource) {
+      return scanSource
+    }
+    return availableSources.first ?? .serverBookmarks
+  }
+
+  private func fmdxAFScanChannels() -> [ScanChannel] {
+    guard let telemetry = radioSession.fmdxTelemetry else {
+      return []
+    }
+
+    return telemetry.afMHz.enumerated().map { index, value in
+      let frequencyHz = frequencyHz(fromMHz: value)
+      return ScanChannel(
+        id: "af|\(index)|\(frequencyHz)",
+        name: L10n.text("fmdx.af_preset_name", String(format: "%.1f MHz", value)),
+        frequencyHz: frequencyHz,
+        mode: .fm
+      )
+    }
   }
 
   private func frequencyInputProfile(for backend: SDRBackend) -> FrequencyInputProfileSpec {

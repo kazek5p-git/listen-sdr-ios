@@ -196,6 +196,8 @@
 
 "scan_source.favorites" = "Favoritos";
 "scan_source.server_list" = "Lista del servidor";
+"scan_source.af_list" = "Lista AF";
+"scanner.source" = "Fuente de escaneo";
 
 "directory.status.available" = "Disponible";
 "directory.status.limited" = "Limitado";

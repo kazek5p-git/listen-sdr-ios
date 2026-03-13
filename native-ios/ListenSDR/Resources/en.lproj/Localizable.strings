@@ -44,6 +44,8 @@
 
 "scan_source.favorites" = "Favorites";
 "scan_source.server_list" = "Server list";
+"scan_source.af_list" = "AF list";
+"scanner.source" = "Scan source";
 
 "directory.status.available" = "Available";
 "directory.status.limited" = "Limited";
