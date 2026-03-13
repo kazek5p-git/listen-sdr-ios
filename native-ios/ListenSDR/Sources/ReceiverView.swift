@@ -2148,7 +2148,6 @@ struct ReceiverView: View {
       .autocorrectionDisabled()
       .textFieldStyle(.roundedBorder)
       .focused($isInlineFrequencyFocused)
-      .accessibilityLabel(L10n.text("Frequency input"))
       .accessibilityHint(Text(frequencyInputHint(for: backend)))
       .submitLabel(.done)
       .onSubmit {
