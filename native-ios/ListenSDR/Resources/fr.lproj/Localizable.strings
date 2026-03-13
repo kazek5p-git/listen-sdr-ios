@@ -193,6 +193,7 @@
 "frequency_input.hint_compact" = "Saisissez la frequence en continu ou avec un separateur decimal.";
 "frequency_input.hint_generic" = "Exemples : 7.050 MHz ou 7050000 Hz";
 "frequency_input.placeholder_fmdx" = "102.3 MHz ou 1023";
+"frequency_input.placeholder_compact" = "Saisir la frequence";
 "frequency_input.placeholder_generic" = "7.050 MHz";
 
 "scan_source.favorites" = "Favoris";

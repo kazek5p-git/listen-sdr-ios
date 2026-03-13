@@ -193,6 +193,7 @@
 "frequency_input.hint_compact" = "Gib die Frequenz direkt oder mit Dezimaltrennzeichen ein.";
 "frequency_input.hint_generic" = "Beispiele: 7.050 MHz oder 7050000 Hz";
 "frequency_input.placeholder_fmdx" = "102.3 MHz oder 1023";
+"frequency_input.placeholder_compact" = "Frequenz eingeben";
 "frequency_input.placeholder_generic" = "7.050 MHz";
 
 "scan_source.favorites" = "Favoriten";
