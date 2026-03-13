@@ -453,6 +453,9 @@
 "settings.audio.suggestion.log.applied" = "Preset audio applicato: %@.";
 "diagnostics.audio_suggestions.section" = "Cronologia suggerimenti audio";
 "diagnostics.audio_quality.section" = "Qualita stream FM-DX";
+"diagnostics.fmdx_presets.section" = "Preset FM-DX";
+"diagnostics.fmdx_presets.count" = "Numero di preset";
+"diagnostics.fmdx_presets.source" = "Origine dei preset";
 "diagnostics.audio_quality.score" = "Punteggio qualita";
 "diagnostics.audio_quality.level" = "Livello qualita";
 "diagnostics.audio_quality.queue" = "Audio in coda";

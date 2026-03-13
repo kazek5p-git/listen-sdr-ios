@@ -466,6 +466,9 @@
 "settings.audio.suggestion.log.applied" = "Zastosowano preset audio: %@.";
 "diagnostics.audio_suggestions.section" = "Historia sugestii audio";
 "diagnostics.audio_quality.section" = "Jakość strumienia FM-DX";
+"diagnostics.fmdx_presets.section" = "Presety FM-DX";
+"diagnostics.fmdx_presets.count" = "Liczba presetów";
+"diagnostics.fmdx_presets.source" = "Źródło presetów";
 "diagnostics.audio_quality.score" = "Ocena jakości";
 "diagnostics.audio_quality.level" = "Poziom jakości";
 "diagnostics.audio_quality.queue" = "Audio w kolejce";

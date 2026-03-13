@@ -2612,6 +2612,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var nextStationListRefreshAt = Date.distantPast
   private var stationListUnavailable = false
   private var lastPublishedFMDXPresets: [SDRServerBookmark] = []
+  private var lastPublishedFMDXPresetSource = "unknown"
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -2625,6 +2626,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     consecutivePingFailures = 0
     lastAudioPacketAt = .distantPast
     lastRealtimeStatusAt = .distantPast
+    lastPublishedFMDXPresetSource = "unknown"
 
     try openTextSocket(profile: profile, basePath: activeBasePath)
 
@@ -2665,7 +2667,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     )
     if stationList != lastPublishedFMDXPresets {
       lastPublishedFMDXPresets = stationList
-      enqueueTelemetry(.fmdxPresets(stationList))
+      enqueueTelemetry(.fmdxPresets(stationList, source: lastPublishedFMDXPresetSource))
     }
     nextStationListRefreshAt = nextStationListRefreshDate(after: Date(), stationList: stationList)
 
@@ -3487,7 +3489,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     guard stationList != lastPublishedFMDXPresets else { return }
 
     lastPublishedFMDXPresets = stationList
-    enqueueTelemetry(.fmdxPresets(stationList))
+    enqueueTelemetry(.fmdxPresets(stationList, source: lastPublishedFMDXPresetSource))
     log("FM-DX station list refreshed (\(stationList.count) entries)")
   }
 
@@ -3508,6 +3510,7 @@ actor FMDXWebserverClient: SDRBackendClient {
       let inlineStationList = parseStationListBookmarks(from: indexHTML, requiresPresetMarker: true)
       if !inlineStationList.isEmpty {
         stationListUnavailable = false
+        lastPublishedFMDXPresetSource = "inline defaultPresetData"
         return inlineStationList
       }
     }
@@ -3548,6 +3551,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
     if !best.isEmpty {
       stationListUnavailable = false
+      lastPublishedFMDXPresetSource = bestSource ?? "unknown"
       log("Loaded FM-DX station list (\(best.count)) from \(bestSource ?? "unknown source")")
       return best
     }
@@ -3555,6 +3559,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     if let lastError {
       log("Unable to load FM-DX station list: \(lastError.localizedDescription)", severity: .warning)
     }
+    lastPublishedFMDXPresetSource = stationListUnavailable ? "unavailable" : "unknown"
     return []
   }
 

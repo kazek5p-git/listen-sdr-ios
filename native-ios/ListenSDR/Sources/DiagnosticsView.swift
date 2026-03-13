@@ -276,6 +276,24 @@ struct DiagnosticsView: View {
         }
       }
 
+      if !radioSession.fmdxServerPresets.isEmpty || radioSession.fmdxPresetSourceDescription != nil {
+        Section {
+          LabeledContent(
+            L10n.text("diagnostics.fmdx_presets.count"),
+            value: "\(radioSession.fmdxServerPresets.count)"
+          )
+
+          if let source = radioSession.fmdxPresetSourceDescription, !source.isEmpty {
+            LabeledContent(
+              L10n.text("diagnostics.fmdx_presets.source"),
+              value: source
+            )
+          }
+        } header: {
+          AppSectionHeader(title: L10n.text("diagnostics.fmdx_presets.section"))
+        }
+      }
+
       Section {
         if generalLogEntries.isEmpty {
           UnavailableContentView(

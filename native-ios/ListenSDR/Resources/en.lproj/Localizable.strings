@@ -315,6 +315,9 @@
 "settings.audio.suggestion.log.applied" = "Applied audio preset: %@.";
 "diagnostics.audio_suggestions.section" = "Audio suggestion history";
 "diagnostics.audio_quality.section" = "FM-DX stream quality";
+"diagnostics.fmdx_presets.section" = "FM-DX presets";
+"diagnostics.fmdx_presets.count" = "Preset count";
+"diagnostics.fmdx_presets.source" = "Preset source";
 "diagnostics.audio_quality.score" = "Quality score";
 "diagnostics.audio_quality.level" = "Quality level";
 "diagnostics.audio_quality.queue" = "Queued audio";

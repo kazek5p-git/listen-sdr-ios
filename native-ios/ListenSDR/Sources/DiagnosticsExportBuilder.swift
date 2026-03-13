@@ -102,6 +102,9 @@ enum DiagnosticsExportBuilder {
     lines.append("OpenWebRX bookmarks: \(radioSession.serverBookmarks.count)")
     lines.append("OpenWebRX band plan entries: \(radioSession.openWebRXBandPlan.count)")
     lines.append("FM-DX station list entries: \(radioSession.fmdxServerPresets.count)")
+    if let presetSource = radioSession.fmdxPresetSourceDescription, !presetSource.isEmpty {
+      lines.append("FM-DX station list source: \(presetSource)")
+    }
     if let kiwiBand = radioSession.currentKiwiBandName {
       lines.append("Kiwi band: \(kiwiBand)")
     }

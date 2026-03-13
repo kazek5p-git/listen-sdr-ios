@@ -88,6 +88,7 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var fmdxTelemetry: FMDXTelemetry?
   @Published private(set) var fmdxCapabilities: FMDXCapabilities = .empty
   @Published private(set) var fmdxServerPresets: [SDRServerBookmark] = []
+  @Published private(set) var fmdxPresetSourceDescription: String?
   @Published private(set) var selectedFMDXAntennaID: String?
   @Published private(set) var selectedFMDXBandwidthID: String?
   @Published private(set) var fmdxTuneWarningText: String?
@@ -2353,8 +2354,9 @@ final class RadioSessionViewModel: ObservableObject {
         applyCurrentSettingsToConnectedBackend()
       }
 
-    case .fmdxPresets(let presets):
+    case .fmdxPresets(let presets, let source):
       fmdxServerPresets = presets
+      fmdxPresetSourceDescription = source
       persistCachedReceiverData { cached in
         cached.fmdxServerPresets = presets
       }
@@ -2701,6 +2703,7 @@ final class RadioSessionViewModel: ObservableObject {
     fmdxCapabilities = .empty
     hasFMDXCapabilitySnapshot = false
     fmdxServerPresets = []
+    fmdxPresetSourceDescription = nil
     selectedFMDXAntennaID = nil
     selectedFMDXBandwidthID = nil
     kiwiTelemetry = nil
