@@ -473,7 +473,7 @@ struct ReceiverView: View {
       return "ellipsis"
     case .failed:
       return "exclamationmark"
-    case .idle:
+    case .disconnected:
       return "antenna.radiowaves.left.and.right"
     }
   }
