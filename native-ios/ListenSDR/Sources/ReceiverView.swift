@@ -283,7 +283,7 @@ struct ReceiverView: View {
           )
         }
       }
-      .navigationTitle(L10n.text("Receiver"))
+      .navigationTitle(L10n.text("receiver.current.section"))
       .appScreenBackground()
     }
   }
