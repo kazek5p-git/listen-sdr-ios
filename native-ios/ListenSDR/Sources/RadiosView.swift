@@ -378,14 +378,14 @@ struct RadiosView: View {
           .scrollContentBackground(.hidden)
         }
       }
-      .navigationTitle("Radios")
+      .navigationTitle(L10n.text("Radios"))
       .searchable(text: $searchText, prompt: L10n.text("radios.search.prompt"))
       .toolbar {
         ToolbarItem(placement: .navigationBarLeading) {
           Button {
             isDirectoryPresented = true
           } label: {
-            Label("Directory", systemImage: "globe")
+            Label(L10n.text("Directory"), systemImage: "globe")
           }
         }
 
@@ -405,7 +405,7 @@ struct RadiosView: View {
               isNew: true
             )
           } label: {
-            Label("Add radio", systemImage: "plus")
+            Label(L10n.text("New Radio"), systemImage: "plus")
           }
         }
       }
@@ -503,7 +503,7 @@ struct RadiosView: View {
       }
       .tint(.yellow)
 
-      Button("Edit") {
+      Button(L10n.text("Edit")) {
         editorContext = ProfileEditorContext(
           title: L10n.text("Edit Radio"),
           profile: profile,
@@ -511,7 +511,7 @@ struct RadiosView: View {
         )
       }
 
-      Button("Delete", role: .destructive) {
+      Button(L10n.text("Delete"), role: .destructive) {
         profileStore.delete(profile)
       }
     }

@@ -72,7 +72,7 @@ struct DiagnosticsView: View {
           guard let profile = profileStore.selectedProfile else { return }
           radioSession.reconnect(to: profile)
         } label: {
-          Label("Reconnect", systemImage: "arrow.clockwise")
+          Label(L10n.text("Reconnect"), systemImage: "arrow.clockwise")
             .frame(maxWidth: .infinity, alignment: .leading)
             .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
         }
@@ -84,7 +84,7 @@ struct DiagnosticsView: View {
         FocusRetainingButton {
           radioSession.resetDSPSettings()
         } label: {
-          Label("Reset DSP", systemImage: "slider.horizontal.3")
+          Label(L10n.text("Reset DSP"), systemImage: "slider.horizontal.3")
             .frame(maxWidth: .infinity, alignment: .leading)
             .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
         }
@@ -123,7 +123,7 @@ struct DiagnosticsView: View {
           showingCopyConfirmation = true
           Diagnostics.log(category: "Diagnostics", message: "Diagnostics copied to clipboard")
         } label: {
-          Label("Copy diagnostics", systemImage: "doc.on.doc")
+          Label(L10n.text("Copy diagnostics"), systemImage: "doc.on.doc")
             .frame(maxWidth: .infinity, alignment: .leading)
             .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
         }
@@ -132,7 +132,7 @@ struct DiagnosticsView: View {
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
       } header: {
-        AppSectionHeader(title: "Quick Actions")
+        AppSectionHeader(title: L10n.text("Quick Actions"))
       }
 
       if !audioSuggestionEntries.isEmpty {
@@ -322,10 +322,10 @@ struct DiagnosticsView: View {
     .voiceOverStable()
     .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
-    .navigationTitle("Diagnostics")
+    .navigationTitle(L10n.text("Diagnostics"))
     .toolbar {
       ToolbarItem(placement: .navigationBarTrailing) {
-        Button("Clear") {
+        Button(L10n.text("Clear")) {
           diagnostics.clear()
           Diagnostics.log(category: "Diagnostics", message: "Diagnostics log cleared")
         }
@@ -333,9 +333,9 @@ struct DiagnosticsView: View {
       }
     }
     .alert("Copied", isPresented: $showingCopyConfirmation) {
-      Button("OK", role: .cancel) {}
+      Button(L10n.text("OK"), role: .cancel) {}
     } message: {
-      Text("Diagnostics were copied to the clipboard.")
+      Text(L10n.text("Diagnostics were copied to the clipboard."))
     }
     .sheet(
       isPresented: Binding(

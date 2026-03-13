@@ -283,7 +283,7 @@ struct ReceiverView: View {
           )
         }
       }
-      .navigationTitle("Receiver")
+      .navigationTitle(L10n.text("Receiver"))
       .appScreenBackground()
     }
   }
@@ -1346,7 +1346,7 @@ struct ReceiverView: View {
         .disabled(quickScanChannels.isEmpty)
       }
 
-      LabeledContent("Channels", value: "\(scannerChannels.count)")
+      LabeledContent(L10n.text("Channels"), value: "\(scannerChannels.count)")
 
       Slider(
         value: $radioSession.scannerThreshold,
@@ -1354,12 +1354,12 @@ struct ReceiverView: View {
         step: thresholdStep(for: profile.backend)
       )
       LabeledContent(
-        "Threshold",
+        L10n.text("Threshold"),
         value: "\(String(format: "%.1f", radioSession.scannerThreshold)) \(radioSession.scannerSignalUnit(for: profile.backend))"
       )
 
       VStack(alignment: .leading, spacing: 6) {
-        LabeledContent("Dwell", value: "\(String(format: "%.1f", radioSession.settings.scannerDwellSeconds)) s")
+        LabeledContent(L10n.text("Dwell"), value: "\(String(format: "%.1f", radioSession.settings.scannerDwellSeconds)) s")
         Slider(
           value: Binding(
             get: { radioSession.settings.scannerDwellSeconds },
@@ -1371,7 +1371,7 @@ struct ReceiverView: View {
       }
 
       VStack(alignment: .leading, spacing: 6) {
-        LabeledContent("Hold on hit", value: "\(String(format: "%.1f", radioSession.settings.scannerHoldSeconds)) s")
+        LabeledContent(L10n.text("Hold on hit"), value: "\(String(format: "%.1f", radioSession.settings.scannerHoldSeconds)) s")
         Slider(
           value: Binding(
             get: { radioSession.settings.scannerHoldSeconds },
@@ -1386,7 +1386,7 @@ struct ReceiverView: View {
         FocusRetainingButton {
           radioSession.stopScanner()
         } label: {
-          Text("Stop scanner")
+          Text(L10n.text("Stop scanner"))
         }
         .buttonStyle(.borderedProminent)
       } else {
@@ -1398,7 +1398,7 @@ struct ReceiverView: View {
             holdSeconds: radioSession.settings.scannerHoldSeconds
           )
         } label: {
-          Text("Start scanner")
+          Text(L10n.text("Start scanner"))
         }
         .buttonStyle(.borderedProminent)
         .disabled(scannerChannels.isEmpty || radioSession.state != .connected)
@@ -1411,7 +1411,7 @@ struct ReceiverView: View {
       }
 
       if profile.backend == .openWebRX {
-        Text("Threshold hold works with live signal metrics (KiwiSDR and FM-DX).")
+        Text(L10n.text("Threshold hold works with live signal metrics (KiwiSDR and FM-DX)."))
           .font(.footnote)
           .foregroundStyle(.secondary)
       }
