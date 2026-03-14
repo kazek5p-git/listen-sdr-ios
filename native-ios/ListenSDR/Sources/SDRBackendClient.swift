@@ -2678,6 +2678,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     let html = try? await fetchIndexHTML(profile: profile, basePath: activeBasePath)
     let stationList = await fetchStationListBookmarks(
       profile: profile,
+      staticData: staticData,
       indexHTML: html,
       basePath: activeBasePath
     )
@@ -3374,13 +3375,9 @@ actor FMDXWebserverClient: SDRBackendClient {
 
       // Some FM-DX instances expose server-side station presets in static_data.
       // Any preset below FM broadcast range strongly indicates AM/LW/MW/SW support.
-      if let presets = staticData["presets"] as? [Any] {
-        for item in presets {
-          guard let dictionary = item as? [String: Any] else { continue }
-          if let lowBandFrequency = parsePresetFrequencyHz(from: dictionary), lowBandFrequency < 64_000_000 {
-            return true
-          }
-        }
+      let presetFrequencies = parseFMDXStaticPresetFrequencies(staticData: staticData)
+      if presetFrequencies.contains(where: { $0 < 64_000_000 }) {
+        return true
       }
 
       let descriptionFields = [
@@ -3449,6 +3446,107 @@ actor FMDXWebserverClient: SDRBackendClient {
     return nil
   }
 
+  func parseFMDXStaticPresetFrequencies(staticData: [String: Any]?) -> [Int] {
+    guard let presets = staticData?["presets"] as? [Any] else { return [] }
+
+    var frequencies: [Int] = []
+    var seen = Set<Int>()
+
+    for item in presets {
+      let frequencyHz: Int?
+      if let dictionary = item as? [String: Any] {
+        frequencyHz = parsePresetFrequencyHz(from: dictionary)
+      } else if let raw = parseDouble(item), raw.isFinite, raw > 0 {
+        if raw < 1_000 {
+          frequencyHz = Int((raw * 1_000_000.0).rounded())
+        } else if raw < 1_000_000 {
+          frequencyHz = Int((raw * 1_000.0).rounded())
+        } else {
+          frequencyHz = Int(raw.rounded())
+        }
+      } else {
+        frequencyHz = nil
+      }
+
+      guard let normalizedFrequencyHz = frequencyHz, normalizedFrequencyHz > 0 else {
+        continue
+      }
+
+      let roundedFrequencyHz = Int((Double(normalizedFrequencyHz) / 1_000.0).rounded() * 1_000.0)
+      guard seen.insert(roundedFrequencyHz).inserted else { continue }
+      frequencies.append(roundedFrequencyHz)
+    }
+
+    return frequencies.sorted()
+  }
+
+  func buildFMDXStaticPresetBookmarks(
+    staticData: [String: Any]?,
+    pluginBookmarks: [SDRServerBookmark]
+  ) -> [SDRServerBookmark] {
+    let staticFrequencies = parseFMDXStaticPresetFrequencies(staticData: staticData)
+    guard !staticFrequencies.isEmpty else { return [] }
+
+    let namesByFrequency = Dictionary(uniqueKeysWithValues: pluginBookmarks.map { ($0.frequencyHz, $0.name) })
+
+    return staticFrequencies.enumerated().map { index, frequencyHz in
+      let fallbackName = FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz)
+      let resolvedName = namesByFrequency[frequencyHz]?.trimmingCharacters(in: .whitespacesAndNewlines)
+      let safeName = (resolvedName?.isEmpty == false) ? resolvedName! : fallbackName
+      return SDRServerBookmark(
+        id: "fmdx-station-static-\(index + 1)-\(frequencyHz)",
+        name: safeName,
+        frequencyHz: frequencyHz,
+        modulation: .fm,
+        source: "fmdx-station-list"
+      )
+    }
+  }
+
+  func isGenericFMDXPluginPresetList(_ bookmarks: [SDRServerBookmark]) -> Bool {
+    let genericFrequencies: [Int] = [
+      89_100_000,
+      89_700_000,
+      94_200_000,
+      94_400_000,
+      94_700_000,
+      94_800_000,
+      96_400_000,
+      98_400_000,
+      99_000_000,
+      103_400_000,
+      104_500_000,
+      107_400_000
+    ]
+    let genericNames = Set([
+      "r.piekary",
+      "radio 90",
+      "express fm",
+      "silesia",
+      "piraci slask",
+      "r.fest",
+      "katowice",
+      "radio zet",
+      "r.opole",
+      "antyradio",
+      "r.bielsko",
+      "radio em"
+    ])
+
+    guard bookmarks.count == genericFrequencies.count else { return false }
+    guard bookmarks.map(\.frequencyHz).sorted() == genericFrequencies else { return false }
+
+    let normalizedNames = Set(
+      bookmarks.map {
+        $0.name
+          .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+          .lowercased()
+      }
+    )
+    return normalizedNames.intersection(genericNames).count >= 8
+  }
+
   private func containsAMHint(_ text: String) -> Bool {
     let lowered = text.lowercased()
     let tokens = [" am ", " am/", "/am", " lw ", " mw ", " sw ", "shortwave", "medium wave", "long wave"]
@@ -3495,9 +3593,11 @@ actor FMDXWebserverClient: SDRBackendClient {
     guard now >= nextStationListRefreshAt else { return }
 
     let basePath = activeBasePath
+    let staticData = try? await fetchStaticData(profile: profile)
     let html = try? await fetchIndexHTML(profile: profile, basePath: basePath)
     let stationList = await fetchStationListBookmarks(
       profile: profile,
+      staticData: staticData,
       indexHTML: html,
       basePath: basePath
     )
@@ -3519,17 +3619,14 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func fetchStationListBookmarks(
     profile: SDRConnectionProfile,
+    staticData: [String: Any]?,
     indexHTML: String?,
     basePath: String
   ) async -> [SDRServerBookmark] {
-    if let indexHTML, !indexHTML.isEmpty {
-      let inlineStationList = parseStationListBookmarks(from: indexHTML, requiresPresetMarker: true)
-      if !inlineStationList.isEmpty {
-        stationListUnavailable = false
-        lastPublishedFMDXPresetSource = "inline defaultPresetData"
-        return inlineStationList
-      }
-    }
+    let staticBookmarksFallback = buildFMDXStaticPresetBookmarks(
+      staticData: staticData,
+      pluginBookmarks: []
+    )
 
     let scriptURLs = resolveStationListScriptURLs(
       indexHTML: indexHTML,
@@ -3537,6 +3634,12 @@ actor FMDXWebserverClient: SDRBackendClient {
       basePath: basePath
     )
     guard !scriptURLs.isEmpty else {
+      if !staticBookmarksFallback.isEmpty {
+        stationListUnavailable = false
+        lastPublishedFMDXPresetSource = "static_data.presets"
+        log("Loaded FM-DX station list (\(staticBookmarksFallback.count)) from static_data.presets")
+        return staticBookmarksFallback
+      }
       if let indexHTML, !indexHTML.isEmpty {
         stationListUnavailable = true
       }
@@ -3547,6 +3650,15 @@ actor FMDXWebserverClient: SDRBackendClient {
     var bestScore = Int.min
     var bestSource: String?
     var lastError: Error?
+
+    if let indexHTML, !indexHTML.isEmpty {
+      let inlineStationList = parseStationListBookmarks(from: indexHTML, requiresPresetMarker: true)
+      if !inlineStationList.isEmpty {
+        best = inlineStationList
+        bestScore = FMDXPresetScriptParser.qualityScore(for: inlineStationList)
+        bestSource = "inline defaultPresetData"
+      }
+    }
 
     for scriptURL in scriptURLs {
       do {
@@ -3566,10 +3678,29 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     if !best.isEmpty {
+      let staticBookmarks = buildFMDXStaticPresetBookmarks(
+        staticData: staticData,
+        pluginBookmarks: best
+      )
+
+      if isGenericFMDXPluginPresetList(best), !staticBookmarks.isEmpty {
+        stationListUnavailable = false
+        lastPublishedFMDXPresetSource = "static_data.presets (generic ButtonPresets defaults ignored)"
+        log("Loaded FM-DX station list (\(staticBookmarks.count)) from static_data.presets after rejecting generic plugin defaults")
+        return staticBookmarks
+      }
+
       stationListUnavailable = false
       lastPublishedFMDXPresetSource = bestSource ?? "unknown"
       log("Loaded FM-DX station list (\(best.count)) from \(bestSource ?? "unknown source")")
       return best
+    }
+
+    if !staticBookmarksFallback.isEmpty {
+      stationListUnavailable = false
+      lastPublishedFMDXPresetSource = "static_data.presets"
+      log("Loaded FM-DX station list (\(staticBookmarksFallback.count)) from static_data.presets")
+      return staticBookmarksFallback
     }
 
     if let lastError {
