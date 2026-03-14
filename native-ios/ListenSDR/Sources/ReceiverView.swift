@@ -1452,9 +1452,6 @@ struct ReceiverView: View {
         if let users = telemetry.users {
           LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
         }
-        if let pi = telemetry.pi, !pi.isEmpty {
-          LabeledContent("PI", value: pi)
-        }
         if let ps = telemetry.ps, !ps.isEmpty {
           LabeledContent("PS", value: ps)
         }
@@ -3185,56 +3182,6 @@ private struct FMDXRDSDetailsView: View {
 
   var body: some View {
     List {
-      Section {
-        if let pty = telemetry.pty {
-          LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
-        }
-        if let tp = telemetry.tp {
-          LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-        }
-        if let ta = telemetry.ta {
-          LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-        }
-        if let ms = telemetry.ms {
-          LabeledContent("MS", value: msDisplayText(ms))
-        }
-        if let ecc = telemetry.ecc {
-          LabeledContent("ECC", value: String(format: "0x%02X", ecc))
-        }
-        if let rbds = telemetry.rbds {
-          LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
-        }
-        if let countryISO = telemetry.countryISO, !countryISO.isEmpty, countryISO != "UN" {
-          LabeledContent("ISO", value: countryISO)
-        }
-        if let agc = telemetry.agc, !agc.isEmpty {
-          LabeledContent("AGC", value: agc)
-        }
-
-        Toggle(
-          L10n.text("fmdx.show_rds_errors"),
-          isOn: $showRdsErrorCounters
-        )
-
-        if showRdsErrorCounters {
-          if let errors = telemetry.psErrors, !errors.isEmpty {
-            Text(L10n.text("fmdx.ps_errors", errors))
-              .font(.footnote)
-          }
-          if let errors = telemetry.rt0Errors, !errors.isEmpty {
-            Text(L10n.text("fmdx.rt0_errors", errors))
-              .font(.footnote)
-          }
-          if let errors = telemetry.rt1Errors, !errors.isEmpty {
-            Text(L10n.text("fmdx.rt1_errors", errors))
-              .font(.footnote)
-          }
-        }
-      } header: {
-        AppSectionHeader(title: L10n.text("fmdx.live.more_details"))
-      }
-      .appSectionStyle()
-
       if let tx = telemetry.txInfo {
         Section {
           if let station = tx.station, !station.isEmpty {
@@ -3263,6 +3210,58 @@ private struct FMDXRDSDetailsView: View {
         }
         .appSectionStyle()
       }
+
+      Section {
+        if let pi = telemetry.pi, !pi.isEmpty {
+          LabeledContent("PI", value: pi)
+        }
+        if let pty = telemetry.pty {
+          LabeledContent("PTY", value: ptyDisplayText(pty: pty, rbds: telemetry.rbds))
+        }
+        if let tp = telemetry.tp {
+          LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let ta = telemetry.ta {
+          LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let ms = telemetry.ms {
+          LabeledContent("MS", value: msDisplayText(ms))
+        }
+        if let ecc = telemetry.ecc {
+          LabeledContent("ECC", value: String(format: "0x%02X", ecc))
+        }
+        if let rbds = telemetry.rbds {
+          LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
+        }
+        if let countryISO = telemetry.countryISO, !countryISO.isEmpty, countryISO != "UN" {
+          LabeledContent("ISO", value: countryISO)
+        }
+        if let agc = telemetry.agc, !agc.isEmpty {
+          LabeledContent("AGC", value: agc)
+        }
+        Toggle(
+          L10n.text("fmdx.show_rds_errors"),
+          isOn: $showRdsErrorCounters
+        )
+
+        if showRdsErrorCounters {
+          if let errors = telemetry.psErrors, !errors.isEmpty {
+            Text(L10n.text("fmdx.ps_errors", errors))
+              .font(.footnote)
+          }
+          if let errors = telemetry.rt0Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt0_errors", errors))
+              .font(.footnote)
+          }
+          if let errors = telemetry.rt1Errors, !errors.isEmpty {
+            Text(L10n.text("fmdx.rt1_errors", errors))
+              .font(.footnote)
+          }
+        }
+      } header: {
+        AppSectionHeader(title: L10n.text("fmdx.live.more_details"))
+      }
+      .appSectionStyle()
     }
     .voiceOverStable()
     .listStyle(.insetGrouped)
