@@ -3258,8 +3258,6 @@ private struct FMDXRDSDetailsView: View {
               .font(.footnote)
           }
         }
-      } header: {
-        AppSectionHeader(title: L10n.text("fmdx.live.more_details"))
       }
       .appSectionStyle()
     }
