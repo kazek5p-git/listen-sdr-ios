@@ -26,6 +26,7 @@
 		442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */; };
 		4D7ABA4F816056972029EBCC /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1030E7AA0B8CC314535900F8 /* AppTheme.swift */; };
 		59CC394BFC1D702F05E89F89 /* AppAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FD888482E6AC82C526D34BA /* AppAccessibility.swift */; };
+		5A076344D3BDA61EB1C1213F /* FMDXPresetScriptParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */; };
 		5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */; };
 		5B6794859996E3232249EE49 /* BackendTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C372985075C01F819DD5C32F /* BackendTelemetry.swift */; };
 		60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */; };
@@ -61,6 +62,7 @@
 		D3F4C7905F934163B69D3D83 /* DiagnosticsExportBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08F4C0EC7957D2F44890F03 /* DiagnosticsExportBuilder.swift */; };
 		D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */; };
 		DDE4048086B329E1DA759831 /* AudioPCMUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 289E855420AAC4FEB4FE9053 /* AudioPCMUtilities.swift */; };
+		DE15F0055B02E64403FA1BCD /* FMDXPresetScriptParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DE626B86ADD59B5EF7360F /* FMDXPresetScriptParser.swift */; };
 		E23F2265F3F9263F898DC5F4 /* SDRBackendClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */; };
 		ED24BA1B1978A1D1CA10D49A /* NowPlayingMetadataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */; };
 		ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */; };
@@ -102,6 +104,7 @@
 		3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
 		3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackendClient.swift; sourceTree = "<group>"; };
 		4286BB33324D82C98CA59BFE /* ReceiverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverView.swift; sourceTree = "<group>"; };
+		478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXPresetScriptParserTests.swift; sourceTree = "<group>"; };
 		4AA3EF25749DE49C7AFCB68C /* AppNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationState.swift; sourceTree = "<group>"; };
 		4BE45DEDE28EA384BBF400F2 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemRemoteCommandController.swift; sourceTree = "<group>"; };
@@ -138,6 +141,7 @@
 		C372985075C01F819DD5C32F /* BackendTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendTelemetry.swift; sourceTree = "<group>"; };
 		C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionViewModel.swift; sourceTree = "<group>"; };
 		C6867FB3EC2B87AF1C82B810 /* RecordingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingsView.swift; sourceTree = "<group>"; };
+		C6DE626B86ADD59B5EF7360F /* FMDXPresetScriptParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXPresetScriptParser.swift; sourceTree = "<group>"; };
 		C80BA214359BACE1155A9A84 /* ImportReceiverLinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportReceiverLinkView.swift; sourceTree = "<group>"; };
 		C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandTuningProfile.swift; sourceTree = "<group>"; };
 		CA8430FABA0F566E0392A547 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
@@ -183,6 +187,7 @@
 				E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */,
 				88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */,
 				051509F0C3FD9100CF44E653 /* FavoritesStore.swift */,
+				C6DE626B86ADD59B5EF7360F /* FMDXPresetScriptParser.swift */,
 				2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */,
 				18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */,
 				224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */,
@@ -248,6 +253,7 @@
 			children = (
 				639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */,
 				B30168AE215D849558215B5A /* DemodulationModeTests.swift */,
+				478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */,
 				1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */,
 				E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */,
 				AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */,
@@ -364,6 +370,7 @@
 				1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */,
 				D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */,
 				9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */,
+				DE15F0055B02E64403FA1BCD /* FMDXPresetScriptParser.swift in Sources */,
 				106F02F6EE5D195101DB9119 /* FavoritesStore.swift in Sources */,
 				F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */,
 				FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */,
@@ -409,6 +416,7 @@
 			files = (
 				288CC8F359232EA856E298B8 /* AudioPCMUtilitiesTests.swift in Sources */,
 				6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */,
+				5A076344D3BDA61EB1C1213F /* FMDXPresetScriptParserTests.swift in Sources */,
 				8EEE5FD254E0DE0BAF51E579 /* FrequencyInputParserTests.swift in Sources */,
 				7D25DAE60B06F3AA4E27B9F6 /* KiwiWaterfallViewportTests.swift in Sources */,
 				442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */,
