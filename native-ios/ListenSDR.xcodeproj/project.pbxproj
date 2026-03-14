@@ -69,6 +69,7 @@
 		F109327EDC709AF605C0E48D /* ListenSDRApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */; };
 		F1D937053202CA81759996E2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7B8C0A52D13309CB9883A20A /* Localizable.strings */; };
 		F6F682EDACA33838D4B96AB0 /* FrequencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2ECCE73C2CF7079D9E93D0 /* FrequencyFormatter.swift */; };
+		F95C89B3900EBD196A458D33 /* FMDXStationListResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F5A68FE08373C6C9818B34 /* FMDXStationListResolverTests.swift */; };
 		FD2A46F7134EB59E0B1C8FAD /* KiwiWaterfallProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */; };
 		FD975B9ED655053516EC78BD /* FrequencyInputParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */; };
 /* End PBXBuildFile section */
@@ -87,6 +88,7 @@
 		0486B345984166EC54D1381A /* ReceiverLinkImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverLinkImportTests.swift; sourceTree = "<group>"; };
 		051509F0C3FD9100CF44E653 /* FavoritesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesStore.swift; sourceTree = "<group>"; };
 		06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRApp.swift; sourceTree = "<group>"; };
+		07F5A68FE08373C6C9818B34 /* FMDXStationListResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXStationListResolverTests.swift; sourceTree = "<group>"; };
 		1030E7AA0B8CC314535900F8 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		11598D4ED736766676E23600 /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
 		18D772E0E9EE4694BC16D159 /* FrequencyInputParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyInputParser.swift; sourceTree = "<group>"; };
@@ -254,6 +256,7 @@
 				639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */,
 				B30168AE215D849558215B5A /* DemodulationModeTests.swift */,
 				478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */,
+				07F5A68FE08373C6C9818B34 /* FMDXStationListResolverTests.swift */,
 				1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */,
 				E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */,
 				AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */,
@@ -417,6 +420,7 @@
 				288CC8F359232EA856E298B8 /* AudioPCMUtilitiesTests.swift in Sources */,
 				6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */,
 				5A076344D3BDA61EB1C1213F /* FMDXPresetScriptParserTests.swift in Sources */,
+				F95C89B3900EBD196A458D33 /* FMDXStationListResolverTests.swift in Sources */,
 				8EEE5FD254E0DE0BAF51E579 /* FrequencyInputParserTests.swift in Sources */,
 				7D25DAE60B06F3AA4E27B9F6 /* KiwiWaterfallViewportTests.swift in Sources */,
 				442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */,
