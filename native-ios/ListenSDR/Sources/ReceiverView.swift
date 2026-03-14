@@ -265,7 +265,6 @@ struct ReceiverView: View {
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var isFMDXStationListExpanded = false
   @State private var isFMDXAFExpanded = false
-  @State private var isFMDXRDSDetailsExpanded = false
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -1447,37 +1446,15 @@ struct ReceiverView: View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
       Section {
         fmDxSignalMetricsRow(telemetry: telemetry)
+        if let users = telemetry.users {
+          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
+        }
         if let ps = telemetry.ps, !ps.isEmpty {
           LabeledContent("PS", value: ps)
-        }
-        if let rt0 = telemetry.rt0, !rt0.isEmpty {
-          Text(L10n.text("fmdx.rt0", rt0))
-            .font(.footnote)
-        }
-        if let rt1 = telemetry.rt1, !rt1.isEmpty {
-          Text(L10n.text("fmdx.rt1", rt1))
-            .font(.footnote)
         }
         if let countryName = telemetry.countryName, !countryName.isEmpty {
           LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
         }
-        FocusRetainingButton {
-          isFMDXRDSDetailsExpanded.toggle()
-        } label: {
-          Label(
-            L10n.text(
-              isFMDXRDSDetailsExpanded
-                ? "fmdx.live.more_details.collapse"
-                : "fmdx.live.more_details.expand"
-            ),
-            systemImage: isFMDXRDSDetailsExpanded ? "chevron.up" : "chevron.down"
-          )
-        }
-
-        if isFMDXRDSDetailsExpanded {
-          fmDxRDSDetailsRows(telemetry: telemetry)
-        }
-
         if !telemetry.afMHz.isEmpty {
           FocusRetainingButton {
             isFMDXAFExpanded.toggle()
@@ -1509,129 +1486,30 @@ struct ReceiverView: View {
             }
           }
         }
-
-        if let users = telemetry.users {
-          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
+        if let rt0 = telemetry.rt0, !rt0.isEmpty {
+          Text(L10n.text("fmdx.rt0", rt0))
+            .font(.footnote)
+        }
+        if let rt1 = telemetry.rt1, !rt1.isEmpty {
+          Text(L10n.text("fmdx.rt1", rt1))
+            .font(.footnote)
+        }
+        NavigationLink {
+          FMDXRDSDetailsView(
+            telemetry: telemetry,
+            showRdsErrorCounters: Binding(
+              get: { radioSession.settings.showRdsErrorCounters },
+              set: { radioSession.setShowRdsErrorCounters($0) }
+            )
+          )
+        } label: {
+          Label(L10n.text("fmdx.live.more_details"), systemImage: "text.badge.plus")
         }
       } header: {
         AppSectionHeader(title: L10n.text("fmdx.live.section"))
       }
       .appSectionStyle()
     }
-  }
-
-  @ViewBuilder
-  private func fmDxRDSDetailsRows(telemetry: FMDXTelemetry) -> some View {
-    if let tx = telemetry.txInfo {
-      if let station = tx.station, !station.isEmpty {
-        LabeledContent(L10n.text("TX"), value: station)
-      }
-      if let city = tx.city, !city.isEmpty {
-        LabeledContent(L10n.text("City"), value: city)
-      }
-      if let itu = tx.itu, !itu.isEmpty {
-        LabeledContent("ITU", value: itu)
-      }
-      if let distance = tx.distanceKm, !distance.isEmpty {
-        LabeledContent(L10n.text("fmdx.field.distance"), value: "\(distance) km")
-      }
-      if let azimuth = tx.azimuthDeg, !azimuth.isEmpty {
-        LabeledContent(L10n.text("fmdx.field.azimuth"), value: "\(azimuth) deg")
-      }
-      if let erp = tx.erpKW, !erp.isEmpty {
-        LabeledContent("ERP", value: "\(erp) kW")
-      }
-      if let polarization = tx.polarization, !polarization.isEmpty {
-        LabeledContent(L10n.text("fmdx.field.polarization"), value: polarization)
-      }
-    }
-
-    if let pi = telemetry.pi, !pi.isEmpty {
-      LabeledContent("PI", value: pi)
-    }
-    if let pty = telemetry.pty {
-      LabeledContent("PTY", value: fmDxPTYDisplayText(pty: pty, rbds: telemetry.rbds))
-    }
-    if let tp = telemetry.tp {
-      LabeledContent("TP", value: tp == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-    }
-    if let ta = telemetry.ta {
-      LabeledContent("TA", value: ta == 1 ? L10n.text("common.yes") : L10n.text("common.no"))
-    }
-    if let ms = telemetry.ms {
-      LabeledContent("MS", value: fmDxMSDisplayText(ms))
-    }
-    if let ecc = telemetry.ecc {
-      LabeledContent("ECC", value: String(format: "0x%02X", ecc))
-    }
-    if let rbds = telemetry.rbds {
-      LabeledContent("RBDS", value: rbds ? L10n.text("common.yes") : L10n.text("common.no"))
-    }
-    if let countryISO = telemetry.countryISO, !countryISO.isEmpty, countryISO != "UN" {
-      LabeledContent("ISO", value: countryISO)
-    }
-    if let agc = telemetry.agc, !agc.isEmpty {
-      LabeledContent("AGC", value: agc)
-    }
-
-    Toggle(
-      L10n.text("fmdx.show_rds_errors"),
-      isOn: Binding(
-        get: { radioSession.settings.showRdsErrorCounters },
-        set: { radioSession.setShowRdsErrorCounters($0) }
-      )
-    )
-
-    if radioSession.settings.showRdsErrorCounters {
-      if let errors = telemetry.psErrors, !errors.isEmpty {
-        Text(L10n.text("fmdx.ps_errors", errors))
-          .font(.footnote)
-      }
-      if let errors = telemetry.rt0Errors, !errors.isEmpty {
-        Text(L10n.text("fmdx.rt0_errors", errors))
-          .font(.footnote)
-      }
-      if let errors = telemetry.rt1Errors, !errors.isEmpty {
-        Text(L10n.text("fmdx.rt1_errors", errors))
-          .font(.footnote)
-      }
-    }
-  }
-
-  private func fmDxMSDisplayText(_ ms: Int) -> String {
-    switch ms {
-    case 1:
-      return L10n.text("common.yes")
-    case 0:
-      return L10n.text("common.no")
-    default:
-      return L10n.text("common.not_selected")
-    }
-  }
-
-  private func fmDxPTYDisplayText(pty: Int, rbds: Bool?) -> String {
-    let labelsEU = [
-      "No PTY", "News", "Current Affairs", "Info", "Sport", "Education", "Drama", "Culture",
-      "Science", "Varied", "Pop Music", "Rock Music", "Easy Listening", "Light Classical",
-      "Serious Classical", "Other Music", "Weather", "Finance", "Children's", "Social Affairs",
-      "Religion", "Phone-in", "Travel", "Leisure", "Jazz Music", "Country Music", "National Music",
-      "Oldies Music", "Folk Music", "Documentary", "Alarm Test", "Alarm"
-    ]
-    let labelsUS = [
-      "No PTY", "News", "Information", "Sports", "Talk", "Rock", "Classic Rock", "Adult Hits",
-      "Soft Rock", "Top 40", "Country", "Oldies", "Soft Music", "Nostalgia", "Jazz", "Classical",
-      "Rhythm and Blues", "Soft R&B", "Language", "Religious Music", "Religious Talk", "Personality",
-      "Public", "College", "Spanish Talk", "Spanish Music", "Hip Hop", "", "", "Weather",
-      "Emergency Test", "Emergency"
-    ]
-
-    let labels = rbds == true ? labelsUS : labelsEU
-    guard pty >= 0, pty < labels.count else {
-      return "\(pty)"
-    }
-
-    let label = labels[pty]
-    return label.isEmpty ? "\(pty)" : "\(pty) \(label)"
   }
 
   @ViewBuilder
