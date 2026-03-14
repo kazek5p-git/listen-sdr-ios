@@ -31,7 +31,7 @@ enum FMDXPresetScriptParser {
     }
 
     let localStorageFallbackBlocks = captures(
-      for: #"(?is)JSON\.parse\([^\)]*localStorage[^\)]*\)\s*\|\|\s*\{([\s\S]*?)\}"#,
+      for: #"(?is)localStorage\.getItem\([\s\S]*?\)\s*\)\s*\|\|\s*\{([\s\S]*?)\}"#,
       in: script,
       group: 1
     )
