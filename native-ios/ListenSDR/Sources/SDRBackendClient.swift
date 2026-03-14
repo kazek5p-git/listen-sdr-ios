@@ -3554,7 +3554,7 @@ actor FMDXWebserverClient: SDRBackendClient {
         let stationList = parseStationListBookmarks(from: script)
         guard !stationList.isEmpty else { continue }
 
-        let score = stationListQualityScore(stationList)
+        let score = FMDXPresetScriptParser.qualityScore(for: stationList)
         if score > bestScore {
           best = stationList
           bestScore = score

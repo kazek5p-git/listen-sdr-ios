@@ -1,6 +1,10 @@
 import Foundation
 
 enum FMDXPresetScriptParser {
+  static func qualityScore(for bookmarks: [SDRServerBookmark]) -> Int {
+    stationListQualityScore(bookmarks)
+  }
+
   static func parseBookmarks(
     from script: String,
     requiresPresetMarker: Bool = false,
