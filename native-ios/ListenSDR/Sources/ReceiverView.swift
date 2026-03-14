@@ -1549,14 +1549,6 @@ struct ReceiverView: View {
     if let pi = telemetry.pi, !pi.isEmpty {
       LabeledContent("PI", value: pi)
     }
-    if let rt0 = telemetry.rt0, !rt0.isEmpty {
-      Text(L10n.text("fmdx.rt0", rt0))
-        .font(.footnote)
-    }
-    if let rt1 = telemetry.rt1, !rt1.isEmpty {
-      Text(L10n.text("fmdx.rt1", rt1))
-        .font(.footnote)
-    }
     if let pty = telemetry.pty {
       LabeledContent("PTY", value: fmDxPTYDisplayText(pty: pty, rbds: telemetry.rbds))
     }
