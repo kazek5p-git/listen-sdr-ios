@@ -789,7 +789,7 @@ struct ReceiverView: View {
           }
         }
       }
-      } header: {
+      header: {
         AppSectionHeader(title: L10n.text("fmdx.server_presets.section"))
       }
       .appSectionStyle()
