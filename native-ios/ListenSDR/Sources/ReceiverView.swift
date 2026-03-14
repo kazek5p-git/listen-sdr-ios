@@ -263,7 +263,7 @@ struct ReceiverView: View {
   @State private var inlineFrequencyEditing = false
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
   @State private var scanSource: ScanSource = .serverBookmarks
-  @State private var isFMDXStationListExpanded = true
+  @State private var isFMDXStationListExpanded = false
   @State private var isFMDXAFExpanded = false
   @State private var isFMDXRDSDetailsExpanded = false
 
@@ -1447,15 +1447,37 @@ struct ReceiverView: View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
       Section {
         fmDxSignalMetricsRow(telemetry: telemetry)
-        if let users = telemetry.users {
-          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
-        }
         if let ps = telemetry.ps, !ps.isEmpty {
           LabeledContent("PS", value: ps)
+        }
+        if let rt0 = telemetry.rt0, !rt0.isEmpty {
+          Text(L10n.text("fmdx.rt0", rt0))
+            .font(.footnote)
+        }
+        if let rt1 = telemetry.rt1, !rt1.isEmpty {
+          Text(L10n.text("fmdx.rt1", rt1))
+            .font(.footnote)
         }
         if let countryName = telemetry.countryName, !countryName.isEmpty {
           LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
         }
+        FocusRetainingButton {
+          isFMDXRDSDetailsExpanded.toggle()
+        } label: {
+          Label(
+            L10n.text(
+              isFMDXRDSDetailsExpanded
+                ? "fmdx.live.more_details.collapse"
+                : "fmdx.live.more_details.expand"
+            ),
+            systemImage: isFMDXRDSDetailsExpanded ? "chevron.up" : "chevron.down"
+          )
+        }
+
+        if isFMDXRDSDetailsExpanded {
+          fmDxRDSDetailsRows(telemetry: telemetry)
+        }
+
         if !telemetry.afMHz.isEmpty {
           FocusRetainingButton {
             isFMDXAFExpanded.toggle()
@@ -1487,21 +1509,9 @@ struct ReceiverView: View {
             }
           }
         }
-        FocusRetainingButton {
-          isFMDXRDSDetailsExpanded.toggle()
-        } label: {
-          Label(
-            L10n.text(
-              isFMDXRDSDetailsExpanded
-                ? "fmdx.live.more_details.collapse"
-                : "fmdx.live.more_details.expand"
-            ),
-            systemImage: isFMDXRDSDetailsExpanded ? "chevron.up" : "chevron.down"
-          )
-        }
 
-        if isFMDXRDSDetailsExpanded {
-          fmDxRDSDetailsRows(telemetry: telemetry)
+        if let users = telemetry.users {
+          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
         }
       } header: {
         AppSectionHeader(title: L10n.text("fmdx.live.section"))
