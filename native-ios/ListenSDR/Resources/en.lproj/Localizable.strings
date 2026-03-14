@@ -187,13 +187,13 @@
 "kiwi.live.audio_rate" = "Audio rate";
 "kiwi.live.waterfall" = "Waterfall";
 "kiwi.live.waterfall_loading" = "Waterfall loading...";
-"fmdx.server_presets.section" = "Server presets";
-"fmdx.server_presets.empty" = "No server presets yet (or still loading).";
+"fmdx.server_presets.section" = "Server station list";
+"fmdx.server_presets.empty" = "No server station list yet (or still loading).";
 "fmdx.server_slots.section" = "Server slots (F1-F4)";
 "fmdx.server_slots.expand" = "Show server slots (F1-F4)";
 "fmdx.server_slots.collapse" = "Hide server slots (F1-F4)";
-"fmdx.station_list.expand" = "Expand server presets";
-"fmdx.station_list.collapse" = "Collapse server presets";
+"fmdx.station_list.expand" = "Expand server station list";
+"fmdx.station_list.collapse" = "Collapse server station list";
 "fmdx.af_list.expand" = "Expand AF";
 "fmdx.af_list.collapse" = "Collapse AF";
 "fmdx.live.more_details" = "More RDS details";
