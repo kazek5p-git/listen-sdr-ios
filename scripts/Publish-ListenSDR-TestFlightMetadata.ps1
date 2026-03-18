@@ -10,6 +10,7 @@ param(
   [string]$BuildVersion,
   [string]$BetaGroupName = "wewnetrzna",
   [string]$BetaGroupId = "89359342-cf9d-480b-9c75-8e34a7fef728",
+  [switch]$ValidateOnly,
   [switch]$Json
 )
 
@@ -97,7 +98,14 @@ function Get-ReleaseNotesPayload {
 }
 
 function Assert-Prerequisites {
-  param([string]$ResolvedAscApiKeyPath)
+  param(
+    [string]$ResolvedAscApiKeyPath,
+    [switch]$SkipAscChecks
+  )
+
+  if ($SkipAscChecks) {
+    return
+  }
 
   if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     throw "python is not available in PATH."
@@ -118,7 +126,7 @@ if ([string]::IsNullOrWhiteSpace($ReleaseNotesRoot)) {
 }
 
 $AscApiKeyPath = Resolve-DefaultAscApiKeyPath -CurrentValue $AscApiKeyPath
-Assert-Prerequisites -ResolvedAscApiKeyPath $AscApiKeyPath
+Assert-Prerequisites -ResolvedAscApiKeyPath $AscApiKeyPath -SkipAscChecks:$ValidateOnly
 
 $releaseInfo = Get-ReleaseInfoFromInfoPlist -Path $InfoPlistPath
 if ([string]::IsNullOrWhiteSpace($MarketingVersion)) {
@@ -130,6 +138,38 @@ if ([string]::IsNullOrWhiteSpace($BuildVersion)) {
 
 $releaseNotesDirectory = Get-ReleaseNotesDirectory -Root $ReleaseNotesRoot -MarketingVersion $MarketingVersion -BuildVersion $BuildVersion
 $localizations = Get-ReleaseNotesPayload -DirectoryPath $releaseNotesDirectory
+
+if ($ValidateOnly) {
+  $validationResult = [pscustomobject]@{
+    ok = $true
+    mode = "validate-only"
+    bundleId = $BundleId
+    marketingVersion = $MarketingVersion
+    buildVersion = $BuildVersion
+    releaseNotesDirectory = $releaseNotesDirectory
+    locales = @($localizations | ForEach-Object { $_.locale })
+    localizationLengths = @(
+      $localizations | ForEach-Object {
+        [pscustomobject]@{
+          locale = $_.locale
+          length = $_.whatsNew.Length
+        }
+      }
+    )
+  }
+
+  if ($Json) {
+    $validationResult | ConvertTo-Json -Depth 8
+  } else {
+    Write-Host ("Bundle ID: " + $validationResult.bundleId)
+    Write-Host ("Version: " + $validationResult.marketingVersion + " (" + $validationResult.buildVersion + ")")
+    Write-Host ("Release notes directory: " + $validationResult.releaseNotesDirectory)
+    foreach ($item in $validationResult.localizationLengths) {
+      Write-Host ("Locale " + $item.locale + ": validated (" + $item.length + " chars)")
+    }
+  }
+  exit 0
+}
 
 $requestPayload = @{
   bundleId = $BundleId

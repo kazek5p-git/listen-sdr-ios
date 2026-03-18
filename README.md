@@ -105,6 +105,7 @@ Co robi:
 - czeka az build przejdzie w stan `VALID`
 - ustawia `What to Test` po `pl` i `en-US`
 - przypina build do grupy beta `wewnętrzna`
+- blokuje publikacje, jesli lokalny build nie jest dokladnie nastepnym numerem po ostatnim buildzie z App Store Connect
 
 Notatki TestFlight sa trzymane wersjonowo w repo:
 - `release/testflight/<wersja>-build-<build>/what-to-test.pl.txt`
@@ -119,8 +120,34 @@ Do samej publikacji metadanych po uploadzie mozna uzyc tez osobno:
 powershell -ExecutionPolicy Bypass -File .\scripts\Publish-ListenSDR-TestFlightMetadata.ps1
 ```
 
+Walidacja samych notatek TestFlight bez dotykania App Store Connect:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Publish-ListenSDR-TestFlightMetadata.ps1 -ValidateOnly
+```
+
 Do zalozenia katalogu notatek dla nastepnego builda:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\New-ListenSDR-TestFlightReleaseNotes.ps1
 ```
+
+Preflight przed publikacja:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Test-ListenSDR-TestFlightPreflight.ps1
+```
+
+Pelny DryRun bez uploadu:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -DryRun
+```
+
+DryRun:
+- uruchamia preflight
+- buduje i podpisuje aplikacje na zdalnym Macu
+- eksportuje `.ipa`
+- waliduje notatki TestFlight
+- nie wysyla builda do App Store Connect
+- nie publikuje metadanych do TestFlight
