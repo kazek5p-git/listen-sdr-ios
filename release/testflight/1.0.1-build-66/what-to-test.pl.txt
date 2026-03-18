@@ -1,0 +1,1 @@
+Proszę szczególnie sprawdzić stabilność połączeń, płynność audio oraz działanie skanerów w FM-DX, KiwiSDR i OpenWebRX. Warto też przetestować historię odsłuchu, przywracanie odbiornika i częstotliwości, rozwijane sekcje interfejsu, poprawki VoiceOver, tłumaczenia, katalog odbiorników oraz formularz zgłoszeń błędów i sugestii.

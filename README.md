@@ -91,3 +91,36 @@ W systemie sa ustawione zmienne:
 - `EXPO_APPLE_TEAM_TYPE`
 
 Do buildow EAS potrzebne jest zalogowanie do konta Expo (`eas login` lub `EXPO_TOKEN`).
+
+## Zdalny pipeline TestFlight (Mac + App Store Connect)
+Domyslny pipeline do wypuszczania builda TestFlight zdalnie:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Run-ListenSDR-TestFlightEndToEnd.ps1
+```
+
+Co robi:
+- buduje i podpisuje aplikacje na zdalnym Macu `mac_axela`
+- wysyla `.ipa` do TestFlight
+- czeka az build przejdzie w stan `VALID`
+- ustawia `What to Test` po `pl` i `en-US`
+- przypina build do grupy beta `wewnętrzna`
+
+Notatki TestFlight sa trzymane wersjonowo w repo:
+- `release/testflight/<wersja>-build-<build>/what-to-test.pl.txt`
+- `release/testflight/<wersja>-build-<build>/what-to-test.en-US.txt`
+
+Dla aktualnego builda:
+- `release/testflight/1.0.1-build-66/`
+
+Do samej publikacji metadanych po uploadzie mozna uzyc tez osobno:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Publish-ListenSDR-TestFlightMetadata.ps1
+```
+
+Do zalozenia katalogu notatek dla nastepnego builda:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\New-ListenSDR-TestFlightReleaseNotes.ps1
+```

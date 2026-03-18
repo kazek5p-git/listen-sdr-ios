@@ -1,0 +1,1 @@
+Please focus on connection stability, audio smoothness, and scanner behavior in FM-DX, KiwiSDR, and OpenWebRX. It is also worth testing listening history restore, receiver/frequency recall, collapsible interface sections, VoiceOver improvements, translations, the receiver directory, and the in-app bug/suggestion reporting form.
