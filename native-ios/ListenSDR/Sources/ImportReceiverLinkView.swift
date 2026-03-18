@@ -46,8 +46,6 @@ struct ImportReceiverLinkView: View {
               .font(.footnote)
               .foregroundStyle(.red)
           }
-        } header: {
-          AppSectionHeader(title: L10n.text("receiver.import.section"))
         }
         .appSectionStyle()
 

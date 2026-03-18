@@ -41,6 +41,7 @@ struct ListenSDRFeedbackContext {
     let outputSampleRateHz: Int
     let lastInputSampleRateHz: Int?
     let queuedBuffers: Int
+    let queuedDurationSeconds: Double
     let engineRunning: Bool
     let sessionConfigured: Bool
     let secondsSinceLastEnqueue: Double?
@@ -55,6 +56,7 @@ struct ListenSDRFeedbackContext {
     let mode: String
   }
 
+  let audioDiagnostics: AudioSessionDiagnosticsSnapshot
   let appVersion: String
   let buildNumber: String
   let localeIdentifier: String
@@ -63,13 +65,15 @@ struct ListenSDRFeedbackContext {
   let voiceOverEnabled: Bool
   let session: SessionSnapshot
   let audioOutput: AudioOutputSnapshot
+  let audioLogExcerpt: String?
   let receiver: ReceiverSnapshot?
 
   @MainActor
   static func current(
     profile: SDRConnectionProfile?,
     settings: RadioSessionSettings,
-    radioSession: RadioSessionViewModel
+    radioSession: RadioSessionViewModel,
+    diagnostics: DiagnosticsStore
   ) -> ListenSDRFeedbackContext {
     let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     let buildNumber = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
@@ -77,6 +81,7 @@ struct ListenSDRFeedbackContext {
     let systemVersion = "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
     let deviceModel = hardwareIdentifier()
     let audioOutputSnapshot = SharedAudioOutput.engine.runtimeSnapshot()
+    let audioDiagnostics = radioSession.audioDiagnosticsSnapshot
     let receiver = profile.map {
       ReceiverSnapshot(
         name: $0.name,
@@ -88,6 +93,7 @@ struct ListenSDRFeedbackContext {
     }
 
     return ListenSDRFeedbackContext(
+      audioDiagnostics: audioDiagnostics,
       appVersion: appVersion,
       buildNumber: buildNumber,
       localeIdentifier: localeIdentifier,
@@ -106,11 +112,13 @@ struct ListenSDRFeedbackContext {
         outputSampleRateHz: audioOutputSnapshot.outputSampleRateHz,
         lastInputSampleRateHz: audioOutputSnapshot.lastInputSampleRateHz,
         queuedBuffers: audioOutputSnapshot.queuedBuffers,
+        queuedDurationSeconds: audioOutputSnapshot.queuedDurationSeconds,
         engineRunning: audioOutputSnapshot.engineRunning,
         sessionConfigured: audioOutputSnapshot.sessionConfigured,
         secondsSinceLastEnqueue: audioOutputSnapshot.secondsSinceLastEnqueue,
         lastStartError: audioOutputSnapshot.lastStartError
       ),
+      audioLogExcerpt: diagnostics.exportAudioExcerpt(),
       receiver: receiver
     )
   }
@@ -155,6 +163,7 @@ private struct ListenSDRFeedbackPayload: Encodable {
     let outputSampleRateHz: Int
     let lastInputSampleRateHz: Int?
     let queuedBuffers: Int
+    let queuedDurationSeconds: Double
     let engineRunning: Bool
     let sessionConfigured: Bool
     let secondsSinceLastEnqueue: Double?
@@ -167,6 +176,35 @@ private struct ListenSDRFeedbackPayload: Encodable {
     let endpoint: String
     let frequencyHz: Int
     let mode: String
+  }
+
+  struct SharedAudioDiagnosticsPayload: Encodable {
+    let sampleCount: Int
+    let peakQueuedBuffers: Int
+    let peakSecondsSinceLastEnqueue: Double
+  }
+
+  struct FMDXAudioDiagnosticsPayload: Encodable {
+    let sampleCount: Int
+    let peakQueuedDurationSeconds: Double
+    let peakQueuedBuffers: Int
+    let peakOutputGapSeconds: Double
+    let latencyTrimEvents: Int
+    let queueStarted: Bool
+    let currentQueuedDurationSeconds: Double
+    let currentQueuedBuffers: Int
+    let currentOutputGapSeconds: Double
+    let currentLatencyTrimAgeSeconds: Double?
+    let currentQualityScore: Int?
+    let currentQualityLevel: String?
+  }
+
+  struct AudioDiagnosticsPayload: Encodable {
+    let connectedDurationSeconds: Double?
+    let automaticReconnectAttempts: Int
+    let automaticReconnectSuccesses: Int
+    let sharedAudio: SharedAudioDiagnosticsPayload
+    let fmdxAudio: FMDXAudioDiagnosticsPayload?
   }
 
   let source: String
@@ -183,6 +221,8 @@ private struct ListenSDRFeedbackPayload: Encodable {
   let voiceOverEnabled: Bool
   let session: SessionPayload
   let audioOutput: AudioOutputPayload
+  let audioDiagnostics: AudioDiagnosticsPayload
+  let audioLogExcerpt: String?
   let receiver: ReceiverPayload?
   let diagnosticsText: String?
 
@@ -217,11 +257,39 @@ private struct ListenSDRFeedbackPayload: Encodable {
       outputSampleRateHz: context.audioOutput.outputSampleRateHz,
       lastInputSampleRateHz: context.audioOutput.lastInputSampleRateHz,
       queuedBuffers: context.audioOutput.queuedBuffers,
+      queuedDurationSeconds: context.audioOutput.queuedDurationSeconds,
       engineRunning: context.audioOutput.engineRunning,
       sessionConfigured: context.audioOutput.sessionConfigured,
       secondsSinceLastEnqueue: context.audioOutput.secondsSinceLastEnqueue,
       lastStartError: context.audioOutput.lastStartError
     )
+    audioDiagnostics = AudioDiagnosticsPayload(
+      connectedDurationSeconds: context.audioDiagnostics.connectedDurationSeconds,
+      automaticReconnectAttempts: context.audioDiagnostics.automaticReconnectAttempts,
+      automaticReconnectSuccesses: context.audioDiagnostics.automaticReconnectSuccesses,
+      sharedAudio: SharedAudioDiagnosticsPayload(
+        sampleCount: context.audioDiagnostics.sharedAudio.sampleCount,
+        peakQueuedBuffers: context.audioDiagnostics.sharedAudio.peakQueuedBuffers,
+        peakSecondsSinceLastEnqueue: context.audioDiagnostics.sharedAudio.peakSecondsSinceLastEnqueue
+      ),
+      fmdxAudio: context.audioDiagnostics.fmdxAudio.map {
+        FMDXAudioDiagnosticsPayload(
+          sampleCount: $0.sampleCount,
+          peakQueuedDurationSeconds: $0.peakQueuedDurationSeconds,
+          peakQueuedBuffers: $0.peakQueuedBuffers,
+          peakOutputGapSeconds: $0.peakOutputGapSeconds,
+          latencyTrimEvents: $0.latencyTrimEvents,
+          queueStarted: $0.queueStarted,
+          currentQueuedDurationSeconds: $0.currentQueuedDurationSeconds,
+          currentQueuedBuffers: $0.currentQueuedBuffers,
+          currentOutputGapSeconds: $0.currentOutputGapSeconds,
+          currentLatencyTrimAgeSeconds: $0.currentLatencyTrimAgeSeconds,
+          currentQualityScore: $0.currentQualityScore,
+          currentQualityLevel: $0.currentQualityLevel
+        )
+      }
+    )
+    audioLogExcerpt = context.audioLogExcerpt
     receiver = context.receiver.map {
       ReceiverPayload(
         name: $0.name,

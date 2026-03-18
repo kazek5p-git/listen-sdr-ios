@@ -10,134 +10,10 @@ struct ReceiverDirectoryView: View {
   var body: some View {
     NavigationStack {
       List {
-        Section {
-          Picker(L10n.text("Backend source"), selection: $viewModel.selectedBackend) {
-            ForEach(viewModel.supportedBackends) { backend in
-              Text(backend.displayName).tag(backend)
-            }
-          }
-          .pickerStyle(.segmented)
-          .accessibilityLabel(L10n.text("Receiver backend list"))
-        } header: {
-          AppSectionHeader(title: L10n.text("Backend"))
-        }
-        .appSectionStyle()
-
-        Section {
-          CyclingOptionCard(
-            title: L10n.text("directory.filters.status"),
-            selectedTitle: viewModel.statusFilter.displayName,
-            detail: optionPositionDetail(currentIndex: statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0, totalCount: statusFilterOptions.count),
-            canDecrement: canCycle(currentIndex: statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0, totalCount: statusFilterOptions.count, offset: -1),
-            canIncrement: canCycle(currentIndex: statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0, totalCount: statusFilterOptions.count, offset: 1),
-            accessibilityHint: L10n.text("directory.filters.cycler_hint")
-          ) {
-            cycleStatusFilter(by: -1)
-          } incrementAction: {
-            cycleStatusFilter(by: 1)
-          }
-
-          CyclingOptionCard(
-            title: L10n.text("directory.filters.sort"),
-            selectedTitle: viewModel.sortOption.displayName,
-            detail: optionPositionDetail(currentIndex: sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0, totalCount: sortOptions.count),
-            canDecrement: canCycle(currentIndex: sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0, totalCount: sortOptions.count, offset: -1),
-            canIncrement: canCycle(currentIndex: sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0, totalCount: sortOptions.count, offset: 1),
-            accessibilityHint: L10n.text("directory.filters.cycler_hint")
-          ) {
-            cycleSortOption(by: -1)
-          } incrementAction: {
-            cycleSortOption(by: 1)
-          }
-
-          if !viewModel.availableCountries.isEmpty {
-            CyclingOptionCard(
-              title: L10n.text("directory.filters.country"),
-              selectedTitle: selectedCountryTitle,
-              detail: optionPositionDetail(currentIndex: countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0, totalCount: countryOptions.count),
-              canDecrement: canCycle(currentIndex: countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0, totalCount: countryOptions.count, offset: -1),
-              canIncrement: canCycle(currentIndex: countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0, totalCount: countryOptions.count, offset: 1),
-              accessibilityHint: L10n.text("directory.filters.cycler_hint")
-            ) {
-              cycleCountry(by: -1)
-            } incrementAction: {
-              cycleCountry(by: 1)
-            }
-          }
-
-          Toggle(
-            L10n.text("directory.filters.favorites_only"),
-            isOn: $viewModel.favoritesOnly
-          )
-        } header: {
-          AppSectionHeader(title: L10n.text("directory.filters.section"))
-        }
-        .appSectionStyle()
-
-        Section {
-          if let lastRefreshDate = viewModel.lastRefreshDate {
-            Text(
-              L10n.text(
-                "directory.last_update",
-                lastRefreshDate.formatted(date: .abbreviated, time: .shortened)
-              )
-            )
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          } else {
-            Text(L10n.text("No directory data cached yet."))
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          }
-
-          if let errorMessage = viewModel.errorMessage {
-            Text(errorMessage)
-              .foregroundStyle(.orange)
-              .font(.footnote)
-              .accessibilityLabel(L10n.text("Directory error"))
-          }
-
-          if let cacheStatusText = viewModel.cacheStatusText {
-            Text(cacheStatusText)
-              .foregroundStyle(.secondary)
-              .font(.footnote)
-          }
-
-          if viewModel.isProbingStatus {
-            HStack(spacing: 8) {
-              ProgressView()
-              Text(L10n.text("Checking receiver availability..."))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
-            .accessibilityLabel(L10n.text("Checking receiver availability"))
-          }
-        } header: {
-          AppSectionHeader(title: L10n.text("Status"))
-        } footer: {
-          Text(viewModel.sourceSummaryText)
-        }
-        .appSectionStyle()
-
-        Section {
-          let filteredEntries = viewModel.filteredEntries(favoriteReceiverIDs: favoritesStore.favoriteReceiverIDs)
-
-          if filteredEntries.isEmpty {
-            if viewModel.isLoading {
-              ProgressView(L10n.text("Refreshing directory..."))
-                .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-              Text(L10n.text("No receivers found for current filter."))
-                .foregroundStyle(.secondary)
-            }
-          } else {
-            ForEach(filteredEntries) { entry in
-              directoryRow(for: entry)
-            }
-          }
-        } header: {
-          AppSectionHeader(title: L10n.text("Receivers"))
-        }
+        backendSection
+        filtersSection
+        statusSection
+        receiversSection
       }
       .voiceOverStable()
       .listStyle(.insetGrouped)
@@ -157,7 +33,7 @@ struct ReceiverDirectoryView: View {
           } else {
             Button {
               Task {
-                await viewModel.refresh(force: true)
+                await viewModel.refresh(force: true, userInitiated: true)
               }
             } label: {
               Image(systemName: "arrow.clockwise")
@@ -171,7 +47,7 @@ struct ReceiverDirectoryView: View {
         prompt: L10n.text("Search by name, location or host")
       )
       .refreshable {
-        await viewModel.refresh(force: true)
+        await viewModel.refresh(force: true, userInitiated: true)
       }
       .task {
         viewModel.start()
@@ -188,6 +64,96 @@ struct ReceiverDirectoryView: View {
     }
   }
 
+  private var backendSection: some View {
+    Section {
+      Picker(L10n.text("Backend source"), selection: $viewModel.selectedBackend) {
+        ForEach(viewModel.supportedBackends) { backend in
+          Text(backend.displayName).tag(backend)
+        }
+      }
+      .pickerStyle(.segmented)
+      .accessibilityLabel(L10n.text("Receiver backend list"))
+    } header: {
+      AppSectionHeader(title: L10n.text("Backend"))
+    }
+    .appSectionStyle()
+  }
+
+  private var filtersSection: some View {
+    Section {
+      statusFilterCard
+      entrySortCard
+      if !viewModel.availableCountries.isEmpty {
+        if viewModel.shouldShowCountrySortControl {
+          countrySortCard
+        }
+        countryFilterCard
+      }
+      Toggle(
+        L10n.text("directory.filters.favorites_only"),
+        isOn: $viewModel.favoritesOnly
+      )
+    } header: {
+      AppSectionHeader(title: L10n.text("directory.filters.section"))
+    }
+    .appSectionStyle()
+  }
+
+  private var statusSection: some View {
+    Section {
+      statusSummaryView
+      if let refreshResultMessage = viewModel.refreshResultMessage, !refreshResultMessage.isEmpty {
+        Text(refreshResultMessage)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      if let errorMessage = viewModel.errorMessage {
+        Text(errorMessage)
+          .foregroundStyle(.orange)
+          .font(.footnote)
+          .accessibilityLabel(L10n.text("Directory error"))
+      }
+      if let cacheStatusText = viewModel.cacheStatusText {
+        Text(cacheStatusText)
+          .foregroundStyle(.secondary)
+          .font(.footnote)
+      }
+      if viewModel.isProbingStatus {
+        probingStatusView
+      }
+      if viewModel.canClearCache {
+        clearCacheButton
+      }
+    } header: {
+      AppSectionHeader(title: L10n.text("Status"))
+    } footer: {
+      Text(viewModel.sourceSummaryText)
+    }
+    .appSectionStyle()
+  }
+
+  private var receiversSection: some View {
+    let filteredEntries = viewModel.filteredEntries(favoriteReceiverIDs: favoritesStore.favoriteReceiverIDs)
+
+    return Section {
+      if filteredEntries.isEmpty {
+        if viewModel.isLoading {
+          ProgressView(L10n.text("Refreshing directory..."))
+            .frame(maxWidth: .infinity, alignment: .center)
+        } else {
+          Text(L10n.text("No receivers found for current filter."))
+            .foregroundStyle(.secondary)
+        }
+      } else {
+        ForEach(filteredEntries) { entry in
+          directoryRow(for: entry)
+        }
+      }
+    } header: {
+      AppSectionHeader(title: L10n.text("Receivers"))
+    }
+  }
+
   @ViewBuilder
   private func directoryRow(for entry: ReceiverDirectoryEntry) -> some View {
     let candidateProfile = entry.makeProfile()
@@ -195,7 +161,7 @@ struct ReceiverDirectoryView: View {
     let isSelected = existingProfile?.id == profileStore.selectedProfileID
     let isFavorite = favoritesStore.isFavoriteReceiver(entry)
 
-    Button {
+    FocusRetainingButton {
       let storedProfile = profileStore.upsertImportedProfile(candidateProfile)
       profileStore.updateSelection(storedProfile.id)
     } label: {
@@ -280,16 +246,18 @@ struct ReceiverDirectoryView: View {
       }
       .tint(.blue)
     }
-    .accessibilityAction(named: Text(L10n.text("directory.receiver.open_website"))) {
-      openReceiverWebsite(for: entry)
-    }
     .accessibilityLabel(entry.name)
     .accessibilityValue(
-      isSelected
-        ? L10n.text("common.selected")
-        : (existingProfile == nil ? L10n.text("common.not_added") : L10n.text("common.added"))
+      receiverValueText(
+        entry: entry,
+        existingProfile: existingProfile,
+        isSelected: isSelected
+      )
     )
-    .accessibilityHint(L10n.text("Double tap to add or select this receiver profile"))
+    .accessibilityHint(
+      receiverHintText(existingProfile: existingProfile, isSelected: isSelected)
+    )
+    .accessibilityRemoveTraits(.isSelected)
   }
 
   @ViewBuilder
@@ -358,6 +326,115 @@ struct ReceiverDirectoryView: View {
     ReceiverDirectorySortOption.allCases
   }
 
+  private var countrySortOptions: [ReceiverDirectoryCountrySortOption] {
+    ReceiverDirectoryCountrySortOption.allCases
+  }
+
+  private var statusFilterCard: some View {
+    let currentIndex = statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0
+
+    return CyclingOptionCard(
+      title: L10n.text("directory.filters.status"),
+      selectedTitle: viewModel.statusFilter.displayName,
+      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: statusFilterOptions.count),
+      canDecrement: canCycle(currentIndex: currentIndex, totalCount: statusFilterOptions.count, offset: -1),
+      canIncrement: canCycle(currentIndex: currentIndex, totalCount: statusFilterOptions.count, offset: 1),
+      accessibilityHint: L10n.text("directory.filters.cycler_hint")
+    ) {
+      cycleStatusFilter(by: -1)
+    } incrementAction: {
+      cycleStatusFilter(by: 1)
+    }
+  }
+
+  private var entrySortCard: some View {
+    let currentIndex = sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0
+
+    return CyclingOptionCard(
+      title: L10n.text("directory.filters.sort"),
+      selectedTitle: viewModel.sortOption.displayName,
+      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: sortOptions.count),
+      canDecrement: canCycle(currentIndex: currentIndex, totalCount: sortOptions.count, offset: -1),
+      canIncrement: canCycle(currentIndex: currentIndex, totalCount: sortOptions.count, offset: 1),
+      accessibilityHint: L10n.text("directory.filters.cycler_hint")
+    ) {
+      cycleSortOption(by: -1)
+    } incrementAction: {
+      cycleSortOption(by: 1)
+    }
+  }
+
+  private var countrySortCard: some View {
+    let currentIndex = countrySortOptions.firstIndex(where: { $0.rawValue == viewModel.countrySortOption.rawValue }) ?? 0
+
+    return CyclingOptionCard(
+      title: L10n.text("directory.filters.country_sort"),
+      selectedTitle: viewModel.countrySortOption.displayName,
+      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: countrySortOptions.count),
+      canDecrement: canCycle(currentIndex: currentIndex, totalCount: countrySortOptions.count, offset: -1),
+      canIncrement: canCycle(currentIndex: currentIndex, totalCount: countrySortOptions.count, offset: 1),
+      accessibilityHint: L10n.text("directory.filters.cycler_hint")
+    ) {
+      cycleCountrySort(by: -1)
+    } incrementAction: {
+      cycleCountrySort(by: 1)
+    }
+  }
+
+  private var countryFilterCard: some View {
+    let currentIndex = countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0
+
+    return CyclingOptionCard(
+      title: L10n.text("directory.filters.country"),
+      selectedTitle: selectedCountryTitle,
+      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: countryOptions.count),
+      canDecrement: canCycle(currentIndex: currentIndex, totalCount: countryOptions.count, offset: -1),
+      canIncrement: canCycle(currentIndex: currentIndex, totalCount: countryOptions.count, offset: 1),
+      accessibilityHint: L10n.text("directory.filters.cycler_hint")
+    ) {
+      cycleCountry(by: -1)
+    } incrementAction: {
+      cycleCountry(by: 1)
+    }
+  }
+
+  private var statusSummaryView: some View {
+    Group {
+      if let lastRefreshDate = viewModel.lastRefreshDate {
+        Text(
+          L10n.text(
+            "directory.last_update",
+            lastRefreshDate.formatted(date: .abbreviated, time: .shortened)
+          )
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+      } else {
+        Text(L10n.text("No directory data cached yet."))
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  private var probingStatusView: some View {
+    HStack(spacing: 8) {
+      ProgressView()
+      Text(L10n.text("Checking receiver availability..."))
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+    }
+    .accessibilityLabel(L10n.text("Checking receiver availability"))
+  }
+
+  private var clearCacheButton: some View {
+    FocusRetainingButton({
+      viewModel.clearCache()
+    }, role: .destructive) {
+      Label(L10n.text("directory.cache.clear"), systemImage: "trash")
+    }
+  }
+
   private var countryOptions: [String] {
     [""] + viewModel.availableCountries
   }
@@ -365,7 +442,7 @@ struct ReceiverDirectoryView: View {
   private var selectedCountryTitle: String {
     viewModel.selectedCountry.isEmpty
       ? L10n.text("directory.filter.country.all")
-      : viewModel.selectedCountry
+      : viewModel.countryDisplayTitle(for: viewModel.selectedCountry)
   }
 
   private func optionPositionDetail(currentIndex: Int, totalCount: Int) -> String? {
@@ -409,8 +486,58 @@ struct ReceiverDirectoryView: View {
     viewModel.selectedCountry = countryOptions[currentIndex + offset]
   }
 
+  private func cycleCountrySort(by offset: Int) {
+    guard
+      let currentIndex = countrySortOptions.firstIndex(where: { $0.rawValue == viewModel.countrySortOption.rawValue }),
+      canCycle(currentIndex: currentIndex, totalCount: countrySortOptions.count, offset: offset)
+    else {
+      return
+    }
+    viewModel.countrySortOption = countrySortOptions[currentIndex + offset]
+  }
+
   private func openReceiverWebsite(for entry: ReceiverDirectoryEntry) {
     guard let url = URL(string: entry.endpointURL) else { return }
     openURL(url)
+  }
+
+  private func receiverStateText(
+    existingProfile: SDRConnectionProfile?,
+    isSelected: Bool
+  ) -> String {
+    if existingProfile == nil {
+      return L10n.text("directory.receiver.state.not_added")
+    }
+    if isSelected {
+      return L10n.text("directory.receiver.state.added_selected")
+    }
+    return L10n.text("directory.receiver.state.added")
+  }
+
+  private func receiverValueText(
+    entry: ReceiverDirectoryEntry,
+    existingProfile: SDRConnectionProfile?,
+    isSelected: Bool
+  ) -> String {
+    [
+      entry.status.displayName,
+      entry.detailText,
+      receiverStateText(existingProfile: existingProfile, isSelected: isSelected)
+    ]
+    .filter { !$0.isEmpty }
+    .joined(separator: ", ")
+  }
+
+  private func receiverHintText(
+    existingProfile: SDRConnectionProfile?,
+    isSelected: Bool
+  ) -> String {
+    if existingProfile == nil {
+      return L10n.text("directory.receiver.hint.add_select")
+    }
+    if isSelected {
+      return L10n.text("directory.receiver.hint.selected")
+    }
+    return L10n.text("directory.receiver.hint.select")
   }
 }

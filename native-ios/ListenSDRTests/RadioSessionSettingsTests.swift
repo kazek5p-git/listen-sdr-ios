@@ -97,7 +97,8 @@ final class RadioSessionSettingsTests: XCTestCase {
       fmdxAudioPacketHoldSeconds: RadioSessionSettings.default.fmdxAudioPacketHoldSeconds,
       audioSuggestionScope: RadioSessionSettings.default.audioSuggestionScope,
       tuningGestureDirection: RadioSessionSettings.default.tuningGestureDirection,
-      openReceiverAfterHistoryRestore: RadioSessionSettings.default.openReceiverAfterHistoryRestore
+      openReceiverAfterHistoryRestore: RadioSessionSettings.default.openReceiverAfterHistoryRestore,
+      autoConnectSelectedProfileOnLaunch: RadioSessionSettings.default.autoConnectSelectedProfileOnLaunch
     )
 
     XCTAssertEqual(settings.kiwiNoiseBlankerGate, 5_000)
@@ -152,7 +153,8 @@ final class RadioSessionSettingsTests: XCTestCase {
       fmdxAudioPacketHoldSeconds: RadioSessionSettings.default.fmdxAudioPacketHoldSeconds,
       audioSuggestionScope: RadioSessionSettings.default.audioSuggestionScope,
       tuningGestureDirection: RadioSessionSettings.default.tuningGestureDirection,
-      openReceiverAfterHistoryRestore: RadioSessionSettings.default.openReceiverAfterHistoryRestore
+      openReceiverAfterHistoryRestore: RadioSessionSettings.default.openReceiverAfterHistoryRestore,
+      autoConnectSelectedProfileOnLaunch: RadioSessionSettings.default.autoConnectSelectedProfileOnLaunch
     )
 
     XCTAssertTrue(settings.kiwiDenoiseEnabled)
@@ -231,9 +233,127 @@ final class RadioSessionSettingsTests: XCTestCase {
       fmdxAudioPacketHoldSeconds: RadioSessionSettings.default.fmdxAudioPacketHoldSeconds,
       audioSuggestionScope: RadioSessionSettings.default.audioSuggestionScope,
       tuningGestureDirection: RadioSessionSettings.default.tuningGestureDirection,
-      openReceiverAfterHistoryRestore: RadioSessionSettings.default.openReceiverAfterHistoryRestore
+      openReceiverAfterHistoryRestore: RadioSessionSettings.default.openReceiverAfterHistoryRestore,
+      autoConnectSelectedProfileOnLaunch: RadioSessionSettings.default.autoConnectSelectedProfileOnLaunch
     )
 
     XCTAssertEqual(settings.kiwiWaterfallPanOffsetBins, 50_000_000)
+  }
+
+  func testFMDXTuneConfirmationWarningsDefaultToDisabledAndRoundTrip() throws {
+    XCTAssertFalse(RadioSessionSettings.default.fmdxTuneConfirmationWarningsEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.fmdxTuneConfirmationWarningsEnabled = true
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertTrue(decoded.fmdxTuneConfirmationWarningsEnabled)
+  }
+
+  func testFMDXCustomScannerSettingsRoundTripAndClamp() throws {
+    var settings = RadioSessionSettings.default
+    settings.fmdxCustomScanSettleSeconds = RadioSessionSettings.clampedFMDXCustomScanSettleSeconds(0.72)
+    settings.fmdxCustomScanMetadataWindowSeconds =
+      RadioSessionSettings.clampedFMDXCustomScanMetadataWindowSeconds(2.8)
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertEqual(decoded.fmdxCustomScanSettleSeconds, 0.60, accuracy: 0.0001)
+    XCTAssertEqual(decoded.fmdxCustomScanMetadataWindowSeconds, 2.0, accuracy: 0.0001)
+  }
+
+  func testTuneStepPreferenceModeDefaultsToManualAndRoundTrips() throws {
+    XCTAssertEqual(RadioSessionSettings.default.tuneStepPreferenceMode, .manual)
+
+    var settings = RadioSessionSettings.default
+    settings.tuneStepPreferenceMode = .automatic
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertEqual(decoded.tuneStepPreferenceMode, .automatic)
+  }
+
+  func testMixWithOtherAudioAppsDefaultsToDisabledAndRoundTrips() throws {
+    XCTAssertFalse(RadioSessionSettings.default.mixWithOtherAudioApps)
+
+    var settings = RadioSessionSettings.default
+    settings.mixWithOtherAudioApps = true
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertTrue(decoded.mixWithOtherAudioApps)
+  }
+
+  func testRecentFrequenciesSettingsHaveExpectedDefaultsAndRoundTrip() throws {
+    XCTAssertTrue(RadioSessionSettings.default.showRecentFrequencies)
+    XCTAssertFalse(RadioSessionSettings.default.includeRecentFrequenciesFromOtherReceivers)
+    XCTAssertTrue(RadioSessionSettings.default.playDetectedChannelScannerSignalsEnabled)
+    XCTAssertFalse(RadioSessionSettings.default.saveChannelScannerResultsEnabled)
+    XCTAssertFalse(RadioSessionSettings.default.stopChannelScannerOnSignal)
+    XCTAssertFalse(RadioSessionSettings.default.filterChannelScannerInterferenceEnabled)
+    XCTAssertEqual(RadioSessionSettings.default.channelScannerInterferenceFilterProfile, .standard)
+
+    var settings = RadioSessionSettings.default
+    settings.showRecentFrequencies = false
+    settings.includeRecentFrequenciesFromOtherReceivers = true
+    settings.playDetectedChannelScannerSignalsEnabled = false
+    settings.saveChannelScannerResultsEnabled = true
+    settings.stopChannelScannerOnSignal = true
+    settings.filterChannelScannerInterferenceEnabled = true
+    settings.channelScannerInterferenceFilterProfile = .strong
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertFalse(decoded.showRecentFrequencies)
+    XCTAssertTrue(decoded.includeRecentFrequenciesFromOtherReceivers)
+    XCTAssertFalse(decoded.playDetectedChannelScannerSignalsEnabled)
+    XCTAssertTrue(decoded.saveChannelScannerResultsEnabled)
+    XCTAssertTrue(decoded.stopChannelScannerOnSignal)
+    XCTAssertTrue(decoded.filterChannelScannerInterferenceEnabled)
+    XCTAssertEqual(decoded.channelScannerInterferenceFilterProfile, .strong)
+  }
+
+  func testCachedReceiverDataRoundTripsLastOpenWebRXBookmark() throws {
+    let bookmark = SDRServerBookmark(
+      id: "bookmark-1",
+      name: "Test Bookmark",
+      frequencyHz: 102_700_000,
+      modulation: .fm,
+      source: "test"
+    )
+    let cached = CachedReceiverData(
+      openWebRXProfiles: [],
+      selectedOpenWebRXProfileID: "profile-1",
+      lastOpenWebRXBookmark: bookmark,
+      serverBookmarks: [bookmark],
+      openWebRXBandPlan: [],
+      savedChannelScannerResults: [
+        ChannelScannerResult(
+          id: "102700000|fm",
+          name: "Test Bookmark",
+          frequencyHz: 102_700_000,
+          mode: .fm,
+          signal: -23,
+          signalUnit: "dBFS",
+          detectedAt: Date(timeIntervalSince1970: 1_700_000_010)
+        )
+      ],
+      fmdxServerPresets: [],
+      fmdxSavedScanResults: [],
+      savedAt: Date(timeIntervalSince1970: 1_700_000_000)
+    )
+
+    let encoded = try JSONEncoder().encode(cached)
+    let decoded = try JSONDecoder().decode(CachedReceiverData.self, from: encoded)
+
+    XCTAssertEqual(decoded.lastOpenWebRXBookmark, bookmark)
+    XCTAssertEqual(decoded.savedChannelScannerResults.count, 1)
+    XCTAssertEqual(decoded.savedChannelScannerResults.first?.signalUnit, "dBFS")
   }
 }

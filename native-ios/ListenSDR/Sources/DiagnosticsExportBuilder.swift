@@ -79,21 +79,72 @@ enum DiagnosticsExportBuilder {
     lines.append("Frequency: \(radioSession.settings.frequencyHz) Hz")
     lines.append("Mode: \(radioSession.settings.mode.rawValue)")
     lines.append("Tune step: \(radioSession.settings.tuneStepHz) Hz")
+    lines.append("Tune step mode: \(radioSession.settings.tuneStepPreferenceMode.rawValue)")
     lines.append("Muted: \(radioSession.settings.audioMuted)")
     lines.append("Volume: \(String(format: "%.2f", radioSession.settings.audioVolume))")
+    lines.append("Scanner running: \(radioSession.isScannerRunning)")
+    if let scannerStatus = radioSession.scannerStatusText, !scannerStatus.isEmpty {
+      lines.append("Scanner status: \(scannerStatus)")
+    }
+    lines.append("Scanner threshold: \(String(format: "%.1f", radioSession.scannerThreshold))")
+    lines.append("Scanner dwell: \(String(format: "%.2f", radioSession.settings.scannerDwellSeconds)) s")
+    lines.append("Scanner hold: \(String(format: "%.2f", radioSession.settings.scannerHoldSeconds)) s")
+    lines.append("Scanner adaptive: \(radioSession.settings.adaptiveScannerEnabled)")
+    lines.append("Scanner save channel results: \(radioSession.settings.saveChannelScannerResultsEnabled)")
+    lines.append("Scanner stop on signal: \(radioSession.settings.stopChannelScannerOnSignal)")
+    lines.append("Scanner interference filter: \(radioSession.settings.filterChannelScannerInterferenceEnabled)")
+    lines.append(
+      "Scanner interference filter profile: \(radioSession.settings.channelScannerInterferenceFilterProfile.rawValue)"
+    )
+    let audioDiagnostics = radioSession.audioDiagnosticsSnapshot
+    if let connectedDurationSeconds = audioDiagnostics.connectedDurationSeconds {
+      lines.append("Connected for: \(String(format: "%.1f", connectedDurationSeconds)) s")
+    }
+    lines.append("Auto reconnect attempts: \(audioDiagnostics.automaticReconnectAttempts)")
+    lines.append("Auto reconnect successes: \(audioDiagnostics.automaticReconnectSuccesses)")
     let sharedAudioSnapshot = SharedAudioOutput.engine.runtimeSnapshot()
     lines.append("Shared audio running: \(sharedAudioSnapshot.engineRunning)")
     lines.append("Shared audio queued buffers: \(sharedAudioSnapshot.queuedBuffers)")
+    lines.append("Shared audio queued duration: \(String(format: "%.2f", sharedAudioSnapshot.queuedDurationSeconds)) s")
+    lines.append("Shared audio peak queued buffers: \(audioDiagnostics.sharedAudio.peakQueuedBuffers)")
     lines.append("Shared audio session configured: \(sharedAudioSnapshot.sessionConfigured)")
     lines.append("Shared audio output rate: \(sharedAudioSnapshot.outputSampleRateHz) Hz")
+    lines.append(
+      "Shared audio peak enqueue gap: \(String(format: "%.2f", audioDiagnostics.sharedAudio.peakSecondsSinceLastEnqueue)) s"
+    )
+    lines.append("Shared audio samples: \(audioDiagnostics.sharedAudio.sampleCount)")
     if let inputRate = sharedAudioSnapshot.lastInputSampleRateHz {
       lines.append("Shared audio last input rate: \(inputRate) Hz")
     }
     if let secondsSinceLastEnqueue = sharedAudioSnapshot.secondsSinceLastEnqueue {
       lines.append("Shared audio last enqueue: \(String(format: "%.2f", secondsSinceLastEnqueue)) s ago")
     }
+    if let recentLevelDBFS = sharedAudioSnapshot.recentLevelDBFS {
+      lines.append("Shared audio recent level: \(String(format: "%.1f", recentLevelDBFS)) dBFS")
+    }
+    if let secondsSinceLastLevelSample = sharedAudioSnapshot.secondsSinceLastLevelSample {
+      lines.append("Shared audio level sample age: \(String(format: "%.2f", secondsSinceLastLevelSample)) s")
+    }
+    if let recentEnvelopeVariation = sharedAudioSnapshot.recentEnvelopeVariation {
+      lines.append("Shared audio envelope variation: \(String(format: "%.2f", recentEnvelopeVariation))")
+    }
+    if let recentZeroCrossingRate = sharedAudioSnapshot.recentZeroCrossingRate {
+      lines.append("Shared audio zero crossing rate: \(String(format: "%.2f", recentZeroCrossingRate))")
+    }
+    if let recentSpectralActivity = sharedAudioSnapshot.recentSpectralActivity {
+      lines.append("Shared audio spectral activity: \(String(format: "%.2f", recentSpectralActivity))")
+    }
+    if let recentLevelStdDB = sharedAudioSnapshot.recentLevelStdDB {
+      lines.append("Shared audio level stability: \(String(format: "%.2f", recentLevelStdDB)) dB")
+    }
+    lines.append("Shared audio analysis buffers: \(sharedAudioSnapshot.recentAnalysisBufferCount)")
     if let lastStartError = sharedAudioSnapshot.lastStartError, !lastStartError.isEmpty {
       lines.append("Shared audio last start error: \(lastStartError)")
+    }
+    if let audioExcerpt = diagnostics.exportAudioExcerpt(), !audioExcerpt.isEmpty {
+      lines.append("")
+      lines.append("[Audio log tail]")
+      lines.append(audioExcerpt)
     }
     lines.append("")
 
@@ -101,6 +152,12 @@ enum DiagnosticsExportBuilder {
     lines.append("OpenWebRX profiles: \(radioSession.openWebRXProfiles.count)")
     lines.append("OpenWebRX bookmarks: \(radioSession.serverBookmarks.count)")
     lines.append("OpenWebRX band plan entries: \(radioSession.openWebRXBandPlan.count)")
+    lines.append("Channel scanner results: \(radioSession.channelScannerResults.count)")
+    for result in radioSession.channelScannerResults.prefix(12) {
+      lines.append(
+        "- channel-scan title=\(result.name) freq=\(result.frequencyHz) mode=\(result.mode?.rawValue ?? "-") signal=\(String(format: "%.1f", result.signal)) \(result.signalUnit) detected=\(format(result.detectedAt))"
+      )
+    }
     lines.append("FM-DX station list entries: \(radioSession.fmdxServerPresets.count)")
     if let presetSource = radioSession.fmdxPresetSourceDescription, !presetSource.isEmpty {
       lines.append("FM-DX station list source: \(presetSource)")
@@ -138,6 +195,20 @@ enum DiagnosticsExportBuilder {
       lines.append("FM-DX queued duration: \(String(format: "%.2f", quality.queuedDurationSeconds)) s")
       lines.append("FM-DX queued buffers: \(quality.queuedBufferCount)")
       lines.append("FM-DX output gap: \(String(format: "%.2f", quality.outputGapSeconds)) s")
+    }
+    if let fmdxAudio = audioDiagnostics.fmdxAudio {
+      lines.append("FM-DX audio samples: \(fmdxAudio.sampleCount)")
+      lines.append("FM-DX audio queue started: \(fmdxAudio.queueStarted)")
+      lines.append("FM-DX peak queued duration: \(String(format: "%.2f", fmdxAudio.peakQueuedDurationSeconds)) s")
+      lines.append("FM-DX peak queued buffers: \(fmdxAudio.peakQueuedBuffers)")
+      lines.append("FM-DX peak output gap: \(String(format: "%.2f", fmdxAudio.peakOutputGapSeconds)) s")
+      lines.append("FM-DX latency trims: \(fmdxAudio.latencyTrimEvents)")
+      if let qualityScore = fmdxAudio.currentQualityScore {
+        lines.append("FM-DX current quality score: \(qualityScore)")
+      }
+      if let qualityLevel = fmdxAudio.currentQualityLevel {
+        lines.append("FM-DX current quality level: \(qualityLevel)")
+      }
     }
     lines.append("")
 

@@ -14,6 +14,80 @@ struct BandTuningProfile: Equatable {
   let defaultStepHz: Int
 }
 
+enum FMDXQuickBand: String, CaseIterable, Identifiable {
+  case lw
+  case mw
+  case sw
+  case oirt
+  case fm
+
+  var id: String { rawValue }
+
+  var mode: DemodulationMode {
+    switch self {
+    case .lw, .mw, .sw:
+      return .am
+    case .oirt, .fm:
+      return .fm
+    }
+  }
+
+  var localizedTitle: String {
+    L10n.text("fmdx.subband.\(rawValue)")
+  }
+
+  var rangeHz: ClosedRange<Int> {
+    switch self {
+    case .lw:
+      return 100_000...519_000
+    case .mw:
+      return 520_000...1_709_000
+    case .sw:
+      return 1_710_000...29_600_000
+    case .oirt:
+      return 65_900_000...73_999_000
+    case .fm:
+      return 64_000_000...110_000_000
+    }
+  }
+
+  var defaultFrequencyHz: Int {
+    switch self {
+    case .lw:
+      return 225_000
+    case .mw:
+      return 999_000
+    case .sw:
+      return 7_050_000
+    case .oirt:
+      return 70_300_000
+    case .fm:
+      return 87_500_000
+    }
+  }
+
+  var isAM: Bool {
+    mode == .am
+  }
+
+  static func resolve(frequencyHz: Int, mode: DemodulationMode) -> FMDXQuickBand {
+    if mode == .am {
+      if lw.rangeHz.contains(frequencyHz) {
+        return .lw
+      }
+      if mw.rangeHz.contains(frequencyHz) {
+        return .mw
+      }
+      return .sw
+    }
+
+    if oirt.rangeHz.contains(frequencyHz) {
+      return .oirt
+    }
+    return .fm
+  }
+}
+
 enum BandTuningProfiles {
   static func resolve(for context: BandTuningContext) -> BandTuningProfile {
     switch context.backend {
@@ -44,7 +118,7 @@ enum BandTuningProfiles {
       )
     }
 
-    if frequencyHz < 29_600_000 {
+    if frequencyHz <= 29_600_000 {
       return BandTuningProfile(
         id: "fmdx-sw",
         stepOptionsHz: [5_000, 10_000],

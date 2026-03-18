@@ -15,21 +15,32 @@ struct RecordingsView: View {
             Button {
               sharedRecordingURL = recording.fileURL
             } label: {
+              let createdAtText = recording.createdAt.formatted(date: .abbreviated, time: .shortened)
+
               VStack(alignment: .leading, spacing: 6) {
-                Text(recording.title)
+                Text(recording.displayFileName)
                   .font(.headline)
 
-                Text(FrequencyFormatter.mhzText(fromHz: recording.frequencyHz))
+                Text(recording.receiverName)
                   .font(.subheadline)
                   .foregroundStyle(.secondary)
 
                 Text(
                   L10n.text(
                     "recordings.entry.detail",
+                    FrequencyFormatter.mhzText(fromHz: recording.frequencyHz),
                     recording.backend.displayName,
-                    recording.format.localizedTitle,
-                    recording.finishedAt.formatted(date: .abbreviated, time: .shortened)
+                    recording.format.localizedTitle
                   )
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+                Text(
+                  [
+                    L10n.text("recordings.entry.created", createdAtText),
+                    L10n.text("recordings.entry.duration", recording.durationText)
+                  ].joined(separator: " | ")
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -53,8 +64,6 @@ struct RecordingsView: View {
             .accessibilityElement(children: .combine)
           }
         }
-      } header: {
-        AppSectionHeader(title: L10n.text("recordings.section"))
       }
     }
     .voiceOverStable()

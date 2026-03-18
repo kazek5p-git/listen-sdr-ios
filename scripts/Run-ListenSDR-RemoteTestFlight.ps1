@@ -10,6 +10,9 @@ param(
   [string]$Scheme = "ListenSDR",
   [string]$ProjectPath = "native-ios/ListenSDR.xcodeproj",
   [string]$BundleId = "com.kazek.sdr",
+  [ValidateSet("login", "temporary-p12")]
+  [string]$SigningMode = "login",
+  [string]$RemoteLoginKeychainPassword = [Environment]::GetEnvironmentVariable("LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD", "User"),
   [string]$RemoteDistributionP12Path = "~/EXPORT_FOR_KAZEK/Apple_Distribution_Mieczysaw_Bk_9N975WV782_AxelPong.p12",
   [string]$RemoteDistributionP12Password = [Environment]::GetEnvironmentVariable("LISTENSDR_REMOTE_P12_PASSWORD", "User"),
   [switch]$UploadToTestFlight,
@@ -44,6 +47,52 @@ function Get-LocalBuildVersion {
   return $match.Groups[1].Value.Trim()
 }
 
+function Get-ListenSDRSecretFilePath {
+  param([Parameter(Mandatory = $true)][string]$SecretName)
+
+  $baseDir = Join-Path $env:APPDATA "ListenSDR\secrets"
+  return Join-Path $baseDir ($SecretName + ".txt")
+}
+
+function Read-ListenSDRSecret {
+  param([Parameter(Mandatory = $true)][string]$SecretName)
+
+  $secretPath = Get-ListenSDRSecretFilePath -SecretName $SecretName
+  if (-not (Test-Path $secretPath)) {
+    return $null
+  }
+
+  $encrypted = Get-Content -Path $secretPath -Raw
+  if ([string]::IsNullOrWhiteSpace($encrypted)) {
+    return $null
+  }
+
+  try {
+    $secureValue = ConvertTo-SecureString -String $encrypted
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureValue)
+    try {
+      return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    } finally {
+      if ($bstr -ne [IntPtr]::Zero) {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+      }
+    }
+  } catch {
+    throw "Unable to read stored secret '$SecretName' from $secretPath. Delete the file and store the secret again."
+  }
+}
+
+function ConvertTo-BashSingleQuotedLiteral {
+  param([string]$Value)
+
+  if ($null -eq $Value) {
+    return "''"
+  }
+
+  $bashSingleQuoteEscape = "'" + '"' + "'" + '"' + "'"
+  return "'" + ($Value -replace "'", $bashSingleQuoteEscape) + "'"
+}
+
 Assert-LocalFile -Path $AscApiKeyPath -Label "ASC API key"
 
 if ([string]::IsNullOrWhiteSpace($AscKeyId) -or [string]::IsNullOrWhiteSpace($AscIssuerId)) {
@@ -52,7 +101,13 @@ if ([string]::IsNullOrWhiteSpace($AscKeyId) -or [string]::IsNullOrWhiteSpace($As
 if ([string]::IsNullOrWhiteSpace($AppleTeamId)) {
   throw "Apple team ID is missing."
 }
-if ([string]::IsNullOrWhiteSpace($RemoteDistributionP12Password)) {
+if ([string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
+  $RemoteLoginKeychainPassword = Read-ListenSDRSecret -SecretName "remote-login-keychain-password"
+}
+if ($SigningMode -eq "login" -and [string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
+  throw "Remote login keychain password is missing. Pass -RemoteLoginKeychainPassword, set LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD, or store the encrypted secret file."
+}
+if ($SigningMode -eq "temporary-p12" -and [string]::IsNullOrWhiteSpace($RemoteDistributionP12Password)) {
   throw "Remote distribution .p12 password is missing. Set LISTENSDR_REMOTE_P12_PASSWORD in user environment."
 }
 if (-not (Get-Command ssh -ErrorAction SilentlyContinue)) {
@@ -144,6 +199,7 @@ $remoteDistributionP12PathExpanded = if ($RemoteDistributionP12Path -eq "~") {
 }
 
 $uploadFlag = if ($UploadToTestFlight) { "true" } else { "false" }
+$distP12PasswordValue = if ($SigningMode -eq "temporary-p12") { $RemoteDistributionP12Password } else { "" }
 $remoteScriptTemplate = @'
 set -euo pipefail
 REPO_DIR=__REPO_DIR__
@@ -159,9 +215,12 @@ ASC_KEY_ID=__ASC_KEY_ID__
 ASC_ISSUER_ID=__ASC_ISSUER_ID__
 PROFILE_PATH=__PROFILE_PATH__
 PROFILE_UUID=__PROFILE_UUID__
+PROFILE_NAME=__PROFILE_NAME__
+SIGNING_MODE=__SIGNING_MODE__
 DIST_P12_PATH=__DIST_P12_PATH__
 DIST_P12_PASSWORD=__DIST_P12_PASSWORD__
 UPLOAD_TO_TESTFLIGHT=__UPLOAD_TO_TESTFLIGHT__
+LOGIN_KEYCHAIN_PASSWORD="${LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD:-}"
 
 if [ -d "$REPO_DIR" ] && [ ! -d "$REPO_DIR/.git" ]; then
   rm -rf "$REPO_DIR"
@@ -186,6 +245,65 @@ LOG_ARCHIVE="$BUILD_ROOT/xcodebuild-archive.log"
 LOG_EXPORT="$BUILD_ROOT/xcodebuild-export.log"
 LOG_UPLOAD="$BUILD_ROOT/testflight-upload.log"
 TEMP_KEYCHAIN="$BUILD_ROOT/listensdr-testflight.keychain-db"
+LOGIN_KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
+ORIGINAL_DEFAULT_KEYCHAIN=$(security default-keychain -d user | tr -d '"')
+ORIGINAL_KEYCHAINS=()
+while IFS= read -r keychain_path; do
+  ORIGINAL_KEYCHAINS+=("$keychain_path")
+done < <(security list-keychains -d user | sed 's/^[[:space:]]*//' | tr -d '"')
+
+cleanup_keychain() {
+  if [ -n "${ORIGINAL_DEFAULT_KEYCHAIN:-}" ]; then
+    security default-keychain -d user -s "$ORIGINAL_DEFAULT_KEYCHAIN" >/dev/null 2>&1 || true
+  fi
+
+  if [ "${#ORIGINAL_KEYCHAINS[@]}" -gt 0 ]; then
+    security list-keychains -d user -s "${ORIGINAL_KEYCHAINS[@]}" >/dev/null 2>&1 || true
+  else
+    security list-keychains -d user -s "$HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain" >/dev/null 2>&1 || true
+  fi
+
+  if [ "$SIGNING_MODE" = "temporary-p12" ]; then
+    security delete-keychain "$TEMP_KEYCHAIN" >/dev/null 2>&1 || true
+  fi
+}
+
+trap cleanup_keychain EXIT
+
+filter_known_xcodebuild_noise() {
+  awk '
+    BEGIN { skip = 0 }
+    /DTDKRemoteDeviceConnection: Failed to start remote service "com\.apple\.mobile\.notification_proxy" on device\./ {
+      skip = 1
+      next
+    }
+    skip {
+      if ($0 ~ /NSLocalizedDescription=Failed to start remote service "com\.apple\.mobile\.notification_proxy" on device\.\}/) {
+        skip = 0
+      }
+      next
+    }
+    { print }
+  '
+}
+
+run_xcodebuild_logged() {
+  local log_path="$1"
+  shift
+
+  set +e
+  "$@" 2>&1 | filter_known_xcodebuild_noise | tee "$log_path"
+  local statuses=("${PIPESTATUS[@]}")
+  set -e
+
+  if [ "${statuses[0]}" -ne 0 ]; then
+    return "${statuses[0]}"
+  fi
+  if [ "${statuses[1]}" -ne 0 ]; then
+    return "${statuses[1]}"
+  fi
+  return "${statuses[2]}"
+}
 
 if command -v xcodegen >/dev/null 2>&1; then
   (cd native-ios && xcodegen generate)
@@ -200,32 +318,97 @@ if security dump-trust-settings 2>/dev/null | grep -q "Apple Distribution:"; the
   exit 2
 fi
 
-security delete-keychain "$TEMP_KEYCHAIN" >/dev/null 2>&1 || true
-security create-keychain -p "$DIST_P12_PASSWORD" "$TEMP_KEYCHAIN"
-security set-keychain-settings -lut 21600 "$TEMP_KEYCHAIN"
-security unlock-keychain -p "$DIST_P12_PASSWORD" "$TEMP_KEYCHAIN"
-security import "$DIST_P12_PATH" -k "$TEMP_KEYCHAIN" -P "$DIST_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security -T /usr/bin/xcodebuild -T /usr/bin/productbuild >/dev/null
-security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$DIST_P12_PASSWORD" "$TEMP_KEYCHAIN" >/dev/null
-security list-keychains -d user -s "$TEMP_KEYCHAIN" "$HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain" >/dev/null
-security default-keychain -d user -s "$TEMP_KEYCHAIN" >/dev/null
+if [ "$SIGNING_MODE" = "login" ]; then
+  if [ -z "$LOGIN_KEYCHAIN_PASSWORD" ]; then
+    echo "LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD is required for login keychain signing." >&2
+    exit 4
+  fi
 
-xcodebuild \
-  -project "$PROJECT_PATH" \
-  -scheme "$SCHEME" \
-  -configuration Release \
-  -destination "generic/platform=iOS" \
-  -archivePath "$ARCHIVE_PATH" \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$KEY_PATH" \
-  -authenticationKeyID "$ASC_KEY_ID" \
-  -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-  DEVELOPMENT_TEAM="$TEAM_ID" \
-  CODE_SIGN_STYLE=Automatic \
-  CODE_SIGN_IDENTITY="" \
-  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-  clean archive | tee "$LOG_ARCHIVE"
+  security list-keychains -d user -s "$LOGIN_KEYCHAIN" "/Library/Keychains/System.keychain" >/dev/null
+  security default-keychain -d user -s "$LOGIN_KEYCHAIN" >/dev/null
+  security unlock-keychain -p "$LOGIN_KEYCHAIN_PASSWORD" "$LOGIN_KEYCHAIN"
+  security set-keychain-settings -lut 21600 "$LOGIN_KEYCHAIN"
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$LOGIN_KEYCHAIN_PASSWORD" "$LOGIN_KEYCHAIN" >/dev/null
 
-cat > "$BUILD_ROOT/exportOptions.plist" <<EOF
+  if ! security find-identity -v -p codesigning "$LOGIN_KEYCHAIN" | grep -q "Apple Distribution:"; then
+    echo "No Apple Distribution identity found in login.keychain-db." >&2
+    echo "Import the distribution certificate into login.keychain-db or rerun with -SigningMode temporary-p12." >&2
+    exit 3
+  fi
+  run_xcodebuild_logged "$LOG_ARCHIVE" \
+    xcodebuild \
+    -project "$PROJECT_PATH" \
+    -scheme "$SCHEME" \
+    -configuration Release \
+    -destination "generic/platform=iOS" \
+    -archivePath "$ARCHIVE_PATH" \
+    -allowProvisioningUpdates \
+    -authenticationKeyPath "$KEY_PATH" \
+    -authenticationKeyID "$ASC_KEY_ID" \
+    -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+    DEVELOPMENT_TEAM="$TEAM_ID" \
+    CODE_SIGN_STYLE=Manual \
+    CODE_SIGN_IDENTITY="Apple Distribution" \
+    PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+    PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+    clean archive
+
+  cat > "$BUILD_ROOT/exportOptions.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>app-store-connect</string>
+  <key>destination</key>
+  <string>export</string>
+  <key>signingStyle</key>
+  <string>manual</string>
+  <key>signingCertificate</key>
+  <string>Apple Distribution</string>
+  <key>teamID</key>
+  <string>$TEAM_ID</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>$BUNDLE_ID</key>
+    <string>$PROFILE_NAME</string>
+  </dict>
+  <key>manageAppVersionAndBuildNumber</key>
+  <false/>
+  <key>stripSwiftSymbols</key>
+  <true/>
+  <key>uploadSymbols</key>
+  <true/>
+</dict>
+</plist>
+EOF
+else
+  security delete-keychain "$TEMP_KEYCHAIN" >/dev/null 2>&1 || true
+  security create-keychain -p "$DIST_P12_PASSWORD" "$TEMP_KEYCHAIN"
+  security set-keychain-settings -lut 21600 "$TEMP_KEYCHAIN"
+  security unlock-keychain -p "$DIST_P12_PASSWORD" "$TEMP_KEYCHAIN"
+  security import "$DIST_P12_PATH" -k "$TEMP_KEYCHAIN" -P "$DIST_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security -T /usr/bin/xcodebuild -T /usr/bin/productbuild >/dev/null
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$DIST_P12_PASSWORD" "$TEMP_KEYCHAIN" >/dev/null
+  security list-keychains -d user -s "$TEMP_KEYCHAIN" "$LOGIN_KEYCHAIN" "/Library/Keychains/System.keychain" >/dev/null
+  security default-keychain -d user -s "$TEMP_KEYCHAIN" >/dev/null
+
+  run_xcodebuild_logged "$LOG_ARCHIVE" \
+    xcodebuild \
+    -project "$PROJECT_PATH" \
+    -scheme "$SCHEME" \
+    -configuration Release \
+    -destination "generic/platform=iOS" \
+    -archivePath "$ARCHIVE_PATH" \
+    -allowProvisioningUpdates \
+    -authenticationKeyPath "$KEY_PATH" \
+    -authenticationKeyID "$ASC_KEY_ID" \
+    -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+    DEVELOPMENT_TEAM="$TEAM_ID" \
+    CODE_SIGN_STYLE=Automatic \
+    PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+    clean archive
+
+  cat > "$BUILD_ROOT/exportOptions.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -247,8 +430,10 @@ cat > "$BUILD_ROOT/exportOptions.plist" <<EOF
 </dict>
 </plist>
 EOF
+fi
 
-xcodebuild \
+run_xcodebuild_logged "$LOG_EXPORT" \
+  xcodebuild \
   -exportArchive \
   -archivePath "$ARCHIVE_PATH" \
   -exportPath "$EXPORT_PATH" \
@@ -256,7 +441,7 @@ xcodebuild \
   -allowProvisioningUpdates \
   -authenticationKeyPath "$KEY_PATH" \
   -authenticationKeyID "$ASC_KEY_ID" \
-  -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tee "$LOG_EXPORT"
+  -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
 IPA_PATH=$(find "$EXPORT_PATH" -maxdepth 1 -name "*.ipa" -print -quit)
 if [ -z "$IPA_PATH" ]; then
@@ -293,8 +478,10 @@ $remoteScript = $remoteScriptTemplate.
   Replace('__ASC_ISSUER_ID__', $AscIssuerId).
   Replace('__PROFILE_PATH__', $remoteProfilePath).
   Replace('__PROFILE_UUID__', $profileInfo.profileUuid).
+  Replace('__PROFILE_NAME__', $profileInfo.profileName).
+  Replace('__SIGNING_MODE__', $SigningMode).
   Replace('__DIST_P12_PATH__', $remoteDistributionP12PathExpanded).
-  Replace('__DIST_P12_PASSWORD__', $RemoteDistributionP12Password).
+  Replace('__DIST_P12_PASSWORD__', $distP12PasswordValue).
   Replace('__UPLOAD_TO_TESTFLIGHT__', $uploadFlag)
 
 Write-Host ""
@@ -312,7 +499,12 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "==> Build on remote Mac"
-$result = ssh $RemoteHost "chmod +x $remoteRunnerPath && bash $remoteRunnerPath"
+$sshBuildCommand = "chmod +x $remoteRunnerPath && bash $remoteRunnerPath"
+if ($SigningMode -eq "login") {
+  $quotedLoginPassword = ConvertTo-BashSingleQuotedLiteral -Value $RemoteLoginKeychainPassword
+  $sshBuildCommand = "chmod +x $remoteRunnerPath && LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD=$quotedLoginPassword bash $remoteRunnerPath"
+}
+$result = ssh $RemoteHost $sshBuildCommand
 $exitCode = $LASTEXITCODE
 $result | Write-Host
 if ($exitCode -ne 0) {

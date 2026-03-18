@@ -9,16 +9,16 @@ struct SettingsView: View {
   var body: some View {
     NavigationStack {
       Form {
-        sessionSection
-        dxSection
-        tuningSection
-        accessibilitySection
-        historySection
-        scannerSection
-        audioSection
-        diagnosticsSection
-        quickActionsSection
-        feedbackSection
+      sessionSection
+      tuningSection
+      scannerSections
+      dxSection
+      historySection
+      audioSection
+      accessibilitySection
+      diagnosticsSection
+      feedbackSection
+      quickActionsSection
         authorSection
       }
       .voiceOverStable()
@@ -63,6 +63,15 @@ struct SettingsView: View {
       )
       .font(.footnote)
       .foregroundStyle(.secondary)
+
+      Toggle(
+        L10n.text("settings.session.auto_connect_selected_on_launch"),
+        isOn: Binding(
+          get: { settingsController.state.autoConnectSelectedProfileOnLaunch },
+          set: { settingsController.setAutoConnectSelectedProfileOnLaunch($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.session.auto_connect_selected_on_launch.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.session.section"))
     }
@@ -79,15 +88,6 @@ struct SettingsView: View {
         )
       )
       .accessibilityHint(L10n.text("settings.dx.night_mode.hint"))
-
-      Toggle(
-        L10n.text("settings.dx.adaptive_scan"),
-        isOn: Binding(
-          get: { settingsController.state.adaptiveScannerEnabled },
-          set: { settingsController.setAdaptiveScannerEnabled($0) }
-        )
-      )
-      .accessibilityHint(L10n.text("settings.dx.adaptive_scan.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.dx.section"))
     }
@@ -123,27 +123,31 @@ struct SettingsView: View {
       NavigationLink {
         SelectionListView(
           title: L10n.text("settings.tuning.global_step"),
-          options: settingsController.state.tuneStepOptions.map { stepHz in
-            SelectionListOption(
-              id: "\(stepHz)",
-              title: FrequencyFormatter.tuneStepText(fromHz: stepHz),
-              detail: nil
-            )
-          },
-          selectedID: "\(settingsController.state.tuneStepHz)"
+          options: tuneStepSelectionOptions(),
+          selectedID: tuneStepSelectionID
         ) { value in
-          if let stepHz = Int(value) {
+          if value == TuneStepPreferenceMode.automatic.rawValue {
+            settingsController.setTuneStepPreferenceMode(.automatic)
+          } else if let stepHz = Int(value) {
             settingsController.setTuneStepHz(stepHz)
           }
         }
       } label: {
         LabeledContent(
           L10n.text("settings.tuning.global_step"),
-          value: FrequencyFormatter.tuneStepText(fromHz: settingsController.state.tuneStepHz)
+          value: tuneStepSummaryValue
         )
       }
       .accessibilityHint(L10n.text("settings.tuning.global_step.hint"))
-      .disabled(settingsController.state.tuneStepOptions.isEmpty)
+
+      Toggle(
+        L10n.text("settings.tuning.fmdx_tune_confirmation_warnings"),
+        isOn: Binding(
+          get: { settingsController.state.fmdxTuneConfirmationWarningsEnabled },
+          set: { settingsController.setFMDXTuneConfirmationWarningsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.tuning.fmdx_tune_confirmation_warnings.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.tuning.section"))
     }
@@ -187,14 +191,43 @@ struct SettingsView: View {
         )
       )
       .accessibilityHint(L10n.text("settings.history.open_receiver_after_restore.hint"))
+
+      Toggle(
+        L10n.text("settings.history.show_recent_frequencies"),
+        isOn: Binding(
+          get: { settingsController.state.showRecentFrequencies },
+          set: { settingsController.setShowRecentFrequencies($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.history.show_recent_frequencies.hint"))
+
+      Toggle(
+        L10n.text("settings.history.include_other_receivers"),
+        isOn: Binding(
+          get: { settingsController.state.includeRecentFrequenciesFromOtherReceivers },
+          set: { settingsController.setIncludeRecentFrequenciesFromOtherReceivers($0) }
+        )
+      )
+      .disabled(!settingsController.state.showRecentFrequencies)
+      .accessibilityHint(L10n.text("settings.history.include_other_receivers.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.history.section"))
     }
     .appSectionStyle()
   }
 
-  private var scannerSection: some View {
+  @ViewBuilder
+  private var scannerSections: some View {
     Section {
+      Toggle(
+        L10n.text("settings.scanner.channel_adaptive"),
+        isOn: Binding(
+          get: { settingsController.state.adaptiveScannerEnabled },
+          set: { settingsController.setAdaptiveScannerEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.scanner.channel_adaptive.hint"))
+
       scannerSlider(
         title: L10n.text("settings.scanner.dwell"),
         value: settingsController.state.scannerDwellSeconds,
@@ -212,8 +245,149 @@ struct SettingsView: View {
       ) {
         settingsController.setScannerHoldSeconds($0)
       }
+
+      Toggle(
+        L10n.text("settings.scanner.play_detected_signals"),
+        isOn: Binding(
+          get: { settingsController.state.playDetectedChannelScannerSignalsEnabled },
+          set: { settingsController.setPlayDetectedChannelScannerSignalsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.scanner.play_detected_signals.hint"))
+
+      Toggle(
+        L10n.text("settings.scanner.save_channel_results"),
+        isOn: Binding(
+          get: { settingsController.state.saveChannelScannerResultsEnabled },
+          set: { settingsController.setSaveChannelScannerResultsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.scanner.save_channel_results.hint"))
+
+      Toggle(
+        L10n.text("settings.scanner.stop_channel_on_signal"),
+        isOn: Binding(
+          get: { settingsController.state.stopChannelScannerOnSignal },
+          set: { settingsController.setStopChannelScannerOnSignal($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.scanner.stop_channel_on_signal.hint"))
+
+      Toggle(
+        L10n.text("settings.scanner.filter_interference"),
+        isOn: Binding(
+          get: { settingsController.state.filterChannelScannerInterferenceEnabled },
+          set: { settingsController.setFilterChannelScannerInterferenceEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.scanner.filter_interference.hint"))
+
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text("settings.scanner.interference_profile"),
+          options: ChannelScannerInterferenceFilterProfile.allCases.map { profile in
+            SelectionListOption(
+              id: profile.rawValue,
+              title: profile.localizedTitle,
+              detail: profile.localizedDetail
+            )
+          },
+          selectedID: settingsController.state.channelScannerInterferenceFilterProfile.rawValue
+        ) { value in
+          if let profile = ChannelScannerInterferenceFilterProfile(rawValue: value) {
+            settingsController.setChannelScannerInterferenceFilterProfile(profile)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.scanner.interference_profile"),
+          value: settingsController.state.channelScannerInterferenceFilterProfile.localizedTitle
+        )
+      }
+      .disabled(!settingsController.state.filterChannelScannerInterferenceEnabled)
+      .accessibilityHint(L10n.text("settings.scanner.interference_profile.hint"))
     } header: {
-      AppSectionHeader(title: L10n.text("settings.scanner.section"))
+      AppSectionHeader(title: L10n.text("settings.scanner.channel_section"))
+    }
+    .appSectionStyle()
+
+    Section {
+      Toggle(
+        L10n.text("settings.scanner.save_fmdx_results"),
+        isOn: Binding(
+          get: { settingsController.state.saveFMDXScannerResultsEnabled },
+          set: { settingsController.setSaveFMDXScannerResultsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.scanner.save_fmdx_results.hint"))
+
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text("settings.scanner.fmdx_start_behavior"),
+          options: FMDXBandScanStartBehavior.allCases.map { behavior in
+            SelectionListOption(id: behavior.rawValue, title: behavior.localizedTitle, detail: nil)
+          },
+          selectedID: settingsController.state.fmdxBandScanStartBehavior.rawValue
+        ) { value in
+          if let behavior = FMDXBandScanStartBehavior(rawValue: value) {
+            settingsController.setFMDXBandScanStartBehavior(behavior)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.scanner.fmdx_start_behavior"),
+          value: settingsController.state.fmdxBandScanStartBehavior.localizedTitle
+        )
+      }
+      .accessibilityHint(L10n.text("settings.scanner.fmdx_start_behavior.hint"))
+
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text("settings.scanner.fmdx_hit_behavior"),
+          options: FMDXBandScanHitBehavior.allCases.map { behavior in
+            SelectionListOption(id: behavior.rawValue, title: behavior.localizedTitle, detail: nil)
+          },
+          selectedID: settingsController.state.fmdxBandScanHitBehavior.rawValue
+        ) { value in
+          if let behavior = FMDXBandScanHitBehavior(rawValue: value) {
+            settingsController.setFMDXBandScanHitBehavior(behavior)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.scanner.fmdx_hit_behavior"),
+          value: settingsController.state.fmdxBandScanHitBehavior.localizedTitle
+        )
+      }
+      .accessibilityHint(L10n.text("settings.scanner.fmdx_hit_behavior.hint"))
+
+      Text(L10n.text("settings.scanner.fmdx_custom_info"))
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+
+      scannerSlider(
+        title: L10n.text("settings.scanner.fmdx_custom_settle"),
+        value: settingsController.state.fmdxCustomScanSettleSeconds,
+        range: 0.05...0.60,
+        step: 0.01,
+        valueFormat: "%.2f",
+        hintKey: "settings.scanner.fmdx_custom_settle.hint"
+      ) {
+        settingsController.setFMDXCustomScanSettleSeconds($0)
+      }
+
+      scannerSlider(
+        title: L10n.text("settings.scanner.fmdx_custom_metadata_window"),
+        value: settingsController.state.fmdxCustomScanMetadataWindowSeconds,
+        range: 0.0...2.0,
+        step: 0.05,
+        valueFormat: "%.2f",
+        hintKey: "settings.scanner.fmdx_custom_metadata_window.hint"
+      ) {
+        settingsController.setFMDXCustomScanMetadataWindowSeconds($0)
+      }
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.scanner.fmdx_section"))
     }
     .appSectionStyle()
   }
@@ -243,6 +417,15 @@ struct SettingsView: View {
         )
       }
       .accessibilityHint(L10n.text("settings.audio.suggestion_scope.hint"))
+
+      Toggle(
+        L10n.text("settings.audio.mix_with_other_apps"),
+        isOn: Binding(
+          get: { settingsController.state.mixWithOtherAudioApps },
+          set: { settingsController.setMixWithOtherAudioApps($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.audio.mix_with_other_apps.hint"))
 
       SettingsLiveAudioInsightSection()
 
@@ -426,17 +609,52 @@ struct SettingsView: View {
     }
   }
 
+  private var tuneStepSelectionID: String {
+    settingsController.state.tuneStepPreferenceMode == .automatic
+      ? TuneStepPreferenceMode.automatic.rawValue
+      : "\(settingsController.state.tuneStepHz)"
+  }
+
+  private var tuneStepSummaryValue: String {
+    switch settingsController.state.tuneStepPreferenceMode {
+    case .manual:
+      return FrequencyFormatter.tuneStepText(fromHz: settingsController.state.tuneStepHz)
+    case .automatic:
+      return settingsController.state.tuneStepPreferenceMode.localizedTitle
+    }
+  }
+
+  private func tuneStepSelectionOptions() -> [SelectionListOption] {
+    let automaticOption = SelectionListOption(
+      id: TuneStepPreferenceMode.automatic.rawValue,
+      title: TuneStepPreferenceMode.automatic.localizedTitle,
+      detail: TuneStepPreferenceMode.automatic.localizedDetail
+    )
+
+    let manualOptions = settingsController.state.tuneStepOptions.map { stepHz in
+      SelectionListOption(
+        id: "\(stepHz)",
+        title: FrequencyFormatter.tuneStepText(fromHz: stepHz),
+        detail: nil
+      )
+    }
+
+    return [automaticOption] + manualOptions
+  }
+
   private func scannerSlider(
     title: String,
     value: Double,
     range: ClosedRange<Double>,
     step: Double,
+    valueFormat: String = "%.1f",
+    hintKey: String? = nil,
     onChange: @escaping (Double) -> Void
   ) -> some View {
     VStack(alignment: .leading, spacing: 6) {
       LabeledContent(
         title,
-        value: "\(String(format: "%.1f", value)) s"
+        value: "\(String(format: valueFormat, value)) s"
       )
       .accessibilityHidden(true)
 
@@ -450,7 +668,8 @@ struct SettingsView: View {
       )
       .accessibleControl(
         label: title,
-        value: "\(String(format: "%.1f", value)) s"
+        value: "\(String(format: valueFormat, value)) s",
+        hint: hintKey.map { L10n.text($0) }
       )
     }
   }

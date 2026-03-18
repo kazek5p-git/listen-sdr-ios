@@ -1,21 +1,85 @@
 import Foundation
 
+struct ChannelScannerResult: Identifiable, Codable, Equatable, Hashable {
+  let id: String
+  let name: String
+  let frequencyHz: Int
+  let mode: DemodulationMode?
+  let signal: Double
+  let signalUnit: String
+  let detectedAt: Date
+}
+
 struct CachedReceiverData: Codable {
   var openWebRXProfiles: [OpenWebRXProfileOption]
   var selectedOpenWebRXProfileID: String?
+  var lastOpenWebRXBookmark: SDRServerBookmark?
   var serverBookmarks: [SDRServerBookmark]
   var openWebRXBandPlan: [SDRBandPlanEntry]
+  var savedChannelScannerResults: [ChannelScannerResult]
   var fmdxServerPresets: [SDRServerBookmark]
+  var fmdxSavedScanResults: [FMDXBandScanResult]
   var savedAt: Date
 
   static let empty = CachedReceiverData(
     openWebRXProfiles: [],
     selectedOpenWebRXProfileID: nil,
+    lastOpenWebRXBookmark: nil,
     serverBookmarks: [],
     openWebRXBandPlan: [],
+    savedChannelScannerResults: [],
     fmdxServerPresets: [],
+    fmdxSavedScanResults: [],
     savedAt: .distantPast
   )
+
+  private enum CodingKeys: String, CodingKey {
+    case openWebRXProfiles
+    case selectedOpenWebRXProfileID
+    case lastOpenWebRXBookmark
+    case serverBookmarks
+    case openWebRXBandPlan
+    case savedChannelScannerResults
+    case fmdxServerPresets
+    case fmdxSavedScanResults
+    case savedAt
+  }
+
+  init(
+    openWebRXProfiles: [OpenWebRXProfileOption],
+    selectedOpenWebRXProfileID: String?,
+    lastOpenWebRXBookmark: SDRServerBookmark?,
+    serverBookmarks: [SDRServerBookmark],
+    openWebRXBandPlan: [SDRBandPlanEntry],
+    savedChannelScannerResults: [ChannelScannerResult],
+    fmdxServerPresets: [SDRServerBookmark],
+    fmdxSavedScanResults: [FMDXBandScanResult],
+    savedAt: Date
+  ) {
+    self.openWebRXProfiles = openWebRXProfiles
+    self.selectedOpenWebRXProfileID = selectedOpenWebRXProfileID
+    self.lastOpenWebRXBookmark = lastOpenWebRXBookmark
+    self.serverBookmarks = serverBookmarks
+    self.openWebRXBandPlan = openWebRXBandPlan
+    self.savedChannelScannerResults = savedChannelScannerResults
+    self.fmdxServerPresets = fmdxServerPresets
+    self.fmdxSavedScanResults = fmdxSavedScanResults
+    self.savedAt = savedAt
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    openWebRXProfiles = try container.decodeIfPresent([OpenWebRXProfileOption].self, forKey: .openWebRXProfiles) ?? []
+    selectedOpenWebRXProfileID = try container.decodeIfPresent(String.self, forKey: .selectedOpenWebRXProfileID)
+    lastOpenWebRXBookmark = try container.decodeIfPresent(SDRServerBookmark.self, forKey: .lastOpenWebRXBookmark)
+    serverBookmarks = try container.decodeIfPresent([SDRServerBookmark].self, forKey: .serverBookmarks) ?? []
+    openWebRXBandPlan = try container.decodeIfPresent([SDRBandPlanEntry].self, forKey: .openWebRXBandPlan) ?? []
+    savedChannelScannerResults =
+      try container.decodeIfPresent([ChannelScannerResult].self, forKey: .savedChannelScannerResults) ?? []
+    fmdxServerPresets = try container.decodeIfPresent([SDRServerBookmark].self, forKey: .fmdxServerPresets) ?? []
+    fmdxSavedScanResults = try container.decodeIfPresent([FMDXBandScanResult].self, forKey: .fmdxSavedScanResults) ?? []
+    savedAt = try container.decodeIfPresent(Date.self, forKey: .savedAt) ?? .distantPast
+  }
 }
 
 @MainActor

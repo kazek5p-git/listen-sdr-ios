@@ -40,8 +40,30 @@ struct AudioRecordingInfo: Identifiable, Codable, Hashable {
     URL(fileURLWithPath: filePath)
   }
 
+  var displayFileName: String {
+    fileURL.lastPathComponent
+  }
+
+  var durationSeconds: TimeInterval {
+    max(finishedAt.timeIntervalSince(createdAt), 0)
+  }
+
+  var durationText: String {
+    Self.durationFormatter.string(from: durationSeconds) ?? "0:00"
+  }
+
+  private static let durationFormatter: DateComponentsFormatter = {
+    let formatter = DateComponentsFormatter()
+    formatter.allowedUnits = [.hour, .minute, .second]
+    formatter.unitsStyle = .positional
+    formatter.zeroFormattingBehavior = [.pad]
+    return formatter
+  }()
+}
+
+extension AudioRecordingInfo {
   var title: String {
-    receiverName
+    displayFileName
   }
 }
 

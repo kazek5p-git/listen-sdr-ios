@@ -254,6 +254,7 @@ private extension KiwiNoiseFilterAlgorithm {
 struct ReceiverView: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var historyStore: ListeningHistoryStore
   @EnvironmentObject private var favoritesStore: FavoritesStore
   @EnvironmentObject private var recordingStore: RecordingStore
   @FocusState private var isInlineFrequencyFocused: Bool
@@ -264,12 +265,15 @@ struct ReceiverView: View {
   @State private var inlineFrequencyApplyTask: Task<Void, Never>?
   @State private var scanSource: ScanSource = .serverBookmarks
   @State private var isFMDXStationListExpanded = false
+  @State private var isFMDXBandScannerExpanded = false
   @State private var isFMDXAFExpanded = false
-  @State private var isFMDXRDSDetailsExpanded = false
+  @State private var selectedFMDXBandScanRange: FMDXBandScanRangePreset = .upperUKF
+  @State private var selectedFMDXBandScanMode: FMDXBandScanMode = .standard
+  @State private var selectedFMDXBandScanStepHz = FMDXBandScanRangePreset.upperUKF.definition.defaultStepHz
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
-  private let fmDxFrequencyRangeHz: ClosedRange<Int> = 64_000_000...110_000_000
+  private let fmDxOverallFrequencyRangeHz: ClosedRange<Int> = 100_000...110_000_000
 
   var body: some View {
     NavigationStack {
@@ -285,6 +289,7 @@ struct ReceiverView: View {
         }
       }
       .navigationTitle(L10n.text("receiver.current.section"))
+      .navigationBarTitleDisplayMode(.inline)
       .appScreenBackground()
     }
   }
@@ -293,15 +298,15 @@ struct ReceiverView: View {
     let scannerChannels = scanChannels(for: profile)
 
     return Form {
-      connectionSection(for: profile)
+      connectionCardRow(for: profile)
       tuningSection(for: profile)
       favoritesSection(for: profile)
+      recentFrequenciesSection(for: profile)
       openWebRXControlsSection(for: profile)
-      openWebRXServerBookmarksSection(for: profile)
-      openWebRXBandPlanSection(for: profile)
       kiwiControlsSection(for: profile)
       fmDxControlsSection(for: profile)
       fmDxServerPresetsSection(for: profile)
+      fmDxBandScannerSection(for: profile)
       if profile.backend != .fmDxWebserver {
         scannerSection(for: profile, scannerChannels: scannerChannels)
       }
@@ -311,11 +316,23 @@ struct ReceiverView: View {
     }
     .voiceOverStable()
     .scrollContentBackground(.hidden)
+    .environment(\.defaultMinListHeaderHeight, 1)
     .onAppear {
       resetInlineFrequencyInput()
+      syncFMDXBandScannerStepSelection()
     }
     .onChange(of: profile.backend) { _ in
       resetInlineFrequencyInput()
+      syncFMDXBandScannerStepSelection()
+    }
+    .onChange(of: selectedFMDXBandScanRange) { _ in
+      syncFMDXBandScannerStepSelection()
+    }
+    .onChange(of: radioSession.currentFMDXQuickBand) { _ in
+      syncFMDXBandScannerStepSelection()
+    }
+    .onChange(of: radioSession.settings.saveFMDXScannerResultsEnabled) { _ in
+      syncFMDXBandScannerStepSelection()
     }
   }
 
@@ -349,9 +366,11 @@ struct ReceiverView: View {
           } label: {
             VStack(alignment: .leading, spacing: 4) {
               Text(station.title)
-              Text(FrequencyFormatter.mhzText(fromHz: station.frequencyHz))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+              if let secondaryText = favoriteStationSecondaryText(for: station) {
+                Text(secondaryText)
+                  .font(.footnote)
+                  .foregroundStyle(.secondary)
+              }
             }
           }
           .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -369,81 +388,103 @@ struct ReceiverView: View {
     .appSectionStyle()
   }
 
-  private func connectionSection(for profile: SDRConnectionProfile) -> some View {
-    Section {
-      receiverSummaryCard(for: profile)
-    }
-    .appSectionStyle()
-  }
+  @ViewBuilder
+  private func recentFrequenciesSection(for profile: SDRConnectionProfile) -> some View {
+    let recentFrequencies = filteredRecentFrequencies(for: profile)
 
-  private func receiverSummaryCard(for profile: SDRConnectionProfile) -> some View {
-    VStack(alignment: .leading, spacing: 10) {
-      VStack(alignment: .leading, spacing: 10) {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-          VStack(alignment: .leading, spacing: 6) {
-            Text(profile.name)
-              .font(.headline)
-
-            HStack(spacing: 6) {
-              Text(profile.backend.displayName)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(receiverAccentColor(for: profile.backend))
-
-              Image(systemName: "circle.fill")
-                .font(.system(size: 4, weight: .semibold))
-                .foregroundStyle(.tertiary)
-
-              Text(radioSession.statusText)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(receiverStatusForeground)
+    if !recentFrequencies.isEmpty {
+      Section {
+        NavigationLink {
+          RecentFrequenciesListView(
+            records: recentFrequencies,
+            showReceiverName: radioSession.settings.includeRecentFrequenciesFromOtherReceivers
+          ) { record in
+            if let mode = record.mode {
+              radioSession.setMode(mode)
             }
+            radioSession.setFrequencyHz(record.frequencyHz)
           }
-
-          Spacer(minLength: 8)
-
-          Image(systemName: connectionStatusSymbolName)
-            .font(.body.weight(.semibold))
-            .foregroundStyle(receiverStatusForeground)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(receiverStatusBackground, in: Capsule())
-        }
-
-        Text(profile.endpointDescription)
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-          .minimumScaleFactor(0.85)
-
-        if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
-          Text(backendStatus)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-        }
-
-        if let error = radioSession.lastError {
-          Text(error)
-            .foregroundStyle(.red)
-            .font(.footnote)
+        } label: {
+          LabeledContent(
+            L10n.text("receiver.recent_frequencies.section"),
+            value: L10n.text("receiver.recent_frequencies.count", recentFrequencies.count)
+          )
         }
       }
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(profile.name)
-      .accessibilityValue(
-        [profile.backend.displayName, radioSession.statusText, profile.endpointDescription]
-          .joined(separator: ", ")
-      )
-      .accessibilityHint(L10n.text("receiver.current.summary.hint"))
+      .appSectionStyle()
+    }
+  }
 
+  private func connectionCardRow(for profile: SDRConnectionProfile) -> some View {
+    connectionCard(for: profile)
+      .listRowBackground(Color.clear)
+      .listRowSeparator(.hidden)
+      .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 2, trailing: 16))
+  }
+
+  private func connectionCard(for profile: SDRConnectionProfile) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      receiverSummaryContent(for: profile)
       connectionActionRow(for: profile)
     }
-    .appCardContainer()
+    .appCardContainer(
+      padding: EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+    )
+  }
+
+  private func receiverSummaryContent(for profile: SDRConnectionProfile) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(profile.name)
+            .font(.headline)
+
+          Text(profile.backend.displayName)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(receiverAccentColor(for: profile.backend))
+        }
+
+        Spacer(minLength: 8)
+
+        Text(radioSession.statusText)
+          .font(.footnote.weight(.semibold))
+          .padding(.horizontal, 10)
+          .padding(.vertical, 6)
+          .background(receiverStatusBackground, in: Capsule())
+          .foregroundStyle(receiverStatusForeground)
+      }
+
+      Text(profile.endpointDescription)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
+
+      if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
+        Text(backendStatus)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .lineLimit(2)
+      }
+
+      if let error = radioSession.lastError {
+        Text(error)
+          .foregroundStyle(.red)
+          .font(.footnote)
+      }
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(profile.name)
+    .accessibilityValue(
+      [profile.backend.displayName, radioSession.statusText, profile.endpointDescription]
+        .joined(separator: ", ")
+    )
+    .accessibilityHint(L10n.text("receiver.current.summary.hint"))
   }
 
   @ViewBuilder
   private func connectionActionRow(for profile: SDRConnectionProfile) -> some View {
-    HStack(spacing: 10) {
+    HStack(spacing: 8) {
       FocusRetainingButton({
         handleConnectionButtonTap(for: profile)
       }) {
@@ -466,29 +507,25 @@ struct ReceiverView: View {
     }
   }
 
-  private var connectionStatusSymbolName: String {
-    switch radioSession.state {
-    case .connected:
-      return "checkmark"
-    case .connecting:
-      return "ellipsis"
-    case .failed:
-      return "exclamationmark"
-    case .disconnected:
-      return "antenna.radiowaves.left.and.right"
+  private func tuningSection(for profile: SDRConnectionProfile) -> some View {
+    Section {
+      tuningCard(for: profile)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 2, trailing: 16))
+    } header: {
+      AppSectionHeader(title: L10n.text("Tuning"))
     }
   }
 
-  private func tuningSection(for profile: SDRConnectionProfile) -> some View {
-    Section {
+  private func tuningCard(for profile: SDRConnectionProfile) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
       frequencyInputSection(for: profile.backend)
-
       frequencyTuningControl(for: profile.backend)
-
       tuneStepControl(for: profile.backend)
 
       if profile.backend == .fmDxWebserver {
-        fmdxBandSwitcher()
+        fmdxBandSelectionControl()
       } else {
         selectionNavigationLink(
           title: "Mode",
@@ -510,10 +547,10 @@ struct ReceiverView: View {
           .font(.footnote)
           .foregroundStyle(.orange)
       }
-    } header: {
-      AppSectionHeader(title: "Tuning")
     }
-    .appSectionStyle()
+    .appCardContainer(
+      padding: EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+    )
   }
 
   @ViewBuilder
@@ -555,13 +592,24 @@ struct ReceiverView: View {
         Toggle(
           L10n.text("openwebrx.squelch"),
           isOn: Binding(
-            get: { radioSession.settings.squelchEnabled },
+            get: { radioSession.effectiveOpenWebRXSquelchEnabled },
             set: { radioSession.setSquelchEnabled($0) }
           )
         )
-        .accessibilityHint(L10n.text("openwebrx.squelch_hint"))
+        .disabled(radioSession.isOpenWebRXSquelchLockedByScanner)
+        .accessibilityHint(
+          radioSession.isOpenWebRXSquelchLockedByScanner
+            ? L10n.text("openwebrx.squelch_scanner_locked_hint")
+            : L10n.text("openwebrx.squelch_hint")
+        )
 
-        if radioSession.settings.squelchEnabled {
+        if radioSession.isOpenWebRXSquelchLockedByScanner {
+          Text(L10n.text("openwebrx.squelch_scanner_locked"))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+
+        if radioSession.effectiveOpenWebRXSquelchEnabled {
           VStack(alignment: .leading, spacing: 6) {
             LabeledContent(
               L10n.text("openwebrx.squelch_level"),
@@ -585,10 +633,10 @@ struct ReceiverView: View {
           LabeledContent(L10n.text("openwebrx.current_band"), value: activeBand)
         }
 
-        if let activeBookmark = activeOpenWebRXBookmark() {
-          LabeledContent(L10n.text("openwebrx.active_bookmark"), value: activeBookmark.name)
+        if let lastBookmark = radioSession.lastOpenWebRXBookmark {
+          LabeledContent(L10n.text("openwebrx.active_bookmark"), value: lastBookmark.name)
           FocusRetainingButton {
-            radioSession.applyServerBookmark(activeBookmark)
+            radioSession.restoreLastOpenWebRXBookmark()
           } label: {
             Label(L10n.text("openwebrx.active_bookmark.apply"), systemImage: "bookmark.fill")
           }
@@ -622,10 +670,60 @@ struct ReceiverView: View {
             }
           }
         }
+
+        openWebRXBookmarkBrowserRow()
+        openWebRXBandPlanBrowserRow()
       } header: {
         AppSectionHeader(title: L10n.text("openwebrx.controls"))
       }
       .appSectionStyle()
+    }
+  }
+
+  @ViewBuilder
+  private func openWebRXBookmarkBrowserRow() -> some View {
+    if radioSession.serverBookmarks.isEmpty {
+      Text(L10n.text("openwebrx.bookmarks_empty"))
+        .foregroundStyle(.secondary)
+    } else {
+      NavigationLink {
+        OpenWebRXBookmarksView(
+          bookmarks: radioSession.serverBookmarks,
+          onSelect: { bookmark in
+            radioSession.applyServerBookmark(bookmark)
+          }
+        )
+      } label: {
+        LabeledContent(
+          L10n.text("openwebrx.bookmarks_browse"),
+          value: openWebRXBookmarkSummary()
+        )
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func openWebRXBandPlanBrowserRow() -> some View {
+    if radioSession.openWebRXBandPlan.isEmpty {
+      Text(L10n.text("openwebrx.band_plan_loading"))
+        .foregroundStyle(.secondary)
+    } else {
+      NavigationLink {
+        OpenWebRXBandPlanListView(
+          bands: radioSession.openWebRXBandPlan,
+          onTuneBandCenter: { band in
+            radioSession.tuneToBand(band)
+          },
+          onTuneFrequency: { band, item in
+            radioSession.tuneToBand(band, using: item)
+          }
+        )
+      } label: {
+        LabeledContent(
+          L10n.text("openwebrx.band_plan_browse"),
+          value: openWebRXBandPlanSummary()
+        )
+      }
     }
   }
 
@@ -640,7 +738,6 @@ struct ReceiverView: View {
           NavigationLink {
             OpenWebRXBookmarksView(
               bookmarks: radioSession.serverBookmarks,
-              activeFrequencyHz: radioSession.settings.frequencyHz,
               onSelect: { bookmark in
                 radioSession.applyServerBookmark(bookmark)
               }
@@ -670,7 +767,6 @@ struct ReceiverView: View {
           NavigationLink {
             OpenWebRXBandPlanListView(
               bands: radioSession.openWebRXBandPlan,
-              activeFrequencyHz: radioSession.settings.frequencyHz,
               onTuneBandCenter: { band in
                 radioSession.tuneToBand(band)
               },
@@ -765,18 +861,6 @@ struct ReceiverView: View {
       let stationList = radioSession.fmdxServerPresets
 
       Section {
-        FocusRetainingButton {
-          isFMDXStationListExpanded.toggle()
-        } label: {
-          Label(
-            L10n.text(
-              isFMDXStationListExpanded
-                ? "fmdx.station_list.collapse"
-                : "fmdx.station_list.expand"
-            ),
-            systemImage: isFMDXStationListExpanded ? "chevron.up" : "chevron.down"
-          )
-        }
         if isFMDXStationListExpanded {
           if stationList.isEmpty {
             Text(L10n.text("fmdx.server_presets.empty"))
@@ -788,12 +872,207 @@ struct ReceiverView: View {
             }
           }
         }
-      }
-      header: {
-        AppSectionHeader(title: L10n.text("fmdx.server_presets.section"))
+      } header: {
+        collapsibleSectionHeader(
+          title: L10n.text("fmdx.server_presets.section"),
+          isExpanded: $isFMDXStationListExpanded,
+          expandedValueKey: "fmdx.server_presets.header.collapse",
+          collapsedValueKey: "fmdx.server_presets.header.expand",
+          expandedHintKey: "fmdx.server_presets.header.collapse_hint",
+          collapsedHintKey: "fmdx.server_presets.header.expand_hint"
+        )
       }
       .appSectionStyle()
     }
+  }
+
+  @ViewBuilder
+  private func fmDxBandScannerSection(for profile: SDRConnectionProfile) -> some View {
+    if profile.backend == .fmDxWebserver {
+      let availableRanges = FMDXBandScanRangePreset.availableCases(
+        supportsAM: radioSession.fmdxSupportsAM
+      )
+      let saveScanResultsEnabled = radioSession.settings.saveFMDXScannerResultsEnabled
+      let availableModes = FMDXBandScanMode.selectableCases(saveResultsEnabled: saveScanResultsEnabled)
+      let effectiveScanMode = effectiveFMDXBandScanMode(saveResultsEnabled: saveScanResultsEnabled)
+      let rangeDefinition = selectedFMDXBandScanRange.definition
+
+      Section {
+        if isFMDXBandScannerExpanded {
+          selectionNavigationLink(
+            title: L10n.text("fmdx.scanner.range"),
+            value: currentFMDXBandScanRangeValue(),
+            selectedID: selectedFMDXBandScanRange.rawValue,
+            options: availableRanges.map {
+              SelectionListOption(id: $0.rawValue, title: $0.localizedTitle, detail: nil)
+            },
+            disabled: radioSession.state != .connected
+          ) { value in
+            if let preset = FMDXBandScanRangePreset(rawValue: value) {
+              selectedFMDXBandScanRange = preset
+            }
+          }
+
+          selectionNavigationLink(
+            title: L10n.text("fmdx.scanner.step"),
+            value: scannerStepLabel(selectedFMDXBandScanStepHz),
+            selectedID: "\(selectedFMDXBandScanStepHz)",
+            options: rangeDefinition.stepOptionsHz.map {
+              SelectionListOption(
+                id: "\($0)",
+                title: scannerStepLabel($0),
+                detail: nil
+              )
+            },
+            disabled: radioSession.state != .connected
+          ) { value in
+            if let stepHz = Int(value) {
+              selectedFMDXBandScanStepHz = stepHz
+            }
+          }
+
+          selectionNavigationLink(
+            title: L10n.text("fmdx.scanner.threshold"),
+            value: scannerThresholdLabel(radioSession.scannerThreshold, backend: .fmDxWebserver),
+            selectedID: "\(Int(radioSession.scannerThreshold.rounded()))",
+            options: fmdxBandScannerThresholdOptions().map {
+              SelectionListOption(
+                id: "\($0)",
+                title: scannerThresholdLabel(Double($0), backend: .fmDxWebserver),
+                detail: nil
+              )
+            },
+            disabled: radioSession.state != .connected
+          ) { value in
+            if let threshold = Int(value) {
+              radioSession.scannerThreshold = Double(threshold)
+            }
+          }
+
+          selectionNavigationLink(
+            title: L10n.text("fmdx.scanner.mode"),
+            value: effectiveScanMode.localizedTitle,
+            selectedID: effectiveScanMode.rawValue,
+            options: availableModes.map {
+              SelectionListOption(id: $0.rawValue, title: $0.localizedTitle, detail: nil)
+            },
+            disabled: radioSession.state != .connected
+          ) { value in
+            if let scanMode = FMDXBandScanMode(rawValue: value),
+              availableModes.contains(scanMode) {
+              selectedFMDXBandScanMode = scanMode
+            }
+          }
+
+          if radioSession.isScannerRunning {
+            FocusRetainingButton {
+              radioSession.stopScanner()
+            } label: {
+              Text(L10n.text("fmdx.scanner.stop"))
+            }
+            .buttonStyle(.borderedProminent)
+          } else {
+            FocusRetainingButton {
+              radioSession.startFMDXBandScanner(
+                rangePreset: selectedFMDXBandScanRange,
+                stepHz: selectedFMDXBandScanStepHz,
+                scanMode: effectiveScanMode
+              )
+            } label: {
+              Text(L10n.text("fmdx.scanner.start"))
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(radioSession.state != .connected)
+          }
+
+          if let statusText = radioSession.scannerStatusText, !statusText.isEmpty {
+            Text(statusText)
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+          }
+
+          if !radioSession.fmdxBandScannerResults.isEmpty {
+            let scannerResultsLabel = saveScanResultsEnabled && effectiveScanMode == .quickNewSignals
+              ? "\(L10n.text("fmdx.scanner.results")) (\(effectiveScanMode.localizedTitle))"
+              : L10n.text("fmdx.scanner.results")
+
+            LabeledContent(
+              scannerResultsLabel,
+              value: "\(radioSession.fmdxBandScannerResults.count)"
+            )
+
+            ForEach(radioSession.fmdxBandScannerResults) { result in
+              fmdxBandScanResultRow(result)
+            }
+          }
+        }
+      } header: {
+        collapsibleSectionHeader(
+          title: L10n.text("fmdx.scanner.section"),
+          isExpanded: $isFMDXBandScannerExpanded,
+          expandedValueKey: "fmdx.scanner.header.collapse",
+          collapsedValueKey: "fmdx.scanner.header.expand",
+          expandedHintKey: "fmdx.scanner.header.collapse_hint",
+          collapsedHintKey: "fmdx.scanner.header.expand_hint"
+        )
+      }
+      .appSectionStyle()
+    }
+  }
+
+  private func collapsibleSectionHeader(
+    title: String,
+    isExpanded: Binding<Bool>,
+    expandedValueKey: String,
+    collapsedValueKey: String,
+    expandedHintKey: String,
+    collapsedHintKey: String
+  ) -> some View {
+    FocusRetainingButton {
+      isExpanded.wrappedValue.toggle()
+    } label: {
+      HStack(spacing: 12) {
+        Text(title)
+          .font(.headline)
+          .textCase(nil)
+
+        Spacer()
+
+        Text(
+          L10n.text(
+            isExpanded.wrappedValue
+              ? expandedValueKey
+              : collapsedValueKey
+          )
+        )
+        .font(.footnote.weight(.semibold))
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
+
+        Image(systemName: isExpanded.wrappedValue ? "chevron.up" : "chevron.down")
+          .font(.footnote.weight(.semibold))
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityAddTraits(.isHeader)
+    .accessibilityLabel(title)
+    .accessibilityValue(
+      L10n.text(
+        isExpanded.wrappedValue
+          ? expandedValueKey
+          : collapsedValueKey
+      )
+    )
+    .accessibilityHint(
+      L10n.text(
+        isExpanded.wrappedValue
+          ? expandedHintKey
+          : collapsedHintKey
+      )
+    )
   }
 
   private func fmdxServerBookmarkRow(preset: SDRServerBookmark) -> some View {
@@ -807,6 +1086,31 @@ struct ReceiverView: View {
           .foregroundStyle(.secondary)
       }
     }
+  }
+
+  private func fmdxBandScanResultRow(_ result: FMDXBandScanResult) -> some View {
+    FocusRetainingButton {
+      radioSession.setMode(result.mode)
+      radioSession.setFrequencyHz(result.frequencyHz)
+    } label: {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(fmdxBandScanResultPrimaryText(result))
+
+        let secondaryLines = fmdxBandScanResultSecondaryLines(result)
+        if let firstLine = secondaryLines.first {
+          Text(firstLine)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        if secondaryLines.count > 1 {
+          Text(secondaryLines[1])
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .buttonStyle(.plain)
   }
 
   @ViewBuilder
@@ -875,13 +1179,24 @@ struct ReceiverView: View {
         Toggle(
           L10n.text("kiwi.squelch"),
           isOn: Binding(
-            get: { radioSession.settings.squelchEnabled },
+            get: { radioSession.effectiveKiwiSquelchEnabled },
             set: { radioSession.setSquelchEnabled($0) }
           )
         )
-        .accessibilityHint(L10n.text("kiwi.squelch_hint"))
+        .disabled(radioSession.isKiwiSquelchLockedByScanner)
+        .accessibilityHint(
+          radioSession.isKiwiSquelchLockedByScanner
+            ? L10n.text("kiwi.squelch_scanner_locked_hint")
+            : L10n.text("kiwi.squelch_hint")
+        )
 
-        if radioSession.settings.squelchEnabled {
+        if radioSession.isKiwiSquelchLockedByScanner {
+          Text(L10n.text("kiwi.squelch_scanner_locked"))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+
+        if radioSession.effectiveKiwiSquelchEnabled {
           VStack(alignment: .leading, spacing: 6) {
             LabeledContent(
               L10n.text("kiwi.squelch_level"),
@@ -901,358 +1216,423 @@ struct ReceiverView: View {
           .accessibilityValue("\(radioSession.settings.kiwiSquelchThreshold)")
         }
 
-        selectionNavigationLink(
-          title: L10n.text("kiwi.noise_blanker"),
-          value: radioSession.settings.kiwiNoiseBlankerAlgorithm.localizedTitle,
-          selectedID: "\(radioSession.settings.kiwiNoiseBlankerAlgorithm.rawValue)",
-          options: KiwiNoiseBlankerAlgorithm.allCases.map {
-            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-          }
-        ) { value in
-          if let rawValue = Int(value), let algorithm = KiwiNoiseBlankerAlgorithm(rawValue: rawValue) {
-            radioSession.setKiwiNoiseBlankerAlgorithm(algorithm)
-          }
+        compactEditorNavigationRow(
+          title: L10n.text("kiwi.section.noise_blanker"),
+          value: radioSession.settings.kiwiNoiseBlankerAlgorithm.localizedTitle
+        ) {
+          kiwiNoiseBlankerRows(isIQMode: isIQMode)
         }
 
-        if isIQMode, radioSession.settings.kiwiNoiseBlankerAlgorithm == .wild {
-          Text(L10n.text("kiwi.noise_blanker.iq_warning"))
-            .foregroundStyle(.secondary)
-            .font(.footnote)
+        compactEditorNavigationRow(
+          title: L10n.text("kiwi.section.noise_filter"),
+          value: radioSession.settings.kiwiNoiseFilterAlgorithm.localizedTitle
+        ) {
+          kiwiNoiseFilterRows(isIQMode: isIQMode)
         }
 
-        switch radioSession.settings.kiwiNoiseBlankerAlgorithm {
-        case .off:
-          EmptyView()
-
-        case .standard:
-          kiwiPassbandSlider(
-            title: L10n.text("kiwi.noise_blanker.gate"),
-            valueText: "\(radioSession.settings.kiwiNoiseBlankerGate) Âµs",
-            value: Binding(
-              get: { Double(radioSession.settings.kiwiNoiseBlankerGate) },
-              set: { radioSession.setKiwiNoiseBlankerGate(Int($0.rounded())) }
-            ),
-            range: 100 ... 5_000,
-            step: 100
-          )
-
-          kiwiPassbandSlider(
-            title: L10n.text("kiwi.noise_blanker.threshold"),
-            valueText: "\(radioSession.settings.kiwiNoiseBlankerThreshold)%",
-            value: Binding(
-              get: { Double(radioSession.settings.kiwiNoiseBlankerThreshold) },
-              set: { radioSession.setKiwiNoiseBlankerThreshold(Int($0.rounded())) }
-            ),
-            range: 0 ... 100,
-            step: 1
-          )
-
-        case .wild:
-          kiwiPassbandSlider(
-            title: L10n.text("kiwi.noise_blanker.wild_threshold"),
-            valueText: String(format: "%.2f", radioSession.settings.kiwiNoiseBlankerWildThreshold),
-            value: Binding(
-              get: { radioSession.settings.kiwiNoiseBlankerWildThreshold },
-              set: { radioSession.setKiwiNoiseBlankerWildThreshold($0) }
-            ),
-            range: 0.05 ... 3.0,
-            step: 0.05
-          )
-
-          kiwiPassbandSlider(
-            title: L10n.text("kiwi.noise_blanker.wild_taps"),
-            valueText: "\(radioSession.settings.kiwiNoiseBlankerWildTaps)",
-            value: Binding(
-              get: { Double(radioSession.settings.kiwiNoiseBlankerWildTaps) },
-              set: { radioSession.setKiwiNoiseBlankerWildTaps(Int($0.rounded())) }
-            ),
-            range: 6 ... 40,
-            step: 1
-          )
-
-          kiwiPassbandSlider(
-            title: L10n.text("kiwi.noise_blanker.wild_samples"),
-            valueText: "\(radioSession.settings.kiwiNoiseBlankerWildImpulseSamples)",
-            value: Binding(
-              get: { Double(radioSession.settings.kiwiNoiseBlankerWildImpulseSamples) },
-              set: { radioSession.setKiwiNoiseBlankerWildImpulseSamples(Int($0.rounded())) }
-            ),
-            range: 3 ... 41,
-            step: 2
-          )
-        }
-
-        FocusRetainingButton {
-          radioSession.resetKiwiNoiseBlanker()
-        } label: {
-          Text(L10n.text("kiwi.noise_blanker.reset"))
-        }
-        .disabled(
-          radioSession.settings.kiwiNoiseBlankerAlgorithm == RadioSessionSettings.default.kiwiNoiseBlankerAlgorithm
-            && radioSession.settings.kiwiNoiseBlankerGate == RadioSessionSettings.default.kiwiNoiseBlankerGate
-            && radioSession.settings.kiwiNoiseBlankerThreshold == RadioSessionSettings.default.kiwiNoiseBlankerThreshold
-            && abs(radioSession.settings.kiwiNoiseBlankerWildThreshold - RadioSessionSettings.default.kiwiNoiseBlankerWildThreshold) < 0.0001
-            && radioSession.settings.kiwiNoiseBlankerWildTaps == RadioSessionSettings.default.kiwiNoiseBlankerWildTaps
-            && radioSession.settings.kiwiNoiseBlankerWildImpulseSamples == RadioSessionSettings.default.kiwiNoiseBlankerWildImpulseSamples
+        kiwiPassbandNavigationRow(
+          currentPassband: currentPassband,
+          defaultPassband: defaultPassband,
+          passbandLimitHz: passbandLimitHz
         )
 
-        selectionNavigationLink(
-          title: L10n.text("kiwi.noise_filter"),
-          value: radioSession.settings.kiwiNoiseFilterAlgorithm.localizedTitle,
-          selectedID: "\(radioSession.settings.kiwiNoiseFilterAlgorithm.rawValue)",
-          options: KiwiNoiseFilterAlgorithm.allCases.map {
-            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-          }
-        ) { value in
-          if let rawValue = Int(value), let algorithm = KiwiNoiseFilterAlgorithm(rawValue: rawValue) {
-            radioSession.setKiwiNoiseFilterAlgorithm(algorithm)
-          }
+        compactEditorNavigationRow(
+          title: L10n.text("kiwi.section.waterfall"),
+          value: currentKiwiWaterfallPreset().localizedTitle
+        ) {
+          kiwiWaterfallRows()
         }
-
-        if isIQMode {
-          Text(L10n.text("kiwi.noise_filter.iq_warning"))
-            .foregroundStyle(.secondary)
-            .font(.footnote)
-        } else if radioSession.settings.kiwiNoiseFilterAlgorithm != .off {
-          Toggle(
-            L10n.text("kiwi.noise_filter.denoiser"),
-            isOn: Binding(
-              get: { radioSession.settings.kiwiDenoiseEnabled },
-              set: { radioSession.setKiwiDenoiseEnabled($0) }
-            )
-          )
-
-          if radioSession.settings.kiwiNoiseFilterAlgorithm != .spectral {
-            Toggle(
-              L10n.text("kiwi.noise_filter.autonotch"),
-              isOn: Binding(
-                get: { radioSession.settings.kiwiAutonotchEnabled },
-                set: { radioSession.setKiwiAutonotchEnabled($0) }
-              )
-            )
-          }
-        }
-
-        FocusRetainingButton {
-          radioSession.resetKiwiNoiseFilter()
-        } label: {
-          Text(L10n.text("kiwi.noise_filter.reset"))
-        }
-        .disabled(
-          radioSession.settings.kiwiNoiseFilterAlgorithm == RadioSessionSettings.default.kiwiNoiseFilterAlgorithm
-            && radioSession.settings.kiwiDenoiseEnabled == RadioSessionSettings.default.kiwiDenoiseEnabled
-            && radioSession.settings.kiwiAutonotchEnabled == RadioSessionSettings.default.kiwiAutonotchEnabled
-        )
-
-        kiwiPassbandSlider(
-          title: L10n.text("kiwi.passband.low_cut"),
-          valueText: "\(currentPassband.lowCut) Hz",
-          value: Binding(
-            get: { Double(radioSession.currentKiwiPassband.lowCut) },
-            set: { radioSession.setKiwiPassbandLowCut(Int($0.rounded())) }
-          ),
-          range: Double(-passbandLimitHz)...Double(currentPassband.highCut - RadioSessionSettings.kiwiMinimumPassbandHz)
-        )
-
-        kiwiPassbandSlider(
-          title: L10n.text("kiwi.passband.high_cut"),
-          valueText: "\(currentPassband.highCut) Hz",
-          value: Binding(
-            get: { Double(radioSession.currentKiwiPassband.highCut) },
-            set: { radioSession.setKiwiPassbandHighCut(Int($0.rounded())) }
-          ),
-          range: Double(currentPassband.lowCut + RadioSessionSettings.kiwiMinimumPassbandHz)...Double(passbandLimitHz)
-        )
-
-        FocusRetainingButton {
-          radioSession.resetKiwiPassband()
-        } label: {
-          Text(L10n.text("kiwi.passband.reset"))
-        }
-        .disabled(currentPassband == defaultPassband)
-
-        selectionNavigationLink(
-          title: L10n.text("kiwi.waterfall.speed"),
-          value: KiwiWaterfallRate(rawValue: radioSession.settings.kiwiWaterfallSpeed)?.localizedTitle
-            ?? KiwiWaterfallRate.slow.localizedTitle,
-          selectedID: "\(radioSession.settings.kiwiWaterfallSpeed)",
-          options: KiwiWaterfallRate.allCases.map {
-            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-          }
-        ) { value in
-          if let speed = Int(value) {
-            radioSession.setKiwiWaterfallSpeed(speed)
-          }
-        }
-
-        selectionNavigationLink(
-          title: L10n.text("kiwi.waterfall.preset"),
-          value: currentKiwiWaterfallPreset().localizedTitle,
-          selectedID: currentKiwiWaterfallPreset().rawValue,
-          options: KiwiWaterfallPreset.selectableCases.map {
-            SelectionListOption(
-              id: $0.rawValue,
-              title: $0.localizedTitle,
-              detail: $0.localizedDetail
-            )
-          }
-        ) { value in
-          guard let preset = KiwiWaterfallPreset(rawValue: value),
-            let values = preset.values
-          else {
-            return
-          }
-          radioSession.applyKiwiWaterfallSettings(
-            speed: values.speed,
-            zoom: values.zoom,
-            minDB: values.minDB,
-            maxDB: values.maxDB
-          )
-        }
-
-        selectionNavigationLink(
-          title: L10n.text("kiwi.waterfall.window_function"),
-          value: KiwiWaterfallWindowFunction(rawValue: radioSession.settings.kiwiWaterfallWindowFunction)?.localizedTitle
-            ?? KiwiWaterfallWindowFunction.blackmanHarris.localizedTitle,
-          selectedID: "\(radioSession.settings.kiwiWaterfallWindowFunction)",
-          options: KiwiWaterfallWindowFunction.allCases.map {
-            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-          }
-        ) { value in
-          if let rawValue = Int(value) {
-            radioSession.setKiwiWaterfallWindowFunction(rawValue)
-          }
-        }
-
-        selectionNavigationLink(
-          title: L10n.text("kiwi.waterfall.interpolation"),
-          value: KiwiWaterfallInterpolation(rawValue: radioSession.settings.kiwiWaterfallInterpolation)?.localizedTitle
-            ?? KiwiWaterfallInterpolation.dropSamples.localizedTitle,
-          selectedID: "\(radioSession.settings.kiwiWaterfallInterpolation)",
-          options: KiwiWaterfallInterpolation.allCases.map {
-            SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-          }
-        ) { value in
-          if let rawValue = Int(value) {
-            radioSession.setKiwiWaterfallInterpolation(rawValue)
-          }
-        }
-
-        Toggle(
-          L10n.text("kiwi.waterfall.cic_compensation"),
-          isOn: Binding(
-            get: { radioSession.settings.kiwiWaterfallCICCompensation },
-            set: { radioSession.setKiwiWaterfallCICCompensation($0) }
-          )
-        )
-
-        FocusRetainingButton {
-          radioSession.resetKiwiWaterfallFFT()
-        } label: {
-          Text(L10n.text("kiwi.waterfall.reset_fft"))
-        }
-        .disabled(
-          radioSession.settings.kiwiWaterfallWindowFunction == RadioSessionSettings.default.kiwiWaterfallWindowFunction
-            && radioSession.settings.kiwiWaterfallInterpolation == RadioSessionSettings.default.kiwiWaterfallInterpolation
-            && radioSession.settings.kiwiWaterfallCICCompensation == RadioSessionSettings.default.kiwiWaterfallCICCompensation
-        )
-
-        VStack(alignment: .leading, spacing: 6) {
-          LabeledContent(
-            L10n.text("kiwi.waterfall.zoom"),
-            value: "\(radioSession.settings.kiwiWaterfallZoom)"
-          )
-          Slider(
-            value: Binding(
-              get: { Double(radioSession.settings.kiwiWaterfallZoom) },
-              set: { radioSession.setKiwiWaterfallZoom(Int($0.rounded())) }
-            ),
-            in: 0 ... 14,
-            step: 1
-          )
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(L10n.text("kiwi.waterfall.zoom"))
-        .accessibilityValue("\(radioSession.settings.kiwiWaterfallZoom)")
-
-        VStack(alignment: .leading, spacing: 8) {
-          LabeledContent(
-            L10n.text("kiwi.waterfall.position"),
-            value: radioSession.settings.kiwiWaterfallPanOffsetBins == 0
-              ? L10n.text("kiwi.waterfall.position.centered")
-              : L10n.text("kiwi.waterfall.position.adjusted")
-          )
-
-          HStack(spacing: 12) {
-            FocusRetainingButton {
-              radioSession.panKiwiWaterfallLeft()
-            } label: {
-              Text(L10n.text("kiwi.waterfall.pan_left"))
-                .frame(maxWidth: .infinity)
-            }
-            .disabled(radioSession.kiwiTelemetry?.waterfallFFTSize == nil)
-
-            FocusRetainingButton {
-              radioSession.centerKiwiWaterfall()
-            } label: {
-              Text(L10n.text("kiwi.waterfall.center"))
-                .frame(maxWidth: .infinity)
-            }
-            .disabled(
-              radioSession.kiwiTelemetry?.waterfallFFTSize == nil
-                || radioSession.settings.kiwiWaterfallPanOffsetBins == 0
-            )
-
-            FocusRetainingButton {
-              radioSession.panKiwiWaterfallRight()
-            } label: {
-              Text(L10n.text("kiwi.waterfall.pan_right"))
-                .frame(maxWidth: .infinity)
-            }
-            .disabled(radioSession.kiwiTelemetry?.waterfallFFTSize == nil)
-          }
-        }
-
-        VStack(alignment: .leading, spacing: 6) {
-          LabeledContent(
-            L10n.text("kiwi.waterfall.min_db"),
-            value: "\(radioSession.settings.kiwiWaterfallMinDB) dB"
-          )
-          Slider(
-            value: Binding(
-              get: { Double(radioSession.settings.kiwiWaterfallMinDB) },
-              set: { radioSession.setKiwiWaterfallMinDB(Int($0.rounded())) }
-            ),
-            in: -190 ... -10,
-            step: 1
-          )
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(L10n.text("kiwi.waterfall.min_db"))
-        .accessibilityValue("\(radioSession.settings.kiwiWaterfallMinDB) dB")
-
-        VStack(alignment: .leading, spacing: 6) {
-          LabeledContent(
-            L10n.text("kiwi.waterfall.max_db"),
-            value: "\(radioSession.settings.kiwiWaterfallMaxDB) dB"
-          )
-          Slider(
-            value: Binding(
-              get: { Double(radioSession.settings.kiwiWaterfallMaxDB) },
-              set: { radioSession.setKiwiWaterfallMaxDB(Int($0.rounded())) }
-            ),
-            in: -120 ... 30,
-            step: 1
-          )
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(L10n.text("kiwi.waterfall.max_db"))
-        .accessibilityValue("\(radioSession.settings.kiwiWaterfallMaxDB) dB")
       } header: {
         AppSectionHeader(title: L10n.text("kiwi.controls"))
       }
       .appSectionStyle()
     }
+  }
+
+  private func compactEditorNavigationRow<Content: View>(
+    title: String,
+    value: String,
+    @ViewBuilder content: @escaping () -> Content
+  ) -> some View {
+    NavigationLink {
+      Form {
+        Section {
+          content()
+        }
+        .appSectionStyle()
+      }
+      .voiceOverStable()
+      .scrollContentBackground(.hidden)
+      .navigationTitle(title)
+      .navigationBarTitleDisplayMode(.inline)
+      .appScreenBackground()
+    } label: {
+      LabeledContent(title, value: value)
+    }
+  }
+
+  @ViewBuilder
+  private func kiwiNoiseBlankerRows(isIQMode: Bool) -> some View {
+    selectionNavigationLink(
+      title: L10n.text("kiwi.noise_blanker"),
+      value: radioSession.settings.kiwiNoiseBlankerAlgorithm.localizedTitle,
+      selectedID: "\(radioSession.settings.kiwiNoiseBlankerAlgorithm.rawValue)",
+      options: KiwiNoiseBlankerAlgorithm.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    ) { value in
+      if let rawValue = Int(value), let algorithm = KiwiNoiseBlankerAlgorithm(rawValue: rawValue) {
+        radioSession.setKiwiNoiseBlankerAlgorithm(algorithm)
+      }
+    }
+
+    if isIQMode, radioSession.settings.kiwiNoiseBlankerAlgorithm == .wild {
+      Text(L10n.text("kiwi.noise_blanker.iq_warning"))
+        .foregroundStyle(.secondary)
+        .font(.footnote)
+    }
+
+    switch radioSession.settings.kiwiNoiseBlankerAlgorithm {
+    case .off:
+      EmptyView()
+
+    case .standard:
+      kiwiPassbandSlider(
+        title: L10n.text("kiwi.noise_blanker.gate"),
+        valueText: "\(radioSession.settings.kiwiNoiseBlankerGate) µs",
+        value: Binding(
+          get: { Double(radioSession.settings.kiwiNoiseBlankerGate) },
+          set: { radioSession.setKiwiNoiseBlankerGate(Int($0.rounded())) }
+        ),
+        range: 100 ... 5_000,
+        step: 100
+      )
+
+      kiwiPassbandSlider(
+        title: L10n.text("kiwi.noise_blanker.threshold"),
+        valueText: "\(radioSession.settings.kiwiNoiseBlankerThreshold)%",
+        value: Binding(
+          get: { Double(radioSession.settings.kiwiNoiseBlankerThreshold) },
+          set: { radioSession.setKiwiNoiseBlankerThreshold(Int($0.rounded())) }
+        ),
+        range: 0 ... 100,
+        step: 1
+      )
+
+    case .wild:
+      kiwiPassbandSlider(
+        title: L10n.text("kiwi.noise_blanker.wild_threshold"),
+        valueText: String(format: "%.2f", radioSession.settings.kiwiNoiseBlankerWildThreshold),
+        value: Binding(
+          get: { radioSession.settings.kiwiNoiseBlankerWildThreshold },
+          set: { radioSession.setKiwiNoiseBlankerWildThreshold($0) }
+        ),
+        range: 0.05 ... 3.0,
+        step: 0.05
+      )
+
+      kiwiPassbandSlider(
+        title: L10n.text("kiwi.noise_blanker.wild_taps"),
+        valueText: "\(radioSession.settings.kiwiNoiseBlankerWildTaps)",
+        value: Binding(
+          get: { Double(radioSession.settings.kiwiNoiseBlankerWildTaps) },
+          set: { radioSession.setKiwiNoiseBlankerWildTaps(Int($0.rounded())) }
+        ),
+        range: 6 ... 40,
+        step: 1
+      )
+
+      kiwiPassbandSlider(
+        title: L10n.text("kiwi.noise_blanker.wild_samples"),
+        valueText: "\(radioSession.settings.kiwiNoiseBlankerWildImpulseSamples)",
+        value: Binding(
+          get: { Double(radioSession.settings.kiwiNoiseBlankerWildImpulseSamples) },
+          set: { radioSession.setKiwiNoiseBlankerWildImpulseSamples(Int($0.rounded())) }
+        ),
+        range: 3 ... 41,
+        step: 2
+      )
+    }
+
+    FocusRetainingButton {
+      radioSession.resetKiwiNoiseBlanker()
+    } label: {
+      Text(L10n.text("kiwi.noise_blanker.reset"))
+    }
+    .disabled(
+      radioSession.settings.kiwiNoiseBlankerAlgorithm == RadioSessionSettings.default.kiwiNoiseBlankerAlgorithm
+        && radioSession.settings.kiwiNoiseBlankerGate == RadioSessionSettings.default.kiwiNoiseBlankerGate
+        && radioSession.settings.kiwiNoiseBlankerThreshold == RadioSessionSettings.default.kiwiNoiseBlankerThreshold
+        && abs(radioSession.settings.kiwiNoiseBlankerWildThreshold - RadioSessionSettings.default.kiwiNoiseBlankerWildThreshold) < 0.0001
+        && radioSession.settings.kiwiNoiseBlankerWildTaps == RadioSessionSettings.default.kiwiNoiseBlankerWildTaps
+        && radioSession.settings.kiwiNoiseBlankerWildImpulseSamples == RadioSessionSettings.default.kiwiNoiseBlankerWildImpulseSamples
+    )
+  }
+
+  @ViewBuilder
+  private func kiwiNoiseFilterRows(isIQMode: Bool) -> some View {
+    selectionNavigationLink(
+      title: L10n.text("kiwi.noise_filter"),
+      value: radioSession.settings.kiwiNoiseFilterAlgorithm.localizedTitle,
+      selectedID: "\(radioSession.settings.kiwiNoiseFilterAlgorithm.rawValue)",
+      options: KiwiNoiseFilterAlgorithm.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    ) { value in
+      if let rawValue = Int(value), let algorithm = KiwiNoiseFilterAlgorithm(rawValue: rawValue) {
+        radioSession.setKiwiNoiseFilterAlgorithm(algorithm)
+      }
+    }
+
+    if isIQMode {
+      Text(L10n.text("kiwi.noise_filter.iq_warning"))
+        .foregroundStyle(.secondary)
+        .font(.footnote)
+    } else if radioSession.settings.kiwiNoiseFilterAlgorithm != .off {
+      Toggle(
+        L10n.text("kiwi.noise_filter.denoiser"),
+        isOn: Binding(
+          get: { radioSession.settings.kiwiDenoiseEnabled },
+          set: { radioSession.setKiwiDenoiseEnabled($0) }
+        )
+      )
+
+      if radioSession.settings.kiwiNoiseFilterAlgorithm != .spectral {
+        Toggle(
+          L10n.text("kiwi.noise_filter.autonotch"),
+          isOn: Binding(
+            get: { radioSession.settings.kiwiAutonotchEnabled },
+            set: { radioSession.setKiwiAutonotchEnabled($0) }
+          )
+        )
+      }
+    }
+
+    FocusRetainingButton {
+      radioSession.resetKiwiNoiseFilter()
+    } label: {
+      Text(L10n.text("kiwi.noise_filter.reset"))
+    }
+    .disabled(
+      radioSession.settings.kiwiNoiseFilterAlgorithm == RadioSessionSettings.default.kiwiNoiseFilterAlgorithm
+        && radioSession.settings.kiwiDenoiseEnabled == RadioSessionSettings.default.kiwiDenoiseEnabled
+        && radioSession.settings.kiwiAutonotchEnabled == RadioSessionSettings.default.kiwiAutonotchEnabled
+    )
+  }
+
+  @ViewBuilder
+  private func kiwiPassbandNavigationRow(
+    currentPassband: ReceiverBandpass,
+    defaultPassband: ReceiverBandpass,
+    passbandLimitHz: Int
+  ) -> some View {
+    NavigationLink {
+      KiwiPassbandEditorView(
+        lowCut: Binding(
+          get: { radioSession.currentKiwiPassband.lowCut },
+          set: { radioSession.setKiwiPassbandLowCut($0) }
+        ),
+        highCut: Binding(
+          get: { radioSession.currentKiwiPassband.highCut },
+          set: { radioSession.setKiwiPassbandHighCut($0) }
+        ),
+        defaultPassband: defaultPassband,
+        passbandLimitHz: passbandLimitHz,
+        onReset: {
+          radioSession.resetKiwiPassband()
+        }
+      )
+    } label: {
+      LabeledContent(
+        L10n.text("kiwi.section.passband"),
+        value: L10n.text(
+          "kiwi.passband.current_value",
+          currentPassband.lowCut,
+          currentPassband.highCut
+        )
+      )
+    }
+  }
+
+  @ViewBuilder
+  private func kiwiWaterfallRows() -> some View {
+    selectionNavigationLink(
+      title: L10n.text("kiwi.waterfall.speed"),
+      value: KiwiWaterfallRate(rawValue: radioSession.settings.kiwiWaterfallSpeed)?.localizedTitle
+        ?? KiwiWaterfallRate.slow.localizedTitle,
+      selectedID: "\(radioSession.settings.kiwiWaterfallSpeed)",
+      options: KiwiWaterfallRate.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    ) { value in
+      if let speed = Int(value) {
+        radioSession.setKiwiWaterfallSpeed(speed)
+      }
+    }
+
+    selectionNavigationLink(
+      title: L10n.text("kiwi.waterfall.preset"),
+      value: currentKiwiWaterfallPreset().localizedTitle,
+      selectedID: currentKiwiWaterfallPreset().rawValue,
+      options: KiwiWaterfallPreset.selectableCases.map {
+        SelectionListOption(
+          id: $0.rawValue,
+          title: $0.localizedTitle,
+          detail: $0.localizedDetail
+        )
+      }
+    ) { value in
+      guard let preset = KiwiWaterfallPreset(rawValue: value),
+        let values = preset.values
+      else {
+        return
+      }
+      radioSession.applyKiwiWaterfallSettings(
+        speed: values.speed,
+        zoom: values.zoom,
+        minDB: values.minDB,
+        maxDB: values.maxDB
+      )
+    }
+
+    selectionNavigationLink(
+      title: L10n.text("kiwi.waterfall.window_function"),
+      value: KiwiWaterfallWindowFunction(rawValue: radioSession.settings.kiwiWaterfallWindowFunction)?.localizedTitle
+        ?? KiwiWaterfallWindowFunction.blackmanHarris.localizedTitle,
+      selectedID: "\(radioSession.settings.kiwiWaterfallWindowFunction)",
+      options: KiwiWaterfallWindowFunction.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    ) { value in
+      if let rawValue = Int(value) {
+        radioSession.setKiwiWaterfallWindowFunction(rawValue)
+      }
+    }
+
+    selectionNavigationLink(
+      title: L10n.text("kiwi.waterfall.interpolation"),
+      value: KiwiWaterfallInterpolation(rawValue: radioSession.settings.kiwiWaterfallInterpolation)?.localizedTitle
+        ?? KiwiWaterfallInterpolation.dropSamples.localizedTitle,
+      selectedID: "\(radioSession.settings.kiwiWaterfallInterpolation)",
+      options: KiwiWaterfallInterpolation.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    ) { value in
+      if let rawValue = Int(value) {
+        radioSession.setKiwiWaterfallInterpolation(rawValue)
+      }
+    }
+
+    Toggle(
+      L10n.text("kiwi.waterfall.cic_compensation"),
+      isOn: Binding(
+        get: { radioSession.settings.kiwiWaterfallCICCompensation },
+        set: { radioSession.setKiwiWaterfallCICCompensation($0) }
+      )
+    )
+
+    FocusRetainingButton {
+      radioSession.resetKiwiWaterfallFFT()
+    } label: {
+      Text(L10n.text("kiwi.waterfall.reset_fft"))
+    }
+    .disabled(
+      radioSession.settings.kiwiWaterfallWindowFunction == RadioSessionSettings.default.kiwiWaterfallWindowFunction
+        && radioSession.settings.kiwiWaterfallInterpolation == RadioSessionSettings.default.kiwiWaterfallInterpolation
+        && radioSession.settings.kiwiWaterfallCICCompensation == RadioSessionSettings.default.kiwiWaterfallCICCompensation
+    )
+
+    VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(
+        L10n.text("kiwi.waterfall.zoom"),
+        value: "\(radioSession.settings.kiwiWaterfallZoom)"
+      )
+      Slider(
+        value: Binding(
+          get: { Double(radioSession.settings.kiwiWaterfallZoom) },
+          set: { radioSession.setKiwiWaterfallZoom(Int($0.rounded())) }
+        ),
+        in: 0 ... 14,
+        step: 1
+      )
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(L10n.text("kiwi.waterfall.zoom"))
+    .accessibilityValue("\(radioSession.settings.kiwiWaterfallZoom)")
+
+    VStack(alignment: .leading, spacing: 8) {
+      LabeledContent(
+        L10n.text("kiwi.waterfall.position"),
+        value: radioSession.settings.kiwiWaterfallPanOffsetBins == 0
+          ? L10n.text("kiwi.waterfall.position.centered")
+          : L10n.text("kiwi.waterfall.position.adjusted")
+      )
+
+      HStack(spacing: 12) {
+        FocusRetainingButton {
+          radioSession.panKiwiWaterfallLeft()
+        } label: {
+          Text(L10n.text("kiwi.waterfall.pan_left"))
+            .frame(maxWidth: .infinity)
+        }
+        .disabled(radioSession.kiwiTelemetry?.waterfallFFTSize == nil)
+
+        FocusRetainingButton {
+          radioSession.centerKiwiWaterfall()
+        } label: {
+          Text(L10n.text("kiwi.waterfall.center"))
+            .frame(maxWidth: .infinity)
+        }
+        .disabled(
+          radioSession.kiwiTelemetry?.waterfallFFTSize == nil
+            || radioSession.settings.kiwiWaterfallPanOffsetBins == 0
+        )
+
+        FocusRetainingButton {
+          radioSession.panKiwiWaterfallRight()
+        } label: {
+          Text(L10n.text("kiwi.waterfall.pan_right"))
+            .frame(maxWidth: .infinity)
+        }
+        .disabled(radioSession.kiwiTelemetry?.waterfallFFTSize == nil)
+      }
+    }
+
+    VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(
+        L10n.text("kiwi.waterfall.min_db"),
+        value: "\(radioSession.settings.kiwiWaterfallMinDB) dB"
+      )
+      Slider(
+        value: Binding(
+          get: { Double(radioSession.settings.kiwiWaterfallMinDB) },
+          set: { radioSession.setKiwiWaterfallMinDB(Int($0.rounded())) }
+        ),
+        in: -190 ... -10,
+        step: 1
+      )
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(L10n.text("kiwi.waterfall.min_db"))
+    .accessibilityValue("\(radioSession.settings.kiwiWaterfallMinDB) dB")
+
+    VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(
+        L10n.text("kiwi.waterfall.max_db"),
+        value: "\(radioSession.settings.kiwiWaterfallMaxDB) dB"
+      )
+      Slider(
+        value: Binding(
+          get: { Double(radioSession.settings.kiwiWaterfallMaxDB) },
+          set: { radioSession.setKiwiWaterfallMaxDB(Int($0.rounded())) }
+        ),
+        in: -120 ... 30,
+        step: 1
+      )
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(L10n.text("kiwi.waterfall.max_db"))
+    .accessibilityValue("\(radioSession.settings.kiwiWaterfallMaxDB) dB")
   }
 
   private func kiwiPassbandSlider(
@@ -1368,7 +1748,7 @@ struct ReceiverView: View {
       )
       LabeledContent(
         L10n.text("Threshold"),
-        value: "\(String(format: "%.1f", radioSession.scannerThreshold)) \(radioSession.scannerSignalUnit(for: profile.backend))"
+        value: scannerThresholdLabel(radioSession.scannerThreshold, backend: profile.backend)
       )
 
       VStack(alignment: .leading, spacing: 6) {
@@ -1423,14 +1803,34 @@ struct ReceiverView: View {
           .foregroundStyle(.secondary)
       }
 
+      if !radioSession.channelScannerResults.isEmpty {
+        NavigationLink {
+          ChannelScannerResultsListView(results: radioSession.channelScannerResults) { result in
+            if let mode = result.mode {
+              radioSession.setMode(mode)
+            }
+            radioSession.setFrequencyHz(result.frequencyHz)
+          }
+        } label: {
+          LabeledContent(
+            L10n.text("scanner.channel.results"),
+            value: "\(radioSession.channelScannerResults.count)"
+          )
+        }
+      }
+
       if profile.backend == .openWebRX {
-        Text(L10n.text("Threshold hold works with live signal metrics (KiwiSDR and FM-DX)."))
+        Text(L10n.text("scanner.channel.openwebrx_audio_hint"))
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      } else if profile.backend == .kiwiSDR {
+        Text(L10n.text("scanner.channel.kiwi_hint"))
           .font(.footnote)
           .foregroundStyle(.secondary)
       }
 
       LabeledContent(
-        L10n.text("settings.dx.adaptive_scan"),
+        L10n.text("settings.scanner.channel_adaptive"),
         value: radioSession.settings.adaptiveScannerEnabled
           ? L10n.text("scanner.mode.adaptive")
           : L10n.text("scanner.mode.fixed")
@@ -1447,6 +1847,12 @@ struct ReceiverView: View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
       Section {
         fmDxSignalMetricsRow(telemetry: telemetry)
+        if let users = telemetry.users {
+          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
+        }
+        if let pi = telemetry.pi, !pi.isEmpty {
+          LabeledContent("PI", value: pi)
+        }
         if let ps = telemetry.ps, !ps.isEmpty {
           LabeledContent("PS", value: ps)
         }
@@ -1461,21 +1867,17 @@ struct ReceiverView: View {
         if let countryName = telemetry.countryName, !countryName.isEmpty {
           LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
         }
-        FocusRetainingButton {
-          isFMDXRDSDetailsExpanded.toggle()
-        } label: {
-          Label(
-            L10n.text(
-              isFMDXRDSDetailsExpanded
-                ? "fmdx.live.more_details.collapse"
-                : "fmdx.live.more_details.expand"
-            ),
-            systemImage: isFMDXRDSDetailsExpanded ? "chevron.up" : "chevron.down"
-          )
-        }
 
-        if isFMDXRDSDetailsExpanded {
-          fmDxRDSDetailsRows(telemetry: telemetry)
+        NavigationLink {
+          FMDXRDSDetailsView(
+            telemetry: telemetry,
+            showRdsErrorCounters: Binding(
+              get: { radioSession.settings.showRdsErrorCounters },
+              set: { radioSession.setShowRdsErrorCounters($0) }
+            )
+          )
+        } label: {
+          Label(L10n.text("fmdx.live.more_details"), systemImage: "text.badge.plus")
         }
 
         if !telemetry.afMHz.isEmpty {
@@ -1508,9 +1910,6 @@ struct ReceiverView: View {
               .buttonStyle(.plain)
             }
           }
-        }
-        if let users = telemetry.users {
-          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
         }
       } header: {
         AppSectionHeader(title: L10n.text("fmdx.live.section"))
@@ -1821,8 +2220,10 @@ struct ReceiverView: View {
     switch backend {
     case .fmDxWebserver:
       return 0...120
-    case .kiwiSDR, .openWebRX:
+    case .kiwiSDR:
       return -140...0
+    case .openWebRX:
+      return -80 ... -5
     }
   }
 
@@ -1830,134 +2231,91 @@ struct ReceiverView: View {
     switch backend {
     case .fmDxWebserver:
       return 1
-    case .kiwiSDR, .openWebRX:
+    case .kiwiSDR:
       return 0.5
+    case .openWebRX:
+      return 1
     }
   }
 
   private func tuneStepControl(for backend: SDRBackend) -> some View {
     let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
-    let options = radioSession.tuneStepOptions(for: backend).map(FrequencyFormatter.tuneStepText(fromHz:))
-
-    return VStack(alignment: .leading, spacing: 10) {
-      HStack(spacing: 12) {
-        Button {
-          changeTuneStep(by: -1, backend: backend)
-          focusTuneStepControl()
-        } label: {
-          Image(systemName: "minus")
-            .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityHidden(true)
-
-        VStack(spacing: 4) {
-          Text(stepLabel)
-            .font(.title3.monospacedDigit().weight(.semibold))
-
-          Text(options.joined(separator: " / "))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
-            .minimumScaleFactor(0.7)
-            .accessibilityHidden(true)
-        }
-        .frame(maxWidth: .infinity)
-
-        Button {
-          changeTuneStep(by: 1, backend: backend)
-          focusTuneStepControl()
-        } label: {
-          Image(systemName: "plus")
-            .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.borderedProminent)
-        .accessibilityHidden(true)
-      }
-      .padding(12)
-      .background {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .fill(AppTheme.cardFill)
-      }
-      .overlay {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .stroke(AppTheme.cardStroke, lineWidth: 1)
-      }
-      .contentShape(Rectangle())
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(L10n.text("receiver.tune_step.label"))
-      .accessibilityValue(stepLabel)
-      .accessibilityFocused($accessibilityFocus, equals: .tuneStepControl)
-      .accessibilityAdjustableAction { direction in
-        switch direction {
-        case .increment:
-          changeTuneStep(by: 1, backend: backend)
-        case .decrement:
-          changeTuneStep(by: -1, backend: backend)
-        @unknown default:
-          break
-        }
-      }
-      .accessibilityScrollAction { edge in
-        switch edge {
-        case .leading, .top:
-          changeTuneStep(by: -1, backend: backend)
-        case .trailing, .bottom:
-          changeTuneStep(by: 1, backend: backend)
-        }
-      }
-    }
-  }
-
-  private func fmdxBandSwitcher() -> some View {
-    let selectedBand: DemodulationMode = radioSession.settings.mode == .am ? .am : .fm
-    let supportsAM = radioSession.fmdxSupportsAM
-
-    return VStack(alignment: .leading, spacing: 8) {
-      Text(L10n.text("fmdx.band"))
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .accessibilityHidden(true)
-
-      HStack(spacing: 10) {
-        fmdxBandButton(title: L10n.text("fmdx.band.fm"), mode: .fm, isSelected: selectedBand == .fm)
-        fmdxBandButton(title: L10n.text("fmdx.band.am"), mode: .am, isSelected: selectedBand == .am)
-      }
-
-      if !supportsAM {
-        Text(L10n.text("fmdx.band.am_unavailable_hint"))
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-      }
-    }
-  }
-
-  @ViewBuilder
-  private func fmdxBandButton(title: String, mode: DemodulationMode, isSelected: Bool) -> some View {
-    if isSelected {
-      FocusRetainingButton {
-        radioSession.setMode(mode)
+    return HStack(spacing: 12) {
+      Button {
+        changeTuneStep(by: -1, backend: backend)
+        focusTuneStepControl()
       } label: {
-        HStack(spacing: 6) {
-          Image(systemName: "checkmark.circle.fill")
-            .accessibilityHidden(true)
-          Text(title)
-            .frame(maxWidth: .infinity)
-        }
-        .frame(maxWidth: .infinity)
-      }
-      .buttonStyle(.borderedProminent)
-      .accessibilityAddTraits(.isSelected)
-      .accessibilityValue(L10n.text("common.selected"))
-    } else {
-      FocusRetainingButton {
-        radioSession.setMode(mode)
-      } label: {
-        Text(title)
-          .frame(maxWidth: .infinity)
+        Image(systemName: "minus")
+          .frame(maxWidth: .infinity, minHeight: 44)
       }
       .buttonStyle(.bordered)
+      .accessibilityHidden(true)
+
+      Text(stepLabel)
+        .font(.title3.monospacedDigit().weight(.semibold))
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
+
+      Button {
+        changeTuneStep(by: 1, backend: backend)
+        focusTuneStepControl()
+      } label: {
+        Image(systemName: "plus")
+          .frame(maxWidth: .infinity, minHeight: 44)
+      }
+      .buttonStyle(.borderedProminent)
+      .accessibilityHidden(true)
+    }
+    .padding(10)
+    .background {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .fill(AppTheme.cardFill)
+    }
+    .overlay {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .stroke(AppTheme.cardStroke, lineWidth: 1)
+    }
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("receiver.tune_step.label"))
+    .accessibilityValue(stepLabel)
+    .accessibilityFocused($accessibilityFocus, equals: .tuneStepControl)
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        changeTuneStep(by: 1, backend: backend)
+      case .decrement:
+        changeTuneStep(by: -1, backend: backend)
+      @unknown default:
+        break
+      }
+    }
+    .accessibilityScrollAction { edge in
+      switch edge {
+      case .leading, .top:
+        changeTuneStep(by: -1, backend: backend)
+      case .trailing, .bottom:
+        changeTuneStep(by: 1, backend: backend)
+      }
+    }
+  }
+
+  private func fmdxBandSelectionControl() -> some View {
+    selectionNavigationLink(
+      title: L10n.text("fmdx.band"),
+      value: currentModeSelectionValue(for: .fmDxWebserver),
+      selectedID: currentModeSelectionID(for: .fmDxWebserver),
+      options: availableModes(for: .fmDxWebserver).map {
+        SelectionListOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
+      }
+    ) { value in
+      guard let mode = modeFromSelectionID(value) else { return }
+      radioSession.setMode(mode)
+      if mode == .am, radioSession.settings.mode != .am {
+        AppAccessibilityAnnouncementCenter.post(
+          L10n.text("fmdx.band.am_not_supported")
+        )
+      }
     }
   }
 
@@ -2049,68 +2407,60 @@ struct ReceiverView: View {
     let frequencyValue = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
     let tuneStepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
 
-    return VStack(alignment: .leading, spacing: 10) {
-      HStack(spacing: 12) {
-        Button {
-          tuneFrequency(byStepCount: -1)
-        } label: {
-          Image(systemName: "minus")
-            .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityHidden(true)
+    return HStack(spacing: 12) {
+      Button {
+        tuneFrequency(byStepCount: -1)
+      } label: {
+        Image(systemName: "minus")
+          .frame(maxWidth: .infinity, minHeight: 44)
+      }
+      .buttonStyle(.bordered)
+      .accessibilityHidden(true)
 
-        VStack(spacing: 4) {
-          Text(frequencyValue)
-            .font(.title2.monospacedDigit().weight(.semibold))
-
-          Text(tuneStepLabel)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .accessibilityHidden(true)
-        }
+      Text(frequencyValue)
+        .font(.title2.monospacedDigit().weight(.semibold))
         .frame(maxWidth: .infinity)
-
-        Button {
-          tuneFrequency(byStepCount: 1)
-        } label: {
-          Image(systemName: "plus")
-            .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.borderedProminent)
         .accessibilityHidden(true)
+
+      Button {
+        tuneFrequency(byStepCount: 1)
+      } label: {
+        Image(systemName: "plus")
+          .frame(maxWidth: .infinity, minHeight: 44)
       }
-      .padding(12)
-      .background {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .fill(AppTheme.cardFill)
+      .buttonStyle(.borderedProminent)
+      .accessibilityHidden(true)
+    }
+    .padding(10)
+    .background {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .fill(AppTheme.cardFill)
+    }
+    .overlay {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .stroke(AppTheme.cardStroke, lineWidth: 1)
+    }
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("fmdx.field.frequency"))
+    .accessibilityValue(frequencyValue)
+    .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", tuneStepLabel))
+    .accessibilityFocused($accessibilityFocus, equals: .frequencyControl)
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        tuneFrequency(byStepCount: frequencyAdjustmentStepCount(forIncrement: true))
+      case .decrement:
+        tuneFrequency(byStepCount: frequencyAdjustmentStepCount(forIncrement: false))
+      @unknown default:
+        break
       }
-      .overlay {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-          .stroke(AppTheme.cardStroke, lineWidth: 1)
-      }
-      .contentShape(Rectangle())
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(L10n.text("fmdx.field.frequency"))
-      .accessibilityValue(frequencyValue)
-      .accessibilityHint(L10n.text("receiver.frequency.swipe_and_step_hint", tuneStepLabel))
-      .accessibilityFocused($accessibilityFocus, equals: .frequencyControl)
-      .accessibilityAdjustableAction { direction in
-        switch direction {
-        case .increment:
-          tuneFrequency(byStepCount: frequencyAdjustmentStepCount(forIncrement: true))
-        case .decrement:
-          tuneFrequency(byStepCount: frequencyAdjustmentStepCount(forIncrement: false))
-        @unknown default:
-          break
-        }
-      }
-      .accessibilityAction(named: Text(L10n.text("receiver.tune_step.previous_action"))) {
-        changeTuneStep(by: -1, backend: backend)
-      }
-      .accessibilityAction(named: Text(L10n.text("receiver.tune_step.next_action"))) {
-        changeTuneStep(by: 1, backend: backend)
-      }
+    }
+    .accessibilityAction(named: Text(L10n.text("receiver.tune_step.previous_action"))) {
+      changeTuneStep(by: -1, backend: backend)
+    }
+    .accessibilityAction(named: Text(L10n.text("receiver.tune_step.next_action"))) {
+      changeTuneStep(by: 1, backend: backend)
     }
   }
 
@@ -2135,13 +2485,53 @@ struct ReceiverView: View {
         !band.isEmpty {
         return band
       }
+      if let band = inferredKiwiFavoriteBandName(for: radioSession.settings.frequencyHz)?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !band.isEmpty {
+        return band
+      }
     case .openWebRX:
-      if let bookmark = radioSession.serverBookmarks.first(where: { $0.frequencyHz == radioSession.settings.frequencyHz }) {
+      if let bookmark = activeOpenWebRXBookmark() {
         return bookmark.name
+      }
+      if let bandName = activeOpenWebRXBandName()?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !bandName.isEmpty {
+        return bandName
       }
     }
 
     return FrequencyFormatter.mhzText(fromHz: radioSession.settings.frequencyHz)
+  }
+
+  private func favoriteStationSecondaryText(for station: FavoriteStation) -> String? {
+    let frequencyText = FrequencyFormatter.mhzText(fromHz: station.frequencyHz)
+    var parts: [String] = []
+
+    if station.title != frequencyText {
+      parts.append(frequencyText)
+    }
+
+    if let mode = station.mode {
+      parts.append(mode.displayName)
+    }
+
+    return parts.isEmpty ? nil : parts.joined(separator: " | ")
+  }
+
+  private func inferredKiwiFavoriteBandName(for frequencyHz: Int) -> String? {
+    switch frequencyHz {
+    case 150_000...299_999:
+      return "LW"
+    case 300_000...2_999_999:
+      return "MW"
+    case 3_000_000...29_999_999:
+      return "SW"
+    case 64_000_000...110_000_000:
+      return "FM"
+    case 30_000_000...299_999_999:
+      return "VHF"
+    default:
+      return nil
+    }
   }
 
   private func isCurrentFrequencyFavorite(for profile: SDRConnectionProfile) -> Bool {
@@ -2267,12 +2657,7 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func frequencyInputSection(for backend: SDRBackend) -> some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Text(frequencyInputHint(for: backend))
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .accessibilityHidden(true)
-
+    VStack(alignment: .leading, spacing: 4) {
       TextField(
         frequencyInputPlaceholder(for: backend),
         text: $inlineFrequencyInput,
@@ -2458,12 +2843,10 @@ struct ReceiverView: View {
   }
 
   private func frequencyHz(fromMHz value: Double) -> Int {
-    let hz = Int((value * 1_000_000.0).rounded())
     if profileStore.selectedProfile?.backend == .fmDxWebserver {
-      let rounded = Int((Double(hz) / 1_000.0).rounded()) * 1_000
-      return min(max(rounded, fmDxFrequencyRangeHz.lowerBound), fmDxFrequencyRangeHz.upperBound)
+      return radioSession.normalizeFMDXReportedFrequencyHz(fromMHz: value)
     }
-    return hz
+    return Int((value * 1_000_000.0).rounded())
   }
 
   private func frequencyText(fromHz value: Int, backend: SDRBackend?) -> String {
@@ -2500,7 +2883,7 @@ struct ReceiverView: View {
   private func frequencyRange(for backend: SDRBackend) -> ClosedRange<Int> {
     switch backend {
     case .fmDxWebserver:
-      return fmDxFrequencyRangeHz
+      return radioSession.currentFMDXFrequencyRangeHz
     case .kiwiSDR:
       return kiwiFrequencyRangeHz
     case .openWebRX:
@@ -2574,6 +2957,118 @@ struct ReceiverView: View {
       ?? ""
   }
 
+  private func currentFMDXBandScanRangeValue() -> String {
+    selectedFMDXBandScanRange.localizedTitle
+  }
+
+  private func syncFMDXBandScannerStepSelection() {
+    let availableModes = FMDXBandScanMode.selectableCases(
+      saveResultsEnabled: radioSession.settings.saveFMDXScannerResultsEnabled
+    )
+    if !availableModes.contains(selectedFMDXBandScanMode) {
+      selectedFMDXBandScanMode = availableModes.first ?? .standard
+    }
+
+    let availableRanges = FMDXBandScanRangePreset.availableCases(
+      supportsAM: radioSession.fmdxSupportsAM
+    )
+    if !availableRanges.contains(selectedFMDXBandScanRange) {
+      selectedFMDXBandScanRange = availableRanges.first ?? .upperUKF
+    }
+
+    let definition = selectedFMDXBandScanRange.definition
+    if !definition.stepOptionsHz.contains(selectedFMDXBandScanStepHz) {
+      selectedFMDXBandScanStepHz = definition.defaultStepHz
+    }
+  }
+
+  private func filteredRecentFrequencies(for profile: SDRConnectionProfile) -> [RecentFrequencyRecord] {
+    guard radioSession.settings.showRecentFrequencies else { return [] }
+
+    let receiverID = ReceiverIdentity.key(for: profile)
+    let allowedRange = frequencyRange(for: profile.backend)
+
+    return historyStore.recentFrequencies.filter { record in
+      guard allowedRange.contains(record.frequencyHz) else { return false }
+      if radioSession.settings.includeRecentFrequenciesFromOtherReceivers {
+        return true
+      }
+      return record.receiverID == receiverID
+    }
+  }
+
+  private func effectiveFMDXBandScanMode(saveResultsEnabled: Bool) -> FMDXBandScanMode {
+    let availableModes = FMDXBandScanMode.selectableCases(saveResultsEnabled: saveResultsEnabled)
+    return availableModes.contains(selectedFMDXBandScanMode)
+      ? selectedFMDXBandScanMode
+      : (availableModes.first ?? .standard)
+  }
+
+  private func fmdxBandScannerThresholdOptions() -> [Int] {
+    [10, 15, 20, 25, 30, 35, 40, 45, 50]
+  }
+
+  private func scannerStepLabel(_ stepHz: Int) -> String {
+    if stepHz >= 1_000_000 {
+      return String(format: "%.3f MHz", Double(stepHz) / 1_000_000.0)
+    }
+    return stepHz >= 1_000
+      ? "\(stepHz / 1_000) kHz"
+      : "\(stepHz) Hz"
+  }
+
+  private func scannerThresholdLabel(_ threshold: Double, backend: SDRBackend) -> String {
+    switch backend {
+    case .fmDxWebserver:
+      return "\(Int(threshold.rounded())) dBf"
+    case .kiwiSDR:
+      return String(format: "%.1f dBm", threshold)
+    case .openWebRX:
+      return String(format: "%.0f dBFS", threshold)
+    }
+  }
+
+  private func fmdxBandScanResultPrimaryText(_ result: FMDXBandScanResult) -> String {
+    if let station = result.stationName, !station.isEmpty {
+      return station
+    }
+    if let ps = result.programService, !ps.isEmpty {
+      return ps
+    }
+    return FrequencyFormatter.fmDxMHzText(fromHz: result.frequencyHz)
+  }
+
+  private func fmdxBandScanResultSecondaryLines(_ result: FMDXBandScanResult) -> [String] {
+    var lines: [String] = []
+
+    var frequencyLine = [
+      FrequencyFormatter.fmDxMHzText(fromHz: result.frequencyHz),
+      String(format: "%.1f dBf", result.signal)
+    ]
+    if let distance = result.distanceKm, !distance.isEmpty {
+      frequencyLine.append("\(distance) km")
+    }
+    if let erp = result.erpKW, !erp.isEmpty {
+      frequencyLine.append("ERP \(erp) kW")
+    }
+    lines.append(frequencyLine.joined(separator: " | "))
+
+    var locationParts: [String] = []
+    if let city = result.city, !city.isEmpty {
+      locationParts.append(city)
+    }
+    if let countryName = result.countryName,
+      !countryName.isEmpty,
+      !locationParts.contains(countryName) {
+      locationParts.append(countryName)
+    }
+    if !locationParts.isEmpty {
+      lines.append(locationParts.joined(separator: ", "))
+    }
+
+    return Array(lines.prefix(2))
+  }
+
   private func scanChannels(for profile: SDRConnectionProfile) -> [ScanChannel] {
     let source = effectiveScanSource(for: profile)
     let channels: [ScanChannel]
@@ -2609,18 +3104,19 @@ struct ReceiverView: View {
 
     for channel in channels {
       let roundedHz = Int((Double(channel.frequencyHz) / 1_000.0).rounded()) * 1_000
-      guard fmDxFrequencyRangeHz.contains(roundedHz) else { continue }
+      guard fmDxOverallFrequencyRangeHz.contains(roundedHz) else { continue }
       guard seenFrequencies.insert(roundedHz).inserted else { continue }
 
       let trimmedName = channel.name.trimmingCharacters(in: .whitespacesAndNewlines)
       let displayName = trimmedName.isEmpty ? FrequencyFormatter.fmDxMHzText(fromHz: roundedHz) : trimmedName
+      let mode: DemodulationMode = roundedHz < 29_600_000 ? .am : .fm
 
       normalized.append(
         ScanChannel(
           id: "fmdx|\(roundedHz)",
           name: displayName,
           frequencyHz: roundedHz,
-          mode: .fm
+          mode: mode
         )
       )
     }
@@ -2665,7 +3161,7 @@ struct ReceiverView: View {
     switch backend {
     case .fmDxWebserver:
       return .init(
-        preferredRangeHz: fmDxFrequencyRangeHz,
+        preferredRangeHz: radioSession.currentFMDXFrequencyRangeHz,
         primaryExample: "98.5",
         alternateExample: "985",
         placeholder: "98.5",
@@ -2975,6 +3471,75 @@ private struct FrequencyInputProfileSpec {
   let maxFractionDigits: Int
 }
 
+private struct KiwiPassbandEditorView: View {
+  @Binding var lowCut: Int
+  @Binding var highCut: Int
+  let defaultPassband: ReceiverBandpass
+  let passbandLimitHz: Int
+  let onReset: () -> Void
+
+  private var currentPassband: ReceiverBandpass {
+    ReceiverBandpass(lowCut: lowCut, highCut: highCut)
+  }
+
+  var body: some View {
+    Form {
+      Section {
+        passbandSlider(
+          title: L10n.text("kiwi.passband.low_cut"),
+          valueText: "\(lowCut) Hz",
+          value: Binding(
+            get: { Double(lowCut) },
+            set: { lowCut = Int($0.rounded()) }
+          ),
+          range: Double(-passbandLimitHz)...Double(highCut - RadioSessionSettings.kiwiMinimumPassbandHz)
+        )
+
+        passbandSlider(
+          title: L10n.text("kiwi.passband.high_cut"),
+          valueText: "\(highCut) Hz",
+          value: Binding(
+            get: { Double(highCut) },
+            set: { highCut = Int($0.rounded()) }
+          ),
+          range: Double(lowCut + RadioSessionSettings.kiwiMinimumPassbandHz)...Double(passbandLimitHz)
+        )
+
+        FocusRetainingButton(onReset) {
+          Text(L10n.text("kiwi.passband.reset"))
+        }
+        .disabled(currentPassband == defaultPassband)
+      }
+      .appSectionStyle()
+    }
+    .voiceOverStable()
+    .scrollContentBackground(.hidden)
+    .navigationTitle(L10n.text("kiwi.section.passband"))
+    .navigationBarTitleDisplayMode(.inline)
+    .appScreenBackground()
+  }
+
+  private func passbandSlider(
+    title: String,
+    valueText: String,
+    value: Binding<Double>,
+    range: ClosedRange<Double>,
+    step: Double = 1
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(title, value: valueText)
+      Slider(
+        value: value,
+        in: range,
+        step: step
+      )
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(title)
+    .accessibilityValue(valueText)
+  }
+}
+
 struct SelectionListOption: Identifiable, Hashable {
   let id: String
   let title: String
@@ -3020,8 +3585,6 @@ struct SelectionListView: View {
           }
           .buttonStyle(.plain)
         }
-      } header: {
-        AppSectionHeader(title: title)
       }
       .appSectionStyle()
     }
@@ -3039,7 +3602,7 @@ private struct OpenWebRXBandDetailView: View {
   let onTuneBandCenter: () -> Void
   let onTuneFrequency: (SDRBandFrequency) -> Void
 
-  @Environment(\.dismiss) private var dismiss
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
 
   var body: some View {
     List {
@@ -3048,7 +3611,6 @@ private struct OpenWebRXBandDetailView: View {
 
         Button {
           onTuneBandCenter()
-          dismiss()
         } label: {
           Label(L10n.text("Tune band center"), systemImage: "scope")
         }
@@ -3062,13 +3624,18 @@ private struct OpenWebRXBandDetailView: View {
           ForEach(band.frequencies) { item in
             Button {
               onTuneFrequency(item)
-              dismiss()
             } label: {
-              HStack {
+              HStack(spacing: 12) {
                 Text(item.name)
                 Spacer()
                 Text(FrequencyFormatter.mhzText(fromHz: item.frequencyHz))
                   .foregroundStyle(.secondary)
+
+                if item.frequencyHz == radioSession.settings.frequencyHz {
+                  Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                }
               }
             }
           }
@@ -3087,14 +3654,149 @@ private struct OpenWebRXBandDetailView: View {
   }
 }
 
+private struct RecentFrequenciesListView: View {
+  let records: [RecentFrequencyRecord]
+  let showReceiverName: Bool
+  let onSelect: (RecentFrequencyRecord) -> Void
+
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
+
+  var body: some View {
+    List {
+      Section {
+        ForEach(records) { record in
+          Button {
+            onSelect(record)
+          } label: {
+            HStack(spacing: 12) {
+              VStack(alignment: .leading, spacing: 4) {
+                Text(record.primaryTitle)
+
+                if let detail = secondaryLine(for: record) {
+                  Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+              }
+
+              Spacer()
+
+              if isCurrentSelection(record) {
+                Image(systemName: "checkmark.circle.fill")
+                  .foregroundStyle(.tint)
+                  .accessibilityHidden(true)
+              }
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+        }
+      }
+      .appSectionStyle()
+    }
+    .voiceOverStable()
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .navigationTitle(L10n.text("receiver.recent_frequencies.section"))
+    .navigationBarTitleDisplayMode(.inline)
+    .appScreenBackground()
+  }
+
+  private func isCurrentSelection(_ record: RecentFrequencyRecord) -> Bool {
+    guard record.frequencyHz == radioSession.settings.frequencyHz else { return false }
+    guard let mode = record.mode else { return true }
+    return mode == radioSession.settings.mode
+  }
+
+  private func secondaryLine(for record: RecentFrequencyRecord) -> String? {
+    var parts: [String] = []
+
+    if record.stationTitle != nil {
+      parts.append(FrequencyFormatter.mhzText(fromHz: record.frequencyHz))
+    }
+
+    if let mode = record.mode {
+      parts.append(mode.displayName)
+    }
+
+    if showReceiverName {
+      parts.append(record.receiverName)
+    }
+
+    return parts.isEmpty ? nil : parts.joined(separator: " | ")
+  }
+}
+
+private struct ChannelScannerResultsListView: View {
+  let results: [ChannelScannerResult]
+  let onSelect: (ChannelScannerResult) -> Void
+
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
+
+  var body: some View {
+    List {
+      Section {
+        ForEach(results) { result in
+          Button {
+            onSelect(result)
+          } label: {
+            HStack(spacing: 12) {
+              VStack(alignment: .leading, spacing: 4) {
+                Text(result.name)
+
+                Text(secondaryText(for: result))
+                  .font(.footnote)
+                  .foregroundStyle(.secondary)
+              }
+
+              Spacer()
+
+              if isCurrentSelection(result) {
+                Image(systemName: "checkmark.circle.fill")
+                  .foregroundStyle(.tint)
+                  .accessibilityHidden(true)
+              }
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+        }
+      }
+      .appSectionStyle()
+    }
+    .voiceOverStable()
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .navigationTitle(L10n.text("scanner.channel.results"))
+    .navigationBarTitleDisplayMode(.inline)
+    .appScreenBackground()
+  }
+
+  private func isCurrentSelection(_ result: ChannelScannerResult) -> Bool {
+    guard result.frequencyHz == radioSession.settings.frequencyHz else { return false }
+    guard let mode = result.mode else { return true }
+    return mode == radioSession.settings.mode
+  }
+
+  private func secondaryText(for result: ChannelScannerResult) -> String {
+    var parts = [
+      FrequencyFormatter.mhzText(fromHz: result.frequencyHz),
+      String(format: result.signalUnit == "dBm" ? "%.1f %@" : "%.0f %@", result.signal, result.signalUnit)
+    ]
+    if let mode = result.mode {
+      parts.append(mode.displayName)
+    }
+    return parts.joined(separator: " | ")
+  }
+}
+
 private struct OpenWebRXBookmarksView: View {
   let bookmarks: [SDRServerBookmark]
-  let activeFrequencyHz: Int
   let onSelect: (SDRServerBookmark) -> Void
 
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
   @State private var searchText = ""
   @State private var sort: OpenWebRXBookmarkSort = .frequency
-  @Environment(\.dismiss) private var dismiss
 
   private var filteredBookmarks: [SDRServerBookmark] {
     let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -3165,7 +3867,6 @@ private struct OpenWebRXBookmarksView: View {
           ForEach(filteredBookmarks) { bookmark in
             Button {
               onSelect(bookmark)
-              dismiss()
             } label: {
               HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -3177,7 +3878,7 @@ private struct OpenWebRXBookmarksView: View {
 
                 Spacer()
 
-                if bookmark.frequencyHz == activeFrequencyHz {
+                if bookmark.frequencyHz == radioSession.settings.frequencyHz {
                   Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.tint)
                     .accessibilityHidden(true)
@@ -3187,8 +3888,6 @@ private struct OpenWebRXBookmarksView: View {
             }
             .buttonStyle(.plain)
           }
-        } header: {
-          AppSectionHeader(title: L10n.text("openwebrx.bookmarks_section"))
         }
         .appSectionStyle()
       }
@@ -3205,10 +3904,10 @@ private struct OpenWebRXBookmarksView: View {
 
 private struct OpenWebRXBandPlanListView: View {
   let bands: [SDRBandPlanEntry]
-  let activeFrequencyHz: Int
   let onTuneBandCenter: (SDRBandPlanEntry) -> Void
   let onTuneFrequency: (SDRBandPlanEntry, SDRBandFrequency) -> Void
 
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
   @State private var searchText = ""
 
   private var filteredBands: [SDRBandPlanEntry] {
@@ -3270,7 +3969,7 @@ private struct OpenWebRXBandPlanListView: View {
 
                 Spacer()
 
-                if (band.lowerBoundHz...band.upperBoundHz).contains(activeFrequencyHz) {
+                if (band.lowerBoundHz...band.upperBoundHz).contains(radioSession.settings.frequencyHz) {
                   Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.tint)
                     .accessibilityHidden(true)
@@ -3278,8 +3977,6 @@ private struct OpenWebRXBandPlanListView: View {
               }
             }
           }
-        } header: {
-          AppSectionHeader(title: L10n.text("openwebrx.band_plan_section"))
         }
         .appSectionStyle()
       }

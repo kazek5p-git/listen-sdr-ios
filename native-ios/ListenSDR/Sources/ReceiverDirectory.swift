@@ -56,6 +56,22 @@ enum ReceiverDirectoryStatusFilter: String, CaseIterable, Identifiable {
   }
 }
 
+enum ReceiverDirectoryCountrySortOption: String, CaseIterable, Identifiable {
+  case alphabetical
+  case receiverCount
+
+  var id: String { rawValue }
+
+  var displayName: String {
+    switch self {
+    case .alphabetical:
+      return L10n.text("directory.country_sort.alphabetical")
+    case .receiverCount:
+      return L10n.text("directory.country_sort.receiver_count")
+    }
+  }
+}
+
 enum ReceiverDirectorySortOption: String, CaseIterable, Identifiable {
   case recommended
   case name
@@ -79,6 +95,13 @@ enum ReceiverDirectorySortOption: String, CaseIterable, Identifiable {
       return L10n.text("directory.sort.source")
     }
   }
+}
+
+struct ReceiverDirectoryCountryOption: Identifiable, Hashable {
+  let countryLabel: String
+  let receiverCount: Int
+
+  var id: String { countryLabel }
 }
 
 struct ReceiverDirectoryEntry: Identifiable, Codable, Hashable {
@@ -147,6 +170,268 @@ struct ReceiverDirectoryEntry: Identifiable, Codable, Hashable {
   }
 }
 
+enum ReceiverCountryResolver {
+  private static let englishLocale = Locale(identifier: "en_US_POSIX")
+  private static let aliasLocales: [Locale] = [
+    englishLocale,
+    Locale(identifier: "pl_PL"),
+    Locale(identifier: "de_DE"),
+    Locale(identifier: "fr_FR"),
+    Locale(identifier: "es_ES"),
+    Locale(identifier: "it_IT")
+  ]
+  private static let regionCodes = Set(Locale.Region.isoRegions.map { $0.identifier.uppercased() })
+  private static let aliasToRegionCode = buildAliasToRegionCodeMap()
+  private static let aliasTokenCounts = Array(
+    Set(aliasToRegionCode.keys.map { $0.split(separator: " ").count })
+  ).sorted(by: >)
+
+  static func normalizedCountryLabel(_ rawValue: String?) -> String? {
+    guard let rawValue else { return nil }
+    let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+
+    guard let regionCode = resolvedCountryCode(fromCountryName: trimmed) else {
+      return trimmed
+    }
+
+    return localizedCountryName(for: regionCode)
+  }
+
+  static func normalizedCountryLabel(countryCode: String?, countryName: String?) -> String? {
+    if let regionCode = resolvedCountryCode(countryCode: countryCode, countryName: countryName) {
+      return localizedCountryName(for: regionCode)
+    }
+
+    return normalizedCountryLabel(countryName)
+  }
+
+  static func resolvedCountryCode(countryCode: String?, countryName: String?) -> String? {
+    if let regionCode = normalizedRegionCodeToken(countryCode) {
+      return regionCode
+    }
+
+    return resolvedCountryCode(fromCountryName: countryName)
+  }
+
+  static func inferredCountryLabel(locationLabel: String?, host: String) -> String? {
+    guard let regionCode = resolvedCountryCode(fromMetadataLabel: locationLabel, host: host) else {
+      return nil
+    }
+
+    return localizedCountryName(for: regionCode)
+  }
+
+  static func resolvedCountryCode(fromCountryName rawValue: String?) -> String? {
+    guard let rawValue else { return nil }
+    let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+
+    if let flagRegionCode = extractRegionCodeFromFlag(in: trimmed) {
+      return flagRegionCode
+    }
+
+    let normalized = normalizedSearchText(trimmed)
+    guard !normalized.isEmpty else { return nil }
+
+    if let aliasMatch = aliasToRegionCode[normalized] {
+      return aliasMatch
+    }
+
+    return normalizedRegionCodeToken(normalized.uppercased())
+  }
+
+  static func resolvedCountryCode(fromMetadataLabel locationLabel: String?, host: String?) -> String? {
+    if let locationLabel {
+      if let flagRegionCode = extractRegionCodeFromFlag(in: locationLabel) {
+        return flagRegionCode
+      }
+
+      if let directRegionCode = resolvedCountryCode(fromCountryName: locationLabel) {
+        return directRegionCode
+      }
+
+      if let labelRegionCode = resolvedCountryCode(fromSearchableLabel: locationLabel) {
+        return labelRegionCode
+      }
+
+      if let uppercaseTokenRegionCode = resolvedCountryCode(fromUppercaseTokens: locationLabel) {
+        return uppercaseTokenRegionCode
+      }
+    }
+
+    return resolvedCountryCode(fromHost: host)
+  }
+
+  private static func localizedCountryName(for regionCode: String) -> String {
+    Locale.current.localizedString(forRegionCode: regionCode)
+      ?? englishLocale.localizedString(forRegionCode: regionCode)
+      ?? regionCode
+  }
+
+  private static func resolvedCountryCode(fromSearchableLabel label: String) -> String? {
+    let tokens = normalizedSearchText(label)
+      .split(separator: " ")
+      .map(String.init)
+    guard !tokens.isEmpty else { return nil }
+
+    for tokenCount in aliasTokenCounts {
+      guard tokenCount <= tokens.count else { continue }
+      let upperBound = tokens.count - tokenCount
+      for startIndex in 0...upperBound {
+        let phrase = tokens[startIndex..<(startIndex + tokenCount)].joined(separator: " ")
+        if let regionCode = aliasToRegionCode[phrase] {
+          return regionCode
+        }
+      }
+    }
+
+    return nil
+  }
+
+  private static func resolvedCountryCode(fromUppercaseTokens label: String) -> String? {
+    let rawTokens = label
+      .components(separatedBy: CharacterSet.alphanumerics.inverted)
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
+
+    for token in rawTokens.reversed() {
+      guard token == token.uppercased() else { continue }
+
+      let normalizedToken = normalizedSearchText(token)
+      if let aliasMatch = aliasToRegionCode[normalizedToken] {
+        return aliasMatch
+      }
+
+      if let regionCode = normalizedRegionCodeToken(token) {
+        return regionCode
+      }
+    }
+
+    return nil
+  }
+
+  private static func resolvedCountryCode(fromHost host: String?) -> String? {
+    guard let host else { return nil }
+    let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedHost.isEmpty else { return nil }
+
+    let topLevelDomain = trimmedHost
+      .split(separator: ".")
+      .last?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .uppercased()
+
+    return normalizedRegionCodeToken(topLevelDomain)
+  }
+
+  private static func normalizedRegionCodeToken(_ rawValue: String?) -> String? {
+    guard let rawValue else { return nil }
+    let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    guard !trimmed.isEmpty else { return nil }
+
+    if trimmed == "UK" {
+      return "GB"
+    }
+
+    guard regionCodes.contains(trimmed) else { return nil }
+    return trimmed
+  }
+
+  private static func extractRegionCodeFromFlag(in value: String) -> String? {
+    let scalars = Array(value.unicodeScalars)
+    guard scalars.count >= 2 else { return nil }
+
+    for index in 0..<(scalars.count - 1) {
+      let first = scalars[index].value
+      let second = scalars[index + 1].value
+      guard
+        (0x1F1E6...0x1F1FF).contains(first),
+        (0x1F1E6...0x1F1FF).contains(second),
+        let firstScalar = UnicodeScalar(65 + first - 0x1F1E6),
+        let secondScalar = UnicodeScalar(65 + second - 0x1F1E6)
+      else {
+        continue
+      }
+
+      let regionCode = "\(Character(firstScalar))\(Character(secondScalar))"
+      if let normalized = normalizedRegionCodeToken(regionCode) {
+        return normalized
+      }
+    }
+
+    return nil
+  }
+
+  private static func normalizedSearchText(_ value: String) -> String {
+    let folded = value.folding(
+      options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+      locale: englishLocale
+    )
+
+    let separated = folded.unicodeScalars.map { scalar -> Character in
+      if CharacterSet.alphanumerics.contains(scalar) {
+        return Character(scalar)
+      }
+      return " "
+    }
+
+    return String(separated)
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+  }
+
+  private static func buildAliasToRegionCodeMap() -> [String: String] {
+    var aliases: [String: String] = [:]
+
+    for regionCode in regionCodes {
+      for locale in aliasLocales {
+        if let localizedName = locale.localizedString(forRegionCode: regionCode) {
+          registerAlias(localizedName, for: regionCode, into: &aliases)
+        }
+      }
+    }
+
+    let manualAliases: [String: String] = [
+      "united states of america": "US",
+      "usa": "US",
+      "great britain": "GB",
+      "britain": "GB",
+      "united kingdom": "GB",
+      "uk": "GB",
+      "england": "GB",
+      "scotland": "GB",
+      "wales": "GB",
+      "northern ireland": "GB",
+      "the netherlands": "NL",
+      "holland": "NL",
+      "czech republic": "CZ",
+      "south korea": "KR",
+      "republic of korea": "KR",
+      "north korea": "KP",
+      "dprk": "KP",
+      "uae": "AE"
+    ]
+
+    for (alias, regionCode) in manualAliases {
+      registerAlias(alias, for: regionCode, into: &aliases)
+    }
+
+    return aliases
+  }
+
+  private static func registerAlias(
+    _ rawAlias: String,
+    for regionCode: String,
+    into aliases: inout [String: String]
+  ) {
+    let normalizedAlias = normalizedSearchText(rawAlias)
+    guard !normalizedAlias.isEmpty else { return }
+    aliases[normalizedAlias] = regionCode
+  }
+}
+
 private struct DirectoryEndpoint {
   let host: String
   let port: Int
@@ -164,6 +449,7 @@ private struct FMDXDirectoryRow: Decodable {
   let tuner: String?
   let version: String?
   let city: String?
+  let country: String?
   let countryName: String?
   let url: String?
   let status: Int?
@@ -260,7 +546,10 @@ actor ReceiverDirectoryService {
       let trimmedName = row.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
       let displayName = trimmedName.isEmpty ? endpoint.host : trimmedName
       let city = normalizedLabel(row.city)
-      let country = normalizedLabel(row.countryName)
+      let country = ReceiverCountryResolver.normalizedCountryLabel(
+        countryCode: row.country,
+        countryName: row.countryName
+      )
       let location = locationLabel(city: city, country: country)
       let status = fmdxStatus(from: row.status)
 
@@ -320,7 +609,10 @@ actor ReceiverDirectoryService {
 
         let nameCandidate = receiver.label?.trimmingCharacters(in: .whitespacesAndNewlines)
         let displayName = (nameCandidate?.isEmpty == false ? nameCandidate : groupLabel) ?? endpoint.host
-        let country = inferCountry(from: groupLabel)
+        let country = ReceiverCountryResolver.inferredCountryLabel(
+          locationLabel: groupLabel,
+          host: endpoint.host
+        )
 
         let entry = ReceiverDirectoryEntry(
           id: entryID(backend: backend, endpoint: endpoint),
@@ -449,16 +741,6 @@ actor ReceiverDirectoryService {
   private func normalizedLabel(_ value: String?) -> String? {
     let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     return normalized.isEmpty ? nil : normalized
-  }
-
-  private func inferCountry(from locationLabel: String?) -> String? {
-    guard let locationLabel else { return nil }
-    let parts = locationLabel
-      .split(separator: ",")
-      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-      .filter { !$0.isEmpty }
-    guard let last = parts.last else { return nil }
-    return last.count >= 3 ? last : nil
   }
 
   private func fmdxStatus(from raw: Int?) -> ReceiverDirectoryStatus {
@@ -598,10 +880,14 @@ actor ReceiverDirectoryService {
 
 @MainActor
 final class ReceiverDirectoryViewModel: ObservableObject {
+  static let cacheEntriesKey = "ListenSDR.directory.entries.v1"
+  static let cacheRefreshDateKey = "ListenSDR.directory.refreshDate.v1"
+
   @Published var selectedBackend: SDRBackend = .fmDxWebserver
   @Published var searchText: String = ""
   @Published var statusFilter: ReceiverDirectoryStatusFilter = .all
   @Published var sortOption: ReceiverDirectorySortOption = .recommended
+  @Published var countrySortOption: ReceiverDirectoryCountrySortOption = .alphabetical
   @Published var selectedCountry: String = ""
   @Published var favoritesOnly = false
   @Published private(set) var entries: [ReceiverDirectoryEntry] = []
@@ -610,41 +896,86 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   @Published private(set) var lastRefreshDate: Date?
   @Published private(set) var errorMessage: String?
   @Published private(set) var isUsingCachedData = false
+  @Published private(set) var refreshResultMessage: String?
 
   let supportedBackends: [SDRBackend] = [.fmDxWebserver, .kiwiSDR, .openWebRX]
 
   private let service: ReceiverDirectoryService
   private let notificationService: DirectoryChangeNotificationService
+  private let defaults: UserDefaults
+  private let requestNotificationAuthorization: Bool
   private var autoRefreshTask: Task<Void, Never>?
   private var statusProbeTask: Task<Void, Never>?
   private var lastProbeDateByBackend: [SDRBackend: Date] = [:]
 
-  private let cacheEntriesKey = "ListenSDR.directory.entries.v1"
-  private let cacheRefreshDateKey = "ListenSDR.directory.refreshDate.v1"
   private let refreshIntervalSeconds: UInt64 = 900
   private let staleAfterSeconds: TimeInterval = 900
   private let statusProbeIntervalSeconds: TimeInterval = 1_800
 
   init(
     service: ReceiverDirectoryService = ReceiverDirectoryService(),
-    notificationService: DirectoryChangeNotificationService? = nil
+    notificationService: DirectoryChangeNotificationService? = nil,
+    defaults: UserDefaults = .standard,
+    requestNotificationAuthorization: Bool = true
   ) {
     self.service = service
     self.notificationService = notificationService ?? .shared
+    self.defaults = defaults
+    self.requestNotificationAuthorization = requestNotificationAuthorization
     loadCache()
-    self.notificationService.requestAuthorizationIfNeeded()
+    if requestNotificationAuthorization {
+      self.notificationService.requestAuthorizationIfNeeded()
+    }
+  }
+
+  var availableCountryOptions: [ReceiverDirectoryCountryOption] {
+    let receiverCountByCountry = entries
+      .filter { $0.backend == selectedBackend }
+      .compactMap(\.countryLabel)
+      .filter { !$0.isEmpty }
+      .reduce(into: [String: Int]()) { partialResult, countryLabel in
+        partialResult[countryLabel, default: 0] += 1
+      }
+
+    let options = receiverCountByCountry.map { countryLabel, receiverCount in
+      ReceiverDirectoryCountryOption(
+        countryLabel: countryLabel,
+        receiverCount: receiverCount
+      )
+    }
+
+    let effectiveSortOption: ReceiverDirectoryCountrySortOption = selectedBackend == .fmDxWebserver
+      ? countrySortOption
+      : .alphabetical
+
+    switch effectiveSortOption {
+    case .alphabetical:
+      return options.sorted {
+        $0.countryLabel.localizedCaseInsensitiveCompare($1.countryLabel) == .orderedAscending
+      }
+    case .receiverCount:
+      return options.sorted { lhs, rhs in
+        if lhs.receiverCount != rhs.receiverCount {
+          return lhs.receiverCount > rhs.receiverCount
+        }
+        return lhs.countryLabel.localizedCaseInsensitiveCompare(rhs.countryLabel) == .orderedAscending
+      }
+    }
   }
 
   var availableCountries: [String] {
-    Array(
-      Set(
-        entries
-          .filter { $0.backend == selectedBackend }
-          .compactMap(\.countryLabel)
-          .filter { !$0.isEmpty }
-      )
-    )
-    .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    availableCountryOptions.map(\.countryLabel)
+  }
+
+  var shouldShowCountrySortControl: Bool {
+    selectedBackend == .fmDxWebserver && availableCountryOptions.count > 1
+  }
+
+  var canClearCache: Bool {
+    !entries.isEmpty
+      || lastRefreshDate != nil
+      || defaults.object(forKey: Self.cacheEntriesKey) != nil
+      || defaults.object(forKey: Self.cacheRefreshDateKey) != nil
   }
 
   var cacheStatusText: String? {
@@ -682,26 +1013,9 @@ final class ReceiverDirectoryViewModel: ObservableObject {
       }
     }
 
-    let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let query = Self.normalizedSearchText(searchText)
     if !query.isEmpty {
-      selected = selected.filter { entry in
-        if entry.name.lowercased().contains(query) {
-          return true
-        }
-        if entry.host.lowercased().contains(query) {
-          return true
-        }
-        if let location = entry.locationLabel?.lowercased(), location.contains(query) {
-          return true
-        }
-        if entry.sourceName.lowercased().contains(query) {
-          return true
-        }
-        if let country = entry.countryLabel?.lowercased(), country.contains(query) {
-          return true
-        }
-        return false
-      }
+      selected = selected.filter { Self.matchesSearch(query: query, entry: $0) }
     }
 
     return selected.sorted { lhs, rhs in
@@ -729,6 +1043,17 @@ final class ReceiverDirectoryViewModel: ObservableObject {
         return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
       }
     }
+  }
+
+  func countryOption(for countryLabel: String) -> ReceiverDirectoryCountryOption? {
+    availableCountryOptions.first { $0.countryLabel == countryLabel }
+  }
+
+  func countryDisplayTitle(for countryLabel: String) -> String {
+    guard let option = countryOption(for: countryLabel) else {
+      return countryLabel
+    }
+    return "\(option.countryLabel) (\(option.receiverCount))"
   }
 
   var sourceSummaryText: String {
@@ -768,12 +1093,16 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     isProbingStatus = false
   }
 
-  func refresh(force: Bool) async {
+  func refresh(force: Bool, userInitiated: Bool = false) async {
     if isLoading {
       return
     }
     if !force, !shouldRefresh {
       return
+    }
+
+    if userInitiated {
+      refreshResultMessage = nil
     }
 
     isLoading = true
@@ -784,6 +1113,7 @@ final class ReceiverDirectoryViewModel: ObservableObject {
       let fetched = try await service.fetchAllEntries()
       let mergedEntries = sortEntries(applyKnownStatuses(to: fetched))
       entries = mergedEntries
+      normalizeSelectedCountryIfNeeded()
       lastRefreshDate = Date()
       isUsingCachedData = false
       persistCache()
@@ -792,19 +1122,33 @@ final class ReceiverDirectoryViewModel: ObservableObject {
         message: "Directory refreshed (\(fetched.count) receivers)"
       )
 
-      if !previousEntries.isEmpty {
-        let newlyAddedByBackend = newlyAddedReceivers(previous: previousEntries, current: mergedEntries)
-        if !newlyAddedByBackend.isEmpty {
-          notificationService.notifyNewReceiversIfNeeded(groupedByBackend: newlyAddedByBackend)
-          Diagnostics.log(
-            category: "Directory",
-            message: "New receivers detected: \(newlyAddedByBackend)"
-          )
-        }
+      let newlyAddedByBackend = previousEntries.isEmpty
+        ? [:]
+        : newlyAddedReceivers(previous: previousEntries, current: mergedEntries)
+
+      if !newlyAddedByBackend.isEmpty {
+        notificationService.notifyNewReceiversIfNeeded(groupedByBackend: newlyAddedByBackend)
+        Diagnostics.log(
+          category: "Directory",
+          message: "New receivers detected: \(newlyAddedByBackend)"
+        )
+      }
+
+      if userInitiated {
+        let resultMessage = manualRefreshResultMessage(
+          previousEntries: previousEntries,
+          currentEntries: mergedEntries,
+          newlyAddedByBackend: newlyAddedByBackend
+        )
+        refreshResultMessage = resultMessage
+        AppAccessibilityAnnouncementCenter.post(resultMessage)
       }
     } catch {
       errorMessage = error.localizedDescription
       isUsingCachedData = !entries.isEmpty
+      if userInitiated {
+        AppAccessibilityAnnouncementCenter.post(error.localizedDescription)
+      }
       Diagnostics.log(
         severity: .warning,
         category: "Directory",
@@ -850,6 +1194,25 @@ final class ReceiverDirectoryViewModel: ObservableObject {
         self.applyProbedStatuses(probeResults, backend: backend)
       }
     }
+  }
+
+  func clearCache() {
+    statusProbeTask?.cancel()
+    statusProbeTask = nil
+    isProbingStatus = false
+    entries = []
+    lastRefreshDate = nil
+    errorMessage = nil
+    isUsingCachedData = false
+    selectedCountry = ""
+    lastProbeDateByBackend.removeAll()
+    defaults.removeObject(forKey: Self.cacheEntriesKey)
+    defaults.removeObject(forKey: Self.cacheRefreshDateKey)
+
+    let message = L10n.text("directory.cache.cleared")
+    refreshResultMessage = message
+    Diagnostics.log(category: "Directory", message: "Directory cache cleared")
+    AppAccessibilityAnnouncementCenter.post(message)
   }
 
   private var shouldRefresh: Bool {
@@ -980,24 +1343,23 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   }
 
   private func loadCache() {
-    let defaults = UserDefaults.standard
-
-    if let raw = defaults.data(forKey: cacheEntriesKey),
+    if let raw = defaults.data(forKey: Self.cacheEntriesKey),
       let decoded = try? JSONDecoder().decode([ReceiverDirectoryEntry].self, from: raw) {
       entries = decoded
       isUsingCachedData = !decoded.isEmpty
     }
 
-    if let cachedDate = defaults.object(forKey: cacheRefreshDateKey) as? Date {
+    if let cachedDate = defaults.object(forKey: Self.cacheRefreshDateKey) as? Date {
       lastRefreshDate = cachedDate
     }
+
+    normalizeSelectedCountryIfNeeded()
   }
 
   private func persistCache() {
     guard let encoded = try? JSONEncoder().encode(entries) else { return }
-    let defaults = UserDefaults.standard
-    defaults.set(encoded, forKey: cacheEntriesKey)
-    defaults.set(lastRefreshDate, forKey: cacheRefreshDateKey)
+    defaults.set(encoded, forKey: Self.cacheEntriesKey)
+    defaults.set(lastRefreshDate, forKey: Self.cacheRefreshDateKey)
   }
 
   private func compareRecommended(lhs: ReceiverDirectoryEntry, rhs: ReceiverDirectoryEntry) -> Bool {
@@ -1008,5 +1370,78 @@ final class ReceiverDirectoryViewModel: ObservableObject {
       return lhs.status.sortRank < rhs.status.sortRank
     }
     return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+  }
+
+  private func normalizeSelectedCountryIfNeeded() {
+    guard !selectedCountry.isEmpty else { return }
+    guard availableCountries.contains(selectedCountry) else {
+      selectedCountry = ""
+      return
+    }
+  }
+
+  private func manualRefreshResultMessage(
+    previousEntries: [ReceiverDirectoryEntry],
+    currentEntries: [ReceiverDirectoryEntry],
+    newlyAddedByBackend: [SDRBackend: [String]]
+  ) -> String {
+    if previousEntries.isEmpty {
+      return L10n.text("directory.refresh.result.initial", currentEntries.count)
+    }
+
+    let newReceiverCount = newlyAddedByBackend.values.reduce(0) { partialResult, names in
+      partialResult + names.count
+    }
+
+    guard newReceiverCount > 0 else {
+      return L10n.text("directory.refresh.result.none")
+    }
+
+    return L10n.text("directory.refresh.result.updated", newReceiverCount, currentEntries.count)
+  }
+
+  static func normalizedSearchText(_ value: String) -> String {
+    let folded = value.folding(
+      options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+      locale: .current
+    )
+
+    return folded
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+  }
+
+  static func searchableText(for entry: ReceiverDirectoryEntry) -> String {
+    normalizedSearchText(
+      [
+        entry.name,
+        entry.host,
+        entry.endpointDescription,
+        entry.sourceName,
+        entry.cityLabel,
+        entry.countryLabel,
+        entry.locationLabel,
+        entry.softwareVersion,
+        entry.backend.displayName,
+        entry.status.displayName
+      ]
+      .compactMap { $0 }
+      .joined(separator: " ")
+    )
+  }
+
+  static func matchesSearch(query: String, entry: ReceiverDirectoryEntry) -> Bool {
+    let normalizedQuery = normalizedSearchText(query)
+    guard !normalizedQuery.isEmpty else { return true }
+
+    let searchableText = searchableText(for: entry)
+    if searchableText.contains(normalizedQuery) {
+      return true
+    }
+
+    let queryTokens = normalizedQuery.split(separator: " ").map(String.init)
+    guard queryTokens.count > 1 else { return false }
+    return queryTokens.allSatisfy { searchableText.contains($0) }
   }
 }

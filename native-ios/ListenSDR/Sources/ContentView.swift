@@ -4,6 +4,9 @@ struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   @EnvironmentObject private var accessibilityState: AppAccessibilityState
   @EnvironmentObject private var navigationState: AppNavigationState
+  @EnvironmentObject private var profileStore: ProfileStore
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @State private var hasAttemptedStartupAutoConnect = false
 
   var body: some View {
     TabView(selection: $navigationState.selectedTab) {
@@ -33,10 +36,43 @@ struct ContentView: View {
     .appScreenBackground()
     .onAppear {
       accessibilityState.selectedTab = navigationState.selectedTab
+      radioSession.updateRuntimePolicy(
+        isForegroundActive: scenePhase == .active,
+        selectedTab: navigationState.selectedTab
+      )
+      attemptStartupAutoConnectIfNeeded()
     }
     .onChange(of: navigationState.selectedTab) { selectedTab in
       accessibilityState.selectedTab = selectedTab
+      radioSession.updateRuntimePolicy(
+        isForegroundActive: scenePhase == .active,
+        selectedTab: selectedTab
+      )
     }
+    .onChange(of: scenePhase) { phase in
+      radioSession.updateRuntimePolicy(
+        isForegroundActive: phase == .active,
+        selectedTab: navigationState.selectedTab
+      )
+      attemptStartupAutoConnectIfNeeded()
+    }
+  }
+
+  private func attemptStartupAutoConnectIfNeeded() {
+    guard !hasAttemptedStartupAutoConnect else { return }
+    guard scenePhase == .active else { return }
+
+    hasAttemptedStartupAutoConnect = true
+
+    guard radioSession.settings.autoConnectSelectedProfileOnLaunch else { return }
+    guard let selectedProfile = profileStore.selectedProfile else { return }
+    guard radioSession.state != .connecting, radioSession.state != .connected else { return }
+
+    Diagnostics.log(
+      category: "Session",
+      message: "Startup auto-connect requested for \(selectedProfile.name)"
+    )
+    radioSession.connect(to: selectedProfile)
   }
 }
 

@@ -2,6 +2,16 @@ import AVFAudio
 import AudioToolbox
 import Foundation
 
+enum BackendRuntimePolicy: Equatable {
+  case interactive
+  case passive
+  case background
+
+  var allowsVisualTelemetry: Bool {
+    self == .interactive
+  }
+}
+
 protocol SDRBackendClient {
   var backend: SDRBackend { get }
   func connect(profile: SDRConnectionProfile) async throws
@@ -12,6 +22,7 @@ protocol SDRBackendClient {
   func consumeTelemetryUpdate() async -> BackendTelemetryEvent?
   func sendControl(_ command: BackendControlCommand) async throws
   func isConnected() async -> Bool
+  func setRuntimePolicy(_ policy: BackendRuntimePolicy) async
 }
 
 extension SDRBackendClient {
@@ -20,6 +31,7 @@ extension SDRBackendClient {
   func sendControl(_ command: BackendControlCommand) async throws {
     throw SDRClientError.unsupported("This backend does not support this control.")
   }
+  func setRuntimePolicy(_ policy: BackendRuntimePolicy) async {}
 }
 
 enum SDRClientError: LocalizedError {
@@ -89,6 +101,40 @@ private func makeHTTPURL(profile: SDRConnectionProfile, path: String) throws -> 
     throw SDRClientError.invalidURL
   }
   return url
+}
+
+private final class HTTPRedirectCaptureDelegate: NSObject, URLSessionTaskDelegate {
+  private(set) var redirectURL: URL?
+
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse,
+    newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) {
+    redirectURL = request.url
+    completionHandler(nil)
+  }
+}
+
+private func websocketURL(fromHTTPRedirect url: URL) -> URL? {
+  guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+    return nil
+  }
+
+  switch components.scheme?.lowercased() {
+  case "http":
+    components.scheme = "ws"
+  case "https":
+    components.scheme = "wss"
+  case "ws", "wss":
+    break
+  default:
+    return nil
+  }
+
+  return components.url
 }
 
 private func encodeJSONString(_ payload: [String: Any]) throws -> String {
@@ -180,15 +226,23 @@ actor KiwiSDRClient: SDRBackendClient {
   private var lastReportedTunedMode: DemodulationMode?
   private var lastReportedBandName: String?
   private var lastReportedPassband: ReceiverBandpass?
+  private var activeProfile: SDRConnectionProfile?
+  private var activeBasePath = "/"
+  private var lastAppliedSettings: RadioSessionSettings?
+  private var runtimePolicy: BackendRuntimePolicy = .interactive
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
     await disconnect()
 
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
-    let timestamp = Int(Date().timeIntervalSince1970)
+    activeProfile = profile
+    activeBasePath = basePath
 
-    let sndURL = try makeWebSocketURL(profile: profile, path: "\(basePath)\(timestamp)/SND")
+    let sndURL = try makeWebSocketURL(
+      profile: profile,
+      path: "\(basePath)\(Int(Date().timeIntervalSince1970))/SND"
+    )
     log("Connecting audio stream: \(sndURL.absoluteString)")
     let soundTask = URLSession.shared.webSocketTask(with: sndURL)
     sndSocket = soundTask
@@ -201,7 +255,7 @@ actor KiwiSDRClient: SDRBackendClient {
     }
     audioWatchdogTask = Task {
       try? await Task.sleep(nanoseconds: 6_000_000_000)
-      await self.logMissingAudioIfNeeded()
+      self.logMissingAudioIfNeeded()
     }
 
     try await sendSND("SET auth t=kiwi p=\(kiwiToken(profile.password))")
@@ -212,27 +266,12 @@ actor KiwiSDRClient: SDRBackendClient {
     try await sendSND("SET compression=0")
     try await sendSND("SET keepalive")
 
-    do {
-      let wfURL = try makeWebSocketURL(profile: profile, path: "\(basePath)\(timestamp)/W/F")
-      log("Connecting waterfall stream: \(wfURL.absoluteString)")
-      let waterfallTask = URLSession.shared.webSocketTask(with: wfURL)
-      wfSocket = waterfallTask
-      waterfallTask.resume()
-      wfReceiveTask = Task { [waterfallTask] in
-        await self.receiveLoop(task: waterfallTask, stream: .waterfall)
+    if runtimePolicy.allowsVisualTelemetry {
+      do {
+        try await openWaterfallStream(profile: profile, basePath: basePath)
+      } catch {
+        log("Waterfall stream unavailable: \(error.localizedDescription)", severity: .warning)
       }
-      wfKeepAliveTask = Task { [waterfallTask] in
-        await self.keepAliveLoop(task: waterfallTask)
-      }
-
-      try await sendWF("SET auth t=kiwi p=\(kiwiToken(profile.password))")
-      try await sendWF("SET wf_comp=0")
-      try await sendWF("SET wf_speed=2")
-      try await sendWF("SET maxdb=-20 mindb=-145")
-      try await sendWF("SET zoom=0 start=0")
-      try await sendWF("SET keepalive")
-    } catch {
-      log("Waterfall stream unavailable: \(error.localizedDescription)", severity: .warning)
     }
 
     log("Connection initialized")
@@ -241,20 +280,15 @@ actor KiwiSDRClient: SDRBackendClient {
   func disconnect() async {
     sndReceiveTask?.cancel()
     sndReceiveTask = nil
-    wfReceiveTask?.cancel()
-    wfReceiveTask = nil
 
     sndKeepAliveTask?.cancel()
     sndKeepAliveTask = nil
-    wfKeepAliveTask?.cancel()
-    wfKeepAliveTask = nil
     audioWatchdogTask?.cancel()
     audioWatchdogTask = nil
 
     sndSocket?.cancel(with: .normalClosure, reason: nil)
     sndSocket = nil
-    wfSocket?.cancel(with: .normalClosure, reason: nil)
-    wfSocket = nil
+    closeWaterfallStream(clearTelemetry: false)
 
     lastServerMessage = nil
     pendingStatusUpdate = nil
@@ -277,6 +311,9 @@ actor KiwiSDRClient: SDRBackendClient {
     lastReportedTunedMode = nil
     lastReportedBandName = nil
     lastReportedPassband = nil
+    activeProfile = nil
+    activeBasePath = "/"
+    lastAppliedSettings = nil
 
     await MainActor.run {
       SharedAudioOutput.engine.stop()
@@ -286,6 +323,7 @@ actor KiwiSDRClient: SDRBackendClient {
 
   func apply(settings: RadioSessionSettings) async throws {
     guard sndSocket != nil else { throw SDRClientError.notConnected }
+    lastAppliedSettings = settings
 
     let mode = kiwiMode(from: settings.mode)
     let passband = settings.kiwiPassband(for: settings.mode, sampleRateHz: sampleRateHz)
@@ -295,30 +333,7 @@ actor KiwiSDRClient: SDRBackendClient {
     try await sendSND(
       "SET mod=\(mode) low_cut=\(passband.lowCut) high_cut=\(passband.highCut) freq=\(formattedFrequency)"
     )
-    let wfSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(settings.kiwiWaterfallSpeed)
-    let wfZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(settings.kiwiWaterfallZoom)
-    let wfMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(settings.kiwiWaterfallMinDB)
-    var wfMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(settings.kiwiWaterfallMaxDB)
-    let wfWindowFunction = RadioSessionSettings.normalizedKiwiWaterfallWindowFunction(
-      settings.kiwiWaterfallWindowFunction
-    )
-    let wfInterpolation = RadioSessionSettings.normalizedKiwiWaterfallInterpolation(
-      settings.kiwiWaterfallInterpolation
-    )
-    if wfMaxDB <= wfMinDB {
-      wfMaxDB = min(0, wfMinDB + 10)
-    }
-    try? await sendWF("SET wf_speed=\(wfSpeed)")
-    try? await sendWF("SET maxdb=\(wfMaxDB) mindb=\(wfMinDB)")
-    if let viewportStartBin = kiwiWaterfallStartBin(
-      frequencyHz: settings.frequencyHz,
-      zoom: wfZoom,
-      panOffsetBins: settings.kiwiWaterfallPanOffsetBins
-    ) {
-      try? await sendWF("SET zoom=\(min(wfZoom, kiwiZoomMax ?? wfZoom)) start=\(viewportStartBin)")
-    }
-    try? await sendWF("SET window_func=\(wfWindowFunction)")
-    try? await sendWF("SET interp=\(wfInterpolation + (settings.kiwiWaterfallCICCompensation ? 10 : 0))")
+    try? await applyKiwiWaterfallSettings(settings)
     log("Applied tuning: mode=\(mode) freq=\(formattedFrequency) kHz")
 
     if settings.agcEnabled {
@@ -350,6 +365,26 @@ actor KiwiSDRClient: SDRBackendClient {
     return telemetryQueue.removeFirst()
   }
 
+  func setRuntimePolicy(_ policy: BackendRuntimePolicy) async {
+    guard runtimePolicy != policy else { return }
+    runtimePolicy = policy
+
+    guard let activeProfile else { return }
+    if policy.allowsVisualTelemetry {
+      guard wfSocket == nil else { return }
+      do {
+        try await openWaterfallStream(profile: activeProfile, basePath: activeBasePath)
+        if let lastAppliedSettings {
+          try? await applyKiwiWaterfallSettings(lastAppliedSettings)
+        }
+      } catch {
+        log("Unable to restore Kiwi waterfall stream: \(error.localizedDescription)", severity: .warning)
+      }
+    } else {
+      closeWaterfallStream(clearTelemetry: true)
+    }
+  }
+
   func sendControl(_ command: BackendControlCommand) async throws {
     switch command {
     case .setKiwiWaterfall(
@@ -372,6 +407,17 @@ actor KiwiSDRClient: SDRBackendClient {
       if safeMaxDB <= safeMinDB {
         safeMaxDB = min(0, safeMinDB + 10)
       }
+      var snapshot = lastAppliedSettings ?? .default
+      snapshot.kiwiWaterfallSpeed = safeSpeed
+      snapshot.kiwiWaterfallZoom = safeZoom
+      snapshot.kiwiWaterfallMinDB = safeMinDB
+      snapshot.kiwiWaterfallMaxDB = safeMaxDB
+      snapshot.frequencyHz = centerFrequencyHz
+      snapshot.kiwiWaterfallPanOffsetBins = panOffsetBins
+      snapshot.kiwiWaterfallWindowFunction = safeWindowFunction
+      snapshot.kiwiWaterfallInterpolation = safeInterpolation
+      snapshot.kiwiWaterfallCICCompensation = cicCompensation
+      lastAppliedSettings = snapshot
       try await sendWF("SET wf_speed=\(safeSpeed)")
       try await sendWF("SET maxdb=\(safeMaxDB) mindb=\(safeMinDB)")
       if let viewportStartBin = kiwiWaterfallStartBin(
@@ -394,6 +440,11 @@ actor KiwiSDRClient: SDRBackendClient {
           mode: mode,
         sampleRateHz: sampleRateHz
       )
+      var snapshot = lastAppliedSettings ?? .default
+      snapshot.mode = mode
+      snapshot.frequencyHz = frequencyHz
+      snapshot.setKiwiPassband(normalizedBandpass, for: mode, sampleRateHz: sampleRateHz)
+      lastAppliedSettings = snapshot
       let frequencyKHz = Double(frequencyHz) / 1000.0
       let formattedFrequency = String(format: "%.3f", frequencyKHz)
       try await sendSND(
@@ -412,6 +463,14 @@ actor KiwiSDRClient: SDRBackendClient {
         let wildTaps,
         let wildImpulseSamples
       ):
+        var snapshot = lastAppliedSettings ?? .default
+        snapshot.kiwiNoiseBlankerAlgorithm = algorithm
+        snapshot.kiwiNoiseBlankerGate = gate
+        snapshot.kiwiNoiseBlankerThreshold = threshold
+        snapshot.kiwiNoiseBlankerWildThreshold = wildThreshold
+        snapshot.kiwiNoiseBlankerWildTaps = wildTaps
+        snapshot.kiwiNoiseBlankerWildImpulseSamples = wildImpulseSamples
+        lastAppliedSettings = snapshot
         try await sendKiwiNoiseBlanker(
           algorithm: algorithm,
           gate: gate,
@@ -423,6 +482,11 @@ actor KiwiSDRClient: SDRBackendClient {
         log("Kiwi noise blanker updated: algo=\(algorithm.rawValue)")
 
       case .setKiwiNoiseFilter(let algorithm, let denoiseEnabled, let autonotchEnabled):
+        var snapshot = lastAppliedSettings ?? .default
+        snapshot.kiwiNoiseFilterAlgorithm = algorithm
+        snapshot.kiwiDenoiseEnabled = denoiseEnabled
+        snapshot.kiwiAutonotchEnabled = autonotchEnabled
+        lastAppliedSettings = snapshot
         try await sendKiwiNoiseFilter(
           algorithm: algorithm,
           denoiseEnabled: denoiseEnabled,
@@ -541,6 +605,73 @@ actor KiwiSDRClient: SDRBackendClient {
     } else {
       try await sendSND("SET nr type=1 en=\(noiseFilterAutonotchEnabled ? 1 : 0)")
     }
+  }
+
+  private func applyKiwiWaterfallSettings(_ settings: RadioSessionSettings) async throws {
+    let wfSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(settings.kiwiWaterfallSpeed)
+    let wfZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(settings.kiwiWaterfallZoom)
+    let wfMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(settings.kiwiWaterfallMinDB)
+    var wfMaxDB = RadioSessionSettings.clampedKiwiWaterfallMaxDB(settings.kiwiWaterfallMaxDB)
+    let wfWindowFunction = RadioSessionSettings.normalizedKiwiWaterfallWindowFunction(
+      settings.kiwiWaterfallWindowFunction
+    )
+    let wfInterpolation = RadioSessionSettings.normalizedKiwiWaterfallInterpolation(
+      settings.kiwiWaterfallInterpolation
+    )
+    if wfMaxDB <= wfMinDB {
+      wfMaxDB = min(0, wfMinDB + 10)
+    }
+
+    try await sendWF("SET wf_speed=\(wfSpeed)")
+    try await sendWF("SET maxdb=\(wfMaxDB) mindb=\(wfMinDB)")
+    if let viewportStartBin = kiwiWaterfallStartBin(
+      frequencyHz: settings.frequencyHz,
+      zoom: wfZoom,
+      panOffsetBins: settings.kiwiWaterfallPanOffsetBins
+    ) {
+      let safeViewportZoom = min(wfZoom, kiwiZoomMax ?? wfZoom)
+      try await sendWF("SET zoom=\(safeViewportZoom) start=\(viewportStartBin)")
+    }
+    try await sendWF("SET window_func=\(wfWindowFunction)")
+    try await sendWF("SET interp=\(wfInterpolation + (settings.kiwiWaterfallCICCompensation ? 10 : 0))")
+  }
+
+  private func openWaterfallStream(profile: SDRConnectionProfile, basePath: String) async throws {
+    closeWaterfallStream(clearTelemetry: false)
+
+    let timestamp = Int(Date().timeIntervalSince1970)
+    let wfURL = try makeWebSocketURL(profile: profile, path: "\(basePath)\(timestamp)/W/F")
+    log("Connecting waterfall stream: \(wfURL.absoluteString)")
+    let waterfallTask = URLSession.shared.webSocketTask(with: wfURL)
+    wfSocket = waterfallTask
+    waterfallTask.resume()
+    wfReceiveTask = Task { [waterfallTask] in
+      await self.receiveLoop(task: waterfallTask, stream: .waterfall)
+    }
+    wfKeepAliveTask = Task { [waterfallTask] in
+      await self.keepAliveLoop(task: waterfallTask)
+    }
+
+    try await sendWF("SET auth t=kiwi p=\(kiwiToken(profile.password))")
+    try await sendWF("SET wf_comp=0")
+    try await sendWF("SET wf_speed=2")
+    try await sendWF("SET maxdb=-20 mindb=-145")
+    try await sendWF("SET zoom=0 start=0")
+    try await sendWF("SET keepalive")
+  }
+
+  private func closeWaterfallStream(clearTelemetry: Bool) {
+    wfReceiveTask?.cancel()
+    wfReceiveTask = nil
+    wfKeepAliveTask?.cancel()
+    wfKeepAliveTask = nil
+    wfSocket?.cancel(with: .normalClosure, reason: nil)
+    wfSocket = nil
+
+    guard clearTelemetry else { return }
+    latestWaterfallBins = []
+    latestWaterfallFFTSize = nil
+    emitKiwiTelemetry(force: true)
   }
 
   func isConnected() async -> Bool {
@@ -1124,7 +1255,7 @@ actor OpenWebRXClient: SDRBackendClient {
 
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
     let wsPath = "\(basePath)ws/"
-    let url = try makeWebSocketURL(profile: profile, path: wsPath)
+    let url = try await resolveWebSocketURL(profile: profile, path: wsPath)
     log("Connecting to \(url.absoluteString)")
 
     let task = URLSession.shared.webSocketTask(with: url)
@@ -1136,7 +1267,7 @@ actor OpenWebRXClient: SDRBackendClient {
     }
     audioWatchdogTask = Task {
       try? await Task.sleep(nanoseconds: 6_000_000_000)
-      await self.logMissingAudioIfNeeded()
+      self.logMissingAudioIfNeeded()
     }
 
     try await send("SERVER DE CLIENT client=ListenSDR type=receiver")
@@ -1263,6 +1394,45 @@ actor OpenWebRXClient: SDRBackendClient {
 
   func isConnected() async -> Bool {
     socket != nil
+  }
+
+  private func resolveWebSocketURL(profile: SDRConnectionProfile, path: String) async throws -> URL {
+    let fallbackURL = try makeWebSocketURL(profile: profile, path: path)
+    let probeURL = try makeHTTPURL(profile: profile, path: path)
+    let delegate = HTTPRedirectCaptureDelegate()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.timeoutIntervalForRequest = 6
+    configuration.timeoutIntervalForResource = 6
+    let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+    defer {
+      session.invalidateAndCancel()
+    }
+
+    var request = URLRequest(url: probeURL)
+    request.httpMethod = "GET"
+    request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+    request.timeoutInterval = 6
+
+    do {
+      _ = try await session.data(for: request, delegate: delegate)
+    } catch {
+      if let redirectURL = delegate.redirectURL,
+        let resolvedURL = websocketURL(fromHTTPRedirect: redirectURL),
+        resolvedURL != fallbackURL {
+        log("Resolved OpenWebRX redirect: \(fallbackURL.absoluteString) -> \(resolvedURL.absoluteString)")
+        return resolvedURL
+      }
+      return fallbackURL
+    }
+
+    if let redirectURL = delegate.redirectURL,
+      let resolvedURL = websocketURL(fromHTTPRedirect: redirectURL),
+      resolvedURL != fallbackURL {
+      log("Resolved OpenWebRX redirect: \(fallbackURL.absoluteString) -> \(resolvedURL.absoluteString)")
+      return resolvedURL
+    }
+
+    return fallbackURL
   }
 
   private func openWebRXParams(from settings: RadioSessionSettings) -> [String: Any] {
@@ -1985,18 +2155,24 @@ final class FMDXMP3AudioPlayer {
 
   private var desiredVolume: Float = 0.85
   private var muted = false
+  private var mixWithOtherAudioApps = false
+  private var isAudioSessionInterrupted = false
+  private var shouldResumeAfterInterruption = false
+  private var notificationTokens: [NSObjectProtocol] = []
 
   private init() {
     packetDescriptions = Array(
       repeating: AudioStreamPacketDescription(),
       count: maxPacketsPerBuffer
     )
+    installSessionObservers()
   }
 
   func append(_ data: Data) {
     guard !data.isEmpty else { return }
 
     workerQueue.async {
+      guard !self.isAudioSessionInterrupted else { return }
       self.ensureFileStreamLocked()
       guard let fileStreamID = self.fileStreamID else { return }
 
@@ -2036,6 +2212,7 @@ final class FMDXMP3AudioPlayer {
   func stop() {
     workerQueue.async {
       self.resetLocked()
+      self.deactivateAudioSessionIfPossible()
     }
   }
 
@@ -2050,6 +2227,15 @@ final class FMDXMP3AudioPlayer {
     workerQueue.async {
       self.muted = value
       self.applyVolumeLocked()
+    }
+  }
+
+  func setMixWithOtherAudioApps(_ enabled: Bool) {
+    workerQueue.async {
+      guard self.mixWithOtherAudioApps != enabled else { return }
+      self.mixWithOtherAudioApps = enabled
+      let sampleRate = self.streamDescription?.mSampleRate ?? 0
+      self.configureAudioSessionIfNeeded(sampleRate: sampleRate)
     }
   }
 
@@ -2087,6 +2273,10 @@ final class FMDXMP3AudioPlayer {
       let referenceDate = lastAudioRenderAt != .distantPast ? lastAudioRenderAt : lastSuccessfulEnqueueAt
       return Date().timeIntervalSince(referenceDate)
     }
+  }
+
+  func isSessionInterrupted() -> Bool {
+    workerQueue.sync { isAudioSessionInterrupted }
   }
 
   func runtimeSnapshot() -> FMDXAudioRuntimeSnapshot {
@@ -2204,9 +2394,10 @@ final class FMDXMP3AudioPlayer {
     let requestedSampleRate = sampleRate.isFinite && sampleRate >= 8_000 && sampleRate <= 192_000
       ? sampleRate
       : nil
+    let options = audioSessionCategoryOptions()
 
     do {
-      try session.setCategory(.playback, mode: .default, options: [.allowAirPlay])
+      try session.setCategory(.playback, mode: .default, options: options)
       try session.setPreferredIOBufferDuration(0.010)
       if let requestedSampleRate {
         try session.setPreferredSampleRate(requestedSampleRate)
@@ -2214,7 +2405,8 @@ final class FMDXMP3AudioPlayer {
       try session.setActive(true, options: [])
     } catch {
       do {
-        try session.setCategory(.playback, mode: .default, options: [])
+        let fallbackOptions: AVAudioSession.CategoryOptions = mixWithOtherAudioApps ? [.mixWithOthers] : []
+        try session.setCategory(.playback, mode: .default, options: fallbackOptions)
         try session.setActive(true, options: [])
       } catch {
         log("Audio session setup failed: \(error.localizedDescription)", severity: .warning)
@@ -2225,6 +2417,14 @@ final class FMDXMP3AudioPlayer {
   private func applyVolumeLocked() {
     guard let audioQueue else { return }
     _ = AudioQueueSetParameter(audioQueue, kAudioQueueParam_Volume, muted ? 0 : desiredVolume)
+  }
+
+  private func audioSessionCategoryOptions() -> AVAudioSession.CategoryOptions {
+    var options: AVAudioSession.CategoryOptions = [.allowAirPlay]
+    if mixWithOtherAudioApps {
+      options.insert(.mixWithOthers)
+    }
+    return options
   }
 
   private func resetLocked() {
@@ -2299,6 +2499,13 @@ final class FMDXMP3AudioPlayer {
     inputData: UnsafeRawPointer,
     packetDescriptions: UnsafeMutablePointer<AudioStreamPacketDescription>?
   ) {
+    if audioQueue == nil,
+      !isAudioSessionInterrupted,
+      let streamDescription,
+      let fileStreamID {
+      ensureAudioQueueLocked(for: streamDescription, fileStreamID: fileStreamID)
+    }
+
     guard audioQueue != nil else { return }
 
     if let packetDescriptions, numberPackets > 0 {
@@ -2556,12 +2763,111 @@ final class FMDXMP3AudioPlayer {
     ensureAudioQueueLocked(for: streamDescription, fileStreamID: fileStreamID)
   }
 
+  private func deactivateAudioSessionIfPossible() {
+    do {
+      try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    } catch {
+      log("Audio session deactivation failed: \(error.localizedDescription)", severity: .warning)
+    }
+  }
+
   private func log(_ message: String, severity: DiagnosticSeverity = .info) {
     Diagnostics.log(
       severity: severity,
       category: "FM-DX Audio",
       message: message
     )
+  }
+
+  private func installSessionObservers() {
+    let center = NotificationCenter.default
+    notificationTokens.append(
+      center.addObserver(
+        forName: AVAudioSession.interruptionNotification,
+        object: nil,
+        queue: nil
+      ) { [weak self] notification in
+        self?.workerQueue.async {
+          self?.handleAudioSessionInterruptionLocked(notification)
+        }
+      }
+    )
+  }
+
+  private func handleAudioSessionInterruptionLocked(_ notification: Notification) {
+    guard
+      let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+      let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+    else {
+      return
+    }
+
+    switch type {
+    case .began:
+      beginAudioSessionInterruptionLocked()
+    case .ended:
+      let optionsValue = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+      let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+      endAudioSessionInterruptionLocked(shouldResume: options.contains(.shouldResume))
+    @unknown default:
+      break
+    }
+  }
+
+  private func beginAudioSessionInterruptionLocked() {
+    guard !isAudioSessionInterrupted else { return }
+
+    isAudioSessionInterrupted = true
+    shouldResumeAfterInterruption = queueStarted || pendingQueuedBuffers > 0 || activePacketCount > 0
+    parserNeedsDiscontinuity = true
+    clearOutputStateForInterruptionLocked()
+    log("FM-DX audio session interrupted. Audio paused for system interruption.", severity: .warning)
+  }
+
+  private func endAudioSessionInterruptionLocked(shouldResume: Bool) {
+    let shouldRearm = shouldResumeAfterInterruption || shouldResume
+    isAudioSessionInterrupted = false
+    shouldResumeAfterInterruption = false
+    lastSuccessfulEnqueueAt = Date()
+    lastAudioRenderAt = Date()
+
+    guard shouldRearm else {
+      log("FM-DX audio session interruption ended.")
+      return
+    }
+
+    if let streamDescription, let fileStreamID {
+      configureAudioSessionIfNeeded(sampleRate: streamDescription.mSampleRate)
+      ensureAudioQueueLocked(for: streamDescription, fileStreamID: fileStreamID)
+    }
+    log("FM-DX audio session interruption ended. Audio will resume when stream data arrives.")
+  }
+
+  private func clearOutputStateForInterruptionLocked() {
+    if let audioQueue {
+      AudioQueueStop(audioQueue, true)
+      AudioQueueDispose(audioQueue, true)
+      self.audioQueue = nil
+    }
+
+    reusableBuffers.removeAll()
+    activeBuffer = nil
+    activeBufferOffset = 0
+    activePacketCount = 0
+    activeBufferDuration = 0
+    activeBufferStartedAt = .distantPast
+    queueStarted = false
+    enqueuedBuffersBeforeStart = 0
+    queuedBufferDurations.removeAll()
+    pendingQueuedDuration = 0
+    pendingQueuedBuffers = 0
+    consecutiveBufferStarvation = 0
+    lastAudioRenderAt = .distantPast
+    queuedOverLimitSince = .distantPast
+
+    DispatchQueue.main.async {
+      NowPlayingMetadataController.shared.stopPlayback()
+    }
   }
 
   private static let fileStreamPropertyListener: AudioFileStream_PropertyListenerProc = {
@@ -2629,6 +2935,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var stationListUnavailable = false
   private var lastPublishedFMDXPresets: [SDRServerBookmark] = []
   private var lastPublishedFMDXPresetSource = "unknown"
+  private var runtimePolicy: BackendRuntimePolicy = .interactive
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -2676,6 +2983,17 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     let html = try? await fetchIndexHTML(profile: profile, basePath: activeBasePath)
+    let apiScript: String?
+    do {
+      apiScript = try await fetchClientScript(
+        profile: profile,
+        basePath: activeBasePath,
+        relativePath: "js/api.js"
+      )
+    } catch {
+      apiScript = nil
+      log("Unable to fetch FM-DX client script js/api.js: \(error.localizedDescription)", severity: .warning)
+    }
     let stationList = await fetchStationListBookmarks(
       profile: profile,
       staticData: staticData,
@@ -2688,8 +3006,15 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
     nextStationListRefreshAt = nextStationListRefreshDate(after: Date(), stationList: stationList)
 
-    let capabilities = buildCapabilities(staticData: staticData, indexHTML: html)
+    let capabilities = buildCapabilities(
+      staticData: staticData,
+      indexHTML: html,
+      apiScript: apiScript
+    )
     lastCapabilities = capabilities
+    log(
+      "Resolved capabilities: supportsAM=\(capabilities.supportsAM) scriptLoaded=\(apiScript != nil) antennas=\(capabilities.antennas.count) bandwidths=\(capabilities.bandwidths.count) filters=\(capabilities.supportsFilterControls) agc=\(capabilities.supportsAGCControl)"
+    )
     enqueueTelemetry(.fmdxCapabilities(capabilities))
   }
 
@@ -2771,6 +3096,14 @@ actor FMDXWebserverClient: SDRBackendClient {
     return telemetryQueue.removeFirst()
   }
 
+  func setRuntimePolicy(_ policy: BackendRuntimePolicy) async {
+    guard runtimePolicy != policy else { return }
+    runtimePolicy = policy
+
+    guard policy.allowsVisualTelemetry, let activeProfile else { return }
+    await refreshStationListIfNeeded(profile: activeProfile)
+  }
+
   func sendControl(_ command: BackendControlCommand) async throws {
     switch command {
     case .selectOpenWebRXProfile:
@@ -2835,6 +3168,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func sendFrequency(_ frequencyHz: Int) async throws {
     let frequencyKHz = max(1, Int((Double(frequencyHz) / 1000.0).rounded()))
+    log("Sending FM-DX tune command: T\(frequencyKHz)")
     try await send("T\(frequencyKHz)")
   }
 
@@ -2945,7 +3279,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func healthLoop() async {
     while !Task.isCancelled {
-      try? await Task.sleep(nanoseconds: 7_000_000_000)
+      try? await Task.sleep(nanoseconds: healthLoopIntervalNanoseconds())
       if Task.isCancelled {
         return
       }
@@ -2977,7 +3311,8 @@ actor FMDXWebserverClient: SDRBackendClient {
       if audioSocket == nil {
         scheduleAudioReconnect()
       } else {
-        if lastAudioPacketAt != .distantPast {
+        if !FMDXMP3AudioPlayer.shared.isSessionInterrupted(),
+          lastAudioPacketAt != .distantPast {
           let rendererIdleSeconds = FMDXMP3AudioPlayer.shared.secondsSinceLastAudioOutput()
           if rendererIdleSeconds > 15 {
             restartAudioConnection(reason: "FM-DX audio playback stalled. Reconnecting...")
@@ -2998,7 +3333,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private func pollLoop(profile: SDRConnectionProfile) async {
     while !Task.isCancelled {
       let hasRecentRealtimeStatus = Date().timeIntervalSince(lastRealtimeStatusAt) < 12
-      let pollIntervalNs: UInt64 = hasRecentRealtimeStatus ? 12_000_000_000 : 3_500_000_000
+      let pollIntervalNs = pollIntervalNanoseconds(hasRecentRealtimeStatus: hasRecentRealtimeStatus)
       try? await Task.sleep(nanoseconds: pollIntervalNs)
       if Task.isCancelled {
         return
@@ -3124,6 +3459,28 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
 
     return html
+  }
+
+  private func fetchClientScript(
+    profile: SDRConnectionProfile,
+    basePath: String,
+    relativePath: String
+  ) async throws -> String {
+    let url = try makeHTTPURL(profile: profile, path: "\(basePath)\(relativePath)")
+    var request = URLRequest(url: url)
+    request.timeoutInterval = 15
+    request.setValue("application/javascript,text/javascript,*/*;q=0.1", forHTTPHeaderField: "Accept")
+    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard let httpResponse = response as? HTTPURLResponse,
+      (200...299).contains(httpResponse.statusCode),
+      let script = String(data: data, encoding: .utf8)
+    else {
+      throw SDRClientError.unsupported("FM-DX client script is unavailable.")
+    }
+
+    return script
   }
 
   private func pingServerIfAvailable(profile: SDRConnectionProfile, basePath: String) async -> Bool {
@@ -3258,11 +3615,12 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func buildCapabilities(
     staticData: [String: Any]?,
-    indexHTML: String?
+    indexHTML: String?,
+    apiScript: String?
   ) -> FMDXCapabilities {
     let antennas = parseAntennaOptions(from: staticData)
     let bandwidths = parseBandwidthOptions(from: indexHTML)
-    let supportsAM = parseAMSupport(staticData: staticData, indexHTML: indexHTML)
+    let supportsAM = parseAMSupport(staticData: staticData, indexHTML: indexHTML, apiScript: apiScript)
     let supportsFilterControls = parseFilterControlSupport(indexHTML: indexHTML)
     let supportsAGCControl = parseAGCSupport(indexHTML: indexHTML)
     return FMDXCapabilities(
@@ -3353,7 +3711,13 @@ actor FMDXWebserverClient: SDRBackendClient {
     return options
   }
 
-  private func parseAMSupport(staticData: [String: Any]?, indexHTML: String?) -> Bool {
+  func parseAMSupport(
+    staticData: [String: Any]?,
+    indexHTML: String?,
+    apiScript: String? = nil
+  ) -> Bool {
+    var fmOnlyHintDetected = false
+
     if let staticData {
       // Explicit capability flags (if provided by server/custom builds).
       let explicitTrueKeys = [
@@ -3388,22 +3752,33 @@ actor FMDXWebserverClient: SDRBackendClient {
       .filter { !$0.isEmpty }
 
       for field in descriptionFields {
-        if indicatesFMOnlyRange(field) {
-          return false
-        }
         if containsAMHint(field) {
           return true
+        }
+        if indicatesFMOnlyRange(field) {
+          fmOnlyHintDetected = true
         }
       }
     }
 
+    if let apiScript, containsFMDXAPIScriptAMSupportHint(apiScript) {
+      return true
+    }
+
     if let indexHTML, !indexHTML.isEmpty {
-      if indicatesFMOnlyRange(indexHTML) {
-        return false
-      }
       if containsAMHint(indexHTML) {
         return true
       }
+      if containsFMDXAPIScriptAMSupportHint(indexHTML) {
+        return true
+      }
+      if indicatesFMOnlyRange(indexHTML) {
+        fmOnlyHintDetected = true
+      }
+    }
+
+    if fmOnlyHintDetected {
+      return false
     }
 
     // FM-only is the safest fallback when server does not advertise AM capabilities.
@@ -3565,6 +3940,23 @@ actor FMDXWebserverClient: SDRBackendClient {
     return false
   }
 
+  private func containsFMDXAPIScriptAMSupportHint(_ text: String) -> Bool {
+    let normalized = text
+      .lowercased()
+      .replacingOccurrences(of: " ", with: "")
+      .replacingOccurrences(of: "\n", with: "")
+      .replacingOccurrences(of: "\r", with: "")
+      .replacingOccurrences(of: "\t", with: "")
+
+    let markers = [
+      "currentfreq<0.52",
+      "currentfreq<1.71",
+      "currentfreq<29.6"
+    ]
+
+    return markers.contains(where: { normalized.contains($0) })
+  }
+
   private func indicatesFMOnlyRange(_ text: String) -> Bool {
     // Matches limits/ranges such as "64-108 MHz" or "65.0 to 108.0 MHz".
     guard let regex = try? NSRegularExpression(
@@ -3589,6 +3981,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   }
 
   private func refreshStationListIfNeeded(profile: SDRConnectionProfile) async {
+    guard runtimePolicy.allowsVisualTelemetry else { return }
     let now = Date()
     guard now >= nextStationListRefreshAt else { return }
 
@@ -3615,6 +4008,28 @@ actor FMDXWebserverClient: SDRBackendClient {
     }
     let interval = stationList.isEmpty ? stationListRetryInterval : stationListRefreshInterval
     return now.addingTimeInterval(interval)
+  }
+
+  private func healthLoopIntervalNanoseconds() -> UInt64 {
+    switch runtimePolicy {
+    case .interactive:
+      return 7_000_000_000
+    case .passive:
+      return 10_000_000_000
+    case .background:
+      return 14_000_000_000
+    }
+  }
+
+  private func pollIntervalNanoseconds(hasRecentRealtimeStatus: Bool) -> UInt64 {
+    switch runtimePolicy {
+    case .interactive:
+      return hasRecentRealtimeStatus ? 12_000_000_000 : 3_500_000_000
+    case .passive:
+      return hasRecentRealtimeStatus ? 18_000_000_000 : 8_000_000_000
+    case .background:
+      return hasRecentRealtimeStatus ? 30_000_000_000 : 12_000_000_000
+    }
   }
 
   private func fetchStationListBookmarks(

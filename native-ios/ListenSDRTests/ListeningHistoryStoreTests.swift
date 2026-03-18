@@ -57,4 +57,52 @@ final class ListeningHistoryStoreTests: XCTestCase {
     XCTAssertEqual(store.recentListening.first?.stationTitle, "Rave FM")
     XCTAssertEqual(store.recentListening.first?.frequencyHz, 98_400_000)
   }
+
+  @MainActor
+  func testRecordingRecentFrequencyMergesStationTitleForSameReceiverAndFrequency() {
+    let store = ListeningHistoryStore(defaults: defaults, namespace: suiteName)
+    let profile = SDRConnectionProfile(
+      name: "Katowice OpenWebRX",
+      backend: .openWebRX,
+      host: "katowice.example",
+      port: 8073,
+      useTLS: false,
+      path: "/"
+    )
+
+    store.recordRecentFrequency(profile: profile, frequencyHz: 145_500_000, mode: .nfm, stationTitle: nil)
+    store.recordRecentFrequency(profile: profile, frequencyHz: 145_500_000, mode: .nfm, stationTitle: "SR9V")
+
+    XCTAssertEqual(store.recentFrequencies.count, 1)
+    XCTAssertEqual(store.recentFrequencies.first?.stationTitle, "SR9V")
+    XCTAssertEqual(store.recentFrequencies.first?.frequencyHz, 145_500_000)
+    XCTAssertEqual(store.recentFrequencies.first?.mode, .nfm)
+  }
+
+  @MainActor
+  func testRecentFrequenciesAreStoredSeparatelyPerReceiver() {
+    let store = ListeningHistoryStore(defaults: defaults, namespace: suiteName)
+    let firstProfile = SDRConnectionProfile(
+      name: "Bytom FM-DX",
+      backend: .fmDxWebserver,
+      host: "bytom.example",
+      port: 8080,
+      useTLS: false,
+      path: "/"
+    )
+    let secondProfile = SDRConnectionProfile(
+      name: "Krakow FM-DX",
+      backend: .fmDxWebserver,
+      host: "krakow.example",
+      port: 8080,
+      useTLS: false,
+      path: "/"
+    )
+
+    store.recordRecentFrequency(profile: firstProfile, frequencyHz: 98_400_000, mode: .fm, stationTitle: "Radio Zet")
+    store.recordRecentFrequency(profile: secondProfile, frequencyHz: 98_400_000, mode: .fm, stationTitle: "Radio Zet")
+
+    XCTAssertEqual(store.recentFrequencies.count, 2)
+    XCTAssertEqual(Set(store.recentFrequencies.map(\.receiverName)), Set(["Bytom FM-DX", "Krakow FM-DX"]))
+  }
 }

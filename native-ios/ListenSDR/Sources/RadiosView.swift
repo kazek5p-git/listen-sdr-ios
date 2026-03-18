@@ -126,8 +126,8 @@ struct RadiosView: View {
   @State private var historyListeningSort: HistoryListeningSort = .recent
   @State private var searchText = ""
   @State private var searchScope: RadiosSearchScope = .historyOnly
-  @State private var isRecentReceiversExpanded = true
-  @State private var isRecentListeningExpanded = true
+  @State private var isRecentReceiversExpanded = false
+  @State private var isRecentListeningExpanded = false
   @State private var isImportLinkPresented = false
 
   var body: some View {
@@ -245,48 +245,6 @@ struct RadiosView: View {
                     value: historyBackendFilter.displayName
                   )
                 }
-
-                if !historyStore.recentReceivers.isEmpty {
-                  NavigationLink {
-                    SelectionListView(
-                      title: L10n.text("history.sort.receivers"),
-                      options: HistoryReceiverSort.allCases.map {
-                        SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
-                      },
-                      selectedID: historyReceiverSort.rawValue
-                    ) { value in
-                      if let sort = HistoryReceiverSort(rawValue: value) {
-                        historyReceiverSort = sort
-                      }
-                    }
-                  } label: {
-                    LabeledContent(
-                      L10n.text("history.sort.receivers"),
-                      value: historyReceiverSort.displayName
-                    )
-                  }
-                }
-
-                if !historyStore.recentListening.isEmpty {
-                  NavigationLink {
-                    SelectionListView(
-                      title: L10n.text("history.sort.listening"),
-                      options: HistoryListeningSort.allCases.map {
-                        SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
-                      },
-                      selectedID: historyListeningSort.rawValue
-                    ) { value in
-                      if let sort = HistoryListeningSort(rawValue: value) {
-                        historyListeningSort = sort
-                      }
-                    }
-                  } label: {
-                    LabeledContent(
-                      L10n.text("history.sort.listening"),
-                      value: historyListeningSort.displayName
-                    )
-                  }
-                }
               } header: {
                 AppSectionHeader(title: L10n.text("history.filters.section"))
               }
@@ -301,6 +259,8 @@ struct RadiosView: View {
                 )
 
                 if isRecentReceiversExpanded {
+                  recentReceiversSortControl
+
                   ForEach(sortedRecentReceivers) { record in
                     recentReceiverRow(for: record)
                   }
@@ -323,6 +283,8 @@ struct RadiosView: View {
                 )
 
                 if isRecentListeningExpanded {
+                  recentListeningSortControl
+
                   ForEach(sortedRecentListening) { record in
                     recentListeningRow(for: record)
                   }
@@ -705,6 +667,48 @@ struct RadiosView: View {
           : "history.section.expand"
       )
     )
+  }
+
+  private var recentReceiversSortControl: some View {
+    NavigationLink {
+      SelectionListView(
+        title: L10n.text("history.sort.receivers"),
+        options: HistoryReceiverSort.allCases.map {
+          SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+        },
+        selectedID: historyReceiverSort.rawValue
+      ) { value in
+        if let sort = HistoryReceiverSort(rawValue: value) {
+          historyReceiverSort = sort
+        }
+      }
+    } label: {
+      LabeledContent(
+        L10n.text("history.sort.receivers"),
+        value: historyReceiverSort.displayName
+      )
+    }
+  }
+
+  private var recentListeningSortControl: some View {
+    NavigationLink {
+      SelectionListView(
+        title: L10n.text("history.sort.listening"),
+        options: HistoryListeningSort.allCases.map {
+          SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+        },
+        selectedID: historyListeningSort.rawValue
+      ) { value in
+        if let sort = HistoryListeningSort(rawValue: value) {
+          historyListeningSort = sort
+        }
+      }
+    } label: {
+      LabeledContent(
+        L10n.text("history.sort.listening"),
+        value: historyListeningSort.displayName
+      )
+    }
   }
 
   private func connectAndSelect(profile candidateProfile: SDRConnectionProfile) {

@@ -4,8 +4,10 @@ import logging
 import os
 import urllib.parse
 import urllib.request
+from json import JSONDecodeError
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from uuid import uuid4
 
 
 BOT_TOKEN = os.environ["LISTEN_SDR_BOT_TOKEN"].strip()
@@ -16,6 +18,7 @@ BIND_PORT = int(os.environ.get("LISTEN_SDR_PORT", "18787").strip())
 BOT_BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 HTTP_TIMEOUT = 20
 TELEGRAM_TEXT_LIMIT = 3900
+TELEGRAM_CAPTION_LIMIT = 900
 
 if RAW_RECIPIENT_IDS:
     RECIPIENT_IDS = [
@@ -32,6 +35,16 @@ logging.basicConfig(
 )
 
 
+def parse_telegram_response(response):
+    body = response.read()
+    if response.status != 200:
+        raise RuntimeError(f"Telegram API returned HTTP {response.status}")
+    result = json.loads(body.decode("utf-8"))
+    if not result.get("ok"):
+        raise RuntimeError(f"Telegram API rejected request: {result}")
+    return result["result"]
+
+
 def telegram_request(method: str, payload: dict):
     data = urllib.parse.urlencode(payload).encode("utf-8")
     request = urllib.request.Request(
@@ -41,13 +54,49 @@ def telegram_request(method: str, payload: dict):
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:
-        body = response.read()
-        if response.status != 200:
-            raise RuntimeError(f"Telegram API returned HTTP {response.status}")
-        result = json.loads(body.decode("utf-8"))
-        if not result.get("ok"):
-            raise RuntimeError(f"Telegram API rejected request: {result}")
-        return result["result"]
+        return parse_telegram_response(response)
+
+
+def telegram_multipart_request(
+    method: str,
+    fields: dict[str, str],
+    *,
+    file_field_name: str,
+    filename: str,
+    file_bytes: bytes,
+    content_type: str,
+):
+    boundary = f"----ListenSDRBoundary{uuid4().hex}"
+    body = bytearray()
+
+    for key, value in fields.items():
+        body.extend(f"--{boundary}\r\n".encode("utf-8"))
+        body.extend(
+            f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8")
+        )
+        body.extend(str(value).encode("utf-8"))
+        body.extend(b"\r\n")
+
+    body.extend(f"--{boundary}\r\n".encode("utf-8"))
+    body.extend(
+        (
+            f'Content-Disposition: form-data; name="{file_field_name}"; '
+            f'filename="{filename}"\r\n'
+        ).encode("utf-8")
+    )
+    body.extend(f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"))
+    body.extend(file_bytes)
+    body.extend(b"\r\n")
+    body.extend(f"--{boundary}--\r\n".encode("utf-8"))
+
+    request = urllib.request.Request(
+        f"{BOT_BASE_URL}/{method}",
+        data=bytes(body),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:
+        return parse_telegram_response(response)
 
 
 def send_message(chat_id: int, text: str):
@@ -61,47 +110,65 @@ def send_message(chat_id: int, text: str):
     )
 
 
-def split_message(text: str, limit: int = TELEGRAM_TEXT_LIMIT) -> list[str]:
+def build_feedback_document_caption(text: str) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return "Listen SDR"
+
+    caption_lines = [lines[0]]
+    if len(lines) > 1:
+        caption_lines.append(lines[1])
+    if len(lines) > 4:
+        caption_lines.append(lines[4])
+
+    caption = "\n".join(caption_lines).strip()
+    return caption[:TELEGRAM_CAPTION_LIMIT]
+
+
+def build_feedback_document_filename(text: str) -> str:
+    lowered = text.lower()
+    feedback_type = "suggestion" if "typ: sugestia" in lowered else "bug"
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return f"listen-sdr-{feedback_type}-{timestamp}.txt"
+
+
+def send_feedback_document(chat_id: int, text: str):
     normalized = text.strip()
-    if not normalized:
-        return [""]
-    if len(normalized) <= limit:
-        return [normalized]
-
-    chunks: list[str] = []
-    remaining = normalized
-    while remaining:
-        if len(remaining) <= limit:
-            chunks.append(remaining)
-            break
-
-        split_at = remaining.rfind("\n\n", 0, limit)
-        if split_at == -1:
-            split_at = remaining.rfind("\n", 0, limit)
-        if split_at == -1:
-            split_at = limit
-
-        chunk = remaining[:split_at].strip()
-        if not chunk:
-            chunk = remaining[:limit].strip()
-            split_at = limit
-
-        chunks.append(chunk)
-        remaining = remaining[split_at:].lstrip()
-
-    if len(chunks) == 1:
-        return chunks
-
-    return [
-        f"[{index + 1}/{len(chunks)}]\n{chunk}"
-        for index, chunk in enumerate(chunks)
-    ]
+    telegram_multipart_request(
+        "sendDocument",
+        {
+            "chat_id": str(chat_id),
+            "caption": build_feedback_document_caption(normalized),
+            "disable_content_type_detection": "true",
+        },
+        file_field_name="document",
+        filename=build_feedback_document_filename(normalized),
+        file_bytes=normalized.encode("utf-8"),
+        content_type="text/plain; charset=utf-8",
+    )
 
 
-def send_feedback_to_recipients(text: str):
+def send_feedback_to_recipients(text: str) -> tuple[list[int], list[dict[str, str]]]:
+    normalized = text.strip()
+    use_document = len(normalized) > TELEGRAM_TEXT_LIMIT
+    delivered: list[int] = []
+    failed: list[dict[str, str]] = []
     for recipient_id in RECIPIENT_IDS:
-        for chunk in split_message(text):
-            send_message(recipient_id, chunk)
+        try:
+            if use_document:
+                send_feedback_document(recipient_id, normalized)
+            else:
+                send_message(recipient_id, normalized)
+            delivered.append(recipient_id)
+        except Exception as exc:  # noqa: BLE001
+            logging.exception("Unable to send feedback to recipient %s: %s", recipient_id, exc)
+            failed.append(
+                {
+                    "recipient": str(recipient_id),
+                    "error": str(exc),
+                }
+            )
+    return delivered, failed
 
 
 def normalize_message_text(text: str) -> str:
@@ -140,6 +207,8 @@ def format_feedback(
         voice_over = extra.get("voiceOverEnabled")
         session = extra.get("session")
         audio_output = extra.get("audioOutput")
+        audio_diagnostics = extra.get("audioDiagnostics")
+        audio_log_excerpt = extra.get("audioLogExcerpt")
         receiver = extra.get("receiver")
         diagnostics_text = extra.get("diagnosticsText")
 
@@ -173,10 +242,15 @@ def format_feedback(
                 lines.append(f"G\u0142o\u015bno\u015b\u0107 audio: {session['audioVolumePercent']}%")
 
         if isinstance(audio_output, dict):
+            queued_duration = audio_output.get("queuedDurationSeconds")
+            queued_duration_text = ""
+            if queued_duration is not None:
+                queued_duration_text = f" queued_s={float(queued_duration):.2f}"
             lines.append(
                 "Audio wyj\u015bciowe: "
                 f"running={audio_output.get('engineRunning')} "
                 f"queued={audio_output.get('queuedBuffers')} "
+                f"{queued_duration_text}"
                 f"session={audio_output.get('sessionConfigured')} "
                 f"out={audio_output.get('outputSampleRateHz')}Hz"
             )
@@ -188,6 +262,60 @@ def format_feedback(
                 )
             if audio_output.get("lastStartError"):
                 lines.append(f"Ostatni b\u0142\u0105d startu audio: {audio_output['lastStartError']}")
+
+        if isinstance(audio_diagnostics, dict):
+            connected_duration = audio_diagnostics.get("connectedDurationSeconds")
+            reconnect_attempts = audio_diagnostics.get("automaticReconnectAttempts")
+            reconnect_successes = audio_diagnostics.get("automaticReconnectSuccesses")
+            if connected_duration is not None:
+                lines.append(f"Czas bie\u017c\u0105cej sesji: {connected_duration:.1f} s")
+            if reconnect_attempts is not None or reconnect_successes is not None:
+                lines.append(
+                    "Automatyczne reconnecty: "
+                    f"pr\u00f3by={reconnect_attempts if reconnect_attempts is not None else '-'} "
+                    f"sukcesy={reconnect_successes if reconnect_successes is not None else '-'}"
+                )
+
+            shared_audio = audio_diagnostics.get("sharedAudio")
+            if isinstance(shared_audio, dict):
+                lines.append(
+                    "Bufory shared audio: "
+                    f"pr\u00f3bki={shared_audio.get('sampleCount', '-')} "
+                    f"max_bufory={shared_audio.get('peakQueuedBuffers', '-')} "
+                    f"max_enqueue_gap={float(shared_audio.get('peakSecondsSinceLastEnqueue', 0)):.2f}s"
+                )
+
+            fmdx_audio = audio_diagnostics.get("fmdxAudio")
+            if isinstance(fmdx_audio, dict):
+                current_quality = fmdx_audio.get("currentQualityScore")
+                current_quality_level = fmdx_audio.get("currentQualityLevel")
+                quality_suffix = ""
+                if current_quality is not None:
+                    quality_suffix = f" jako\u015b\u0107={current_quality}"
+                    if current_quality_level:
+                        quality_suffix += f" ({current_quality_level})"
+                lines.append(
+                    "Bufory FM-DX: "
+                    f"pr\u00f3bki={fmdx_audio.get('sampleCount', '-')} "
+                    f"start={fmdx_audio.get('queueStarted')} "
+                    f"teraz={float(fmdx_audio.get('currentQueuedDurationSeconds', 0)):.2f}s/"
+                    f"{fmdx_audio.get('currentQueuedBuffers', '-')}buf "
+                    f"gap={float(fmdx_audio.get('currentOutputGapSeconds', 0)):.2f}s "
+                    f"max={float(fmdx_audio.get('peakQueuedDurationSeconds', 0)):.2f}s/"
+                    f"{fmdx_audio.get('peakQueuedBuffers', '-')}buf "
+                    f"max_gap={float(fmdx_audio.get('peakOutputGapSeconds', 0)):.2f}s "
+                    f"trimy={fmdx_audio.get('latencyTrimEvents', '-')}"
+                    f"{quality_suffix}"
+                )
+                if fmdx_audio.get("currentLatencyTrimAgeSeconds") is not None:
+                    lines.append(
+                        f"Ostatni trim FM-DX: {float(fmdx_audio['currentLatencyTrimAgeSeconds']):.2f} s temu"
+                    )
+
+        if audio_log_excerpt:
+            lines.append("")
+            lines.append("Skrót logów audio:")
+            lines.append(str(audio_log_excerpt).strip())
 
         if isinstance(receiver, dict):
             receiver_name = receiver.get("name")
@@ -241,7 +369,8 @@ class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
 
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            raw_body = self.rfile.read(length)
+            payload = json.loads(raw_body.decode("utf-8-sig"))
             kind = str(payload.get("kind", "")).strip().lower()
             sender_name = normalize_message_text(str(payload.get("senderName", "")).strip())
             message = normalize_message_text(str(payload.get("message", "")).strip())
@@ -268,8 +397,33 @@ class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
                 submitted_at=submitted_at,
                 extra=payload,
             )
-            send_feedback_to_recipients(formatted)
-            self.respond_json(200, {"ok": True})
+            delivered, failed = send_feedback_to_recipients(formatted)
+            if not delivered:
+                self.respond_json(
+                    502,
+                    {
+                        "ok": False,
+                        "error": "Unable to deliver feedback to Telegram recipients",
+                    },
+                )
+                return
+
+            response_payload: dict[str, object] = {"ok": True}
+            if failed:
+                logging.warning(
+                    "Feedback delivered only partially: delivered=%s failed=%s",
+                    delivered,
+                    failed,
+                )
+                response_payload["partial"] = True
+                response_payload["failedRecipients"] = [
+                    failure["recipient"] for failure in failed
+                ]
+
+            self.respond_json(200, response_payload)
+        except JSONDecodeError as exc:
+            logging.warning("Feedback HTTP request rejected: invalid JSON (%s)", exc)
+            self.respond_json(400, {"ok": False, "error": "Invalid JSON payload"})
         except Exception as exc:  # noqa: BLE001
             logging.exception("Feedback HTTP request failed: %s", exc)
             self.respond_json(500, {"ok": False, "error": "Internal server error"})
@@ -280,7 +434,10 @@ class FeedbackHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except BrokenPipeError:
+            logging.warning("Client disconnected before response body was written")
 
 
 def main():

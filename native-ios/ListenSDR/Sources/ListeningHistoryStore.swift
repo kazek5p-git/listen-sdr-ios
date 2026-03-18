@@ -63,18 +63,39 @@ struct RecentListeningRecord: Identifiable, Codable, Hashable {
   }
 }
 
+struct RecentFrequencyRecord: Identifiable, Codable, Hashable {
+  let id: String
+  let receiverID: String
+  let receiverName: String
+  let backend: SDRBackend
+  let frequencyHz: Int
+  let mode: DemodulationMode?
+  let stationTitle: String?
+  let lastUsedAt: Date
+
+  var primaryTitle: String {
+    if let stationTitle, !stationTitle.isEmpty {
+      return stationTitle
+    }
+    return FrequencyFormatter.mhzText(fromHz: frequencyHz)
+  }
+}
+
 @MainActor
 final class ListeningHistoryStore: ObservableObject {
   static let shared = ListeningHistoryStore()
 
   @Published private(set) var recentReceivers: [RecentReceiverRecord] = []
   @Published private(set) var recentListening: [RecentListeningRecord] = []
+  @Published private(set) var recentFrequencies: [RecentFrequencyRecord] = []
 
   private let defaults: UserDefaults
   private let recentReceiversKey: String
   private let recentListeningKey: String
+  private let recentFrequenciesKey: String
   private let maxRecentReceivers = 50
   private let maxRecentListening = 150
+  private let maxRecentFrequencies = 15
 
   init(
     defaults: UserDefaults = .standard,
@@ -83,6 +104,7 @@ final class ListeningHistoryStore: ObservableObject {
     self.defaults = defaults
     recentReceiversKey = "\(namespace).recentReceivers.v1"
     recentListeningKey = "\(namespace).recentListening.v1"
+    recentFrequenciesKey = "\(namespace).recentFrequencies.v1"
     load()
   }
 
@@ -165,6 +187,55 @@ final class ListeningHistoryStore: ObservableObject {
     persistListening()
   }
 
+  func recordRecentFrequency(
+    profile: SDRConnectionProfile,
+    frequencyHz: Int,
+    mode: DemodulationMode?,
+    stationTitle: String?
+  ) {
+    let receiverID = ReceiverIdentity.key(for: profile)
+    let normalizedStationTitle = normalizedTitle(stationTitle)
+    let entryID = recentFrequencyRecordID(
+      receiverID: receiverID,
+      frequencyHz: frequencyHz,
+      mode: mode
+    )
+    let record = RecentFrequencyRecord(
+      id: entryID,
+      receiverID: receiverID,
+      receiverName: profile.name,
+      backend: profile.backend,
+      frequencyHz: frequencyHz,
+      mode: mode,
+      stationTitle: normalizedStationTitle,
+      lastUsedAt: Date()
+    )
+
+    if let index = recentFrequencies.firstIndex(where: { $0.id == entryID }) {
+      let existing = recentFrequencies.remove(at: index)
+      recentFrequencies.insert(
+        RecentFrequencyRecord(
+          id: record.id,
+          receiverID: record.receiverID,
+          receiverName: record.receiverName,
+          backend: record.backend,
+          frequencyHz: record.frequencyHz,
+          mode: record.mode,
+          stationTitle: normalizedStationTitle ?? existing.stationTitle,
+          lastUsedAt: record.lastUsedAt
+        ),
+        at: 0
+      )
+    } else {
+      recentFrequencies.insert(record, at: 0)
+    }
+
+    if recentFrequencies.count > maxRecentFrequencies {
+      recentFrequencies = Array(recentFrequencies.prefix(maxRecentFrequencies))
+    }
+    persistRecentFrequencies()
+  }
+
   func removeRecentReceiver(_ record: RecentReceiverRecord) {
     recentReceivers.removeAll { $0.id == record.id }
     persistReceivers()
@@ -185,12 +256,25 @@ final class ListeningHistoryStore: ObservableObject {
     persistListening()
   }
 
+  func clearRecentFrequencies() {
+    recentFrequencies = []
+    persistRecentFrequencies()
+  }
+
   private func normalizedTitle(_ value: String?) -> String? {
     let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     return normalized.isEmpty ? nil : normalized
   }
 
   private func listeningRecordID(
+    receiverID: String,
+    frequencyHz: Int,
+    mode: DemodulationMode?
+  ) -> String {
+    "\(receiverID)|\(frequencyHz)|\(mode?.rawValue ?? "none")"
+  }
+
+  private func recentFrequencyRecordID(
     receiverID: String,
     frequencyHz: Int,
     mode: DemodulationMode?
@@ -208,6 +292,11 @@ final class ListeningHistoryStore: ObservableObject {
       let decoded = try? JSONDecoder().decode([RecentListeningRecord].self, from: data) {
       recentListening = decoded
     }
+
+    if let data = defaults.data(forKey: recentFrequenciesKey),
+      let decoded = try? JSONDecoder().decode([RecentFrequencyRecord].self, from: data) {
+      recentFrequencies = decoded
+    }
   }
 
   private func persistReceivers() {
@@ -218,5 +307,10 @@ final class ListeningHistoryStore: ObservableObject {
   private func persistListening() {
     guard let data = try? JSONEncoder().encode(recentListening) else { return }
     defaults.set(data, forKey: recentListeningKey)
+  }
+
+  private func persistRecentFrequencies() {
+    guard let data = try? JSONEncoder().encode(recentFrequencies) else { return }
+    defaults.set(data, forKey: recentFrequenciesKey)
   }
 }

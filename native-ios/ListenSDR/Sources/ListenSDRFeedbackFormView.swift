@@ -34,8 +34,6 @@ struct ListenSDRFeedbackFormView: View {
             .foregroundStyle(.red)
             .font(.footnote)
         }
-      } header: {
-        AppSectionHeader(title: kind.localizedTitle)
       } footer: {
         Text(L10n.text("settings.feedback.form.footer"))
       }
@@ -129,9 +127,10 @@ struct ListenSDRFeedbackFormView: View {
     isSending = true
 
     let context = ListenSDRFeedbackContext.current(
-      profile: profileStore.selectedProfile,
+      profile: radioSession.connectedProfileSnapshot ?? profileStore.selectedProfile,
       settings: radioSession.settings,
-      radioSession: radioSession
+      radioSession: radioSession,
+      diagnostics: diagnostics
     )
     let diagnosticsText = DiagnosticsExportBuilder.buildText(
       profileStore: profileStore,
@@ -139,6 +138,11 @@ struct ListenSDRFeedbackFormView: View {
       diagnostics: diagnostics,
       historyStore: historyStore,
       recordingStore: recordingStore
+    )
+
+    Diagnostics.log(
+      category: "Feedback",
+      message: "Sending \(kind.rawValue) from \(trimmedSender)"
     )
 
     Task {
@@ -155,6 +159,10 @@ struct ListenSDRFeedbackFormView: View {
           isSending = false
           senderName = ""
           message = ""
+          Diagnostics.log(
+            category: "Feedback",
+            message: "Feedback sent successfully"
+          )
           resultAlertTitle = L10n.text("settings.feedback.form.sent.title")
           resultAlertMessage = L10n.text("settings.feedback.form.sent.body")
           showResultAlert = true
@@ -163,6 +171,11 @@ struct ListenSDRFeedbackFormView: View {
       } catch {
         await MainActor.run {
           isSending = false
+          Diagnostics.log(
+            severity: .error,
+            category: "Feedback",
+            message: "Feedback send failed: \(error.localizedDescription)"
+          )
           resultAlertTitle = L10n.text("settings.feedback.form.error.title")
           resultAlertMessage = error.localizedDescription
           showResultAlert = true
