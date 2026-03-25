@@ -30,7 +30,7 @@ enum ListenSDRNetworkIdentity {
     return kiwiToken(displayName)
   }
 
-  private static func platformToken() -> String {
+  static func platformToken() -> String {
     switch UIDevice.current.userInterfaceIdiom {
     case .pad:
       return "iPad"
@@ -47,6 +47,29 @@ enum ListenSDRNetworkIdentity {
 extension URLRequest {
   mutating func applyListenSDRNetworkIdentity() {
     setValue(ListenSDRNetworkIdentity.userAgent, forHTTPHeaderField: "User-Agent")
+  }
+
+  static func listenSDRFMDXLoginRequest(
+    url: URL,
+    password: String,
+    platformToken: String = ListenSDRNetworkIdentity.platformToken(),
+    systemVersion: String = UIDevice.current.systemVersion
+  ) throws -> URLRequest {
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue(
+      ListenSDRNetworkIdentity.fmdxUserAgent(
+        platformToken: platformToken,
+        systemVersion: systemVersion
+      ),
+      forHTTPHeaderField: "User-Agent"
+    )
+    request.httpBody = try JSONSerialization.data(
+      withJSONObject: ["password": password],
+      options: []
+    )
+    return request
   }
 }
 
@@ -3529,13 +3552,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
     let url = try makeHTTPURL(profile: profile, path: "\(basePath)login")
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try JSONSerialization.data(
-      withJSONObject: ["password": password],
-      options: []
-    )
+    let request = try URLRequest.listenSDRFMDXLoginRequest(url: url, password: password)
 
     let (data, response) = try await URLSession.shared.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse else {

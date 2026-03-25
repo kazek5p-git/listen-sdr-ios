@@ -170,4 +170,25 @@ final class ListenSDRNetworkIdentityTests: XCTestCase {
     XCTAssertTrue(userAgent.contains("Mobile/15E148"))
     XCTAssertTrue(userAgent.contains("Listen SDR for iOS"))
   }
+
+  func testFmdxLoginRequestUsesFmdxUserAgentAndJsonBody() throws {
+    let url = try XCTUnwrap(URL(string: "https://kazpar.pl/tuner/login"))
+    let request = try URLRequest.listenSDRFMDXLoginRequest(
+      url: url,
+      password: "chcestroic",
+      platformToken: "iPhone",
+      systemVersion: "26.4"
+    )
+
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+    XCTAssertEqual(
+      request.value(forHTTPHeaderField: "User-Agent"),
+      ListenSDRNetworkIdentity.fmdxUserAgent(platformToken: "iPhone", systemVersion: "26.4")
+    )
+
+    let body = try XCTUnwrap(request.httpBody)
+    let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+    XCTAssertEqual(payload["password"], "chcestroic")
+  }
 }
