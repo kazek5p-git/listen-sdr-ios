@@ -361,12 +361,16 @@ final class RecordingStore: ObservableObject {
 
     if let snapshot = try? AudioRecordingController.shared.startRecording(context: context) {
       apply(snapshot: snapshot)
+      AppInteractionFeedbackCenter.playRecordingTransitionIfEnabled(isRecording: true)
       refresh()
     }
   }
 
   func stopRecording() {
-    _ = AudioRecordingController.shared.stopRecording()
+    let stoppedRecording = AudioRecordingController.shared.stopRecording()
+    if stoppedRecording != nil {
+      AppInteractionFeedbackCenter.playRecordingTransitionIfEnabled(isRecording: false)
+    }
     refresh()
   }
 

@@ -1,69 +1,59 @@
 import XCTest
-@testable import ListenSDR
+import ListenSDRCore
 
 final class OpenWebRXScannerSquelchPolicyTests: XCTestCase {
   func testEffectiveEnabledTurnsOffSquelchWhenScannerLockIsActive() {
     XCTAssertTrue(
-      OpenWebRXScannerSquelchPolicy.effectiveEnabled(
+      RuntimeAdjustedSettingsCore.effectiveSquelchEnabled(
         storedEnabled: true,
         isLockedByScanner: false
       )
     )
     XCTAssertFalse(
-      OpenWebRXScannerSquelchPolicy.effectiveEnabled(
+      RuntimeAdjustedSettingsCore.effectiveSquelchEnabled(
         storedEnabled: true,
         isLockedByScanner: true
       )
     )
   }
 
-  func testApplyingOverrideDisablesSquelchOnlyForOpenWebRX() {
-    var settings = RadioSessionSettings.default
-    settings.squelchEnabled = true
-
-    let openWebRXSnapshot = OpenWebRXScannerSquelchPolicy.applyingOverride(
-      to: settings,
+  func testAdjustedStateDisablesSquelchForLockedOpenWebRXApply() {
+    let lockedState = RuntimeAdjustedSettingsCore.adjustedState(
       backend: .openWebRX,
-      isLockedByScanner: true
+      mode: .am,
+      squelchEnabled: true,
+      isSquelchLockedByScanner: true
     )
-    let kiwiSnapshot = OpenWebRXScannerSquelchPolicy.applyingOverride(
-      to: settings,
-      backend: .kiwiSDR,
-      isLockedByScanner: true
-    )
-    let unlockedSnapshot = OpenWebRXScannerSquelchPolicy.applyingOverride(
-      to: settings,
+    let unlockedState = RuntimeAdjustedSettingsCore.adjustedState(
       backend: .openWebRX,
-      isLockedByScanner: false
+      mode: .am,
+      squelchEnabled: true,
+      isSquelchLockedByScanner: false
     )
 
-    XCTAssertFalse(openWebRXSnapshot.squelchEnabled)
-    XCTAssertTrue(kiwiSnapshot.squelchEnabled)
-    XCTAssertTrue(unlockedSnapshot.squelchEnabled)
+    XCTAssertEqual(.am, lockedState.mode)
+    XCTAssertFalse(lockedState.squelchEnabled)
+    XCTAssertEqual(.am, unlockedState.mode)
+    XCTAssertTrue(unlockedState.squelchEnabled)
   }
 
-  func testKiwiPolicyTurnsOffSquelchOnlyForKiwi() {
-    var settings = RadioSessionSettings.default
-    settings.squelchEnabled = true
-
-    let kiwiSnapshot = KiwiScannerSquelchPolicy.applyingOverride(
-      to: settings,
+  func testAdjustedStatePreservesKiwiModeAliasesAndAppliesLock() {
+    let lockedState = RuntimeAdjustedSettingsCore.adjustedState(
       backend: .kiwiSDR,
-      isLockedByScanner: true
+      mode: .amw,
+      squelchEnabled: true,
+      isSquelchLockedByScanner: true
     )
-    let openWebRXSnapshot = KiwiScannerSquelchPolicy.applyingOverride(
-      to: settings,
-      backend: .openWebRX,
-      isLockedByScanner: true
+    let aliasState = RuntimeAdjustedSettingsCore.adjustedState(
+      backend: .kiwiSDR,
+      mode: .nnfm,
+      squelchEnabled: true,
+      isSquelchLockedByScanner: false
     )
 
-    XCTAssertFalse(
-      KiwiScannerSquelchPolicy.effectiveEnabled(
-        storedEnabled: true,
-        isLockedByScanner: true
-      )
-    )
-    XCTAssertFalse(kiwiSnapshot.squelchEnabled)
-    XCTAssertTrue(openWebRXSnapshot.squelchEnabled)
+    XCTAssertEqual(.amw, lockedState.mode)
+    XCTAssertFalse(lockedState.squelchEnabled)
+    XCTAssertEqual(.nnfm, aliasState.mode)
+    XCTAssertTrue(aliasState.squelchEnabled)
   }
 }

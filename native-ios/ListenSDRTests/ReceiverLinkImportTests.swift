@@ -1,5 +1,6 @@
 import XCTest
 @testable import ListenSDR
+import ListenSDRCore
 
 final class ReceiverLinkImportTests: XCTestCase {
   func testNormalizeURLAddsHTTPWhenMissingScheme() throws {
@@ -40,6 +41,100 @@ final class ReceiverLinkImportTests: XCTestCase {
     XCTAssertEqual(normalized.host(), "webrx.sytes.net")
     XCTAssertEqual(normalized.port, 8078)
     XCTAssertEqual(normalized.path, "/")
+  }
+
+  func testAdjustImportedProfileForBackendChangeUsesTLSAwareDefaultPort() {
+    let original = SDRConnectionProfile(
+      name: "Imported",
+      backend: .openWebRX,
+      host: "receiver.example",
+      port: 8078,
+      useTLS: true,
+      path: "/text"
+    )
+
+    let adjusted = ReceiverLinkImportDetector.adjustedProfile(original, for: .fmDxWebserver)
+
+    XCTAssertEqual(adjusted.backend, .fmDxWebserver)
+    XCTAssertEqual(adjusted.port, 443)
+    XCTAssertEqual(adjusted.path, "/")
+  }
+
+  func testAdjustImportedProfileForBackendChangeUsesBackendDefaultPortForHTTP() {
+    let original = SDRConnectionProfile(
+      name: "Imported",
+      backend: .fmDxWebserver,
+      host: "receiver.example",
+      port: 8080,
+      useTLS: false,
+      path: "/audio"
+    )
+
+    let adjusted = ReceiverLinkImportDetector.adjustedProfile(original, for: .kiwiSDR)
+
+    XCTAssertEqual(adjusted.backend, .kiwiSDR)
+    XCTAssertEqual(adjusted.port, 8073)
+    XCTAssertEqual(adjusted.path, "/")
+  }
+
+  func testProfileTLSChangeMovesFMDXDefaultPortToHTTPS() {
+    var profile = SDRConnectionProfile(
+      name: "FM-DX",
+      backend: .fmDxWebserver,
+      host: "receiver.example",
+      port: 8080,
+      useTLS: false
+    )
+
+    profile.applyTLSChange(true)
+
+    XCTAssertTrue(profile.useTLS)
+    XCTAssertEqual(profile.port, 443)
+  }
+
+  func testProfileTLSChangeRestoresFMDXDefaultPortToHTTP() {
+    var profile = SDRConnectionProfile(
+      name: "FM-DX",
+      backend: .fmDxWebserver,
+      host: "receiver.example",
+      port: 443,
+      useTLS: true
+    )
+
+    profile.applyTLSChange(false)
+
+    XCTAssertFalse(profile.useTLS)
+    XCTAssertEqual(profile.port, 8080)
+  }
+
+  func testProfileTLSChangeKeepsCustomPortWhenProfileUsesManualValue() {
+    var profile = SDRConnectionProfile(
+      name: "FM-DX",
+      backend: .fmDxWebserver,
+      host: "receiver.example",
+      port: 8443,
+      useTLS: false
+    )
+
+    profile.applyTLSChange(true)
+
+    XCTAssertTrue(profile.useTLS)
+    XCTAssertEqual(profile.port, 8443)
+  }
+
+  func testProfileBackendChangeUsesTLSAwareDefaultPort() {
+    var profile = SDRConnectionProfile(
+      name: "Imported",
+      backend: .kiwiSDR,
+      host: "receiver.example",
+      port: 8073,
+      useTLS: true
+    )
+
+    profile.applyBackendChange(.fmDxWebserver)
+
+    XCTAssertEqual(profile.backend, .fmDxWebserver)
+    XCTAssertEqual(profile.port, 443)
   }
 
   func testDirectoryCountryResolverNormalizesExplicitCountryName() {

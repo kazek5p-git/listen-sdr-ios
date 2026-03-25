@@ -1,3 +1,4 @@
+import ListenSDRCore
 import SwiftUI
 
 private enum ScanSource: String, CaseIterable, Identifiable {

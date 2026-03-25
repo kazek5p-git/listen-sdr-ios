@@ -1,0 +1,41 @@
+{
+  "mhzTextCases": [
+    {
+      "label": "formats FM broadcast frequency",
+      "hz": 98500000,
+      "expected": "98.500 MHz"
+    },
+    {
+      "label": "formats shortwave frequency",
+      "hz": 7050000,
+      "expected": "7.050 MHz"
+    }
+  ],
+  "tuneStepTextCases": [
+    {
+      "label": "formats hertz values",
+      "hz": 100,
+      "expected": "100 Hz"
+    },
+    {
+      "label": "formats whole kilohertz values",
+      "hz": 25000,
+      "expected": "25 kHz"
+    },
+    {
+      "label": "formats fractional kilohertz values",
+      "hz": 1250,
+      "expected": "1.250 kHz"
+    },
+    {
+      "label": "formats whole megahertz values",
+      "hz": 2000000,
+      "expected": "2 MHz"
+    },
+    {
+      "label": "formats fractional megahertz values",
+      "hz": 2500000,
+      "expected": "2.500 MHz"
+    }
+  ]
+}

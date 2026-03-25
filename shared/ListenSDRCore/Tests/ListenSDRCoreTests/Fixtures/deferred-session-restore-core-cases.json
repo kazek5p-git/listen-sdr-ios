@@ -1,0 +1,66 @@
+{
+  "constantCases": [
+    {
+      "label": "deferred restore waits up to ten seconds and polls every 90ms",
+      "expectedDeadlineSeconds": 10.0,
+      "expectedPollIntervalSeconds": 0.09
+    }
+  ],
+  "statusCases": [
+    {
+      "label": "connected matching profile applies when local tuning is allowed",
+      "isConnected": true,
+      "isTargetProfileConnected": true,
+      "canApplyLocalTuning": true,
+      "deadlineReached": false,
+      "expected": {
+        "shouldApply": true,
+        "shouldContinueWaiting": false
+      }
+    },
+    {
+      "label": "connected matching profile waits while initial server sync is pending",
+      "isConnected": true,
+      "isTargetProfileConnected": true,
+      "canApplyLocalTuning": false,
+      "deadlineReached": false,
+      "expected": {
+        "shouldApply": false,
+        "shouldContinueWaiting": true
+      }
+    },
+    {
+      "label": "wrong profile keeps waiting until deadline",
+      "isConnected": true,
+      "isTargetProfileConnected": false,
+      "canApplyLocalTuning": true,
+      "deadlineReached": false,
+      "expected": {
+        "shouldApply": false,
+        "shouldContinueWaiting": true
+      }
+    },
+    {
+      "label": "disconnected state keeps waiting until deadline",
+      "isConnected": false,
+      "isTargetProfileConnected": false,
+      "canApplyLocalTuning": true,
+      "deadlineReached": false,
+      "expected": {
+        "shouldApply": false,
+        "shouldContinueWaiting": true
+      }
+    },
+    {
+      "label": "deadline stops waiting when restore still cannot apply",
+      "isConnected": true,
+      "isTargetProfileConnected": true,
+      "canApplyLocalTuning": false,
+      "deadlineReached": true,
+      "expected": {
+        "shouldApply": false,
+        "shouldContinueWaiting": false
+      }
+    }
+  ]
+}

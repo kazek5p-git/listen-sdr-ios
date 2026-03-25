@@ -1,0 +1,42 @@
+{
+  "normalizedCases": [
+    {
+      "label": "Kiwi passband clamps to sample rate limits",
+      "mode": "am",
+      "bandpass": {
+        "lowCut": -9000,
+        "highCut": 9000
+      },
+      "sampleRateHz": 12000,
+      "expectedBandpass": {
+        "lowCut": -6000,
+        "highCut": 6000
+      }
+    },
+    {
+      "label": "Kiwi passband falls back when cuts are invalid",
+      "mode": "am",
+      "bandpass": {
+        "lowCut": 9000,
+        "highCut": 9000
+      },
+      "sampleRateHz": 12000,
+      "expectedBandpass": {
+        "lowCut": -4900,
+        "highCut": 4900
+      }
+    }
+  ],
+  "resolvedCases": [
+    {
+      "label": "Resolved Kiwi passband uses mode default when nothing is stored",
+      "mode": "usb",
+      "storedBandpass": null,
+      "sampleRateHz": 12000,
+      "expectedBandpass": {
+        "lowCut": 300,
+        "highCut": 2700
+      }
+    }
+  ]
+}

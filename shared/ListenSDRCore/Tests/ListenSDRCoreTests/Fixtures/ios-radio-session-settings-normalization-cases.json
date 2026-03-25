@@ -1,0 +1,58 @@
+{
+  "cases": [
+    {
+      "label": "clamps imported payload to canonical iOS bounds",
+      "inputJSON": "{\"tuneStepHz\":8300,\"preferredTuneStepHz\":77,\"openWebRXSquelchLevel\":-200,\"kiwiSquelchThreshold\":44,\"kiwiNoiseBlankerAlgorithm\":2,\"kiwiNoiseBlankerGate\":5555,\"kiwiNoiseBlankerThreshold\":200,\"kiwiNoiseBlankerWildThreshold\":3.4,\"kiwiNoiseBlankerWildTaps\":99,\"kiwiNoiseBlankerWildImpulseSamples\":8,\"kiwiNoiseFilterAlgorithm\":3,\"kiwiDenoiseEnabled\":false,\"kiwiAutonotchEnabled\":true,\"kiwiPassbandsByMode\":{\"usb\":{\"lowCut\":-9000,\"highCut\":9000},\"am\":{\"lowCut\":1000,\"highCut\":1000}},\"kiwiWaterfallSpeed\":8,\"kiwiWaterfallWindowFunction\":99,\"kiwiWaterfallInterpolation\":99,\"kiwiWaterfallZoom\":99,\"kiwiWaterfallPanOffsetBins\":999999999,\"kiwiWaterfallMinDB\":-999,\"kiwiWaterfallMaxDB\":-999,\"accessibilityInteractionSoundsVolume\":3.1,\"scannerDwellSeconds\":0.1,\"scannerHoldSeconds\":99.0,\"fmdxAudioStartupBufferSeconds\":0.1,\"fmdxAudioMaxLatencySeconds\":0.2,\"fmdxAudioPacketHoldSeconds\":1.0,\"fmdxCustomScanSettleSeconds\":0.9,\"fmdxCustomScanMetadataWindowSeconds\":-0.1}",
+      "expected": {
+        "tuneStepHz": 8330,
+        "preferredTuneStepHz": 100,
+        "openWebRXSquelchLevel": -150,
+        "kiwiSquelchThreshold": 30,
+        "kiwiNoiseBlankerGate": 5000,
+        "kiwiNoiseBlankerThreshold": 100,
+        "kiwiNoiseBlankerWildThreshold": 3.0,
+        "kiwiNoiseBlankerWildTaps": 40,
+        "kiwiNoiseBlankerWildImpulseSamples": 9,
+        "kiwiDenoiseEnabled": true,
+        "kiwiAutonotchEnabled": false,
+        "kiwiPassbandsByMode": {
+          "usb": {
+            "lowCut": -5000,
+            "highCut": 5000
+          },
+          "am": {
+            "lowCut": -4900,
+            "highCut": 4900
+          }
+        },
+        "kiwiWaterfallSpeed": 4,
+        "kiwiWaterfallWindowFunction": 3,
+        "kiwiWaterfallInterpolation": 4,
+        "kiwiWaterfallZoom": 14,
+        "kiwiWaterfallPanOffsetBins": 50000000,
+        "kiwiWaterfallMinDB": -190,
+        "kiwiWaterfallMaxDB": -120,
+        "accessibilityInteractionSoundsVolume": 2.5,
+        "scannerDwellSeconds": 0.5,
+        "scannerHoldSeconds": 12.0,
+        "fmdxAudioStartupBufferSeconds": 0.25,
+        "fmdxAudioMaxLatencySeconds": 0.6,
+        "fmdxAudioPacketHoldSeconds": 0.35,
+        "fmdxCustomScanSettleSeconds": 0.6,
+        "fmdxCustomScanMetadataWindowSeconds": 0.0
+      }
+    },
+    {
+      "label": "waterfall max is lifted above min and wdsp keeps denoise on",
+      "inputJSON": "{\"kiwiNoiseFilterAlgorithm\":1,\"kiwiDenoiseEnabled\":false,\"kiwiAutonotchEnabled\":false,\"kiwiWaterfallMinDB\":-30,\"kiwiWaterfallMaxDB\":-40,\"scannerDwellSeconds\":3.2,\"scannerHoldSeconds\":0.2}",
+      "expected": {
+        "kiwiDenoiseEnabled": true,
+        "kiwiAutonotchEnabled": false,
+        "kiwiWaterfallMinDB": -30,
+        "kiwiWaterfallMaxDB": -20,
+        "scannerDwellSeconds": 3.2,
+        "scannerHoldSeconds": 0.5
+      }
+    }
+  ]
+}

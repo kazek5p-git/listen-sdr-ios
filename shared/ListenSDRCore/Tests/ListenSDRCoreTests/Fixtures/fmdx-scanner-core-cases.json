@@ -1,0 +1,553 @@
+{
+  "availablePresetCases": [
+    {
+      "label": "am ranges hidden when unsupported",
+      "supportsAM": false,
+      "expectedPresets": ["lowerUKF", "upperUKF", "fullUKF"]
+    },
+    {
+      "label": "all named ranges shown when am supported",
+      "supportsAM": true,
+      "expectedPresets": ["lowerUKF", "upperUKF", "fullUKF", "sw", "mw", "lw"]
+    }
+  ],
+  "definitionCases": [
+    {
+      "label": "lower ukf definition matches oirt span",
+      "preset": "lowerUKF",
+      "expected": {
+        "mode": "fm",
+        "rangeLowerHz": 65900000,
+        "rangeUpperHz": 73999000,
+        "stepOptionsHz": [10000, 25000, 30000, 50000, 100000],
+        "defaultStepHz": 50000,
+        "metadataProfileBand": "oirt",
+        "mergeSpacingProfileBand": "oirt"
+      }
+    },
+    {
+      "label": "upper ukf definition matches broadcast span",
+      "preset": "upperUKF",
+      "expected": {
+        "mode": "fm",
+        "rangeLowerHz": 87500000,
+        "rangeUpperHz": 108000000,
+        "stepOptionsHz": [10000, 25000, 50000, 100000, 200000],
+        "defaultStepHz": 100000,
+        "metadataProfileBand": "fm",
+        "mergeSpacingProfileBand": "fm"
+      }
+    },
+    {
+      "label": "full ukf definition matches quick band fm span",
+      "preset": "fullUKF",
+      "expected": {
+        "mode": "fm",
+        "rangeLowerHz": 64000000,
+        "rangeUpperHz": 110000000,
+        "stepOptionsHz": [10000, 25000, 50000, 100000, 200000],
+        "defaultStepHz": 100000,
+        "metadataProfileBand": "fm",
+        "mergeSpacingProfileBand": "fm"
+      }
+    },
+    {
+      "label": "lw definition matches quick band",
+      "preset": "lw",
+      "expected": {
+        "mode": "am",
+        "rangeLowerHz": 100000,
+        "rangeUpperHz": 519000,
+        "stepOptionsHz": [9000, 10000],
+        "defaultStepHz": 9000,
+        "metadataProfileBand": "lw",
+        "mergeSpacingProfileBand": "lw"
+      }
+    },
+    {
+      "label": "mw definition matches quick band",
+      "preset": "mw",
+      "expected": {
+        "mode": "am",
+        "rangeLowerHz": 520000,
+        "rangeUpperHz": 1709000,
+        "stepOptionsHz": [9000, 10000],
+        "defaultStepHz": 9000,
+        "metadataProfileBand": "mw",
+        "mergeSpacingProfileBand": "mw"
+      }
+    },
+    {
+      "label": "sw definition matches quick band",
+      "preset": "sw",
+      "expected": {
+        "mode": "am",
+        "rangeLowerHz": 1710000,
+        "rangeUpperHz": 29600000,
+        "stepOptionsHz": [5000, 10000],
+        "defaultStepHz": 5000,
+        "metadataProfileBand": "sw",
+        "mergeSpacingProfileBand": "sw"
+      }
+    }
+  ],
+  "selectableModeCases": [
+    {
+      "label": "quick new signals is available when saving results",
+      "saveResultsEnabled": true,
+      "expectedModes": ["standard", "quickNewSignals", "veryFast", "custom"]
+    },
+    {
+      "label": "quick new signals is hidden without saved results",
+      "saveResultsEnabled": false,
+      "expectedModes": ["standard", "veryFast", "custom"]
+    }
+  ],
+  "sequenceCases": [
+    {
+      "label": "sequence starts from current frequency with wrap",
+      "rangeLowerHz": 87500000,
+      "rangeUpperHz": 87900000,
+      "stepHz": 100000,
+      "startBehavior": "fromCurrentFrequency",
+      "currentFrequencyHz": 87700000,
+      "expectedFrequenciesHz": [87700000, 87800000, 87900000, 87500000, 87600000]
+    },
+    {
+      "label": "sequence falls back to range start when current frequency is outside range",
+      "rangeLowerHz": 520000,
+      "rangeUpperHz": 547000,
+      "stepHz": 9000,
+      "startBehavior": "fromCurrentFrequency",
+      "currentFrequencyHz": 999000,
+      "expectedFrequenciesHz": [520000, 529000, 538000, 547000]
+    },
+    {
+      "label": "sequence appends upper bound when range is not divisible by step",
+      "rangeLowerHz": 87500000,
+      "rangeUpperHz": 87950000,
+      "stepHz": 200000,
+      "startBehavior": "fromBeginning",
+      "currentFrequencyHz": null,
+      "expectedFrequenciesHz": [87500000, 87700000, 87900000, 87950000]
+    },
+    {
+      "label": "nonpositive step yields empty sequence",
+      "rangeLowerHz": 87500000,
+      "rangeUpperHz": 108000000,
+      "stepHz": 0,
+      "startBehavior": "fromBeginning",
+      "currentFrequencyHz": null,
+      "expectedFrequenciesHz": []
+    }
+  ],
+  "timingCases": [
+    {
+      "label": "standard fm keeps metadata window",
+      "mode": "standard",
+      "band": "fm",
+      "settleSeconds": 0.16,
+      "metadataWindowSeconds": 0.90,
+      "expected": {
+        "tuneAttemptCount": 2,
+        "settleSeconds": 0.24,
+        "minimumDeadlineSeconds": 0.45,
+        "confirmationGraceSeconds": 0.45,
+        "minimumPostLockSettleSeconds": 0.08,
+        "metadataWindowSeconds": 1.05,
+        "minimumMetadataWindowSeconds": 0.25,
+        "metadataPollSeconds": 0.10
+      }
+    },
+    {
+      "label": "quick fm uses shorter tune lock without metadata window",
+      "mode": "quickNewSignals",
+      "band": "fm",
+      "settleSeconds": 0.16,
+      "metadataWindowSeconds": 0.90,
+      "expected": {
+        "tuneAttemptCount": 1,
+        "settleSeconds": 0.14,
+        "minimumDeadlineSeconds": 0.32,
+        "confirmationGraceSeconds": 0.26,
+        "minimumPostLockSettleSeconds": 0.06,
+        "metadataWindowSeconds": 0.0,
+        "minimumMetadataWindowSeconds": 0.0,
+        "metadataPollSeconds": 0.10
+      }
+    },
+    {
+      "label": "very fast fm is more aggressive than quick mode",
+      "mode": "veryFast",
+      "band": "fm",
+      "settleSeconds": 0.16,
+      "metadataWindowSeconds": 0.90,
+      "expected": {
+        "tuneAttemptCount": 1,
+        "settleSeconds": 0.09,
+        "minimumDeadlineSeconds": 0.22,
+        "confirmationGraceSeconds": 0.14,
+        "minimumPostLockSettleSeconds": 0.04,
+        "metadataWindowSeconds": 0.0,
+        "minimumMetadataWindowSeconds": 0.0,
+        "metadataPollSeconds": 0.10
+      }
+    },
+    {
+      "label": "custom fm uses provided settle and metadata window",
+      "mode": "custom",
+      "band": "fm",
+      "settleSeconds": 0.27,
+      "metadataWindowSeconds": 1.35,
+      "expected": {
+        "tuneAttemptCount": 1,
+        "settleSeconds": 0.27,
+        "minimumDeadlineSeconds": 0.49,
+        "confirmationGraceSeconds": 0.22,
+        "minimumPostLockSettleSeconds": 0.20,
+        "metadataWindowSeconds": 1.35,
+        "minimumMetadataWindowSeconds": 0.20,
+        "metadataPollSeconds": 0.10
+      }
+    },
+    {
+      "label": "custom mw suppresses metadata minimum window",
+      "mode": "custom",
+      "band": "mw",
+      "settleSeconds": 0.19,
+      "metadataWindowSeconds": 0.60,
+      "expected": {
+        "tuneAttemptCount": 1,
+        "settleSeconds": 0.19,
+        "minimumDeadlineSeconds": 0.35,
+        "confirmationGraceSeconds": 0.16,
+        "minimumPostLockSettleSeconds": 0.19,
+        "metadataWindowSeconds": 0.60,
+        "minimumMetadataWindowSeconds": 0.0,
+        "metadataPollSeconds": 0.12
+      }
+    }
+  ],
+  "reducerCases": [
+    {
+      "label": "nearby fm peaks merge into strongest result with metadata",
+      "mergeSpacingHz": 150000,
+      "samples": [
+        {
+          "frequencyHz": 98300000,
+          "mode": "fm",
+          "signal": 18.0,
+          "signalTop": null,
+          "stationName": null,
+          "programService": "RAVE FM",
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        },
+        {
+          "frequencyHz": 98400000,
+          "mode": "fm",
+          "signal": 27.0,
+          "signalTop": null,
+          "stationName": "Rave FM",
+          "programService": "RAVE FM",
+          "radioText0": null,
+          "radioText1": null,
+          "city": "Bytom",
+          "countryName": "Poland",
+          "distanceKm": "105",
+          "erpKW": "120",
+          "userCount": 2
+        },
+        {
+          "frequencyHz": 98500000,
+          "mode": "fm",
+          "signal": 21.0,
+          "signalTop": null,
+          "stationName": null,
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "expectedResults": [
+        {
+          "frequencyHz": 98400000,
+          "mode": "fm",
+          "signal": 27.0,
+          "signalTop": null,
+          "stationName": "Rave FM",
+          "programService": "RAVE FM",
+          "radioText0": null,
+          "radioText1": null,
+          "city": "Bytom",
+          "countryName": "Poland",
+          "distanceKm": "105",
+          "erpKW": "120",
+          "userCount": 2
+        }
+      ]
+    },
+    {
+      "label": "distant fm peaks stay separate",
+      "mergeSpacingHz": 150000,
+      "samples": [
+        {
+          "frequencyHz": 89100000,
+          "mode": "fm",
+          "signal": 23.0,
+          "signalTop": null,
+          "stationName": "Relax",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        },
+        {
+          "frequencyHz": 94200000,
+          "mode": "fm",
+          "signal": 26.0,
+          "signalTop": null,
+          "stationName": "Pulsar",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "expectedResults": [
+        {
+          "frequencyHz": 89100000,
+          "mode": "fm",
+          "signal": 23.0,
+          "signalTop": null,
+          "stationName": "Relax",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        },
+        {
+          "frequencyHz": 94200000,
+          "mode": "fm",
+          "signal": 26.0,
+          "signalTop": null,
+          "stationName": "Pulsar",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ]
+    },
+    {
+      "label": "cluster keeps metadata from weaker am sample",
+      "mergeSpacingHz": 18000,
+      "samples": [
+        {
+          "frequencyHz": 999000,
+          "mode": "am",
+          "signal": 12.0,
+          "signalTop": null,
+          "stationName": "Test MW",
+          "programService": null,
+          "radioText0": "News",
+          "radioText1": "Service",
+          "city": "Krakow",
+          "countryName": "Poland",
+          "distanceKm": "12",
+          "erpKW": "50",
+          "userCount": 1
+        },
+        {
+          "frequencyHz": 1008000,
+          "mode": "am",
+          "signal": 14.0,
+          "signalTop": null,
+          "stationName": null,
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "expectedResults": [
+        {
+          "frequencyHz": 1008000,
+          "mode": "am",
+          "signal": 14.0,
+          "signalTop": null,
+          "stationName": "Test MW",
+          "programService": null,
+          "radioText0": "News",
+          "radioText1": "Service",
+          "city": "Krakow",
+          "countryName": "Poland",
+          "distanceKm": "12",
+          "erpKW": "50",
+          "userCount": 1
+        }
+      ]
+    }
+  ],
+  "matcherCases": [
+    {
+      "label": "known station within fm tolerance is filtered out",
+      "savedResults": [
+        {
+          "frequencyHz": 98400000,
+          "mode": "fm",
+          "signal": 24.0,
+          "signalTop": null,
+          "stationName": "Rave FM",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "candidateResults": [
+        {
+          "frequencyHz": 98450000,
+          "mode": "fm",
+          "signal": 21.0,
+          "signalTop": null,
+          "stationName": "  rave   fm ",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "expectedNewResultFrequenciesHz": []
+    },
+    {
+      "label": "different station identity stays new",
+      "savedResults": [
+        {
+          "frequencyHz": 98400000,
+          "mode": "fm",
+          "signal": 24.0,
+          "signalTop": null,
+          "stationName": "Rave FM",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "candidateResults": [
+        {
+          "frequencyHz": 98430000,
+          "mode": "fm",
+          "signal": 20.0,
+          "signalTop": null,
+          "stationName": "Rise FM",
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "expectedNewResultFrequenciesHz": [98430000]
+    },
+    {
+      "label": "am uses tighter band specific tolerance",
+      "savedResults": [
+        {
+          "frequencyHz": 999000,
+          "mode": "am",
+          "signal": 12.0,
+          "signalTop": null,
+          "stationName": null,
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "candidateResults": [
+        {
+          "frequencyHz": 1003000,
+          "mode": "am",
+          "signal": 13.0,
+          "signalTop": null,
+          "stationName": null,
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        },
+        {
+          "frequencyHz": 1006000,
+          "mode": "am",
+          "signal": 13.0,
+          "signalTop": null,
+          "stationName": null,
+          "programService": null,
+          "radioText0": null,
+          "radioText1": null,
+          "city": null,
+          "countryName": null,
+          "distanceKm": null,
+          "erpKW": null,
+          "userCount": null
+        }
+      ],
+      "expectedNewResultFrequenciesHz": [1006000]
+    }
+  ]
+}

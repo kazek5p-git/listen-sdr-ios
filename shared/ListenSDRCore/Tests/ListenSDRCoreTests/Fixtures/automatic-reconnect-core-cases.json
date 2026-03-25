@@ -1,0 +1,52 @@
+{
+  "expectedRetryWindowSeconds": 75.0,
+  "delayCases": [
+    {
+      "label": "attempt_zero_clamps_to_first_delay",
+      "attemptNumber": 0,
+      "expectedDelaySeconds": 1.0
+    },
+    {
+      "label": "attempt_one_uses_first_delay",
+      "attemptNumber": 1,
+      "expectedDelaySeconds": 1.0
+    },
+    {
+      "label": "attempt_three_uses_third_delay",
+      "attemptNumber": 3,
+      "expectedDelaySeconds": 3.0
+    },
+    {
+      "label": "attempt_six_uses_last_defined_delay",
+      "attemptNumber": 6,
+      "expectedDelaySeconds": 12.0
+    },
+    {
+      "label": "attempt_beyond_schedule_reuses_last_delay",
+      "attemptNumber": 9,
+      "expectedDelaySeconds": 12.0
+    }
+  ],
+  "retryCases": [
+    {
+      "label": "fresh_failure_continues_retrying",
+      "elapsedSeconds": 0.0,
+      "expectedShouldContinueRetrying": true
+    },
+    {
+      "label": "before_retry_window_expires_continues",
+      "elapsedSeconds": 74.999,
+      "expectedShouldContinueRetrying": true
+    },
+    {
+      "label": "at_retry_window_limit_stops",
+      "elapsedSeconds": 75.0,
+      "expectedShouldContinueRetrying": false
+    },
+    {
+      "label": "after_retry_window_limit_stops",
+      "elapsedSeconds": 120.0,
+      "expectedShouldContinueRetrying": false
+    }
+  ]
+}

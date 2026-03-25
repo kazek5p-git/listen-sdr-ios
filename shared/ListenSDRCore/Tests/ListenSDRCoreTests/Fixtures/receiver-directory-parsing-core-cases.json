@@ -1,0 +1,77 @@
+{
+  "receiverbookJsonCases": [
+    {
+      "label": "legacy var assignment",
+      "html": "<html><script>var receivers = [{\"label\":\"One\",\"receivers\":[{\"type\":\"KiwiSDR\",\"url\":\"http://example.com:8073/\"}]}]; $('.map-container').addReceivers(receivers);</script></html>",
+      "expectedJSON": "[{\"label\":\"One\",\"receivers\":[{\"type\":\"KiwiSDR\",\"url\":\"http://example.com:8073/\"}]}]"
+    },
+    {
+      "label": "const receivers assignment",
+      "html": "<script>const receivers = [{\"label\":\"Two\",\"receivers\":[{\"type\":\"OpenWebRX\",\"url\":\"https://two.example/\"}]}];</script>",
+      "expectedJSON": "[{\"label\":\"Two\",\"receivers\":[{\"type\":\"OpenWebRX\",\"url\":\"https://two.example/\"}]}]"
+    },
+    {
+      "label": "direct addReceivers call",
+      "html": "<script>$('.map-container').addReceivers([{\"label\":\"Three\",\"receivers\":[{\"type\":\"KiwiSDR\",\"url\":\"http://three.example:8073/\"}]}]);</script>",
+      "expectedJSON": "[{\"label\":\"Three\",\"receivers\":[{\"type\":\"KiwiSDR\",\"url\":\"http://three.example:8073/\"}]}]"
+    },
+    {
+      "label": "json script tag",
+      "html": "<script id=\"receiverbook-data\" type=\"application/json\">[{\"label\":\"Four\",\"receivers\":[{\"type\":\"KiwiSDR\",\"url\":\"http://four.example:8073/\"}]}]</script>",
+      "expectedJSON": "[{\"label\":\"Four\",\"receivers\":[{\"type\":\"KiwiSDR\",\"url\":\"http://four.example:8073/\"}]}]"
+    },
+    {
+      "label": "unsupported markup returns explicit error",
+      "html": "<html><body>No receivers array here</body></html>",
+      "expectedError": "unsupportedReceiverbookFormat"
+    }
+  ],
+  "endpointCases": [
+    {
+      "label": "normalizes missing scheme and query",
+      "input": "Example.com:8073/path/?foo=bar",
+      "expected": {
+        "host": "example.com",
+        "port": 8073,
+        "path": "/path/",
+        "useTLS": false,
+        "absoluteURL": "http://example.com:8073/path/"
+      }
+    },
+    {
+      "label": "normalizes https default port",
+      "input": "https://Radio.Example/stream",
+      "expected": {
+        "host": "radio.example",
+        "port": 443,
+        "path": "/stream",
+        "useTLS": true,
+        "absoluteURL": "https://radio.example:443/stream"
+      }
+    },
+    {
+      "label": "invalid endpoint returns nil",
+      "input": "http://",
+      "expected": null
+    }
+  ],
+  "fmdxStatusCases": [
+    { "label": "available", "rawValue": 1, "expected": "available" },
+    { "label": "limited", "rawValue": 2, "expected": "limited" },
+    { "label": "unreachable", "rawValue": 0, "expected": "unreachable" },
+    { "label": "unknown", "rawValue": 7, "expected": "unknown" }
+  ],
+  "receiverbookTypeCases": [
+    { "label": "kiwi recognized", "value": "KiwiSDR", "backend": "kiwiSDR", "expected": true },
+    { "label": "openwebrx recognized", "value": "OpenWebRX+", "backend": "openWebRX", "expected": true },
+    { "label": "kiwi not treated as openwebrx", "value": "KiwiSDR", "backend": "openWebRX", "expected": false },
+    { "label": "fmdx never matches receiverbook type", "value": "kiwisdr", "backend": "fmDxWebserver", "expected": false }
+  ],
+  "probeStatusCases": [
+    { "label": "success is available", "statusCode": 200, "expected": "available" },
+    { "label": "redirect is available", "statusCode": 302, "expected": "available" },
+    { "label": "rate limit is limited", "statusCode": 429, "expected": "limited" },
+    { "label": "server error is unreachable", "statusCode": 500, "expected": "unreachable" },
+    { "label": "informational is unknown", "statusCode": 102, "expected": "unknown" }
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "quickBandCases": [
+    {
+      "label": "am longwave resolves lw",
+      "frequencyHz": 225000,
+      "mode": "am",
+      "expectedQuickBand": "lw"
+    },
+    {
+      "label": "am mediumwave resolves mw",
+      "frequencyHz": 999000,
+      "mode": "am",
+      "expectedQuickBand": "mw"
+    },
+    {
+      "label": "am shortwave resolves sw",
+      "frequencyHz": 7050000,
+      "mode": "am",
+      "expectedQuickBand": "sw"
+    },
+    {
+      "label": "fm oirt resolves oirt",
+      "frequencyHz": 70300000,
+      "mode": "fm",
+      "expectedQuickBand": "oirt"
+    },
+    {
+      "label": "fm broadcast resolves fm",
+      "frequencyHz": 87500000,
+      "mode": "fm",
+      "expectedQuickBand": "fm"
+    }
+  ],
+  "inferredModeCases": [
+    {
+      "label": "lw frequency infers am",
+      "frequencyHz": 225000,
+      "expectedMode": "am"
+    },
+    {
+      "label": "sw frequency infers am",
+      "frequencyHz": 7100000,
+      "expectedMode": "am"
+    },
+    {
+      "label": "oirt frequency infers fm",
+      "frequencyHz": 70300000,
+      "expectedMode": "fm"
+    },
+    {
+      "label": "broadcast fm infers fm",
+      "frequencyHz": 101900000,
+      "expectedMode": "fm"
+    }
+  ],
+  "preferredFrequencyCases": [
+    {
+      "label": "am preferred frequency follows remembered shortwave band",
+      "mode": "am",
+      "band": null,
+      "memory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 9800000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "sw"
+      },
+      "expectedQuickBand": "sw",
+      "expectedFrequencyHz": 9800000
+    },
+    {
+      "label": "am preferred band falls back to mw when remembered band is not am",
+      "mode": "am",
+      "band": null,
+      "memory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 1233000,
+        "lastSWFrequencyHz": 9800000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "fm"
+      },
+      "expectedQuickBand": "mw",
+      "expectedFrequencyHz": 1233000
+    },
+    {
+      "label": "oirt preferred frequency falls back to default when remembered value is out of range",
+      "mode": null,
+      "band": "oirt",
+      "memory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 80000000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "oirt",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedQuickBand": null,
+      "expectedFrequencyHz": 70300000
+    },
+    {
+      "label": "fm preferred frequency follows selected oirt band",
+      "mode": "fm",
+      "band": null,
+      "memory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70200000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "oirt",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedQuickBand": "oirt",
+      "expectedFrequencyHz": 70200000
+    }
+  ],
+  "rememberCases": [
+    {
+      "label": "remembering mediumwave updates am memory and selection",
+      "frequencyHz": 1530000,
+      "mode": "am",
+      "initialMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "sw"
+      },
+      "expectedMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 1530000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      }
+    },
+    {
+      "label": "remembering oirt fm updates fm memory and selection",
+      "frequencyHz": 70100000,
+      "mode": "fm",
+      "initialMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70100000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "oirt",
+        "lastSelectedAMQuickBand": "mw"
+      }
+    },
+    {
+      "label": "remembering out of range fm frequency leaves memory unchanged",
+      "frequencyHz": 50000000,
+      "mode": "fm",
+      "initialMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      }
+    }
+  ],
+  "seedCases": [
+    {
+      "label": "seeding from shortwave frequency initializes am memory",
+      "frequencyHz": 7100000,
+      "initialMemory": {
+        "lastBroadcastFMFrequencyHz": 87500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedMemory": {
+        "lastBroadcastFMFrequencyHz": 87500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7100000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "sw"
+      }
+    },
+    {
+      "label": "seeding from broadcast fm frequency initializes fm memory",
+      "frequencyHz": 101900000,
+      "initialMemory": {
+        "lastBroadcastFMFrequencyHz": 87500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "oirt",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedMemory": {
+        "lastBroadcastFMFrequencyHz": 101900000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      }
+    }
+  ],
+  "normalizedReportedFrequencyCases": [
+    {
+      "label": "reported frequency rounds to nearest kilohertz",
+      "inputMHz": 70.123456,
+      "expectedFrequencyHz": 70123000
+    },
+    {
+      "label": "reported frequency clamps below lower edge",
+      "inputMHz": 0.0994,
+      "expectedFrequencyHz": 100000
+    },
+    {
+      "label": "reported frequency clamps above upper edge",
+      "inputMHz": 111.4004,
+      "expectedFrequencyHz": 110000000
+    }
+  ]
+}

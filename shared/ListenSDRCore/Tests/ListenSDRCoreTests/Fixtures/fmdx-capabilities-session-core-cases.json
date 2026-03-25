@@ -1,0 +1,206 @@
+{
+  "restoreCases": [
+    {
+      "label": "empty restore state when cache missing",
+      "cached": null,
+      "expected": {
+        "capabilities": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "hasConfirmedSnapshot": false,
+        "usedCachedCapabilities": false
+      }
+    },
+    {
+      "label": "restores meaningful cached capabilities as provisional state",
+      "cached": {
+        "antennas": [
+          {
+            "id": "A1",
+            "label": "Main antenna",
+            "legacyValue": "0"
+          }
+        ],
+        "bandwidths": [],
+        "supportsAM": true,
+        "supportsFilterControls": false,
+        "supportsAGCControl": false
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [
+            {
+              "id": "A1",
+              "label": "Main antenna",
+              "legacyValue": "0"
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": true,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "hasConfirmedSnapshot": false,
+        "usedCachedCapabilities": true
+      }
+    }
+  ],
+  "connectedCases": [
+    {
+      "label": "live meaningful snapshot stays confirmed without cache",
+      "resolution": {
+        "capabilities": {
+          "antennas": [
+            {
+              "id": "A1",
+              "label": "Main antenna",
+              "legacyValue": "0"
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "usedFallbackCapabilities": false,
+        "primarySnapshotWasMeaningful": true,
+        "shouldPersistResolvedCapabilities": true
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [
+            {
+              "id": "A1",
+              "label": "Main antenna",
+              "legacyValue": "0"
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "hasConfirmedSnapshot": true,
+        "usedCachedCapabilities": false
+      }
+    },
+    {
+      "label": "partial merge keeps confirmed state but records cache usage",
+      "resolution": {
+        "capabilities": {
+          "antennas": [
+            {
+              "id": "A1",
+              "label": "Main antenna",
+              "legacyValue": "0"
+            }
+          ],
+          "bandwidths": [
+            {
+              "id": "56",
+              "label": "56 kHz",
+              "legacyValue": "4"
+            }
+          ],
+          "supportsAM": true,
+          "supportsFilterControls": true,
+          "supportsAGCControl": false
+        },
+        "usedFallbackCapabilities": true,
+        "primarySnapshotWasMeaningful": true,
+        "shouldPersistResolvedCapabilities": true
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [
+            {
+              "id": "A1",
+              "label": "Main antenna",
+              "legacyValue": "0"
+            }
+          ],
+          "bandwidths": [
+            {
+              "id": "56",
+              "label": "56 kHz",
+              "legacyValue": "4"
+            }
+          ],
+          "supportsAM": true,
+          "supportsFilterControls": true,
+          "supportsAGCControl": false
+        },
+        "hasConfirmedSnapshot": true,
+        "usedCachedCapabilities": true
+      }
+    },
+    {
+      "label": "fallback-only resolved state stays provisional",
+      "resolution": {
+        "capabilities": {
+          "antennas": [],
+          "bandwidths": [
+            {
+              "id": "84",
+              "label": "84 kHz",
+              "legacyValue": "6"
+            }
+          ],
+          "supportsAM": false,
+          "supportsFilterControls": true,
+          "supportsAGCControl": true
+        },
+        "usedFallbackCapabilities": true,
+        "primarySnapshotWasMeaningful": false,
+        "shouldPersistResolvedCapabilities": true
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [],
+          "bandwidths": [
+            {
+              "id": "84",
+              "label": "84 kHz",
+              "legacyValue": "6"
+            }
+          ],
+          "supportsAM": false,
+          "supportsFilterControls": true,
+          "supportsAGCControl": true
+        },
+        "hasConfirmedSnapshot": false,
+        "usedCachedCapabilities": true
+      }
+    },
+    {
+      "label": "empty unresolved state is not confirmed and does not claim cache usage",
+      "resolution": {
+        "capabilities": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "usedFallbackCapabilities": false,
+        "primarySnapshotWasMeaningful": false,
+        "shouldPersistResolvedCapabilities": false
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "hasConfirmedSnapshot": false,
+        "usedCachedCapabilities": false
+      }
+    }
+  ]
+}

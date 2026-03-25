@@ -91,7 +91,13 @@ struct ReceiverDirectoryView: View {
       }
       Toggle(
         L10n.text("directory.filters.favorites_only"),
-        isOn: $viewModel.favoritesOnly
+        isOn: Binding(
+          get: { viewModel.favoritesOnly },
+          set: { newValue in
+            viewModel.favoritesOnly = newValue
+            AppInteractionFeedbackCenter.playIfEnabled(newValue ? .enabled : .disabled)
+          }
+        )
       )
     } header: {
       AppSectionHeader(title: L10n.text("directory.filters.section"))

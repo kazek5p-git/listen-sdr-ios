@@ -1,13 +1,13 @@
 import Foundation
 
-enum FrequencyInputParser {
-  enum Context {
+public enum FrequencyInputParser {
+  public enum Context {
     case generic
     case fmBroadcast
     case shortwave
   }
 
-  static func parseHz(
+  public static func parseHz(
     from text: String,
     context: Context = .generic,
     preferredRangeHz: ClosedRange<Int>? = nil
@@ -108,10 +108,6 @@ enum FrequencyInputParser {
       return integerValue < 100_000 ? 1_000 : 1
 
     case .fmBroadcast:
-      // FM-friendly shortcuts:
-      // 1023  -> 102.3 MHz
-      // 10230 -> 102.30 MHz
-      // 102300 -> 102300 kHz
       if (64...110).contains(integerValue) {
         return 1_000_000
       }
@@ -130,10 +126,6 @@ enum FrequencyInputParser {
       return integerValue < 100_000 ? 1_000 : 1
 
     case .shortwave:
-      // HF-friendly shortcuts:
-      // 7050   -> 7050 kHz
-      // 7050000 -> 7050000 Hz
-      // 7.050  -> 7.050 MHz
       if (1...99_999).contains(integerValue) {
         return 1_000
       }

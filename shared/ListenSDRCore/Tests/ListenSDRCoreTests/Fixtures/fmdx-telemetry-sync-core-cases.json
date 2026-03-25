@@ -1,0 +1,276 @@
+{
+  "toggleCases": [
+    {
+      "label": "auto resolves to enabled",
+      "input": "auto",
+      "expected": true
+    },
+    {
+      "label": "agc resolves to enabled",
+      "input": "agc",
+      "expected": true
+    },
+    {
+      "label": "manual resolves to disabled",
+      "input": "manual",
+      "expected": false
+    },
+    {
+      "label": "man resolves to disabled",
+      "input": "man",
+      "expected": false
+    },
+    {
+      "label": "unknown token stays unresolved",
+      "input": "maybe",
+      "expected": null
+    },
+    {
+      "label": "nil token stays unresolved",
+      "input": null,
+      "expected": null
+    }
+  ],
+  "bandwidthSelectionCases": [
+    {
+      "label": "exact bandwidth id is kept",
+      "rawValue": "wide",
+      "capabilities": [
+        {
+          "id": "wide",
+          "legacyValue": "110000"
+        }
+      ],
+      "expected": "wide"
+    },
+    {
+      "label": "legacy bandwidth id maps to canonical id",
+      "rawValue": "150000",
+      "capabilities": [
+        {
+          "id": "narrow",
+          "legacyValue": "150000"
+        }
+      ],
+      "expected": "narrow"
+    },
+    {
+      "label": "unknown bandwidth id is preserved",
+      "rawValue": "custom",
+      "capabilities": [
+        {
+          "id": "wide",
+          "legacyValue": "110000"
+        }
+      ],
+      "expected": "custom"
+    }
+  ],
+  "syncCases": [
+    {
+      "label": "fm telemetry updates frequency toggles and selections",
+      "input": {
+        "settings": {
+          "frequencyHz": 99700000,
+          "tuneStepHz": 100000,
+          "preferredTuneStepHz": 100000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm",
+          "agcEnabled": true,
+          "noiseReductionEnabled": false,
+          "imsEnabled": true
+        },
+        "telemetry": {
+          "frequencyMHz": 99.9,
+          "audioMode": "stereo",
+          "antenna": "1",
+          "bandwidth": "150000",
+          "agc": "off",
+          "eq": "on",
+          "ims": "0"
+        },
+        "capabilities": {
+          "bandwidths": [
+            {
+              "id": "narrow",
+              "legacyValue": "150000"
+            }
+          ]
+        },
+        "bandMemory": {
+          "lastBroadcastFMFrequencyHz": 99700000,
+          "lastOIRTFrequencyHz": 70300000,
+          "lastLWFrequencyHz": 225000,
+          "lastMWFrequencyHz": 999000,
+          "lastSWFrequencyHz": 7050000,
+          "lastSelectedFMQuickBand": "fm",
+          "lastSelectedAMQuickBand": "mw"
+        },
+        "pendingTuneFrequencyHz": 99900000
+      },
+      "expected": {
+        "settings": {
+          "frequencyHz": 99900000,
+          "tuneStepHz": 100000,
+          "preferredTuneStepHz": 100000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm",
+          "agcEnabled": false,
+          "noiseReductionEnabled": true,
+          "imsEnabled": false
+        },
+        "bandMemory": {
+          "lastBroadcastFMFrequencyHz": 99900000,
+          "lastOIRTFrequencyHz": 70300000,
+          "lastLWFrequencyHz": 225000,
+          "lastMWFrequencyHz": 999000,
+          "lastSWFrequencyHz": 7050000,
+          "lastSelectedFMQuickBand": "fm",
+          "lastSelectedAMQuickBand": "mw"
+        },
+        "audioMode": "stereo",
+        "antennaID": "1",
+        "bandwidthID": "narrow",
+        "changedSettings": true,
+        "shouldClearPendingTuneConfirmation": true,
+        "reportedFrequencyHz": 99900000,
+        "reportedMode": "fm"
+      }
+    },
+    {
+      "label": "am telemetry flips mode retunes and clears pending confirmation",
+      "input": {
+        "settings": {
+          "frequencyHz": 98100000,
+          "tuneStepHz": 100000,
+          "preferredTuneStepHz": 10000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm",
+          "agcEnabled": true,
+          "noiseReductionEnabled": false,
+          "imsEnabled": true
+        },
+        "telemetry": {
+          "frequencyMHz": 1.062,
+          "audioMode": "mono",
+          "antenna": "A",
+          "bandwidth": "am-narrow",
+          "agc": "manual",
+          "eq": "enabled",
+          "ims": "man"
+        },
+        "capabilities": {
+          "bandwidths": []
+        },
+        "bandMemory": {
+          "lastBroadcastFMFrequencyHz": 98100000,
+          "lastOIRTFrequencyHz": 70300000,
+          "lastLWFrequencyHz": 225000,
+          "lastMWFrequencyHz": 999000,
+          "lastSWFrequencyHz": 7050000,
+          "lastSelectedFMQuickBand": "fm",
+          "lastSelectedAMQuickBand": "mw"
+        },
+        "pendingTuneFrequencyHz": 1062000
+      },
+      "expected": {
+        "settings": {
+          "frequencyHz": 1062000,
+          "tuneStepHz": 10000,
+          "preferredTuneStepHz": 10000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "am",
+          "agcEnabled": false,
+          "noiseReductionEnabled": true,
+          "imsEnabled": false
+        },
+        "bandMemory": {
+          "lastBroadcastFMFrequencyHz": 98100000,
+          "lastOIRTFrequencyHz": 70300000,
+          "lastLWFrequencyHz": 225000,
+          "lastMWFrequencyHz": 1062000,
+          "lastSWFrequencyHz": 7050000,
+          "lastSelectedFMQuickBand": "fm",
+          "lastSelectedAMQuickBand": "mw"
+        },
+        "audioMode": "mono",
+        "antennaID": "A",
+        "bandwidthID": "am-narrow",
+        "changedSettings": true,
+        "shouldClearPendingTuneConfirmation": true,
+        "reportedFrequencyHz": 1062000,
+        "reportedMode": "am"
+      }
+    },
+    {
+      "label": "small telemetry drift keeps settings but still clears pending tune",
+      "input": {
+        "settings": {
+          "frequencyHz": 99100000,
+          "tuneStepHz": 100000,
+          "preferredTuneStepHz": 100000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm",
+          "agcEnabled": true,
+          "noiseReductionEnabled": false,
+          "imsEnabled": true
+        },
+        "telemetry": {
+          "frequencyMHz": 99.1004,
+          "audioMode": null,
+          "antenna": "",
+          "bandwidth": "",
+          "agc": "maybe",
+          "eq": null,
+          "ims": null
+        },
+        "capabilities": {
+          "bandwidths": [
+            {
+              "id": "wide",
+              "legacyValue": "110000"
+            }
+          ]
+        },
+        "bandMemory": {
+          "lastBroadcastFMFrequencyHz": 99100000,
+          "lastOIRTFrequencyHz": 70300000,
+          "lastLWFrequencyHz": 225000,
+          "lastMWFrequencyHz": 999000,
+          "lastSWFrequencyHz": 7050000,
+          "lastSelectedFMQuickBand": "fm",
+          "lastSelectedAMQuickBand": "mw"
+        },
+        "pendingTuneFrequencyHz": 99100000
+      },
+      "expected": {
+        "settings": {
+          "frequencyHz": 99100000,
+          "tuneStepHz": 100000,
+          "preferredTuneStepHz": 100000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm",
+          "agcEnabled": true,
+          "noiseReductionEnabled": false,
+          "imsEnabled": true
+        },
+        "bandMemory": {
+          "lastBroadcastFMFrequencyHz": 99100000,
+          "lastOIRTFrequencyHz": 70300000,
+          "lastLWFrequencyHz": 225000,
+          "lastMWFrequencyHz": 999000,
+          "lastSWFrequencyHz": 7050000,
+          "lastSelectedFMQuickBand": "fm",
+          "lastSelectedAMQuickBand": "mw"
+        },
+        "audioMode": null,
+        "antennaID": null,
+        "bandwidthID": null,
+        "changedSettings": false,
+        "shouldClearPendingTuneConfirmation": true,
+        "reportedFrequencyHz": 99100000,
+        "reportedMode": "fm"
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "cases": [
+    {
+      "label": "OpenWebRX trims band name and includes mode",
+      "backend": "openwebrx",
+      "frequencyHz": 98700000,
+      "mode": "fm",
+      "bandName": " FM Broadcast ",
+      "expectedSummary": "98.700 MHz | FM | FM Broadcast",
+      "expectedNormalizedBandName": "FM Broadcast"
+    },
+    {
+      "label": "Kiwi falls back to inferred band when reported name is blank",
+      "backend": "kiwi",
+      "frequencyHz": 64000000,
+      "mode": "am",
+      "bandName": " ",
+      "expectedSummary": "64.000 MHz | AM | FM",
+      "expectedNormalizedBandName": null
+    },
+    {
+      "label": "Summary can omit mode and band name",
+      "backend": "openwebrx",
+      "frequencyHz": 7100000,
+      "mode": null,
+      "bandName": null,
+      "expectedSummary": "7.100 MHz",
+      "expectedNormalizedBandName": null
+    }
+  ]
+}

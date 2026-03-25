@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import ListenSDRCore
 
 enum ReceiverDirectoryStatus: String, Codable, CaseIterable {
   case available
@@ -170,275 +171,14 @@ struct ReceiverDirectoryEntry: Identifiable, Codable, Hashable {
   }
 }
 
-enum ReceiverCountryResolver {
-  private static let englishLocale = Locale(identifier: "en_US_POSIX")
-  private static let aliasLocales: [Locale] = [
-    englishLocale,
-    Locale(identifier: "pl_PL"),
-    Locale(identifier: "de_DE"),
-    Locale(identifier: "fr_FR"),
-    Locale(identifier: "es_ES"),
-    Locale(identifier: "it_IT")
-  ]
-  private static let regionCodes = Set(Locale.Region.isoRegions.map { $0.identifier.uppercased() })
-  private static let aliasToRegionCode = buildAliasToRegionCodeMap()
-  private static let aliasTokenCounts = Array(
-    Set(aliasToRegionCode.keys.map { $0.split(separator: " ").count })
-  ).sorted(by: >)
+private typealias ReceiverCountryResolver = ListenSDRCore.ReceiverCountryResolver
 
-  static func normalizedCountryLabel(_ rawValue: String?) -> String? {
-    guard let rawValue else { return nil }
-    let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-
-    guard let regionCode = resolvedCountryCode(fromCountryName: trimmed) else {
-      return trimmed
-    }
-
-    return localizedCountryName(for: regionCode)
-  }
-
-  static func normalizedCountryLabel(countryCode: String?, countryName: String?) -> String? {
-    if let regionCode = resolvedCountryCode(countryCode: countryCode, countryName: countryName) {
-      return localizedCountryName(for: regionCode)
-    }
-
-    return normalizedCountryLabel(countryName)
-  }
-
-  static func resolvedCountryCode(countryCode: String?, countryName: String?) -> String? {
-    if let regionCode = normalizedRegionCodeToken(countryCode) {
-      return regionCode
-    }
-
-    return resolvedCountryCode(fromCountryName: countryName)
-  }
-
-  static func inferredCountryLabel(locationLabel: String?, host: String) -> String? {
-    guard let regionCode = resolvedCountryCode(fromMetadataLabel: locationLabel, host: host) else {
-      return nil
-    }
-
-    return localizedCountryName(for: regionCode)
-  }
-
-  static func resolvedCountryCode(fromCountryName rawValue: String?) -> String? {
-    guard let rawValue else { return nil }
-    let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-
-    if let flagRegionCode = extractRegionCodeFromFlag(in: trimmed) {
-      return flagRegionCode
-    }
-
-    let normalized = normalizedSearchText(trimmed)
-    guard !normalized.isEmpty else { return nil }
-
-    if let aliasMatch = aliasToRegionCode[normalized] {
-      return aliasMatch
-    }
-
-    return normalizedRegionCodeToken(normalized.uppercased())
-  }
-
-  static func resolvedCountryCode(fromMetadataLabel locationLabel: String?, host: String?) -> String? {
-    if let locationLabel {
-      if let flagRegionCode = extractRegionCodeFromFlag(in: locationLabel) {
-        return flagRegionCode
-      }
-
-      if let directRegionCode = resolvedCountryCode(fromCountryName: locationLabel) {
-        return directRegionCode
-      }
-
-      if let labelRegionCode = resolvedCountryCode(fromSearchableLabel: locationLabel) {
-        return labelRegionCode
-      }
-
-      if let uppercaseTokenRegionCode = resolvedCountryCode(fromUppercaseTokens: locationLabel) {
-        return uppercaseTokenRegionCode
-      }
-    }
-
-    return resolvedCountryCode(fromHost: host)
-  }
-
-  private static func localizedCountryName(for regionCode: String) -> String {
-    Locale.current.localizedString(forRegionCode: regionCode)
-      ?? englishLocale.localizedString(forRegionCode: regionCode)
-      ?? regionCode
-  }
-
-  private static func resolvedCountryCode(fromSearchableLabel label: String) -> String? {
-    let tokens = normalizedSearchText(label)
-      .split(separator: " ")
-      .map(String.init)
-    guard !tokens.isEmpty else { return nil }
-
-    for tokenCount in aliasTokenCounts {
-      guard tokenCount <= tokens.count else { continue }
-      let upperBound = tokens.count - tokenCount
-      for startIndex in 0...upperBound {
-        let phrase = tokens[startIndex..<(startIndex + tokenCount)].joined(separator: " ")
-        if let regionCode = aliasToRegionCode[phrase] {
-          return regionCode
-        }
-      }
-    }
-
-    return nil
-  }
-
-  private static func resolvedCountryCode(fromUppercaseTokens label: String) -> String? {
-    let rawTokens = label
-      .components(separatedBy: CharacterSet.alphanumerics.inverted)
-      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-      .filter { !$0.isEmpty }
-
-    for token in rawTokens.reversed() {
-      guard token == token.uppercased() else { continue }
-
-      let normalizedToken = normalizedSearchText(token)
-      if let aliasMatch = aliasToRegionCode[normalizedToken] {
-        return aliasMatch
-      }
-
-      if let regionCode = normalizedRegionCodeToken(token) {
-        return regionCode
-      }
-    }
-
-    return nil
-  }
-
-  private static func resolvedCountryCode(fromHost host: String?) -> String? {
-    guard let host else { return nil }
-    let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmedHost.isEmpty else { return nil }
-
-    let topLevelDomain = trimmedHost
-      .split(separator: ".")
-      .last?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .uppercased()
-
-    return normalizedRegionCodeToken(topLevelDomain)
-  }
-
-  private static func normalizedRegionCodeToken(_ rawValue: String?) -> String? {
-    guard let rawValue else { return nil }
-    let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-    guard !trimmed.isEmpty else { return nil }
-
-    if trimmed == "UK" {
-      return "GB"
-    }
-
-    guard regionCodes.contains(trimmed) else { return nil }
-    return trimmed
-  }
-
-  private static func extractRegionCodeFromFlag(in value: String) -> String? {
-    let scalars = Array(value.unicodeScalars)
-    guard scalars.count >= 2 else { return nil }
-
-    for index in 0..<(scalars.count - 1) {
-      let first = scalars[index].value
-      let second = scalars[index + 1].value
-      guard
-        (0x1F1E6...0x1F1FF).contains(first),
-        (0x1F1E6...0x1F1FF).contains(second),
-        let firstScalar = UnicodeScalar(65 + first - 0x1F1E6),
-        let secondScalar = UnicodeScalar(65 + second - 0x1F1E6)
-      else {
-        continue
-      }
-
-      let regionCode = "\(Character(firstScalar))\(Character(secondScalar))"
-      if let normalized = normalizedRegionCodeToken(regionCode) {
-        return normalized
-      }
-    }
-
-    return nil
-  }
-
-  private static func normalizedSearchText(_ value: String) -> String {
-    let folded = value.folding(
-      options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-      locale: englishLocale
-    )
-
-    let separated = folded.unicodeScalars.map { scalar -> Character in
-      if CharacterSet.alphanumerics.contains(scalar) {
-        return Character(scalar)
-      }
-      return " "
-    }
-
-    return String(separated)
-      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .lowercased()
-  }
-
-  private static func buildAliasToRegionCodeMap() -> [String: String] {
-    var aliases: [String: String] = [:]
-
-    for regionCode in regionCodes {
-      for locale in aliasLocales {
-        if let localizedName = locale.localizedString(forRegionCode: regionCode) {
-          registerAlias(localizedName, for: regionCode, into: &aliases)
-        }
-      }
-    }
-
-    let manualAliases: [String: String] = [
-      "united states of america": "US",
-      "usa": "US",
-      "great britain": "GB",
-      "britain": "GB",
-      "united kingdom": "GB",
-      "uk": "GB",
-      "england": "GB",
-      "scotland": "GB",
-      "wales": "GB",
-      "northern ireland": "GB",
-      "the netherlands": "NL",
-      "holland": "NL",
-      "czech republic": "CZ",
-      "south korea": "KR",
-      "republic of korea": "KR",
-      "north korea": "KP",
-      "dprk": "KP",
-      "uae": "AE"
-    ]
-
-    for (alias, regionCode) in manualAliases {
-      registerAlias(alias, for: regionCode, into: &aliases)
-    }
-
-    return aliases
-  }
-
-  private static func registerAlias(
-    _ rawAlias: String,
-    for regionCode: String,
-    into aliases: inout [String: String]
-  ) {
-    let normalizedAlias = normalizedSearchText(rawAlias)
-    guard !normalizedAlias.isEmpty else { return }
-    aliases[normalizedAlias] = regionCode
-  }
-}
-
-private struct DirectoryEndpoint {
-  let host: String
-  let port: Int
-  let path: String
-  let useTLS: Bool
-  let absoluteURL: String
-}
+private typealias DirectoryEndpoint = ListenSDRCore.ReceiverDirectoryEndpoint
+private typealias SharedDirectorySelectionEntry = ListenSDRCore.SharedReceiverDirectoryEntry
+private typealias SharedDirectoryStatusFilter = ListenSDRCore.SharedReceiverDirectoryStatusFilter
+private typealias SharedDirectoryCountrySortOption = ListenSDRCore.SharedReceiverDirectoryCountrySortOption
+private typealias SharedDirectorySortOption = ListenSDRCore.SharedReceiverDirectorySortOption
+private typealias SharedDirectoryCountryOption = ListenSDRCore.SharedReceiverDirectoryCountryOption
 
 private struct FMDXDirectoryResponse: Decodable {
   let dataset: [FMDXDirectoryRow]
@@ -663,63 +403,25 @@ actor ReceiverDirectoryService {
   }
 
   private func extractReceiverbookJSON(from html: String) throws -> String {
-    let pattern = "var receivers = (\\[.*?\\]);\\s*\\$\\('\\.map-container'\\)\\.addReceivers\\(receivers\\);"
-    let regex = try NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
-    let nsRange = NSRange(html.startIndex..<html.endIndex, in: html)
-    guard
-      let match = regex.firstMatch(in: html, options: [], range: nsRange),
-      match.numberOfRanges > 1,
-      let jsonRange = Range(match.range(at: 1), in: html)
-    else {
-      throw SDRClientError.unsupported("Receiverbook map format changed and cannot be parsed.")
+    do {
+      return try ReceiverDirectoryParsingCore.extractReceiverbookJSON(from: html)
+    } catch let error as ReceiverDirectoryParsingCoreError {
+      throw SDRClientError.unsupported(error.localizedDescription)
     }
-    return String(html[jsonRange])
   }
 
   private func parseEndpoint(from raw: String) -> DirectoryEndpoint? {
-    var candidate = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !candidate.isEmpty else { return nil }
-
-    if !candidate.contains("://") {
-      candidate = "http://\(candidate)"
-    }
-
-    candidate = candidate.replacingOccurrences(of: " ", with: "%20")
-
-    guard var components = URLComponents(string: candidate),
-      let host = components.host?.trimmingCharacters(in: .whitespacesAndNewlines),
-      !host.isEmpty
-    else {
-      return nil
-    }
-
-    let scheme = (components.scheme ?? "http").lowercased()
-    let useTLS = scheme == "https"
-    let port = components.port ?? (useTLS ? 443 : 80)
-    let path = components.path.isEmpty ? "/" : components.path
-
-    components.scheme = useTLS ? "https" : "http"
-    components.host = host
-    components.port = port
-    components.path = path
-    components.query = nil
-    components.fragment = nil
-
-    guard let normalizedURL = components.url else {
-      return nil
-    }
-
-    return DirectoryEndpoint(
-      host: host.lowercased(),
-      port: port,
-      path: path,
-      useTLS: useTLS,
-      absoluteURL: normalizedURL.absoluteString
-    )
+    ReceiverDirectoryParsingCore.parseEndpoint(from: raw)
   }
 
   private func entryID(backend: SDRBackend, endpoint: DirectoryEndpoint) -> String {
-    "\(backend.rawValue)|\(endpoint.useTLS ? "https" : "http")|\(endpoint.host)|\(endpoint.port)|\(endpoint.path.lowercased())"
+    ReceiverIdentity.key(
+      backend: backend,
+      host: endpoint.host,
+      port: endpoint.port,
+      useTLS: endpoint.useTLS,
+      path: endpoint.path
+    )
   }
 
   private func locationLabel(city: String?, country: String?) -> String? {
@@ -744,50 +446,20 @@ actor ReceiverDirectoryService {
   }
 
   private func fmdxStatus(from raw: Int?) -> ReceiverDirectoryStatus {
-    switch raw {
-    case 1:
-      return .available
-    case 2:
-      return .limited
-    case 0:
-      return .unreachable
-    default:
-      return .unknown
-    }
+    ReceiverDirectoryStatus(sharedStatus: ReceiverDirectoryParsingCore.fmdxStatus(from: raw))
   }
 
   private func matchesReceiverbookType(_ value: String, backend: SDRBackend) -> Bool {
-    switch backend {
-    case .kiwiSDR:
-      return value.contains("kiwi")
-    case .openWebRX:
-      return value.contains("openwebrx")
-    case .fmDxWebserver:
-      return false
-    }
+    ReceiverDirectoryParsingCore.matchesReceiverbookType(value, backend: backend)
   }
 
   private func deduplicatedAndSorted(_ entries: [ReceiverDirectoryEntry]) -> [ReceiverDirectoryEntry] {
-    var byID: [String: ReceiverDirectoryEntry] = [:]
-    byID.reserveCapacity(entries.count)
-
-    for entry in entries {
-      if let existing = byID[entry.id] {
-        byID[entry.id] = preferredEntry(existing, entry)
-      } else {
-        byID[entry.id] = entry
-      }
-    }
-
-    return byID.values.sorted { lhs, rhs in
-      if lhs.backend != rhs.backend {
-        return backendSortRank(lhs.backend) < backendSortRank(rhs.backend)
-      }
-      if lhs.status.sortRank != rhs.status.sortRank {
-        return lhs.status.sortRank < rhs.status.sortRank
-      }
-      return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-    }
+    materializedDirectoryEntries(
+      from: ReceiverDirectorySelectionCore.deduplicatedAndSorted(
+        entries.map(\.sharedSelectionEntry)
+      ),
+      sourceEntries: entries
+    )
   }
 
   private func probeEntry(_ entry: ReceiverDirectoryEntry) async -> ReceiverDirectoryStatus {
@@ -835,45 +507,34 @@ actor ReceiverDirectoryService {
   }
 
   private func mapProbeStatus(from statusCode: Int) -> ReceiverDirectoryStatus {
-    switch statusCode {
-    case 200...399:
+    ReceiverDirectoryStatus(sharedStatus: ReceiverDirectoryParsingCore.mapProbeStatus(from: statusCode))
+  }
+}
+
+private extension ReceiverDirectoryStatus {
+  var sharedStatus: SharedReceiverDirectoryStatus {
+    switch self {
+    case .available:
       return .available
-    case 401, 403, 423, 429:
+    case .limited:
       return .limited
-    case 400...499:
+    case .unreachable:
       return .unreachable
-    case 500...599:
-      return .unreachable
-    default:
+    case .unknown:
       return .unknown
     }
   }
 
-  private func preferredEntry(
-    _ lhs: ReceiverDirectoryEntry,
-    _ rhs: ReceiverDirectoryEntry
-  ) -> ReceiverDirectoryEntry {
-    if lhs.status.sortRank != rhs.status.sortRank {
-      return lhs.status.sortRank < rhs.status.sortRank ? lhs : rhs
-    }
-
-    let lhsDetail = lhs.detailText.count
-    let rhsDetail = rhs.detailText.count
-    if lhsDetail != rhsDetail {
-      return lhsDetail > rhsDetail ? lhs : rhs
-    }
-
-    return lhs
-  }
-
-  private func backendSortRank(_ backend: SDRBackend) -> Int {
-    switch backend {
-    case .fmDxWebserver:
-      return 0
-    case .kiwiSDR:
-      return 1
-    case .openWebRX:
-      return 2
+  init(sharedStatus: SharedReceiverDirectoryStatus) {
+    switch sharedStatus {
+    case .available:
+      self = .available
+    case .limited:
+      self = .limited
+    case .unreachable:
+      self = .unreachable
+    case .unknown:
+      self = .unknown
     }
   }
 }
@@ -929,38 +590,16 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   }
 
   var availableCountryOptions: [ReceiverDirectoryCountryOption] {
-    let receiverCountByCountry = entries
-      .filter { $0.backend == selectedBackend }
-      .compactMap(\.countryLabel)
-      .filter { !$0.isEmpty }
-      .reduce(into: [String: Int]()) { partialResult, countryLabel in
-        partialResult[countryLabel, default: 0] += 1
-      }
-
-    let options = receiverCountByCountry.map { countryLabel, receiverCount in
-      ReceiverDirectoryCountryOption(
-        countryLabel: countryLabel,
-        receiverCount: receiverCount
-      )
-    }
-
     let effectiveSortOption: ReceiverDirectoryCountrySortOption = selectedBackend == .fmDxWebserver
       ? countrySortOption
       : .alphabetical
 
-    switch effectiveSortOption {
-    case .alphabetical:
-      return options.sorted {
-        $0.countryLabel.localizedCaseInsensitiveCompare($1.countryLabel) == .orderedAscending
-      }
-    case .receiverCount:
-      return options.sorted { lhs, rhs in
-        if lhs.receiverCount != rhs.receiverCount {
-          return lhs.receiverCount > rhs.receiverCount
-        }
-        return lhs.countryLabel.localizedCaseInsensitiveCompare(rhs.countryLabel) == .orderedAscending
-      }
-    }
+    return ReceiverDirectorySelectionCore.availableCountryOptions(
+      entries: entries.map(\.sharedSelectionEntry),
+      backend: selectedBackend,
+      sortOption: effectiveSortOption.sharedSortOption
+    )
+    .map(ReceiverDirectoryCountryOption.init(sharedOption:))
   }
 
   var availableCountries: [String] {
@@ -990,59 +629,19 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   }
 
   func filteredEntries(favoriteReceiverIDs: Set<String> = []) -> [ReceiverDirectoryEntry] {
-    var selected = entries.filter { $0.backend == selectedBackend }
-
-    if favoritesOnly {
-      selected = selected.filter { favoriteReceiverIDs.contains(ReceiverIdentity.key(for: $0)) }
-    }
-
-    if !selectedCountry.isEmpty {
-      selected = selected.filter { $0.countryLabel == selectedCountry }
-    }
-
-    selected = selected.filter { entry in
-      switch statusFilter {
-      case .all:
-        return true
-      case .online:
-        return entry.status == .available || entry.status == .limited
-      case .availableOnly:
-        return entry.status == .available
-      case .unavailable:
-        return entry.status == .unreachable
-      }
-    }
-
-    let query = Self.normalizedSearchText(searchText)
-    if !query.isEmpty {
-      selected = selected.filter { Self.matchesSearch(query: query, entry: $0) }
-    }
-
-    return selected.sorted { lhs, rhs in
-      switch sortOption {
-      case .recommended:
-        return compareRecommended(lhs: lhs, rhs: rhs)
-      case .name:
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-      case .location:
-        let lhsLocation = lhs.locationLabel ?? lhs.countryLabel ?? lhs.name
-        let rhsLocation = rhs.locationLabel ?? rhs.countryLabel ?? rhs.name
-        if lhsLocation.localizedCaseInsensitiveCompare(rhsLocation) != .orderedSame {
-          return lhsLocation.localizedCaseInsensitiveCompare(rhsLocation) == .orderedAscending
-        }
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-      case .status:
-        if lhs.status.sortRank != rhs.status.sortRank {
-          return lhs.status.sortRank < rhs.status.sortRank
-        }
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-      case .source:
-        if lhs.sourceName.localizedCaseInsensitiveCompare(rhs.sourceName) != .orderedSame {
-          return lhs.sourceName.localizedCaseInsensitiveCompare(rhs.sourceName) == .orderedAscending
-        }
-        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-      }
-    }
+    materializedDirectoryEntries(
+      from: ReceiverDirectorySelectionCore.filteredEntries(
+        entries.map(\.sharedSelectionEntry),
+        backend: selectedBackend,
+        searchText: searchText,
+        statusFilter: statusFilter.sharedStatusFilter,
+        sortOption: sortOption.sharedSortOption,
+        selectedCountry: selectedCountry,
+        favoritesOnly: favoritesOnly,
+        favoriteReceiverIDs: favoriteReceiverIDs
+      ),
+      sourceEntries: entries
+    )
   }
 
   func countryOption(for countryLabel: String) -> ReceiverDirectoryCountryOption? {
@@ -1296,26 +895,12 @@ final class ReceiverDirectoryViewModel: ObservableObject {
   }
 
   private func sortEntries(_ source: [ReceiverDirectoryEntry]) -> [ReceiverDirectoryEntry] {
-    source.sorted { lhs, rhs in
-      if lhs.backend != rhs.backend {
-        return backendSortRank(lhs.backend) < backendSortRank(rhs.backend)
-      }
-      if lhs.status.sortRank != rhs.status.sortRank {
-        return lhs.status.sortRank < rhs.status.sortRank
-      }
-      return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-    }
-  }
-
-  private func backendSortRank(_ backend: SDRBackend) -> Int {
-    switch backend {
-    case .fmDxWebserver:
-      return 0
-    case .kiwiSDR:
-      return 1
-    case .openWebRX:
-      return 2
-    }
+    materializedDirectoryEntries(
+      from: ReceiverDirectorySelectionCore.recommendedSortedEntries(
+        source.map(\.sharedSelectionEntry)
+      ),
+      sourceEntries: source
+    )
   }
 
   private func newlyAddedReceivers(
@@ -1362,16 +947,6 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     defaults.set(lastRefreshDate, forKey: Self.cacheRefreshDateKey)
   }
 
-  private func compareRecommended(lhs: ReceiverDirectoryEntry, rhs: ReceiverDirectoryEntry) -> Bool {
-    if lhs.backend != rhs.backend {
-      return backendSortRank(lhs.backend) < backendSortRank(rhs.backend)
-    }
-    if lhs.status.sortRank != rhs.status.sortRank {
-      return lhs.status.sortRank < rhs.status.sortRank
-    }
-    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-  }
-
   private func normalizeSelectedCountryIfNeeded() {
     guard !selectedCountry.isEmpty else { return }
     guard availableCountries.contains(selectedCountry) else {
@@ -1400,21 +975,13 @@ final class ReceiverDirectoryViewModel: ObservableObject {
     return L10n.text("directory.refresh.result.updated", newReceiverCount, currentEntries.count)
   }
 
-  static func normalizedSearchText(_ value: String) -> String {
-    let folded = value.folding(
-      options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-      locale: .current
-    )
-
-    return folded
-      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-      .lowercased()
+  nonisolated static func normalizedSearchText(_ value: String) -> String {
+    ReceiverDirectorySearchCore.normalizedSearchText(value)
   }
 
-  static func searchableText(for entry: ReceiverDirectoryEntry) -> String {
-    normalizedSearchText(
-      [
+  nonisolated static func searchableText(for entry: ReceiverDirectoryEntry) -> String {
+    ReceiverDirectorySearchCore.searchableText(
+      fields: [
         entry.name,
         entry.host,
         entry.endpointDescription,
@@ -1426,22 +993,125 @@ final class ReceiverDirectoryViewModel: ObservableObject {
         entry.backend.displayName,
         entry.status.displayName
       ]
-      .compactMap { $0 }
-      .joined(separator: " ")
     )
   }
 
-  static func matchesSearch(query: String, entry: ReceiverDirectoryEntry) -> Bool {
-    let normalizedQuery = normalizedSearchText(query)
-    guard !normalizedQuery.isEmpty else { return true }
+  nonisolated static func matchesSearch(query: String, entry: ReceiverDirectoryEntry) -> Bool {
+    ReceiverDirectorySearchCore.matchesSearch(
+      query: query,
+      searchableText: searchableText(for: entry)
+    )
+  }
+}
 
-    let searchableText = searchableText(for: entry)
-    if searchableText.contains(normalizedQuery) {
-      return true
+private func materializedDirectoryEntries(
+  from sharedEntries: [SharedDirectorySelectionEntry],
+  sourceEntries: [ReceiverDirectoryEntry]
+) -> [ReceiverDirectoryEntry] {
+  var entriesByFingerprint = Dictionary(grouping: sourceEntries, by: \.selectionFingerprint)
+
+  return sharedEntries.compactMap { sharedEntry in
+    let fingerprint = sharedEntry.selectionFingerprint
+    guard var matches = entriesByFingerprint[fingerprint], !matches.isEmpty else {
+      return sourceEntries.first { $0.selectionFingerprint == fingerprint }
     }
 
-    let queryTokens = normalizedQuery.split(separator: " ").map(String.init)
-    guard queryTokens.count > 1 else { return false }
-    return queryTokens.allSatisfy { searchableText.contains($0) }
+    let match = matches.removeFirst()
+    if matches.isEmpty {
+      entriesByFingerprint.removeValue(forKey: fingerprint)
+    } else {
+      entriesByFingerprint[fingerprint] = matches
+    }
+    return match
+  }
+}
+
+private extension ReceiverDirectoryEntry {
+  var sharedSelectionEntry: SharedDirectorySelectionEntry {
+    SharedDirectorySelectionEntry(
+      id: id,
+      backend: backend,
+      name: name,
+      sourceName: sourceName,
+      status: status.sharedStatus,
+      countryLabel: countryLabel,
+      locationLabel: locationLabel,
+      searchableText: ReceiverDirectoryViewModel.searchableText(for: self),
+      detailText: detailText,
+      receiverIdentity: ReceiverIdentity.key(for: self)
+    )
+  }
+
+  var selectionFingerprint: String {
+    sharedSelectionEntry.selectionFingerprint
+  }
+}
+
+private extension SharedDirectorySelectionEntry {
+  var selectionFingerprint: String {
+    [
+      id,
+      backend.rawValue,
+      name,
+      sourceName,
+      status.rawValue,
+      countryLabel ?? "",
+      locationLabel ?? "",
+      searchableText,
+      detailText,
+      receiverIdentity
+    ].joined(separator: "\u{1F}")
+  }
+}
+
+private extension ReceiverDirectoryStatusFilter {
+  var sharedStatusFilter: SharedDirectoryStatusFilter {
+    switch self {
+    case .all:
+      return .all
+    case .online:
+      return .online
+    case .availableOnly:
+      return .availableOnly
+    case .unavailable:
+      return .unavailable
+    }
+  }
+}
+
+private extension ReceiverDirectoryCountrySortOption {
+  var sharedSortOption: SharedDirectoryCountrySortOption {
+    switch self {
+    case .alphabetical:
+      return .alphabetical
+    case .receiverCount:
+      return .receiverCount
+    }
+  }
+}
+
+private extension ReceiverDirectorySortOption {
+  var sharedSortOption: SharedDirectorySortOption {
+    switch self {
+    case .recommended:
+      return .recommended
+    case .name:
+      return .name
+    case .location:
+      return .location
+    case .status:
+      return .status
+    case .source:
+      return .source
+    }
+  }
+}
+
+private extension ReceiverDirectoryCountryOption {
+  init(sharedOption: SharedDirectoryCountryOption) {
+    self.init(
+      countryLabel: sharedOption.countryLabel,
+      receiverCount: sharedOption.receiverCount
+    )
   }
 }

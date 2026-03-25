@@ -1,4 +1,31 @@
+import Combine
+import ListenSDRCore
 import SwiftUI
+import UIKit
+
+private final class KeyboardVisibilityObserver: ObservableObject {
+  @Published private(set) var isVisible = false
+
+  private var cancellables: Set<AnyCancellable> = []
+
+  init(notificationCenter: NotificationCenter = .default) {
+    notificationCenter.publisher(for: UIResponder.keyboardWillShowNotification)
+      .merge(with: notificationCenter.publisher(for: UIResponder.keyboardDidShowNotification))
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _ in
+        self?.isVisible = true
+      }
+      .store(in: &cancellables)
+
+    notificationCenter.publisher(for: UIResponder.keyboardWillHideNotification)
+      .merge(with: notificationCenter.publisher(for: UIResponder.keyboardDidHideNotification))
+      .receive(on: RunLoop.main)
+      .sink { [weak self] _ in
+        self?.isVisible = false
+      }
+      .store(in: &cancellables)
+  }
+}
 
 private struct ProfileEditorContext: Identifiable {
   let id = UUID()
@@ -118,6 +145,7 @@ struct RadiosView: View {
   @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var favoritesStore: FavoritesStore
   @EnvironmentObject private var historyStore: ListeningHistoryStore
+  @StateObject private var keyboardObserver = KeyboardVisibilityObserver()
   @State private var editorContext: ProfileEditorContext?
   @State private var isDirectoryPresented = false
   @State private var historySectionFilter: HistorySectionFilter = .all
@@ -181,32 +209,37 @@ struct RadiosView: View {
               isSearching
               && noHistoryMatchesFilter
               && (!showRadioSections || noRadioMatchesFilter)
+            let showSearchControls =
+              radioSession.settings.radiosSearchFiltersVisibility == .alwaysVisible
+              || keyboardObserver.isVisible
 
-            Section {
-              NavigationLink {
-                SelectionListView(
-                  title: L10n.text("radios.search.scope"),
-                  options: RadiosSearchScope.allCases.map {
-                    SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
-                  },
-                  selectedID: searchScope.rawValue
-                ) { value in
-                  if let scope = RadiosSearchScope(rawValue: value) {
-                    searchScope = scope
+            if showSearchControls {
+              Section {
+                NavigationLink {
+                  SelectionListView(
+                    title: L10n.text("radios.search.scope"),
+                    options: RadiosSearchScope.allCases.map {
+                      SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+                    },
+                    selectedID: searchScope.rawValue
+                  ) { value in
+                    if let scope = RadiosSearchScope(rawValue: value) {
+                      searchScope = scope
+                    }
                   }
+                } label: {
+                  LabeledContent(
+                    L10n.text("radios.search.scope"),
+                    value: searchScope.displayName
+                  )
                 }
-              } label: {
-                LabeledContent(
-                  L10n.text("radios.search.scope"),
-                  value: searchScope.displayName
-                )
+              } header: {
+                AppSectionHeader(title: L10n.text("radios.search.section"))
               }
-            } header: {
-              AppSectionHeader(title: L10n.text("radios.search.section"))
+              .appSectionStyle()
             }
-            .appSectionStyle()
 
-            if hasAnyHistory {
+            if showSearchControls && hasAnyHistory {
               Section {
                 NavigationLink {
                   SelectionListView(

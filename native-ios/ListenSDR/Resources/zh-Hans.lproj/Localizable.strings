@@ -522,6 +522,14 @@
 "settings.accessibility.voiceover_rds.hint" = "启用 VoiceOver 时，在电台名或 RDS 文本变化后进行朗读。";
 "settings.accessibility.voiceover_rds_mode" = "VoiceOver RDS 播报方式";
 "settings.accessibility.voiceover_rds_mode.full" = "完整 RDS";
+"settings.accessibility.magic_tap" = "Magic Tap 动作";
+"settings.accessibility.magic_tap.hint" = "选择在 Listen SDR 处于活动状态时，系统 Magic Tap 手势应执行的操作。";
+"settings.accessibility.magic_tap.toggle_mute" = "静音或取消静音";
+"settings.accessibility.magic_tap.toggle_mute.detail" = "保留当前行为，并切换音频静音状态。";
+"settings.accessibility.magic_tap.disconnect" = "断开接收机";
+"settings.accessibility.magic_tap.disconnect.detail" = "结束当前连接并停止音频流。";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute" = "开始或停止录音";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute.detail" = "若正在录音则停止录音，否则开始录制当前接收机。";
 "settings.accessibility.voiceover_rds_mode.hint" = "选择 VoiceOver 仅朗读电台信息，还是朗读完整 RDS 更新。";
 "settings.accessibility.voiceover_rds_mode.off" = "关";
 "settings.accessibility.voiceover_rds_mode.station_only" = "仅电台";
@@ -752,3 +760,21 @@
 "scanner.channel.status.stopped_on_signal" = "扫描器已停在 %@。";
 "scanner.channel.openwebrx_audio_hint" = "在 OpenWebRX 中，检测基于音频活动。如果扫描器抓到太多噪声，请提高阈值。";
 "scanner.channel.kiwi_hint" = "在 KiwiSDR 中，检测基于 RSSI。对于更弱的信号，请降低阈值。";
+
+"settings.accessibility.interaction_sounds" = "开关提示音";
+"settings.accessibility.interaction_sounds.hint" = "关闭时播放较低音调，开启时播放较高音调，例如静音和立体声切换。";
+"accessibility.magic_tap.muted" = "已静音";
+"accessibility.magic_tap.unmuted" = "已取消静音";
+"settings.radios.section" = "电台";
+"settings.radios.search_filters" = "搜索筛选器可见性";
+"settings.radios.search_filters.hint" = "选择电台标签中的搜索和历史筛选器是始终可见，还是仅在搜索栏处于活动状态时显示。";
+"settings.radios.search_filters.always_visible" = "始终可见";
+"settings.radios.search_filters.always_visible.detail" = "始终显示搜索和历史筛选器。";
+"settings.radios.search_filters.while_search_active" = "仅在搜索时";
+"settings.radios.search_filters.while_search_active.detail" = "仅当搜索栏处于活动状态且键盘打开时显示筛选器。";
+"settings.accessibility.interaction_sounds.mute_while_recording" = "录音时静音";
+"settings.accessibility.interaction_sounds.mute_while_recording.hint" = "录音进行时不播放开关提示音。录音开始和停止提示音仍会播放。";
+"settings.accessibility.interaction_sounds.preview" = "试听提示音";
+"settings.accessibility.interaction_sounds.preview.hint" = "以当前音量播放一个示例开关提示音。";
+"settings.accessibility.interaction_sounds.volume" = "开关提示音音量";
+"settings.accessibility.interaction_sounds.volume.hint" = "调节开关提示音以及录音开始和停止提示音的音量。";

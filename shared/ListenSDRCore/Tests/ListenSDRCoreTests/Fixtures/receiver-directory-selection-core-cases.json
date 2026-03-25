@@ -1,0 +1,393 @@
+{
+  "countryOptionCases": [
+    {
+      "label": "alphabetical country sort uses country label then count tie-breaker",
+      "backend": "fmDxWebserver",
+      "sortOption": "alphabetical",
+      "entries": [
+        {
+          "id": "fm-pl-1",
+          "backend": "fmDxWebserver",
+          "name": "Poland One",
+          "sourceName": "FMDX.org",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Warsaw, Poland",
+          "searchableText": "poland one warsaw poland fmdx org available",
+          "detailText": "FMDX.org | Warsaw, Poland | v1",
+          "receiverIdentity": "fmdx|http|warsaw1.example|8080|/"
+        },
+        {
+          "id": "fm-de-1",
+          "backend": "fmDxWebserver",
+          "name": "Germany One",
+          "sourceName": "FMDX.org",
+          "status": "limited",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "germany one berlin germany fmdx org limited",
+          "detailText": "FMDX.org | Berlin, Germany | v1",
+          "receiverIdentity": "fmdx|http|berlin1.example|8080|/"
+        },
+        {
+          "id": "fm-pl-2",
+          "backend": "fmDxWebserver",
+          "name": "Poland Two",
+          "sourceName": "FMDX.org",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Krakow, Poland",
+          "searchableText": "poland two krakow poland fmdx org available",
+          "detailText": "FMDX.org | Krakow, Poland | v1",
+          "receiverIdentity": "fmdx|http|krakow1.example|8080|/"
+        }
+      ],
+      "expected": [
+        {
+          "countryLabel": "Germany",
+          "receiverCount": 1
+        },
+        {
+          "countryLabel": "Poland",
+          "receiverCount": 2
+        }
+      ]
+    },
+    {
+      "label": "receiver count sort keeps biggest country first",
+      "backend": "fmDxWebserver",
+      "sortOption": "receiverCount",
+      "entries": [
+        {
+          "id": "fm-pl-1",
+          "backend": "fmDxWebserver",
+          "name": "Poland One",
+          "sourceName": "FMDX.org",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Warsaw, Poland",
+          "searchableText": "poland one warsaw poland fmdx org available",
+          "detailText": "FMDX.org | Warsaw, Poland | v1",
+          "receiverIdentity": "fmdx|http|warsaw1.example|8080|/"
+        },
+        {
+          "id": "fm-de-1",
+          "backend": "fmDxWebserver",
+          "name": "Germany One",
+          "sourceName": "FMDX.org",
+          "status": "limited",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "germany one berlin germany fmdx org limited",
+          "detailText": "FMDX.org | Berlin, Germany | v1",
+          "receiverIdentity": "fmdx|http|berlin1.example|8080|/"
+        },
+        {
+          "id": "fm-pl-2",
+          "backend": "fmDxWebserver",
+          "name": "Poland Two",
+          "sourceName": "FMDX.org",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Krakow, Poland",
+          "searchableText": "poland two krakow poland fmdx org available",
+          "detailText": "FMDX.org | Krakow, Poland | v1",
+          "receiverIdentity": "fmdx|http|krakow1.example|8080|/"
+        }
+      ],
+      "expected": [
+        {
+          "countryLabel": "Poland",
+          "receiverCount": 2
+        },
+        {
+          "countryLabel": "Germany",
+          "receiverCount": 1
+        }
+      ]
+    }
+  ],
+  "deduplicatedCases": [
+    {
+      "label": "dedup keeps preferred status and recommended order",
+      "entries": [
+        {
+          "id": "fm-berlin",
+          "backend": "fmDxWebserver",
+          "name": "Berlin DX",
+          "sourceName": "FMDX.org",
+          "status": "limited",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "berlin dx berlin germany fmdx org limited",
+          "detailText": "FMDX.org",
+          "receiverIdentity": "fmdx|http|berlin-dx.example|8080|/"
+        },
+        {
+          "id": "kiwi-alpha",
+          "backend": "kiwiSDR",
+          "name": "Alpha Kiwi",
+          "sourceName": "Receiverbook.de",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Krakow, Poland",
+          "searchableText": "alpha kiwi krakow poland receiverbook de available",
+          "detailText": "Receiverbook.de | Krakow, Poland | v1",
+          "receiverIdentity": "kiwi|https|alpha.example|8073|/"
+        },
+        {
+          "id": "fm-berlin",
+          "backend": "fmDxWebserver",
+          "name": "Berlin DX",
+          "sourceName": "FMDX.org",
+          "status": "available",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "berlin dx berlin germany fmdx org available",
+          "detailText": "FMDX.org | Berlin, Germany | v2",
+          "receiverIdentity": "fmdx|http|berlin-dx.example|8080|/"
+        },
+        {
+          "id": "kiwi-zulu",
+          "backend": "kiwiSDR",
+          "name": "Zulu Kiwi",
+          "sourceName": "Receiverbook.de",
+          "status": "unreachable",
+          "countryLabel": "United Kingdom",
+          "locationLabel": "London, United Kingdom",
+          "searchableText": "zulu kiwi london united kingdom receiverbook de unreachable",
+          "detailText": "Receiverbook.de | London, United Kingdom",
+          "receiverIdentity": "kiwi|https|zulu.example|8073|/"
+        }
+      ],
+      "expectedOrder": [
+        "fm-berlin",
+        "kiwi-alpha",
+        "kiwi-zulu"
+      ],
+      "expectedStatuses": [
+        "available",
+        "available",
+        "unreachable"
+      ],
+      "expectedDetailTexts": [
+        "FMDX.org | Berlin, Germany | v2",
+        "Receiverbook.de | Krakow, Poland | v1",
+        "Receiverbook.de | London, United Kingdom"
+      ]
+    }
+  ],
+  "filteredCases": [
+    {
+      "label": "favorites online search narrows kiwi list to favorite match",
+      "backend": "kiwiSDR",
+      "searchText": "krakow poland",
+      "statusFilter": "online",
+      "sortOption": "status",
+      "selectedCountry": "",
+      "favoritesOnly": true,
+      "favoriteReceiverIDs": [
+        "kiwi|https|krakow.example|8073|/",
+        "kiwi|https|london.example|8073|/"
+      ],
+      "entries": [
+        {
+          "id": "kiwi-krakow",
+          "backend": "kiwiSDR",
+          "name": "Krakow Kiwi",
+          "sourceName": "Receiverbook.de",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Krakow, Poland",
+          "searchableText": "krakow kiwi krakow poland receiverbook de available",
+          "detailText": "Receiverbook.de | Krakow, Poland | v1",
+          "receiverIdentity": "kiwi|https|krakow.example|8073|/"
+        },
+        {
+          "id": "kiwi-london",
+          "backend": "kiwiSDR",
+          "name": "London Kiwi",
+          "sourceName": "Receiverbook.de",
+          "status": "unreachable",
+          "countryLabel": "United Kingdom",
+          "locationLabel": "London, United Kingdom",
+          "searchableText": "london kiwi london united kingdom receiverbook de unreachable",
+          "detailText": "Receiverbook.de | London, United Kingdom | v1",
+          "receiverIdentity": "kiwi|https|london.example|8073|/"
+        },
+        {
+          "id": "kiwi-berlin",
+          "backend": "kiwiSDR",
+          "name": "Berlin Kiwi",
+          "sourceName": "Archive Mirror",
+          "status": "limited",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "berlin kiwi berlin germany archive mirror limited",
+          "detailText": "Archive Mirror | Berlin, Germany | v1",
+          "receiverIdentity": "kiwi|https|berlin.example|8073|/"
+        }
+      ],
+      "expectedOrder": [
+        "kiwi-krakow"
+      ]
+    },
+    {
+      "label": "location sort uses location then name",
+      "backend": "fmDxWebserver",
+      "searchText": "",
+      "statusFilter": "all",
+      "sortOption": "location",
+      "selectedCountry": "",
+      "favoritesOnly": false,
+      "favoriteReceiverIDs": [],
+      "entries": [
+        {
+          "id": "fm-warsaw",
+          "backend": "fmDxWebserver",
+          "name": "Warsaw FM",
+          "sourceName": "FMDX.org",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Warsaw, Poland",
+          "searchableText": "warsaw fm warsaw poland fmdx org available",
+          "detailText": "FMDX.org | Warsaw, Poland | v2",
+          "receiverIdentity": "fmdx|http|warsaw.example|8080|/"
+        },
+        {
+          "id": "fm-berlin",
+          "backend": "fmDxWebserver",
+          "name": "Berlin FM",
+          "sourceName": "FMDX.org",
+          "status": "limited",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "berlin fm berlin germany fmdx org limited",
+          "detailText": "FMDX.org | Berlin, Germany | v2",
+          "receiverIdentity": "fmdx|http|berlin.example|8080|/"
+        },
+        {
+          "id": "fm-gdansk",
+          "backend": "fmDxWebserver",
+          "name": "Gdansk FM",
+          "sourceName": "FMDX.org",
+          "status": "unreachable",
+          "countryLabel": "Poland",
+          "locationLabel": "Gdansk, Poland",
+          "searchableText": "gdansk fm gdansk poland fmdx org unreachable",
+          "detailText": "FMDX.org | Gdansk, Poland | v2",
+          "receiverIdentity": "fmdx|http|gdansk.example|8080|/"
+        }
+      ],
+      "expectedOrder": [
+        "fm-berlin",
+        "fm-gdansk",
+        "fm-warsaw"
+      ]
+    },
+    {
+      "label": "source sort uses source then name",
+      "backend": "kiwiSDR",
+      "searchText": "",
+      "statusFilter": "all",
+      "sortOption": "source",
+      "selectedCountry": "",
+      "favoritesOnly": false,
+      "favoriteReceiverIDs": [],
+      "entries": [
+        {
+          "id": "kiwi-krakow",
+          "backend": "kiwiSDR",
+          "name": "Krakow Kiwi",
+          "sourceName": "Receiverbook.de",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Krakow, Poland",
+          "searchableText": "krakow kiwi krakow poland receiverbook de available",
+          "detailText": "Receiverbook.de | Krakow, Poland | v1",
+          "receiverIdentity": "kiwi|https|krakow.example|8073|/"
+        },
+        {
+          "id": "kiwi-london",
+          "backend": "kiwiSDR",
+          "name": "London Kiwi",
+          "sourceName": "Receiverbook.de",
+          "status": "unreachable",
+          "countryLabel": "United Kingdom",
+          "locationLabel": "London, United Kingdom",
+          "searchableText": "london kiwi london united kingdom receiverbook de unreachable",
+          "detailText": "Receiverbook.de | London, United Kingdom | v1",
+          "receiverIdentity": "kiwi|https|london.example|8073|/"
+        },
+        {
+          "id": "kiwi-berlin",
+          "backend": "kiwiSDR",
+          "name": "Berlin Kiwi",
+          "sourceName": "Archive Mirror",
+          "status": "limited",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "berlin kiwi berlin germany archive mirror limited",
+          "detailText": "Archive Mirror | Berlin, Germany | v1",
+          "receiverIdentity": "kiwi|https|berlin.example|8073|/"
+        }
+      ],
+      "expectedOrder": [
+        "kiwi-berlin",
+        "kiwi-krakow",
+        "kiwi-london"
+      ]
+    },
+    {
+      "label": "country and availability filters keep matching fmdx receiver",
+      "backend": "fmDxWebserver",
+      "searchText": "",
+      "statusFilter": "availableOnly",
+      "sortOption": "name",
+      "selectedCountry": "Poland",
+      "favoritesOnly": false,
+      "favoriteReceiverIDs": [],
+      "entries": [
+        {
+          "id": "fm-warsaw",
+          "backend": "fmDxWebserver",
+          "name": "Warsaw FM",
+          "sourceName": "FMDX.org",
+          "status": "available",
+          "countryLabel": "Poland",
+          "locationLabel": "Warsaw, Poland",
+          "searchableText": "warsaw fm warsaw poland fmdx org available",
+          "detailText": "FMDX.org | Warsaw, Poland | v2",
+          "receiverIdentity": "fmdx|http|warsaw.example|8080|/"
+        },
+        {
+          "id": "fm-berlin",
+          "backend": "fmDxWebserver",
+          "name": "Berlin FM",
+          "sourceName": "FMDX.org",
+          "status": "limited",
+          "countryLabel": "Germany",
+          "locationLabel": "Berlin, Germany",
+          "searchableText": "berlin fm berlin germany fmdx org limited",
+          "detailText": "FMDX.org | Berlin, Germany | v2",
+          "receiverIdentity": "fmdx|http|berlin.example|8080|/"
+        },
+        {
+          "id": "fm-gdansk",
+          "backend": "fmDxWebserver",
+          "name": "Gdansk FM",
+          "sourceName": "FMDX.org",
+          "status": "unreachable",
+          "countryLabel": "Poland",
+          "locationLabel": "Gdansk, Poland",
+          "searchableText": "gdansk fm gdansk poland fmdx org unreachable",
+          "detailText": "FMDX.org | Gdansk, Poland | v2",
+          "receiverIdentity": "fmdx|http|gdansk.example|8080|/"
+        }
+      ],
+      "expectedOrder": [
+        "fm-warsaw"
+      ]
+    }
+  ]
+}

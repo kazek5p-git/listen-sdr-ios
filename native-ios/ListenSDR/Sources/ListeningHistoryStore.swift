@@ -1,4 +1,5 @@
 import Foundation
+import ListenSDRCore
 
 struct RecentReceiverRecord: Identifiable, Codable, Hashable {
   let id: String

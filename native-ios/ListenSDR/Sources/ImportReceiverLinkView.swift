@@ -109,12 +109,8 @@ struct ImportReceiverLinkView: View {
     Binding(
       get: { importedProfile?.backend ?? .kiwiSDR },
       set: { newBackend in
-        guard importedProfile != nil else { return }
-        importedProfile?.backend = newBackend
-        importedProfile?.path = ReceiverLinkImportDetector.normalizedProfilePath(
-          for: newBackend,
-          rawPath: importedProfile?.path ?? "/"
-        )
+        guard let importedProfile else { return }
+        self.importedProfile = ReceiverLinkImportDetector.adjustedProfile(importedProfile, for: newBackend)
       }
     )
   }

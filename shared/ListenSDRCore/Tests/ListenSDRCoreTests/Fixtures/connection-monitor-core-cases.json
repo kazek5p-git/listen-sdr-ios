@@ -1,0 +1,19 @@
+{
+  "cases": [
+    {
+      "label": "interactive monitor uses 1.3 second polling",
+      "policy": "interactive",
+      "expectedPollIntervalSeconds": 1.3
+    },
+    {
+      "label": "passive monitor uses 2.5 second polling",
+      "policy": "passive",
+      "expectedPollIntervalSeconds": 2.5
+    },
+    {
+      "label": "background monitor uses 6 second polling",
+      "policy": "background",
+      "expectedPollIntervalSeconds": 6.0
+    }
+  ]
+}

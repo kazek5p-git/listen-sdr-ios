@@ -1,3 +1,4 @@
+import ListenSDRCore
 import SwiftUI
 
 struct RecordingsView: View {

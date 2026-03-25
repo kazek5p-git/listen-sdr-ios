@@ -1,11 +1,11 @@
 import Foundation
 
-enum FrequencyFormatter {
-  static func mhzText(fromHz value: Int) -> String {
+public enum FrequencyFormatter {
+  public static func mhzText(fromHz value: Int) -> String {
     String(format: "%.3f MHz", Double(value) / 1_000_000.0)
   }
 
-  static func editableMHzText(fromHz value: Int, maxFractionDigits: Int = 5) -> String {
+  public static func editableMHzText(fromHz value: Int, maxFractionDigits: Int = 5) -> String {
     let formatter = NumberFormatter()
     formatter.locale = Locale.current
     formatter.numberStyle = .decimal
@@ -20,19 +20,19 @@ enum FrequencyFormatter {
     return String(format: "%.5f", mhz)
   }
 
-  static func fmDxMHzText(fromHz value: Int) -> String {
+  public static func fmDxMHzText(fromHz value: Int) -> String {
     fmDxMHzText(fromMHz: Double(value) / 1_000_000.0)
   }
 
-  static func fmDxMHzText(fromMHz value: Double) -> String {
+  public static func fmDxMHzText(fromMHz value: Double) -> String {
     "\(fmDxLocalizedNumberText(fromMHz: value)) MHz"
   }
 
-  static func fmDxEntryText(fromHz value: Int) -> String {
+  public static func fmDxEntryText(fromHz value: Int) -> String {
     fmDxLocalizedNumberText(fromMHz: Double(value) / 1_000_000.0)
   }
 
-  static func tuneStepText(fromHz value: Int) -> String {
+  public static func tuneStepText(fromHz value: Int) -> String {
     if value >= 1_000_000 {
       if value % 1_000_000 == 0 {
         return "\(value / 1_000_000) MHz"

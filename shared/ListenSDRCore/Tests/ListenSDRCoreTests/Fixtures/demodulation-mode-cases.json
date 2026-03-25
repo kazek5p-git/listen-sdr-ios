@@ -1,0 +1,108 @@
+{
+  "normalizationCases": [
+    {
+      "label": "OpenWebRX normalizes USN to USB",
+      "mode": "usn",
+      "backend": "openWebRX",
+      "expectedMode": "usb"
+    },
+    {
+      "label": "Kiwi normalizes FM to NFM",
+      "mode": "fm",
+      "backend": "kiwiSDR",
+      "expectedMode": "nfm"
+    },
+    {
+      "label": "FM-DX normalizes USB to FM",
+      "mode": "usb",
+      "backend": "fmDxWebserver",
+      "expectedMode": "fm"
+    },
+    {
+      "label": "FM-DX keeps AM as AM",
+      "mode": "am",
+      "backend": "fmDxWebserver",
+      "expectedMode": "am"
+    }
+  ],
+  "protocolCases": [
+    {
+      "label": "Kiwi protocol and bandpass use normalized NFM for FM",
+      "mode": "fm",
+      "backend": "kiwiSDR",
+      "expectedProtocolMode": "nbfm",
+      "expectedBandpass": {
+        "lowCut": -6000,
+        "highCut": 6000
+      }
+    },
+    {
+      "label": "OpenWebRX protocol and bandpass use normalized USB for USN",
+      "mode": "usn",
+      "backend": "openWebRX",
+      "expectedProtocolMode": "usb",
+      "expectedBandpass": {
+        "lowCut": 300,
+        "highCut": 2700
+      }
+    },
+    {
+      "label": "OpenWebRX keeps WFM protocol and wide bandpass for FM",
+      "mode": "fm",
+      "backend": "openWebRX",
+      "expectedProtocolMode": "wfm",
+      "expectedBandpass": {
+        "lowCut": -75000,
+        "highCut": 75000
+      }
+    }
+  ],
+  "parsingCases": [
+    {
+      "label": "Kiwi parses WFM as NFM",
+      "source": "kiwi",
+      "rawValue": "wfm",
+      "expectedMode": "nfm"
+    },
+    {
+      "label": "Kiwi parses QAM explicitly",
+      "source": "kiwi",
+      "rawValue": "qam",
+      "expectedMode": "qam"
+    },
+    {
+      "label": "OpenWebRX parses WFM as FM",
+      "source": "openWebRX",
+      "rawValue": "wfm",
+      "expectedMode": "fm"
+    },
+    {
+      "label": "OpenWebRX does not parse DRM",
+      "source": "openWebRX",
+      "rawValue": "drm",
+      "expectedMode": null
+    }
+  ],
+  "fineTuningCases": [
+    {
+      "label": "CW remains a fine tuning mode",
+      "mode": "cw",
+      "expected": true
+    },
+    {
+      "label": "USB remains a fine tuning mode",
+      "mode": "usb",
+      "expected": true
+    },
+    {
+      "label": "AM is not a fine tuning mode",
+      "mode": "am",
+      "expected": false
+    },
+    {
+      "label": "FM is not a fine tuning mode",
+      "mode": "fm",
+      "expected": false
+    }
+  ]
+}

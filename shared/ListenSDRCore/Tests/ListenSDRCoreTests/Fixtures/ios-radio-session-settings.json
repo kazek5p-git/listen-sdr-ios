@@ -1,0 +1,16 @@
+{
+  "frequencyHz": 7050000,
+  "tuneStepHz": 100,
+  "preferredTuneStepHz": 100,
+  "tuneStepPreferenceMode": "automatic",
+  "mode": "fm",
+  "audioMuted": false,
+  "voiceOverRDSAnnouncementMode": "stationOnly",
+  "magicTapAction": "toggleRecording",
+  "accessibilityInteractionSoundsEnabled": true,
+  "accessibilityInteractionSoundsVolume": 1.5,
+  "accessibilityInteractionSoundsMutedDuringRecording": true,
+  "radiosSearchFiltersVisibility": "whileSearchFieldActive",
+  "fmdxAudioMode": "mono",
+  "saveFMDXScannerResultsEnabled": true
+}

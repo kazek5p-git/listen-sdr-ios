@@ -1,12 +1,9 @@
 import Foundation
+import ListenSDRCore
 
-enum SDRBackend: String, Codable, CaseIterable, Identifiable {
-  case kiwiSDR = "kiwi"
-  case openWebRX = "openwebrx"
-  case fmDxWebserver = "fmdx"
+typealias SDRBackend = ListenSDRCore.SDRBackend
 
-  var id: String { rawValue }
-
+extension ListenSDRCore.SDRBackend {
   var displayName: String {
     switch self {
     case .kiwiSDR:
@@ -15,15 +12,6 @@ enum SDRBackend: String, Codable, CaseIterable, Identifiable {
       return L10n.text("backend.openwebrx")
     case .fmDxWebserver:
       return L10n.text("backend.fmdx")
-    }
-  }
-
-  var defaultPort: Int {
-    switch self {
-    case .kiwiSDR, .openWebRX:
-      return 8073
-    case .fmDxWebserver:
-      return 8080
     }
   }
 }

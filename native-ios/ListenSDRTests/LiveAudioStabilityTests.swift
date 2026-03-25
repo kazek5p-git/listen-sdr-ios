@@ -237,36 +237,24 @@ final class LiveAudioStabilityTests: XCTestCase {
   }
 
   private var liveAudioTestsEnabled: Bool {
-    if ProcessInfo.processInfo.environment["LISTEN_SDR_LIVE_AUDIO_TESTS"] == "1" {
-      return true
-    }
-    return UserDefaults.standard.bool(forKey: liveAudioEnabledDefaultsKey)
+    liveAudioConfiguration.enabled
   }
 
   private var configuredSecondsPerReceiver: TimeInterval {
-    if let rawValue = ProcessInfo.processInfo.environment["LISTEN_SDR_LIVE_AUDIO_SECONDS_PER_RECEIVER"],
-      let parsed = Double(rawValue),
-      parsed >= 30 {
-      return parsed
-    }
-    let defaultsValue = UserDefaults.standard.double(forKey: liveAudioSecondsDefaultsKey)
-    if defaultsValue >= 30 {
-      return defaultsValue
-    }
-    return 300
+    liveAudioConfiguration.secondsPerReceiver
   }
 
   private var configuredReceiverCount: Int {
-    if let rawValue = ProcessInfo.processInfo.environment["LISTEN_SDR_LIVE_AUDIO_RECEIVER_COUNT"],
-      let parsed = Int(rawValue),
-      parsed > 0 {
-      return parsed
-    }
-    let defaultsValue = UserDefaults.standard.integer(forKey: liveAudioReceiverCountDefaultsKey)
-    if defaultsValue > 0 {
-      return defaultsValue
-    }
-    return 2
+    liveAudioConfiguration.receiverCount
+  }
+
+  private var liveAudioConfiguration: LiveAudioTestConfiguration {
+    LiveAudioTestConfiguration(
+      environment: ProcessInfo.processInfo.environment,
+      liveAudioEnabledDefaultsKey: liveAudioEnabledDefaultsKey,
+      liveAudioSecondsDefaultsKey: liveAudioSecondsDefaultsKey,
+      liveAudioReceiverCountDefaultsKey: liveAudioReceiverCountDefaultsKey
+    )
   }
 
   private func persistLiveAudioSummary(_ text: String, backend: String) {
@@ -274,6 +262,190 @@ final class LiveAudioStabilityTests: XCTestCase {
       ?? FileManager.default.temporaryDirectory
     let fileURL = directory.appendingPathComponent("live-audio-\(backend).txt")
     try? text.write(to: fileURL, atomically: true, encoding: .utf8)
+  }
+}
+
+struct LiveAudioTestConfiguration {
+  let environment: [String: String]
+  let defaultsStores: [UserDefaults]
+  let liveAudioEnabledDefaultsKey: String
+  let liveAudioSecondsDefaultsKey: String
+  let liveAudioReceiverCountDefaultsKey: String
+
+  init(
+    environment: [String: String],
+    defaultsStores: [UserDefaults] = Self.makeDefaultsStores(),
+    liveAudioEnabledDefaultsKey: String,
+    liveAudioSecondsDefaultsKey: String,
+    liveAudioReceiverCountDefaultsKey: String
+  ) {
+    self.environment = environment
+    self.defaultsStores = defaultsStores
+    self.liveAudioEnabledDefaultsKey = liveAudioEnabledDefaultsKey
+    self.liveAudioSecondsDefaultsKey = liveAudioSecondsDefaultsKey
+    self.liveAudioReceiverCountDefaultsKey = liveAudioReceiverCountDefaultsKey
+  }
+
+  var enabled: Bool {
+    if let value = environmentValue(for: "LISTEN_SDR_LIVE_AUDIO_TESTS") {
+      return value == "1"
+    }
+    return defaultsBool(forKey: liveAudioEnabledDefaultsKey) ?? false
+  }
+
+  var secondsPerReceiver: TimeInterval {
+    if let rawValue = environmentValue(for: "LISTEN_SDR_LIVE_AUDIO_SECONDS_PER_RECEIVER"),
+      let parsed = Double(rawValue),
+      parsed >= 30 {
+      return parsed
+    }
+    if let defaultsValue = defaultsDouble(forKey: liveAudioSecondsDefaultsKey),
+      defaultsValue >= 30 {
+      return defaultsValue
+    }
+    return 300
+  }
+
+  var receiverCount: Int {
+    if let rawValue = environmentValue(for: "LISTEN_SDR_LIVE_AUDIO_RECEIVER_COUNT"),
+      let parsed = Int(rawValue),
+      parsed > 0 {
+      return parsed
+    }
+    if let defaultsValue = defaultsInt(forKey: liveAudioReceiverCountDefaultsKey),
+      defaultsValue > 0 {
+      return defaultsValue
+    }
+    return 2
+  }
+
+  private func environmentValue(for key: String) -> String? {
+    if let value = environment[key], !value.isEmpty {
+      return value
+    }
+    let simctlKey = "SIMCTL_CHILD_\(key)"
+    if let value = environment[simctlKey], !value.isEmpty {
+      return value
+    }
+    return nil
+  }
+
+  private func defaultsBool(forKey key: String) -> Bool? {
+    for defaults in defaultsStores where defaults.object(forKey: key) != nil {
+      return defaults.bool(forKey: key)
+    }
+    return nil
+  }
+
+  private func defaultsDouble(forKey key: String) -> Double? {
+    for defaults in defaultsStores where defaults.object(forKey: key) != nil {
+      return defaults.double(forKey: key)
+    }
+    return nil
+  }
+
+  private func defaultsInt(forKey key: String) -> Int? {
+    for defaults in defaultsStores where defaults.object(forKey: key) != nil {
+      return defaults.integer(forKey: key)
+    }
+    return nil
+  }
+
+  static func makeDefaultsStores() -> [UserDefaults] {
+    var stores: [UserDefaults] = [.standard]
+    let bundleIdentifiers = [
+      Bundle.main.bundleIdentifier,
+      Bundle(for: LiveAudioStabilityTests.self).bundleIdentifier,
+      "com.kazek.sdr.tests",
+      "com.kazek.sdr"
+    ]
+
+    var seenIdentifiers = Set<String>()
+    for identifier in bundleIdentifiers.compactMap({ $0 }) {
+      guard seenIdentifiers.insert(identifier).inserted,
+        let defaults = UserDefaults(suiteName: identifier) else { continue }
+      stores.append(defaults)
+    }
+    return stores
+  }
+}
+
+final class LiveAudioTestConfigurationTests: XCTestCase {
+  private let enabledKey = "ListenSDRLiveAudioTestsEnabled"
+  private let secondsKey = "ListenSDRLiveAudioSecondsPerReceiver"
+  private let receiverCountKey = "ListenSDRLiveAudioReceiverCount"
+
+  func testReadsExplicitTestBundleDefaultsWhenStandardDefaultsAreEmpty() throws {
+    let defaults = try makeIsolatedDefaults()
+    defaults.set(true, forKey: enabledKey)
+    defaults.set(45.0, forKey: secondsKey)
+    defaults.set(3, forKey: receiverCountKey)
+
+    let configuration = makeConfiguration(defaultsStores: [defaults])
+
+    XCTAssertTrue(configuration.enabled)
+    XCTAssertEqual(configuration.secondsPerReceiver, 45, accuracy: 0.001)
+    XCTAssertEqual(configuration.receiverCount, 3)
+  }
+
+  func testSIMCTLChildEnvironmentOverridesDefaults() throws {
+    let defaults = try makeIsolatedDefaults()
+    defaults.set(false, forKey: enabledKey)
+    defaults.set(90.0, forKey: secondsKey)
+    defaults.set(1, forKey: receiverCountKey)
+
+    let configuration = makeConfiguration(
+      environment: [
+        "SIMCTL_CHILD_LISTEN_SDR_LIVE_AUDIO_TESTS": "1",
+        "SIMCTL_CHILD_LISTEN_SDR_LIVE_AUDIO_SECONDS_PER_RECEIVER": "30",
+        "SIMCTL_CHILD_LISTEN_SDR_LIVE_AUDIO_RECEIVER_COUNT": "2"
+      ],
+      defaultsStores: [defaults]
+    )
+
+    XCTAssertTrue(configuration.enabled)
+    XCTAssertEqual(configuration.secondsPerReceiver, 30, accuracy: 0.001)
+    XCTAssertEqual(configuration.receiverCount, 2)
+  }
+
+  func testInvalidEnvironmentValuesFallBackToDefaultsAndThenSafeDefaults() throws {
+    let defaults = try makeIsolatedDefaults()
+    defaults.set(40.0, forKey: secondsKey)
+
+    let configuration = makeConfiguration(
+      environment: [
+        "LISTEN_SDR_LIVE_AUDIO_TESTS": "0",
+        "LISTEN_SDR_LIVE_AUDIO_SECONDS_PER_RECEIVER": "15",
+        "LISTEN_SDR_LIVE_AUDIO_RECEIVER_COUNT": "0"
+      ],
+      defaultsStores: [defaults]
+    )
+
+    XCTAssertFalse(configuration.enabled)
+    XCTAssertEqual(configuration.secondsPerReceiver, 40, accuracy: 0.001)
+    XCTAssertEqual(configuration.receiverCount, 2)
+  }
+
+  private func makeConfiguration(
+    environment: [String: String] = [:],
+    defaultsStores: [UserDefaults]
+  ) -> LiveAudioTestConfiguration {
+    LiveAudioTestConfiguration(
+      environment: environment,
+      defaultsStores: defaultsStores,
+      liveAudioEnabledDefaultsKey: enabledKey,
+      liveAudioSecondsDefaultsKey: secondsKey,
+      liveAudioReceiverCountDefaultsKey: receiverCountKey
+    )
+  }
+
+  private func makeIsolatedDefaults() throws -> UserDefaults {
+    let suiteName = "ListenSDR.LiveAudioTestConfigurationTests.\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+      throw XCTSkip("Unable to create isolated defaults suite.")
+    }
+    defaults.removePersistentDomain(forName: suiteName)
+    return defaults
   }
 }
 

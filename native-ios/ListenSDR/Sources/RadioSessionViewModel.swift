@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import ListenSDRCore
 import UIKit
 
 enum ConnectionState {
@@ -24,54 +25,6 @@ private struct ChannelScannerSignalProbe {
 
   var wasRejectedByInterferenceFilter: Bool {
     rawSignal != nil && signal == nil && filterState?.hasPrefix("filter=rejected:") == true
-  }
-}
-
-private struct ChannelScannerInterferenceFilterThresholds {
-  let minimumAnalysisBuffers: Int
-  let maximumSampleAgeSeconds: Double
-  let stationaryEnvelopeLevelStdDB: Double
-  let stationaryEnvelopeVariation: Double
-  let lowFrequencyHumLevelStdDB: Double
-  let lowFrequencyHumZeroCrossingRate: Double
-  let lowFrequencyHumSpectralActivity: Double
-  let widebandStaticLevelStdDB: Double
-  let widebandStaticEnvelopeVariation: Double
-  let widebandStaticMinimumZeroCrossingRate: Double
-  let widebandStaticMinimumSpectralActivity: Double
-}
-
-struct OpenWebRXScannerSquelchPolicy {
-  static func effectiveEnabled(storedEnabled: Bool, isLockedByScanner: Bool) -> Bool {
-    storedEnabled && !isLockedByScanner
-  }
-
-  static func applyingOverride(
-    to settings: RadioSessionSettings,
-    backend: SDRBackend?,
-    isLockedByScanner: Bool
-  ) -> RadioSessionSettings {
-    guard backend == .openWebRX, isLockedByScanner else { return settings }
-    var snapshot = settings
-    snapshot.squelchEnabled = false
-    return snapshot
-  }
-}
-
-struct KiwiScannerSquelchPolicy {
-  static func effectiveEnabled(storedEnabled: Bool, isLockedByScanner: Bool) -> Bool {
-    storedEnabled && !isLockedByScanner
-  }
-
-  static func applyingOverride(
-    to settings: RadioSessionSettings,
-    backend: SDRBackend?,
-    isLockedByScanner: Bool
-  ) -> RadioSessionSettings {
-    guard backend == .kiwiSDR, isLockedByScanner else { return settings }
-    var snapshot = settings
-    snapshot.squelchEnabled = false
-    return snapshot
   }
 }
 
@@ -251,13 +204,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var lastFMDXAudioQualitySampleAt = Date.distantPast
   private let fmdxAudioQualityTrendWindowSeconds: TimeInterval = 60
   private let fmdxAudioQualitySampleIntervalSeconds: TimeInterval = 5
-  private var lastFMDXBroadcastFMFrequencyHz = 87_500_000
-  private var lastFMDXOIRTFrequencyHz = 70_300_000
-  private var lastFMDXLWFrequencyHz = 225_000
-  private var lastFMDXMWFrequencyHz = 999_000
-  private var lastFMDXSWFrequencyHz = 7_050_000
-  private var lastSelectedFMDXFMQuickBand: FMDXQuickBand = .fm
-  private var lastSelectedFMDXAMQuickBand: FMDXQuickBand = .mw
+  private var fmdxBandMemory = FMDXBandMemory()
   private var channelScannerSignalPreviewActive = false
   private var activeProfileCacheKey: String?
   private var currentConnectedProfile: SDRConnectionProfile?
@@ -265,10 +212,7 @@ final class RadioSessionViewModel: ObservableObject {
   private var recentFrequencyCaptureTask: Task<Void, Never>?
   private var deferredRestoreTask: Task<Void, Never>?
   private var initialTuningFallbackTask: Task<Void, Never>?
-  private let autoReconnectDelaySeconds: [UInt64] = [1, 2, 3, 5, 8, 12]
-  private let autoReconnectWindowSeconds: TimeInterval = 75
   private let manualReconnectDelayNanoseconds: UInt64 = 120_000_000
-  private let deferredRestorePollNanoseconds: UInt64 = 90_000_000
   private var runtimePolicy: BackendRuntimePolicy = .interactive
   private var lastReducedActivityAudioAnalysisAt = Date.distantPast
   private var connectedSince = Date.distantPast
@@ -341,12 +285,12 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func updateRuntimePolicy(isForegroundActive: Bool, selectedTab: AppTab) {
-    let newPolicy: BackendRuntimePolicy
-    if isForegroundActive {
-      newPolicy = selectedTab == .receiver ? .interactive : .passive
-    } else {
-      newPolicy = .background
-    }
+    let newPolicy = BackendRuntimePolicy(
+      BackendRuntimePolicyCore.policy(
+        isForegroundActive: isForegroundActive,
+        isReceiverTabSelected: selectedTab == .receiver
+      )
+    )
 
     guard runtimePolicy != newPolicy else { return }
     runtimePolicy = newPolicy
@@ -397,14 +341,14 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   var effectiveOpenWebRXSquelchEnabled: Bool {
-    OpenWebRXScannerSquelchPolicy.effectiveEnabled(
+    RuntimeAdjustedSettingsCore.effectiveSquelchEnabled(
       storedEnabled: settings.squelchEnabled,
       isLockedByScanner: isOpenWebRXSquelchLockedByScanner
     )
   }
 
   var effectiveKiwiSquelchEnabled: Bool {
-    KiwiScannerSquelchPolicy.effectiveEnabled(
+    RuntimeAdjustedSettingsCore.effectiveSquelchEnabled(
       storedEnabled: settings.squelchEnabled,
       isLockedByScanner: isKiwiSquelchLockedByScanner
     )
@@ -508,10 +452,10 @@ final class RadioSessionViewModel: ObservableObject {
 
     connectTask?.cancel()
     cancelSessionTransientTasks(resetScannerState: true)
-    state = .connecting
-    statusText = L10n.text("session.status.connecting_to", profile.name)
-    backendStatusText = nil
-    lastError = nil
+    applySessionLifecyclePresentation(
+      SessionLifecyclePresentationCore.presentation(for: .connectRequested),
+      profileName: profile.name
+    )
     resetRuntimeState(for: profile.backend)
     scannerThreshold = defaultScannerThreshold(for: profile.backend)
     activeBackend = nil
@@ -527,7 +471,7 @@ final class RadioSessionViewModel: ObservableObject {
           await existingClient.disconnect()
         }
 
-        let newClient = makeClient(for: profile.backend)
+        let newClient = makeClient(for: profile)
         try await newClient.connect(profile: profile)
         await newClient.setRuntimePolicy(runtimePolicySnapshot)
 
@@ -544,24 +488,24 @@ final class RadioSessionViewModel: ObservableObject {
           self.historyStore.recordReceiver(profile)
           NowPlayingMetadataController.shared.setReceiverName(profile.name)
           NowPlayingMetadataController.shared.setTitle(nil)
-          self.hasInitialServerTuningSync = false
-          self.initialServerTuningSyncDeadline = Date().addingTimeInterval(4.0)
-          self.state = .connected
+          self.hasInitialServerTuningSync = !InitialServerTuningSyncCore.requiresInitialServerTuningSync(for: profile.backend)
+          self.initialServerTuningSyncDeadline = InitialServerTuningSyncCore.initialSyncDeadlineSeconds(for: profile.backend)
+            .map { Date().addingTimeInterval($0) } ?? .distantPast
           self.connectedSince = Date()
-          self.statusText = L10n.text("session.status.connected_to", profile.name)
-          self.updateBackendStatusText(
-            (profile.backend == .openWebRX || profile.backend == .kiwiSDR)
-              ? L10n.text("session.status.sync_tuning")
-              : nil
+          self.applySessionLifecyclePresentation(
+            SessionLifecyclePresentationCore.presentation(
+              for: .connected,
+              backend: profile.backend
+            ),
+            profileName: profile.name
           )
-          self.lastError = nil
           self.startStatusMonitor(
             profile: profile,
             client: newClient
           )
           self.scheduleInitialTuningFallbackAfterConnection(profileID: profile.id)
           self.scheduleListeningHistoryCapture()
-          self.scheduleRestoreAfterConnection(
+          self.performConnectedSessionRestore(
             profileID: profile.id,
             frequencyHz: restoringFrequencyHz,
             mode: restoringMode
@@ -582,10 +526,10 @@ final class RadioSessionViewModel: ObservableObject {
           self.activeBackend = nil
           self.activeProfileCacheKey = nil
           self.currentConnectedProfile = nil
-          self.state = .failed
-          self.statusText = L10n.text("session.status.connection_failed")
-          self.backendStatusText = nil
-          self.lastError = error.localizedDescription
+          self.applySessionLifecyclePresentation(
+            SessionLifecyclePresentationCore.presentation(for: .connectionFailed),
+            errorMessage: error.localizedDescription
+          )
           self.isScannerRunning = false
           self.scannerStatusText = nil
         }
@@ -619,10 +563,9 @@ final class RadioSessionViewModel: ObservableObject {
         self.currentConnectedProfile = nil
         NowPlayingMetadataController.shared.setReceiverName(nil)
         NowPlayingMetadataController.shared.setTitle(nil)
-        self.state = .disconnected
-        self.statusText = L10n.text("session.status.disconnected")
-        self.backendStatusText = nil
-        self.lastError = nil
+        self.applySessionLifecyclePresentation(
+          SessionLifecyclePresentationCore.presentation(for: .disconnected)
+        )
         self.isScannerRunning = false
         self.scannerStatusText = nil
         self.resetRuntimeState(for: nil)
@@ -705,16 +648,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func scannerSignalUnit(for backend: SDRBackend?) -> String {
-    switch backend {
-    case .fmDxWebserver:
-      return "dBf"
-    case .kiwiSDR:
-      return "dBm"
-    case .openWebRX:
-      return "dBFS"
-    case .none:
-      return "dB"
-    }
+    ChannelScannerSignalCore.signalUnit(for: backend)
   }
 
   func tuneStepOptions(for backend: SDRBackend) -> [Int] {
@@ -722,11 +656,11 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func effectiveTuneStepHz(for backend: SDRBackend?) -> Int {
-    resolvedTuneStepHz(
+    tuneStepState(
       forPreferred: settings.preferredTuneStepHz,
       preferenceMode: settings.tuneStepPreferenceMode,
       backend: backend
-    )
+    ).tuneStepHz
   }
 
   func startScanner(
@@ -1534,7 +1468,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func formattedScannerMetric(_ value: Double) -> String {
-    String(format: "%.2f", value)
+    ChannelScannerSignalCore.formatMetric(value)
   }
 
   private func isFMDXBandScanMetadataFresh(after checkpoint: FMDXTelemetryCheckpoint?) -> Bool {
@@ -1611,12 +1545,18 @@ final class RadioSessionViewModel: ObservableObject {
     }
 
     if activeBackend == .fmDxWebserver {
-      let roundedToKHz = Int((Double(value) / 1_000.0).rounded()) * 1_000
-      settings.frequencyHz = normalizedFMDXFrequencyHz(roundedToKHz, mode: settings.mode)
+      settings.frequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
+        value,
+        backend: .fmDxWebserver,
+        mode: settings.mode
+      )
       rememberFMDXFrequency(settings.frequencyHz, mode: settings.mode)
     } else {
-      let range = frequencyRange(for: activeBackend)
-      settings.frequencyHz = min(max(value, range.lowerBound), range.upperBound)
+      settings.frequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
+        value,
+        backend: activeBackend,
+        mode: settings.mode
+      )
     }
     let tuneStepChanged = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
@@ -1643,30 +1583,30 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setTuneStepHz(_ value: Int) {
-    let normalized = RadioSessionSettings.normalizedTuneStep(value)
-    settings.tuneStepPreferenceMode = .manual
-    settings.preferredTuneStepHz = normalized
-    let resolved = resolvedTuneStepHz(
-      forPreferred: normalized,
-      preferenceMode: .manual,
-      backend: activeBackend
+    let state = SessionTuningCore.manualTuneStepState(
+      requestedStepHz: value,
+      context: optionalTuningBandContext(for: activeBackend)
     )
-    settings.tuneStepHz = resolved
+    settings.tuneStepPreferenceMode = state.preferenceMode
+    settings.preferredTuneStepHz = state.preferredTuneStepHz
+    settings.tuneStepHz = state.tuneStepHz
     persistSettings()
     Diagnostics.log(
       category: "Session",
-      message: "Tune step set to \(resolved) Hz (preferred \(normalized) Hz, requested \(value) Hz, mode=manual)"
+      message: "Tune step set to \(state.tuneStepHz) Hz (preferred \(state.preferredTuneStepHz) Hz, requested \(value) Hz, mode=manual)"
     )
   }
 
   func setTuneStepPreferenceMode(_ mode: TuneStepPreferenceMode) {
     guard settings.tuneStepPreferenceMode != mode else { return }
-    settings.tuneStepPreferenceMode = mode
-    settings.tuneStepHz = resolvedTuneStepHz(
+    let state = tuneStepState(
       forPreferred: settings.preferredTuneStepHz,
       preferenceMode: mode,
       backend: activeBackend
     )
+    settings.tuneStepPreferenceMode = state.preferenceMode
+    settings.preferredTuneStepHz = state.preferredTuneStepHz
+    settings.tuneStepHz = state.tuneStepHz
     persistSettings()
     Diagnostics.log(
       category: "Session",
@@ -1692,12 +1632,14 @@ final class RadioSessionViewModel: ObservableObject {
       fmdxTuneWarningText = nil
     }
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setOpenReceiverAfterHistoryRestore(_ enabled: Bool) {
     guard settings.openReceiverAfterHistoryRestore != enabled else { return }
     settings.openReceiverAfterHistoryRestore = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setShowRecentFrequencies(_ enabled: Bool) {
@@ -1708,18 +1650,21 @@ final class RadioSessionViewModel: ObservableObject {
       recentFrequencyCaptureTask = nil
     }
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setIncludeRecentFrequenciesFromOtherReceivers(_ enabled: Bool) {
     guard settings.includeRecentFrequenciesFromOtherReceivers != enabled else { return }
     settings.includeRecentFrequenciesFromOtherReceivers = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setAutoConnectSelectedProfileOnLaunch(_ enabled: Bool) {
     guard settings.autoConnectSelectedProfileOnLaunch != enabled else { return }
     settings.autoConnectSelectedProfileOnLaunch = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func restoreCurrentSession(
@@ -1727,27 +1672,23 @@ final class RadioSessionViewModel: ObservableObject {
     mode: DemodulationMode?
   ) {
     guard state == .connected, let profileID = connectedProfileID else { return }
-
-    if isWaitingForInitialServerTuningSync() {
-      scheduleRestoreAfterConnection(
-        profileID: profileID,
-        frequencyHz: frequencyHz,
-        mode: mode
-      )
-      return
-    }
-
-    if let mode {
-      setMode(mode)
-    }
-    if let frequencyHz {
-      setFrequencyHz(frequencyHz)
-    }
+    performConnectedSessionRestore(
+      profileID: profileID,
+      frequencyHz: frequencyHz,
+      mode: mode
+    )
   }
 
   func tune(byStepCount stepCount: Int) {
-    let delta = stepCount * settings.tuneStepHz
-    setFrequencyHz(settings.frequencyHz + delta)
+    setFrequencyHz(
+      SessionFrequencyCore.tunedFrequencyHz(
+        currentFrequencyHz: settings.frequencyHz,
+        stepCount: stepCount,
+        tuneStepHz: settings.tuneStepHz,
+        backend: activeBackend,
+        mode: settings.mode
+      )
+    )
   }
 
   func setMode(_ mode: DemodulationMode) {
@@ -1841,18 +1782,22 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setAudioMuted(_ muted: Bool) {
+    guard settings.audioMuted != muted else { return }
     settings.audioMuted = muted
     SharedAudioOutput.engine.setMuted(muted)
     FMDXMP3AudioPlayer.shared.setMuted(muted)
     NowPlayingMetadataController.shared.setMuted(muted)
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: !muted)
   }
 
   func setMixWithOtherAudioApps(_ enabled: Bool) {
+    guard settings.mixWithOtherAudioApps != enabled else { return }
     settings.mixWithOtherAudioApps = enabled
     SharedAudioOutput.engine.setMixWithOtherAudioApps(enabled)
     FMDXMP3AudioPlayer.shared.setMixWithOtherAudioApps(enabled)
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func toggleAudioMuted() {
@@ -1860,8 +1805,10 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setAGCEnabled(_ enabled: Bool) {
+    guard settings.agcEnabled != enabled else { return }
     settings.agcEnabled = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
     if activeBackend == .fmDxWebserver {
       guard fmdxCapabilities.supportsAGCControl else { return }
       sendFMDXControl(.setFMDXAGC(enabled))
@@ -1871,9 +1818,11 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setNoiseReductionEnabled(_ enabled: Bool) {
+    guard settings.noiseReductionEnabled != enabled else { return }
     settings.noiseReductionEnabled = enabled
     markAutoFilterManuallyOverridden()
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
     if activeBackend == .fmDxWebserver {
       guard fmdxCapabilities.supportsFilterControls else { return }
       sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
@@ -1883,9 +1832,11 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setIMSEnabled(_ enabled: Bool) {
+    guard settings.imsEnabled != enabled else { return }
     settings.imsEnabled = enabled
     markAutoFilterManuallyOverridden()
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
     if activeBackend == .fmDxWebserver {
       guard fmdxCapabilities.supportsFilterControls else { return }
       sendFMDXControl(.setFMDXFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled))
@@ -1899,6 +1850,7 @@ final class RadioSessionViewModel: ObservableObject {
     pendingFMDXAudioModeIsStereo = mode.isStereo
     pendingFMDXAudioModeDeadline = Date().addingTimeInterval(2.5)
     sendFMDXControl(.setFMDXForcedStereo(mode.isStereo))
+    playInteractionFeedbackIfEnabled(isOn: mode.isStereo)
   }
 
   func setFMDXAntenna(_ id: String) {
@@ -2007,8 +1959,10 @@ final class RadioSessionViewModel: ObservableObject {
       )
       return
     }
+    guard settings.squelchEnabled != enabled else { return }
     settings.squelchEnabled = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
     if activeBackend == .fmDxWebserver {
       return
     }
@@ -2090,21 +2044,20 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setKiwiDenoiseEnabled(_ enabled: Bool) {
-    settings.kiwiDenoiseEnabled = enabled
-    if settings.kiwiNoiseFilterAlgorithm == .spectral {
-      settings.kiwiDenoiseEnabled = true
-    }
+    let resolvedEnabled = settings.kiwiNoiseFilterAlgorithm == .spectral ? true : enabled
+    guard settings.kiwiDenoiseEnabled != resolvedEnabled else { return }
+    settings.kiwiDenoiseEnabled = resolvedEnabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: settings.kiwiDenoiseEnabled)
     sendKiwiNoiseControl()
   }
 
   func setKiwiAutonotchEnabled(_ enabled: Bool) {
-    if settings.kiwiNoiseFilterAlgorithm == .spectral {
-      settings.kiwiAutonotchEnabled = false
-    } else {
-      settings.kiwiAutonotchEnabled = enabled
-    }
+    let resolvedEnabled = settings.kiwiNoiseFilterAlgorithm == .spectral ? false : enabled
+    guard settings.kiwiAutonotchEnabled != resolvedEnabled else { return }
+    settings.kiwiAutonotchEnabled = resolvedEnabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: settings.kiwiAutonotchEnabled)
     sendKiwiNoiseControl()
   }
 
@@ -2167,8 +2120,10 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setKiwiWaterfallCICCompensation(_ enabled: Bool) {
+    guard settings.kiwiWaterfallCICCompensation != enabled else { return }
     settings.kiwiWaterfallCICCompensation = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
     sendKiwiWaterfallControl()
   }
 
@@ -2259,8 +2214,10 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setShowRdsErrorCounters(_ enabled: Bool) {
+    guard settings.showRdsErrorCounters != enabled else { return }
     settings.showRdsErrorCounters = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setVoiceOverRDSAnnouncementMode(_ mode: VoiceOverRDSAnnouncementMode) {
@@ -2268,6 +2225,39 @@ final class RadioSessionViewModel: ObservableObject {
     lastRDSAnnouncementText = nil
     lastRDSAnnouncementAt = .distantPast
     lastRDSAnnouncementKind = nil
+    persistSettings()
+  }
+
+  func setMagicTapAction(_ action: MagicTapAction) {
+    guard settings.magicTapAction != action else { return }
+    settings.magicTapAction = action
+    persistSettings()
+  }
+
+  func setAccessibilityInteractionSoundsEnabled(_ enabled: Bool) {
+    guard settings.accessibilityInteractionSoundsEnabled != enabled else { return }
+    AppInteractionFeedbackCenter.playInteractionSoundsToggleTransition(to: enabled)
+    settings.accessibilityInteractionSoundsEnabled = enabled
+    persistSettings()
+  }
+
+  func setAccessibilityInteractionSoundsVolume(_ value: Double) {
+    let clampedValue = RadioSessionSettings.clampedAccessibilityInteractionSoundsVolume(value)
+    guard settings.accessibilityInteractionSoundsVolume != clampedValue else { return }
+    settings.accessibilityInteractionSoundsVolume = clampedValue
+    persistSettings()
+  }
+
+  func setAccessibilityInteractionSoundsMutedDuringRecording(_ enabled: Bool) {
+    guard settings.accessibilityInteractionSoundsMutedDuringRecording != enabled else { return }
+    settings.accessibilityInteractionSoundsMutedDuringRecording = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setRadiosSearchFiltersVisibility(_ visibility: RadiosSearchFiltersVisibility) {
+    guard settings.radiosSearchFiltersVisibility != visibility else { return }
+    settings.radiosSearchFiltersVisibility = visibility
     persistSettings()
   }
 
@@ -2284,29 +2274,39 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setAdaptiveScannerEnabled(_ enabled: Bool) {
+    guard settings.adaptiveScannerEnabled != enabled else { return }
     settings.adaptiveScannerEnabled = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setSaveChannelScannerResultsEnabled(_ enabled: Bool) {
+    guard settings.saveChannelScannerResultsEnabled != enabled else { return }
     settings.saveChannelScannerResultsEnabled = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setPlayDetectedChannelScannerSignalsEnabled(_ enabled: Bool) {
+    guard settings.playDetectedChannelScannerSignalsEnabled != enabled else { return }
     settings.playDetectedChannelScannerSignalsEnabled = enabled
     applyChannelScannerPlaybackMute()
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setStopChannelScannerOnSignal(_ enabled: Bool) {
+    guard settings.stopChannelScannerOnSignal != enabled else { return }
     settings.stopChannelScannerOnSignal = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setFilterChannelScannerInterferenceEnabled(_ enabled: Bool) {
+    guard settings.filterChannelScannerInterferenceEnabled != enabled else { return }
     settings.filterChannelScannerInterferenceEnabled = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setChannelScannerInterferenceFilterProfile(
@@ -2317,8 +2317,10 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setSaveFMDXScannerResultsEnabled(_ enabled: Bool) {
+    guard settings.saveFMDXScannerResultsEnabled != enabled else { return }
     settings.saveFMDXScannerResultsEnabled = enabled
     persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
   func setFMDXBandScanStartBehavior(_ behavior: FMDXBandScanStartBehavior) {
@@ -2405,7 +2407,15 @@ final class RadioSessionViewModel: ObservableObject {
 
   func saveCurrentSettingsSnapshot() {
     var snapshot = settings
-    snapshot.dxNightModeEnabled = false
+    let snapshotState = SavedSettingsSnapshotCore.createdSnapshot(
+      from: .init(
+        frequencyHz: settings.frequencyHz,
+        dxNightModeEnabled: settings.dxNightModeEnabled,
+        autoFilterProfileEnabled: settings.autoFilterProfileEnabled
+      )
+    )
+    snapshot.dxNightModeEnabled = snapshotState.dxNightModeEnabled
+    snapshot.autoFilterProfileEnabled = snapshotState.autoFilterProfileEnabled
     manualSettingsSnapshot = snapshot
     hasSavedSettingsSnapshot = true
     persistSnapshot(snapshot, forKey: manualSettingsSnapshotKey)
@@ -2422,12 +2432,21 @@ final class RadioSessionViewModel: ObservableObject {
     if enabled {
       guard settings.dxNightModeEnabled == false else { return }
       var snapshot = settings
-      snapshot.dxNightModeEnabled = false
+      let snapshotState = SavedSettingsSnapshotCore.createdSnapshot(
+        from: .init(
+          frequencyHz: settings.frequencyHz,
+          dxNightModeEnabled: settings.dxNightModeEnabled,
+          autoFilterProfileEnabled: settings.autoFilterProfileEnabled
+        )
+      )
+      snapshot.dxNightModeEnabled = snapshotState.dxNightModeEnabled
+      snapshot.autoFilterProfileEnabled = snapshotState.autoFilterProfileEnabled
       nightModeSnapshot = snapshot
       persistSnapshot(snapshot, forKey: nightModeSnapshotKey)
       applyNightDXProfile()
       settings.dxNightModeEnabled = true
       persistSettings()
+      playInteractionFeedbackIfEnabled(isOn: true)
       Diagnostics.log(category: "Session", message: "Night DX mode enabled")
       return
     }
@@ -2440,6 +2459,7 @@ final class RadioSessionViewModel: ObservableObject {
       persistSettings()
       applyCurrentSettingsToConnectedBackend()
     }
+    playInteractionFeedbackIfEnabled(isOn: false)
     nightModeSnapshot = nil
     clearPersistedSnapshot(forKey: nightModeSnapshotKey)
     Diagnostics.log(category: "Session", message: "Night DX mode disabled")
@@ -2489,21 +2509,39 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func applyIfConnected() {
-    guard state == .connected, let client else { return }
-    if isWaitingForInitialServerTuningSync() {
+    let action = ConnectedSettingsApplyCore.action(
+      for: .init(
+        isConnected: state == .connected,
+        hasConnectedClient: client != nil,
+        isWaitingForInitialServerTuningSync: isWaitingForInitialServerTuningSync()
+      )
+    )
+
+    switch action {
+    case .skip:
+      return
+    case .deferUntilInitialServerTuningSyncCompletes:
       updateBackendStatusText(L10n.text("session.status.sync_tuning"))
       return
+    case .applyNow:
+      break
     }
-    let snapshot = OpenWebRXScannerSquelchPolicy.applyingOverride(
-      to: settings,
-      backend: activeBackend,
-      isLockedByScanner: isOpenWebRXSquelchLockedByScanner
-    )
-    let effectiveSnapshot = KiwiScannerSquelchPolicy.applyingOverride(
-      to: snapshot,
-      backend: activeBackend,
-      isLockedByScanner: isKiwiSquelchLockedByScanner
-    )
+
+    guard let client else { return }
+    var effectiveSnapshot = settings
+    if let backend = activeBackend {
+      let isSquelchLockedByScanner =
+        (backend == .openWebRX && isOpenWebRXSquelchLockedByScanner) ||
+        (backend == .kiwiSDR && isKiwiSquelchLockedByScanner)
+      let adjustedState = RuntimeAdjustedSettingsCore.adjustedState(
+        backend: backend,
+        mode: settings.mode,
+        squelchEnabled: settings.squelchEnabled,
+        isSquelchLockedByScanner: isSquelchLockedByScanner
+      )
+      effectiveSnapshot.mode = adjustedState.mode
+      effectiveSnapshot.squelchEnabled = adjustedState.squelchEnabled
+    }
 
     Task {
       do {
@@ -2520,6 +2558,10 @@ final class RadioSessionViewModel: ObservableObject {
         )
       }
     }
+  }
+
+  private func playInteractionFeedbackIfEnabled(isOn: Bool) {
+    AppInteractionFeedbackCenter.playIfEnabled(isOn ? .enabled : .disabled)
   }
 
   private func sendFMDXControl(_ command: BackendControlCommand) {
@@ -2811,14 +2853,15 @@ final class RadioSessionViewModel: ObservableObject {
     fmdxTuneWarningText = nil
   }
 
-  private func makeClient(for backend: SDRBackend) -> any SDRBackendClient {
-    switch backend {
+  private func makeClient(for profile: SDRConnectionProfile) -> any SDRBackendClient {
+    switch profile.backend {
     case .kiwiSDR:
       return KiwiSDRClient()
     case .openWebRX:
       return OpenWebRXClient()
     case .fmDxWebserver:
-      return FMDXWebserverClient()
+      let cachedCapabilities = receiverDataCache.cachedData(for: ReceiverIdentity.key(for: profile))?.fmdxCapabilities
+      return FMDXWebserverClient(cachedCapabilities: cachedCapabilities)
     }
   }
 
@@ -2882,13 +2925,23 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func applySettingsSnapshot(_ snapshot: RadioSessionSettings, includeFrequency: Bool) {
-    let previousFrequency = settings.frequencyHz
     var merged = snapshot
-    merged.dxNightModeEnabled = settings.dxNightModeEnabled
-    merged.autoFilterProfileEnabled = false
-    if !includeFrequency {
-      merged.frequencyHz = previousFrequency
-    }
+    let restoredState = SavedSettingsSnapshotCore.restoredState(
+      current: .init(
+        frequencyHz: settings.frequencyHz,
+        dxNightModeEnabled: settings.dxNightModeEnabled,
+        autoFilterProfileEnabled: settings.autoFilterProfileEnabled
+      ),
+      snapshot: .init(
+        frequencyHz: snapshot.frequencyHz,
+        dxNightModeEnabled: snapshot.dxNightModeEnabled,
+        autoFilterProfileEnabled: snapshot.autoFilterProfileEnabled
+      ),
+      includeFrequency: includeFrequency
+    )
+    merged.frequencyHz = restoredState.frequencyHz
+    merged.dxNightModeEnabled = restoredState.dxNightModeEnabled
+    merged.autoFilterProfileEnabled = restoredState.autoFilterProfileEnabled
     merged.tuneStepHz = RadioSessionSettings.normalizedTuneStep(merged.tuneStepHz)
     merged.preferredTuneStepHz = RadioSessionSettings.normalizedTuneStep(merged.preferredTuneStepHz)
     merged.scannerDwellSeconds = RadioSessionSettings.clampedScannerDwellSeconds(merged.scannerDwellSeconds)
@@ -2986,16 +3039,14 @@ final class RadioSessionViewModel: ObservableObject {
         changed = true
       }
 
-      let targetRange = fmdxFrequencyRange(for: settings.mode)
-      if !targetRange.contains(settings.frequencyHz) {
-        settings.frequencyHz = preferredFMDXFrequency(for: settings.mode)
+      let normalizedFrequencyHz = FMDXSessionCore.normalizedSessionFrequencyHz(
+        settings.frequencyHz,
+        mode: settings.mode,
+        memory: fmdxBandMemory
+      )
+      if settings.frequencyHz != normalizedFrequencyHz {
+        settings.frequencyHz = normalizedFrequencyHz
         changed = true
-      } else {
-        let roundedToKHz = Int((Double(settings.frequencyHz) / 1_000.0).rounded()) * 1_000
-        if roundedToKHz != settings.frequencyHz {
-          settings.frequencyHz = roundedToKHz
-          changed = true
-        }
       }
       rememberFMDXFrequency(settings.frequencyHz, mode: settings.mode)
 
@@ -3112,20 +3163,17 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func normalizeFMDXTuneStepHz(_ value: Int, mode: DemodulationMode) -> Int {
-    let profile = BandTuningProfiles.resolve(
-      for: BandTuningContext(
+    SessionTuningCore.tuneStepState(
+      preferredStepHz: value,
+      preferenceMode: settings.tuneStepPreferenceMode,
+      context: BandTuningContext(
         backend: .fmDxWebserver,
         frequencyHz: settings.frequencyHz,
         mode: mode,
         bandName: nil,
         bandTags: []
       )
-    )
-    return resolvedTuneStepHz(
-      value,
-      preferenceMode: settings.tuneStepPreferenceMode,
-      using: profile
-    )
+    ).tuneStepHz
   }
 
   private func normalizeMode(_ mode: DemodulationMode, for backend: SDRBackend) -> DemodulationMode {
@@ -3133,53 +3181,38 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func normalizeFMDXReportedFrequencyHz(fromMHz value: Double) -> Int {
-    let hz = Int((value * 1_000_000.0).rounded())
-    let roundedToKHz = Int((Double(hz) / 1_000.0).rounded()) * 1_000
-    return min(max(roundedToKHz, fmDxOverallFrequencyRangeHz.lowerBound), fmDxOverallFrequencyRangeHz.upperBound)
+    FMDXSessionCore.normalizedReportedFrequencyHz(fromMHz: value)
   }
 
   func inferredFMDXMode(for frequencyHz: Int) -> DemodulationMode {
-    fmdxFrequencyRange(for: .am).contains(frequencyHz) ? .am : .fm
+    FMDXSessionCore.inferredMode(for: frequencyHz)
   }
 
   func fmdxQuickBand(for frequencyHz: Int, mode: DemodulationMode) -> FMDXQuickBand {
-    FMDXQuickBand.resolve(frequencyHz: frequencyHz, mode: mode)
+    FMDXSessionCore.quickBand(for: frequencyHz, mode: mode)
   }
 
   func fmdxFrequencyRange(for mode: DemodulationMode) -> ClosedRange<Int> {
-    switch mode {
-    case .am:
-      return fmDxAMMinFrequencyHz...fmDxAMMaxFrequencyHz
-    default:
-      return fmDxFMMinFrequencyHz...fmDxFMMaxFrequencyHz
-    }
+    SessionFrequencyCore.fmdxFrequencyRange(for: mode)
   }
 
   func normalizedFMDXFrequencyHz(_ value: Int, mode: DemodulationMode) -> Int {
-    let range = fmdxFrequencyRange(for: mode)
-    let roundedToKHz = Int((Double(value) / 1_000.0).rounded()) * 1_000
-    return min(max(roundedToKHz, range.lowerBound), range.upperBound)
+    SessionFrequencyCore.normalizedFrequencyHz(
+      value,
+      backend: .fmDxWebserver,
+      mode: mode
+    )
   }
 
   private func frequencyRange(for backend: SDRBackend?) -> ClosedRange<Int> {
-    switch backend {
-    case .fmDxWebserver:
-      return currentFMDXFrequencyRangeHz
-    case .kiwiSDR:
-      return kiwiFrequencyRangeHz
-    case .openWebRX, .none:
-      return openWebRXFrequencyRangeHz
-    }
+    SessionFrequencyCore.frequencyRange(for: backend, mode: settings.mode)
   }
 
   private func resolveFMDXBandwidthSelectionID(from rawValue: String) -> String {
-    if fmdxCapabilities.bandwidths.contains(where: { $0.id == rawValue }) {
-      return rawValue
-    }
-    if let match = fmdxCapabilities.bandwidths.first(where: { $0.legacyValue == rawValue }) {
-      return match.id
-    }
-    return rawValue
+    FMDXTelemetrySyncCore.resolveBandwidthSelectionID(
+      from: rawValue,
+      capabilities: .init(fmdxCapabilities)
+    )
   }
 
   private func selectedFMDXBandwidthOption() -> FMDXControlOption? {
@@ -3233,15 +3266,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func parseFMDXToggleState(_ raw: String?) -> Bool? {
-    guard let raw else { return nil }
-    let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    if ["1", "on", "true", "enabled", "yes", "auto", "agc"].contains(normalized) {
-      return true
-    }
-    if ["0", "off", "false", "disabled", "no", "manual", "man"].contains(normalized) {
-      return false
-    }
-    return nil
+    FMDXTelemetrySyncCore.parseToggleState(raw)
   }
 
   private func evaluateAutoFMDXFilterProfile(using telemetry: FMDXTelemetry) {
@@ -3381,16 +3406,18 @@ final class RadioSessionViewModel: ObservableObject {
     from client: any SDRBackendClient
   ) {
     guard sessionRecoveryTask == nil else { return }
+    let restoringFrequencyHz = settings.frequencyHz
+    let restoringMode = settings.mode
 
     cancelSessionTransientTasks(resetScannerState: true)
     self.client = nil
     activeBackend = profile.backend
     activeProfileCacheKey = ReceiverIdentity.key(for: profile)
     currentConnectedProfile = nil
-    state = .connecting
-    statusText = L10n.text("session.status.reconnecting_to", profile.name)
-    updateBackendStatusText(L10n.text("session.status.reconnecting_wait"))
-    lastError = nil
+    applySessionLifecyclePresentation(
+      SessionLifecyclePresentationCore.presentation(for: .reconnectingRequested),
+      profileName: profile.name
+    )
 
     sessionRecoveryTask = Task {
       defer { self.sessionRecoveryTask = nil }
@@ -3401,19 +3428,19 @@ final class RadioSessionViewModel: ObservableObject {
       var attempt = 0
 
       while !Task.isCancelled {
-        let delaySeconds = autoReconnectDelaySeconds[min(attempt, autoReconnectDelaySeconds.count - 1)]
         attempt += 1
+        let delaySeconds = AutomaticReconnectCore.delaySeconds(forAttemptNumber: attempt)
         await MainActor.run {
           self.automaticReconnectAttempts += 1
         }
 
         if delaySeconds > 0 {
-          try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+          try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
         }
         if Task.isCancelled { return }
 
         do {
-          let newClient = makeClient(for: profile.backend)
+          let newClient = makeClient(for: profile)
           try await newClient.connect(profile: profile)
           await newClient.setRuntimePolicy(self.runtimePolicy)
           if Task.isCancelled {
@@ -3431,22 +3458,27 @@ final class RadioSessionViewModel: ObservableObject {
             self.historyStore.recordReceiver(profile)
             NowPlayingMetadataController.shared.setReceiverName(profile.name)
             NowPlayingMetadataController.shared.setTitle(nil)
-            self.hasInitialServerTuningSync = false
-            self.initialServerTuningSyncDeadline = Date().addingTimeInterval(4.0)
-            self.state = .connected
+            self.hasInitialServerTuningSync = !InitialServerTuningSyncCore.requiresInitialServerTuningSync(for: profile.backend)
+            self.initialServerTuningSyncDeadline = InitialServerTuningSyncCore.initialSyncDeadlineSeconds(for: profile.backend)
+              .map { Date().addingTimeInterval($0) } ?? .distantPast
             if self.connectedSince == .distantPast {
               self.connectedSince = Date()
             }
-            self.statusText = L10n.text("session.status.connected_to", profile.name)
-            self.updateBackendStatusText(
-              (profile.backend == .openWebRX || profile.backend == .kiwiSDR)
-                ? L10n.text("session.status.sync_tuning")
-                : nil
+            self.applySessionLifecyclePresentation(
+              SessionLifecyclePresentationCore.presentation(
+                for: .connected,
+                backend: profile.backend
+              ),
+              profileName: profile.name
             )
-            self.lastError = nil
             self.startStatusMonitor(profile: profile, client: newClient)
             self.scheduleInitialTuningFallbackAfterConnection(profileID: profile.id)
             self.scheduleListeningHistoryCapture()
+            self.performConnectedSessionRestore(
+              profileID: profile.id,
+              frequencyHz: restoringFrequencyHz,
+              mode: restoringMode
+            )
           }
           Diagnostics.log(
             category: "Session",
@@ -3463,7 +3495,9 @@ final class RadioSessionViewModel: ObservableObject {
             message: "Reconnect attempt \(attempt) failed for \(profile.name): \(error.localizedDescription)"
           )
 
-          if Date().timeIntervalSince(startedAt) >= autoReconnectWindowSeconds {
+          if !AutomaticReconnectCore.shouldContinueRetrying(
+            elapsedSeconds: Date().timeIntervalSince(startedAt)
+          ) {
             break
           }
         }
@@ -3478,10 +3512,11 @@ final class RadioSessionViewModel: ObservableObject {
         self.activeBackend = nil
         self.activeProfileCacheKey = nil
         self.currentConnectedProfile = nil
-        self.state = .failed
-        self.statusText = L10n.text("session.status.connection_lost")
-        self.backendStatusText = nil
-        self.lastError = L10n.text("session.status.reconnect_exhausted")
+        self.applySessionLifecyclePresentation(
+          SessionLifecyclePresentationCore.presentation(
+            for: .connectionLostAfterReconnectExhausted
+          )
+        )
         self.resetRuntimeState(for: nil)
       }
       Diagnostics.log(
@@ -3592,29 +3627,102 @@ final class RadioSessionViewModel: ObservableObject {
     }
   }
 
-  private func statusMonitorIntervalNanoseconds() -> UInt64 {
-    switch runtimePolicy {
-    case .interactive:
-      return 1_300_000_000
-    case .passive:
-      return 2_500_000_000
-    case .background:
-      return 6_000_000_000
+  private func applySessionLifecyclePresentation(
+    _ presentation: SessionLifecyclePresentation,
+    profileName: String? = nil,
+    errorMessage: String? = nil
+  ) {
+    state = connectionState(for: presentation.phase)
+    statusText = localizedSessionStatusText(
+      for: presentation.statusKind,
+      profileName: profileName
+    )
+    updateBackendStatusText(
+      localizedBackendStatusText(for: presentation.backendStatusKind)
+    )
+    lastError = localizedSessionErrorText(
+      for: presentation.errorKind,
+      errorMessage: errorMessage
+    )
+  }
+
+  private func connectionState(
+    for phase: SessionLifecyclePhase
+  ) -> ConnectionState {
+    switch phase {
+    case .disconnected:
+      return .disconnected
+    case .connecting:
+      return .connecting
+    case .connected:
+      return .connected
+    case .failed:
+      return .failed
     }
+  }
+
+  private func localizedSessionStatusText(
+    for kind: SessionLifecycleStatusKind,
+    profileName: String?
+  ) -> String {
+    switch kind {
+    case .disconnected:
+      return L10n.text("session.status.disconnected")
+    case .connectingTo:
+      return L10n.text("session.status.connecting_to", profileName ?? "")
+    case .reconnectingTo:
+      return L10n.text("session.status.reconnecting_to", profileName ?? "")
+    case .connectedTo:
+      return L10n.text("session.status.connected_to", profileName ?? "")
+    case .connectionFailed:
+      return L10n.text("session.status.connection_failed")
+    case .connectionLost:
+      return L10n.text("session.status.connection_lost")
+    }
+  }
+
+  private func localizedBackendStatusText(
+    for kind: SessionLifecycleBackendStatusKind
+  ) -> String? {
+    switch kind {
+    case .none:
+      return nil
+    case .reconnectingWait:
+      return L10n.text("session.status.reconnecting_wait")
+    case .syncingTuning:
+      return L10n.text("session.status.sync_tuning")
+    }
+  }
+
+  private func localizedSessionErrorText(
+    for kind: SessionLifecycleErrorKind,
+    errorMessage: String?
+  ) -> String? {
+    switch kind {
+    case .none:
+      return nil
+    case .providedMessage:
+      return errorMessage
+    case .reconnectExhausted:
+      return L10n.text("session.status.reconnect_exhausted")
+    }
+  }
+
+  private func statusMonitorIntervalNanoseconds() -> UInt64 {
+    UInt64(ConnectionMonitorCore.pollIntervalSeconds(for: runtimePolicy.corePolicy) * 1_000_000_000)
   }
 
   private func shouldRefreshLiveAudioAnalysis() -> Bool {
     let now = Date()
-    switch runtimePolicy {
-    case .interactive:
-      return true
-    case .passive:
-      guard now.timeIntervalSince(lastReducedActivityAudioAnalysisAt) >= 3 else { return false }
-    case .background:
-      guard now.timeIntervalSince(lastReducedActivityAudioAnalysisAt) >= 10 else { return false }
-    }
+    let shouldRefresh = LiveAudioAnalysisRefreshCore.shouldRefresh(
+      policy: runtimePolicy.corePolicy,
+      elapsedSecondsSinceLastReducedActivityRefresh: now.timeIntervalSince(lastReducedActivityAudioAnalysisAt)
+    )
+    guard shouldRefresh else { return false }
 
-    lastReducedActivityAudioAnalysisAt = now
+    if runtimePolicy != .interactive {
+      lastReducedActivityAudioAnalysisAt = now
+    }
     return true
   }
 
@@ -3666,23 +3774,24 @@ final class RadioSessionViewModel: ObservableObject {
       initialTuningFallbackTask = nil
       hasInitialServerTuningSync = true
       NowPlayingMetadataController.shared.setTitle(nil)
-      var changed = false
-      let clamped = min(max(frequencyHz, openWebRXFrequencyRangeHz.lowerBound), openWebRXFrequencyRangeHz.upperBound)
-      if settings.frequencyHz != clamped {
-        settings.frequencyHz = clamped
-        changed = true
-      }
-      if let mode, settings.mode != mode {
-        settings.mode = mode
-        changed = true
-      }
-      if syncTuneStepToCurrentBandIfNeeded() {
-        changed = true
-      }
+      let normalizedFrequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
+        frequencyHz,
+        backend: .openWebRX,
+        mode: mode ?? settings.mode
+      )
+      let bandEntry = openWebRXBandEntry(for: normalizedFrequencyHz)
+      let result = WidebandRemoteTuningCore.synchronizeOpenWebRX(
+        state: currentWidebandRemoteTuningState(),
+        reportedFrequencyHz: frequencyHz,
+        reportedMode: mode,
+        bandName: bandEntry?.name,
+        bandTags: bandEntry?.tags ?? []
+      )
+      let changed = applyWidebandRemoteTuningState(result.state)
       if changed {
         persistSettings()
       }
-      updateBackendStatusText(openWebRXStatusSummary(frequencyHz: clamped, mode: mode))
+      updateBackendStatusText(result.statusSummary)
       scheduleListeningHistoryCapture()
 
     case .kiwiTuning(let frequencyHz, let mode, let bandName, let passband):
@@ -3690,53 +3799,63 @@ final class RadioSessionViewModel: ObservableObject {
       initialTuningFallbackTask = nil
       hasInitialServerTuningSync = true
       NowPlayingMetadataController.shared.setTitle(nil)
-      var changed = false
-      let clamped = min(max(frequencyHz, kiwiFrequencyRangeHz.lowerBound), kiwiFrequencyRangeHz.upperBound)
-      if settings.frequencyHz != clamped {
-        settings.frequencyHz = clamped
-        changed = true
-      }
-      if let mode, settings.mode != mode {
-        settings.mode = mode
-        changed = true
-      }
       let activeMode = mode ?? settings.mode
-      if let passband {
-        let normalizedPassband = RadioSessionSettings.normalizedKiwiBandpass(
-          passband,
-          mode: activeMode,
+      let result = WidebandRemoteTuningCore.synchronizeKiwi(
+        state: currentWidebandRemoteTuningState(),
+        reportedFrequencyHz: frequencyHz,
+        reportedMode: mode,
+        reportedBandName: bandName,
+        currentPassband: settings.kiwiPassband(for: activeMode, sampleRateHz: kiwiTelemetry?.sampleRateHz),
+        reportedPassband: passband,
+        sampleRateHz: kiwiTelemetry?.sampleRateHz
+      )
+      var changed = applyWidebandRemoteTuningState(result.state)
+      if let resolvedPassband = result.resolvedKiwiPassband,
+        settings.kiwiPassband(for: result.state.mode, sampleRateHz: kiwiTelemetry?.sampleRateHz) != resolvedPassband {
+        settings.setKiwiPassband(
+          resolvedPassband,
+          for: result.state.mode,
           sampleRateHz: kiwiTelemetry?.sampleRateHz
         )
-        if settings.kiwiPassband(for: activeMode, sampleRateHz: kiwiTelemetry?.sampleRateHz) != normalizedPassband {
-          settings.setKiwiPassband(
-            normalizedPassband,
-            for: activeMode,
-            sampleRateHz: kiwiTelemetry?.sampleRateHz
-          )
-          changed = true
-        }
-      }
-      currentKiwiBandName = normalizedBandName(bandName)
-      if syncTuneStepToCurrentBandIfNeeded() {
         changed = true
       }
+      currentKiwiBandName = result.normalizedBandName
       if changed {
         persistSettings()
       }
-      updateBackendStatusText(kiwiStatusSummary(frequencyHz: clamped, mode: mode, reportedBandName: bandName))
+      updateBackendStatusText(result.statusSummary)
       scheduleListeningHistoryCapture()
       if activeBackend == .kiwiSDR, state == .connected {
         sendKiwiWaterfallControl()
       }
 
-    case .fmdxCapabilities(let capabilities):
-      fmdxCapabilities = capabilities
-      hasFMDXCapabilitySnapshot = true
-      if settings.mode == .am && !capabilities.supportsAM {
-        settings.mode = .fm
-        settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: .fm)
+    case .fmdxCapabilities(let capabilities, let hasConfirmedSnapshot, _):
+      applyFMDXCapabilityState(
+        .init(
+          capabilities: .init(capabilities),
+          hasConfirmedSnapshot: hasConfirmedSnapshot,
+          usedCachedCapabilities: false
+        )
+      )
+      if FMDXCapabilitiesPolicyCore.isMeaningful(.init(capabilities)) {
+        persistCachedReceiverData { cached in
+          cached.fmdxCapabilities = capabilities
+        }
+      }
+      let capabilitySync = FMDXCapabilitiesSyncCore.synchronizedState(
+        settings: .init(settings),
+        selectedBandwidthID: selectedFMDXBandwidthID,
+        capabilities: .init(capabilities)
+      )
+      if let resolvedBandwidthID = capabilitySync.resolvedBandwidthID {
+        selectedFMDXBandwidthID = resolvedBandwidthID
+      }
+      if capabilitySync.forcedFMBandFallback {
         isShowingFMDXTuneConfirmationWarning = false
         fmdxTuneWarningText = L10n.text("fmdx.band.am_not_supported")
+      }
+      capabilitySync.settings.apply(to: &settings)
+      if capabilitySync.changedSettings {
         persistSettings()
       }
       if activeBackend == .fmDxWebserver, state == .connected {
@@ -3763,53 +3882,35 @@ final class RadioSessionViewModel: ObservableObject {
       lastFMDXTelemetryAppliedAt = Date()
       lastFMDXTelemetryRevision &+= 1
       NowPlayingMetadataController.shared.setTitle(nowPlayingTitle(for: telemetry))
-      var changedSettings = false
-      if let antenna = telemetry.antenna, !antenna.isEmpty {
-        selectedFMDXAntennaID = antenna
+      let telemetrySync = FMDXTelemetrySyncCore.synchronizedState(
+        settings: .init(settings),
+        telemetry: .init(telemetry),
+        capabilities: .init(fmdxCapabilities),
+        bandMemory: fmdxBandMemory,
+        pendingTuneFrequencyHz: pendingFMDXTuneFrequencyHz
+      )
+      fmdxBandMemory = telemetrySync.bandMemory
+      if let antennaID = telemetrySync.resolvedAntennaID {
+        selectedFMDXAntennaID = antennaID
       }
-      if let bandwidth = telemetry.bandwidth, !bandwidth.isEmpty {
-        selectedFMDXBandwidthID = resolveFMDXBandwidthSelectionID(from: bandwidth)
-      }
-      if let agcEnabled = parseFMDXToggleState(telemetry.agc),
-        settings.agcEnabled != agcEnabled {
-        settings.agcEnabled = agcEnabled
-        changedSettings = true
-      }
-      if let eqEnabled = parseFMDXToggleState(telemetry.eq),
-        settings.noiseReductionEnabled != eqEnabled {
-        settings.noiseReductionEnabled = eqEnabled
-        changedSettings = true
-      }
-      if let imsEnabled = parseFMDXToggleState(telemetry.ims),
-        settings.imsEnabled != imsEnabled {
-        settings.imsEnabled = imsEnabled
-        changedSettings = true
+      if let bandwidthID = telemetrySync.resolvedBandwidthID {
+        selectedFMDXBandwidthID = bandwidthID
       }
       reconcilePendingFMDXAudioModeState(with: telemetry)
       logFMDXAudioModeChangeIfNeeded(previous: previousTelemetry, current: telemetry)
-      if let frequencyMHz = telemetry.frequencyMHz {
-        let backendFrequencyHz = normalizeFMDXReportedFrequencyHz(fromMHz: frequencyMHz)
-        let backendMode = inferredFMDXMode(for: backendFrequencyHz)
-        if let pending = pendingFMDXTuneFrequencyHz,
-          abs(backendFrequencyHz - pending) < 1_000 {
-          clearFMDXTuneConfirmationState()
-        }
-        if settings.mode != backendMode {
-          Diagnostics.log(
-            category: "FMDX",
-            message: "Band synchronized from telemetry: previous_mode=\(settings.mode.rawValue) resolved_mode=\(backendMode.rawValue) reported_frequency_hz=\(backendFrequencyHz)"
-          )
-          settings.mode = backendMode
-          settings.tuneStepHz = normalizeFMDXTuneStepHz(settings.preferredTuneStepHz, mode: backendMode)
-          changedSettings = true
-        }
-        if abs(backendFrequencyHz - settings.frequencyHz) >= 1_000 {
-          settings.frequencyHz = backendFrequencyHz
-          changedSettings = true
-        }
-        rememberFMDXFrequency(backendFrequencyHz, mode: backendMode)
+      if telemetrySync.shouldClearPendingTuneConfirmation {
+        clearFMDXTuneConfirmationState()
       }
-      if changedSettings {
+      if telemetrySync.settings.mode != settings.mode,
+        let backendFrequencyHz = telemetrySync.reportedFrequencyHz,
+        let backendMode = telemetrySync.reportedMode {
+        Diagnostics.log(
+          category: "FMDX",
+          message: "Band synchronized from telemetry: previous_mode=\(settings.mode.rawValue) resolved_mode=\(backendMode.rawValue) reported_frequency_hz=\(backendFrequencyHz)"
+        )
+      }
+      telemetrySync.settings.apply(to: &settings)
+      if telemetrySync.changedSettings {
         persistSettings()
         scheduleListeningHistoryCapture()
       }
@@ -3936,94 +4037,24 @@ final class RadioSessionViewModel: ObservableObject {
     guard backend == .kiwiSDR || backend == .openWebRX else { return nil }
 
     let filterProfile = settings.channelScannerInterferenceFilterProfile
-    let thresholds = channelScannerInterferenceFilterThresholds(for: filterProfile)
     let snapshot = SharedAudioOutput.engine.runtimeSnapshot()
-    guard let age = snapshot.secondsSinceLastLevelSample, age <= thresholds.maximumSampleAgeSeconds else {
-      return nil
-    }
-    guard snapshot.recentAnalysisBufferCount >= thresholds.minimumAnalysisBuffers else {
-      return nil
-    }
-    guard
-      let envelopeVariation = snapshot.recentEnvelopeVariation,
-      let zeroCrossingRate = snapshot.recentZeroCrossingRate,
-      let spectralActivity = snapshot.recentSpectralActivity,
-      let levelStdDB = snapshot.recentLevelStdDB
-    else {
-      return nil
-    }
-
-    let metrics =
-      "profile=\(filterProfile.rawValue),std=\(formattedScannerMetric(levelStdDB)),env=\(formattedScannerMetric(envelopeVariation)),zcr=\(formattedScannerMetric(zeroCrossingRate)),texture=\(formattedScannerMetric(spectralActivity)),buffers=\(snapshot.recentAnalysisBufferCount)"
-
-    if levelStdDB <= thresholds.stationaryEnvelopeLevelStdDB,
-      envelopeVariation <= thresholds.stationaryEnvelopeVariation {
-      return "filter=rejected:stationary-envelope,\(metrics)"
-    }
-
-    if levelStdDB <= thresholds.lowFrequencyHumLevelStdDB,
-      zeroCrossingRate <= thresholds.lowFrequencyHumZeroCrossingRate,
-      spectralActivity <= thresholds.lowFrequencyHumSpectralActivity {
-      return "filter=rejected:low-frequency-hum,\(metrics)"
-    }
-
-    if levelStdDB <= thresholds.widebandStaticLevelStdDB,
-      envelopeVariation <= thresholds.widebandStaticEnvelopeVariation,
-      zeroCrossingRate >= thresholds.widebandStaticMinimumZeroCrossingRate,
-      spectralActivity >= thresholds.widebandStaticMinimumSpectralActivity {
-      return "filter=rejected:wideband-static,\(metrics)"
-    }
-
-    return nil
+    return ChannelScannerSignalCore.interferenceFilterState(
+      metrics: ChannelScannerInterferenceMetrics(
+        sampleAgeSeconds: snapshot.secondsSinceLastLevelSample,
+        analysisBufferCount: snapshot.recentAnalysisBufferCount,
+        envelopeVariation: snapshot.recentEnvelopeVariation,
+        zeroCrossingRate: snapshot.recentZeroCrossingRate,
+        spectralActivity: snapshot.recentSpectralActivity,
+        levelStdDB: snapshot.recentLevelStdDB
+      ),
+      profile: filterProfile
+    )
   }
 
   private func channelScannerInterferenceFilterThresholds(
     for profile: ChannelScannerInterferenceFilterProfile
   ) -> ChannelScannerInterferenceFilterThresholds {
-    switch profile {
-    case .gentle:
-      return ChannelScannerInterferenceFilterThresholds(
-        minimumAnalysisBuffers: 4,
-        maximumSampleAgeSeconds: 0.8,
-        stationaryEnvelopeLevelStdDB: 0.70,
-        stationaryEnvelopeVariation: 0.18,
-        lowFrequencyHumLevelStdDB: 0.95,
-        lowFrequencyHumZeroCrossingRate: 0.028,
-        lowFrequencyHumSpectralActivity: 0.18,
-        widebandStaticLevelStdDB: 0.60,
-        widebandStaticEnvelopeVariation: 0.30,
-        widebandStaticMinimumZeroCrossingRate: 0.23,
-        widebandStaticMinimumSpectralActivity: 1.65
-      )
-    case .standard:
-      return ChannelScannerInterferenceFilterThresholds(
-        minimumAnalysisBuffers: 3,
-        maximumSampleAgeSeconds: 0.8,
-        stationaryEnvelopeLevelStdDB: 0.90,
-        stationaryEnvelopeVariation: 0.24,
-        lowFrequencyHumLevelStdDB: 1.20,
-        lowFrequencyHumZeroCrossingRate: 0.035,
-        lowFrequencyHumSpectralActivity: 0.25,
-        widebandStaticLevelStdDB: 0.75,
-        widebandStaticEnvelopeVariation: 0.42,
-        widebandStaticMinimumZeroCrossingRate: 0.18,
-        widebandStaticMinimumSpectralActivity: 1.35
-      )
-    case .strong:
-      return ChannelScannerInterferenceFilterThresholds(
-        minimumAnalysisBuffers: 3,
-        maximumSampleAgeSeconds: 0.8,
-        stationaryEnvelopeLevelStdDB: 1.10,
-        stationaryEnvelopeVariation: 0.30,
-        lowFrequencyHumLevelStdDB: 1.45,
-        lowFrequencyHumZeroCrossingRate: 0.045,
-        lowFrequencyHumSpectralActivity: 0.33,
-        widebandStaticLevelStdDB: 0.95,
-        widebandStaticEnvelopeVariation: 0.50,
-        widebandStaticMinimumZeroCrossingRate: 0.15,
-        widebandStaticMinimumSpectralActivity: 1.15
-      )
-    }
+    ChannelScannerSignalCore.interferenceFilterThresholds(for: profile)
   }
 
   private func isFMDXTuned(to frequencyHz: Int) -> Bool {
@@ -4033,14 +4064,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func defaultScannerThreshold(for backend: SDRBackend) -> Double {
-    switch backend {
-    case .fmDxWebserver:
-      return 20
-    case .kiwiSDR:
-      return -95
-    case .openWebRX:
-      return -42
-    }
+    ChannelScannerSignalCore.defaultThreshold(for: backend)
   }
 
   private func adaptiveDwellSeconds(
@@ -4049,23 +4073,12 @@ final class RadioSessionViewModel: ObservableObject {
     signal: Double?,
     threshold: Double
   ) -> Double {
-    guard adaptive else { return base }
-    guard let signal else { return max(0.5, base * 0.75) }
-
-    let margin = signal - threshold
-    if margin >= 10 {
-      return min(6.0, base * 1.45)
-    }
-    if margin >= 4 {
-      return min(6.0, base * 1.15)
-    }
-    if margin <= -8 {
-      return max(0.5, base * 0.58)
-    }
-    if margin <= -4 {
-      return max(0.5, base * 0.72)
-    }
-    return base
+    ChannelScannerSignalCore.adaptiveDwellSeconds(
+      base,
+      adaptive: adaptive,
+      signal: signal,
+      threshold: threshold
+    )
   }
 
   private func adaptiveHoldSeconds(
@@ -4074,31 +4087,20 @@ final class RadioSessionViewModel: ObservableObject {
     signal: Double?,
     threshold: Double
   ) -> Double {
-    guard adaptive else { return base }
-    guard let signal else { return max(0.5, base * 0.7) }
-
-    let margin = signal - threshold
-    if margin >= 12 {
-      return min(20.0, base * 2.6)
-    }
-    if margin >= 6 {
-      return min(16.0, base * 1.8)
-    }
-    if margin <= 2 {
-      return max(0.5, base * 0.78)
-    }
-    return base
+    ChannelScannerSignalCore.adaptiveHoldSeconds(
+      base,
+      adaptive: adaptive,
+      signal: signal,
+      threshold: threshold
+    )
   }
 
   private func openWebRXStatusSummary(frequencyHz: Int, mode: DemodulationMode?) -> String {
-    var parts: [String] = [FrequencyFormatter.mhzText(fromHz: frequencyHz)]
-    if let mode {
-      parts.append(mode.displayName)
-    }
-    if let band = openWebRXBandEntry(for: frequencyHz) {
-      parts.append(band.name)
-    }
-    return parts.joined(separator: " | ")
+    BackendStatusSummaryCore.openWebRXSummary(
+      frequencyHz: frequencyHz,
+      mode: mode,
+      bandName: openWebRXBandEntry(for: frequencyHz)?.name
+    )
   }
 
   private func kiwiStatusSummary(
@@ -4106,22 +4108,47 @@ final class RadioSessionViewModel: ObservableObject {
     mode: DemodulationMode?,
     reportedBandName: String?
   ) -> String {
-    var parts: [String] = [FrequencyFormatter.mhzText(fromHz: frequencyHz)]
-    if let mode {
-      parts.append(mode.displayName)
-    }
-    if let normalizedBand = normalizedBandName(reportedBandName), !normalizedBand.isEmpty {
-      parts.append(normalizedBand)
-    } else if let inferredBand = inferredKiwiBandName(for: frequencyHz) {
-      parts.append(inferredBand)
-    }
-    return parts.joined(separator: " | ")
+    BackendStatusSummaryCore.kiwiSummary(
+      frequencyHz: frequencyHz,
+      mode: mode,
+      reportedBandName: reportedBandName
+    )
   }
 
   private func normalizedBandName(_ name: String?) -> String? {
-    guard let name else { return nil }
-    let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    return normalized.isEmpty ? nil : normalized
+    BackendStatusSummaryCore.normalizedBandName(name)
+  }
+
+  private func currentWidebandRemoteTuningState() -> WidebandRemoteTuningState {
+    WidebandRemoteTuningState(
+      frequencyHz: settings.frequencyHz,
+      mode: settings.mode,
+      preferredTuneStepHz: settings.preferredTuneStepHz,
+      tuneStepHz: settings.tuneStepHz,
+      tuneStepPreferenceMode: settings.tuneStepPreferenceMode
+    )
+  }
+
+  @discardableResult
+  private func applyWidebandRemoteTuningState(_ state: WidebandRemoteTuningState) -> Bool {
+    var changed = false
+    if settings.frequencyHz != state.frequencyHz {
+      settings.frequencyHz = state.frequencyHz
+      changed = true
+    }
+    if settings.mode != state.mode {
+      settings.mode = state.mode
+      changed = true
+    }
+    if settings.preferredTuneStepHz != state.preferredTuneStepHz {
+      settings.preferredTuneStepHz = state.preferredTuneStepHz
+      changed = true
+    }
+    if settings.tuneStepHz != state.tuneStepHz {
+      settings.tuneStepHz = state.tuneStepHz
+      changed = true
+    }
+    return changed
   }
 
   private func updateBackendStatusText(_ value: String?) {
@@ -4141,12 +4168,11 @@ final class RadioSessionViewModel: ObservableObject {
     deferredRestoreTask?.cancel()
     deferredRestoreTask = Task { [weak self] in
       guard let self else { return }
-      let deadline = Date().addingTimeInterval(10)
+      let deadline = Date().addingTimeInterval(DeferredSessionRestoreCore.deadlineSeconds)
 
-      while !Task.isCancelled && Date() < deadline {
-        if self.state == .connected,
-          self.connectedProfileID == profileID,
-          !self.isWaitingForInitialServerTuningSync() {
+      while !Task.isCancelled {
+        let status = self.deferredSessionRestoreStatus(profileID: profileID, deadline: deadline)
+        if DeferredSessionRestoreCore.shouldApply(status: status) {
           if let mode {
             self.setMode(mode)
           }
@@ -4155,9 +4181,45 @@ final class RadioSessionViewModel: ObservableObject {
           }
           return
         }
+        guard DeferredSessionRestoreCore.shouldContinueWaiting(status: status) else { return }
 
-        try? await Task.sleep(nanoseconds: deferredRestorePollNanoseconds)
+        try? await Task.sleep(
+          nanoseconds: UInt64(DeferredSessionRestoreCore.pollIntervalSeconds * 1_000_000_000)
+        )
       }
+    }
+  }
+
+  private func performConnectedSessionRestore(
+    profileID: UUID,
+    frequencyHz: Int?,
+    mode: DemodulationMode?
+  ) {
+    let action = ConnectedSessionRestoreCore.action(
+      status: .init(
+        hasPendingRestore: frequencyHz != nil || mode != nil,
+        initialTuningSyncStatus: initialServerTuningSyncStatus()
+      )
+    )
+
+    switch action {
+    case .none:
+      return
+
+    case .applyNow:
+      if let mode {
+        setMode(mode)
+      }
+      if let frequencyHz {
+        setFrequencyHz(frequencyHz)
+      }
+
+    case .deferUntilInitialTuningReady:
+      scheduleRestoreAfterConnection(
+        profileID: profileID,
+        frequencyHz: frequencyHz,
+        mode: mode
+      )
     }
   }
 
@@ -4171,7 +4233,9 @@ final class RadioSessionViewModel: ObservableObject {
         if Date() >= self.initialServerTuningSyncDeadline {
           break
         }
-        try? await Task.sleep(nanoseconds: self.deferredRestorePollNanoseconds)
+        try? await Task.sleep(
+          nanoseconds: UInt64(DeferredSessionRestoreCore.pollIntervalSeconds * 1_000_000_000)
+        )
       }
 
       guard !Task.isCancelled else { return }
@@ -4179,9 +4243,7 @@ final class RadioSessionViewModel: ObservableObject {
       await MainActor.run {
         guard self.state == .connected else { return }
         guard self.connectedProfileID == profileID else { return }
-        guard self.activeBackend == .kiwiSDR || self.activeBackend == .openWebRX else { return }
-        guard !self.hasInitialServerTuningSync else { return }
-        guard Date() >= self.initialServerTuningSyncDeadline else { return }
+        guard InitialServerTuningSyncCore.shouldApplyInitialLocalFallback(status: self.initialServerTuningSyncStatus()) else { return }
 
         Diagnostics.log(
           category: "Session",
@@ -4315,6 +4377,11 @@ final class RadioSessionViewModel: ObservableObject {
       openWebRXBandPlan = cached.openWebRXBandPlan
 
     case .fmDxWebserver:
+      applyFMDXCapabilityState(
+        FMDXCapabilitiesSessionCore.restoredState(
+          cached: cached.fmdxCapabilities.map(FMDXCapabilitiesPolicyCore.Capabilities.init)
+        )
+      )
       fmdxServerPresets = cached.fmdxServerPresets
 
     case .kiwiSDR:
@@ -4327,6 +4394,11 @@ final class RadioSessionViewModel: ObservableObject {
     receiverDataCache.update(receiverID: activeProfileCacheKey, mutate: mutate)
   }
 
+  private func applyFMDXCapabilityState(_ state: FMDXCapabilitiesSessionCore.State) {
+    fmdxCapabilities = FMDXCapabilities(state.capabilities)
+    hasFMDXCapabilitySnapshot = state.hasConfirmedSnapshot
+  }
+
   private func rememberOpenWebRXBookmark(_ bookmark: SDRServerBookmark) {
     lastOpenWebRXBookmark = bookmark
     persistCachedReceiverData { cached in
@@ -4335,20 +4407,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func inferredKiwiBandName(for frequencyHz: Int) -> String? {
-    switch frequencyHz {
-    case 150_000...299_999:
-      return "LW"
-    case 300_000...2_999_999:
-      return "MW"
-    case 3_000_000...29_999_999:
-      return "SW"
-    case 64_000_000...110_000_000:
-      return "FM"
-    case 30_000_000...299_999_999:
-      return "VHF"
-    default:
-      return nil
-    }
+    SessionTuningCore.inferredKiwiBandName(for: frequencyHz)
   }
 
   private var fmDxOverallFrequencyRangeHz: ClosedRange<Int> {
@@ -4356,83 +4415,34 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func preferredFMDXFrequency(for mode: DemodulationMode) -> Int {
-    switch mode {
-    case .am:
-      return preferredFMDXFrequency(for: preferredFMDXQuickBand(for: .am))
-    default:
-      return preferredFMDXFrequency(for: preferredFMDXQuickBand(for: .fm))
-    }
+    FMDXSessionCore.preferredFrequency(for: mode, memory: fmdxBandMemory)
   }
 
   private func preferredFMDXFrequency(for band: FMDXQuickBand) -> Int {
-    let preferred: Int
-    switch band {
-    case .lw:
-      preferred = lastFMDXLWFrequencyHz
-    case .mw:
-      preferred = lastFMDXMWFrequencyHz
-    case .sw:
-      preferred = lastFMDXSWFrequencyHz
-    case .oirt:
-      preferred = lastFMDXOIRTFrequencyHz
-    case .fm:
-      preferred = lastFMDXBroadcastFMFrequencyHz
-    }
-
-    return band.rangeHz.contains(preferred) ? preferred : band.defaultFrequencyHz
+    FMDXSessionCore.preferredFrequency(for: band, memory: fmdxBandMemory)
   }
 
   private func preferredFMDXQuickBand(for mode: DemodulationMode) -> FMDXQuickBand {
-    switch mode {
-    case .am:
-      return lastSelectedFMDXAMQuickBand.isAM ? lastSelectedFMDXAMQuickBand : .mw
-    default:
-      return lastSelectedFMDXFMQuickBand.isAM ? .fm : lastSelectedFMDXFMQuickBand
-    }
+    FMDXSessionCore.preferredQuickBand(for: mode, memory: fmdxBandMemory)
   }
 
   private func noteSelectedFMDXQuickBand(_ band: FMDXQuickBand) {
-    switch band.mode {
-    case .am:
-      lastSelectedFMDXAMQuickBand = band
-    default:
-      lastSelectedFMDXFMQuickBand = band
-    }
+    fmdxBandMemory = FMDXSessionCore.notedSelectedQuickBand(band, memory: fmdxBandMemory)
   }
 
   private func rememberFMDXFrequency(_ frequencyHz: Int, mode: DemodulationMode) {
-    let band = fmdxQuickBand(for: frequencyHz, mode: mode)
-
-    switch mode {
-    case .am:
-      guard fmdxFrequencyRange(for: .am).contains(frequencyHz) else { return }
-    default:
-      guard fmdxFrequencyRange(for: .fm).contains(frequencyHz) else { return }
-    }
-
-    switch band {
-    case .lw:
-      lastFMDXLWFrequencyHz = frequencyHz
-    case .mw:
-      lastFMDXMWFrequencyHz = frequencyHz
-    case .sw:
-      lastFMDXSWFrequencyHz = frequencyHz
-    case .oirt:
-      lastFMDXOIRTFrequencyHz = frequencyHz
-    case .fm:
-      lastFMDXBroadcastFMFrequencyHz = frequencyHz
-    }
-
-    noteSelectedFMDXQuickBand(band)
+    fmdxBandMemory = FMDXSessionCore.rememberedFrequency(
+      frequencyHz,
+      mode: mode,
+      memory: fmdxBandMemory
+    )
   }
 
   private func seedFMDXBandMemory() {
-    if fmdxFrequencyRange(for: .am).contains(settings.frequencyHz) {
-      rememberFMDXFrequency(settings.frequencyHz, mode: .am)
-    }
-    if fmdxFrequencyRange(for: .fm).contains(settings.frequencyHz) {
-      rememberFMDXFrequency(settings.frequencyHz, mode: .fm)
-    }
+    fmdxBandMemory = FMDXSessionCore.seededMemory(
+      from: settings.frequencyHz,
+      memory: fmdxBandMemory
+    )
   }
 
   private func resetSessionDiagnostics() {
@@ -4622,8 +4632,7 @@ final class RadioSessionViewModel: ObservableObject {
     lastFMDXTelemetryAppliedAt = .distantPast
     lastFMDXTelemetryRevision = 0
     clearPendingFMDXAudioModeState()
-    fmdxCapabilities = .empty
-    hasFMDXCapabilitySnapshot = false
+    applyFMDXCapabilityState(FMDXCapabilitiesSessionCore.resetState())
     fmdxServerPresets = []
     fmdxPresetSourceDescription = nil
     selectedFMDXAntennaID = nil
@@ -5030,16 +5039,32 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func canPushLocalTuningToServerYet() -> Bool {
-    if hasInitialServerTuningSync {
-      return true
-    }
-    return Date() >= initialServerTuningSyncDeadline
+    InitialServerTuningSyncCore.canApplyLocalTuning(status: initialServerTuningSyncStatus())
   }
 
   private func isWaitingForInitialServerTuningSync() -> Bool {
     guard state == .connected else { return false }
-    guard activeBackend == .openWebRX || activeBackend == .kiwiSDR else { return false }
-    return !canPushLocalTuningToServerYet()
+    return InitialServerTuningSyncCore.isWaitingForInitialServerTuningSync(status: initialServerTuningSyncStatus())
+  }
+
+  private func initialServerTuningSyncStatus() -> InitialServerTuningSyncCore.Status {
+    .init(
+      backend: activeBackend,
+      hasInitialServerTuningSync: hasInitialServerTuningSync,
+      deadlineReached: Date() >= initialServerTuningSyncDeadline
+    )
+  }
+
+  private func deferredSessionRestoreStatus(
+    profileID: UUID,
+    deadline: Date
+  ) -> DeferredSessionRestoreCore.Status {
+    .init(
+      isConnected: state == .connected,
+      isTargetProfileConnected: connectedProfileID == profileID,
+      canApplyLocalTuning: canPushLocalTuningToServerYet(),
+      deadlineReached: Date() >= deadline
+    )
   }
 
   private func tuningBandProfile(for backend: SDRBackend) -> BandTuningProfile {
@@ -5051,13 +5076,11 @@ final class RadioSessionViewModel: ObservableObject {
     preferenceMode: TuneStepPreferenceMode,
     using profile: BandTuningProfile
   ) -> Int {
-    switch preferenceMode {
-    case .automatic:
-      return profile.defaultStepHz
-    case .manual:
-      return profile.stepOptionsHz.min(by: { abs($0 - preferredStepHz) < abs($1 - preferredStepHz) })
-        ?? profile.defaultStepHz
-    }
+    SessionTuningCore.resolvedTuneStep(
+      preferredStepHz: preferredStepHz,
+      preferenceMode: preferenceMode,
+      profile: profile
+    )
   }
 
   private func resolvedTuneStepHz(
@@ -5065,11 +5088,22 @@ final class RadioSessionViewModel: ObservableObject {
     preferenceMode: TuneStepPreferenceMode,
     backend: SDRBackend?
   ) -> Int {
-    guard let backend else { return RadioSessionSettings.normalizedTuneStep(preferredStepHz) }
-    return resolvedTuneStepHz(
-      RadioSessionSettings.normalizedTuneStep(preferredStepHz),
+    tuneStepState(
+      forPreferred: preferredStepHz,
       preferenceMode: preferenceMode,
-      using: tuningBandProfile(for: backend)
+      backend: backend
+    ).tuneStepHz
+  }
+
+  private func tuneStepState(
+    forPreferred preferredStepHz: Int,
+    preferenceMode: TuneStepPreferenceMode,
+    backend: SDRBackend?
+  ) -> ListenSDRCore.TuneStepState {
+    SessionTuningCore.tuneStepState(
+      preferredStepHz: preferredStepHz,
+      preferenceMode: preferenceMode,
+      context: optionalTuningBandContext(for: backend)
     )
   }
 
@@ -5086,23 +5120,29 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
+  private func optionalTuningBandContext(for backend: SDRBackend?) -> BandTuningContext? {
+    guard let backend else { return nil }
+    return tuningBandContext(for: backend)
+  }
+
   private func openWebRXBandEntry(for frequencyHz: Int) -> SDRBandPlanEntry? {
     openWebRXBandPlan.first(where: { $0.lowerBoundHz...$0.upperBoundHz ~= frequencyHz })
   }
 
   private func syncTuneStepToCurrentBandIfNeeded() -> Bool {
     guard let backend = activeBackend else { return false }
-    let profile = tuningBandProfile(for: backend)
-    let resolvedStep = resolvedTuneStepHz(
-      settings.preferredTuneStepHz,
+    let state = tuneStepState(
+      forPreferred: settings.preferredTuneStepHz,
       preferenceMode: settings.tuneStepPreferenceMode,
-      using: profile
+      backend: backend
     )
-    guard settings.tuneStepHz != resolvedStep else { return false }
-    settings.tuneStepHz = resolvedStep
+    let profile = tuningBandProfile(for: backend)
+    guard settings.tuneStepHz != state.tuneStepHz else { return false }
+    settings.preferredTuneStepHz = state.preferredTuneStepHz
+    settings.tuneStepHz = state.tuneStepHz
     Diagnostics.log(
       category: "Session",
-      message: "Tune step adjusted to \(resolvedStep) Hz for band profile \(profile.id) (mode=\(settings.tuneStepPreferenceMode.rawValue))"
+      message: "Tune step adjusted to \(state.tuneStepHz) Hz for band profile \(profile.id) (mode=\(settings.tuneStepPreferenceMode.rawValue))"
     )
     return true
   }

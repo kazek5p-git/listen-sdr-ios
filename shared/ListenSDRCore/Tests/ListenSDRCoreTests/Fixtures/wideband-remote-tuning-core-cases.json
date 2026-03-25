@@ -1,0 +1,120 @@
+{
+  "openWebRXCases": [
+    {
+      "label": "OpenWebRX tuning resolves FM broadcast automatic tune step",
+      "currentState": {
+        "frequencyHz": 7100000,
+        "mode": "am",
+        "preferredTuneStepHz": 12500,
+        "tuneStepHz": 12500,
+        "tuneStepPreferenceMode": "automatic"
+      },
+      "reportedFrequencyHz": 98700000,
+      "reportedMode": "fm",
+      "bandName": "FM Broadcast",
+      "bandTags": ["broadcast"],
+      "expectedState": {
+        "frequencyHz": 98700000,
+        "mode": "fm",
+        "preferredTuneStepHz": 12500,
+        "tuneStepHz": 100000,
+        "tuneStepPreferenceMode": "automatic"
+      },
+      "expectedStatusSummary": "98.700 MHz | FM | FM Broadcast"
+    },
+    {
+      "label": "OpenWebRX manual tune step snaps to nearest airband step",
+      "currentState": {
+        "frequencyHz": 7100000,
+        "mode": "am",
+        "preferredTuneStepHz": 9000,
+        "tuneStepHz": 9000,
+        "tuneStepPreferenceMode": "manual"
+      },
+      "reportedFrequencyHz": 125000000,
+      "reportedMode": "am",
+      "bandName": "Airband",
+      "bandTags": [],
+      "expectedState": {
+        "frequencyHz": 125000000,
+        "mode": "am",
+        "preferredTuneStepHz": 9000,
+        "tuneStepHz": 8330,
+        "tuneStepPreferenceMode": "manual"
+      },
+      "expectedStatusSummary": "125.000 MHz | AM | Airband"
+    }
+  ],
+  "kiwiCases": [
+    {
+      "label": "Kiwi tuning trims band name and syncs HF tune step",
+      "currentState": {
+        "frequencyHz": 7100000,
+        "mode": "am",
+        "preferredTuneStepHz": 500,
+        "tuneStepHz": 500,
+        "tuneStepPreferenceMode": "automatic"
+      },
+      "reportedFrequencyHz": 7050000,
+      "reportedMode": "usb",
+      "reportedBandName": " 40m ",
+      "currentPassband": {
+        "lowCut": -4900,
+        "highCut": 4900
+      },
+      "reportedPassband": {
+        "lowCut": 200,
+        "highCut": 2800
+      },
+      "sampleRateHz": 12000,
+      "expectedState": {
+        "frequencyHz": 7050000,
+        "mode": "usb",
+        "preferredTuneStepHz": 500,
+        "tuneStepHz": 100,
+        "tuneStepPreferenceMode": "automatic"
+      },
+      "expectedNormalizedBandName": "40m",
+      "expectedResolvedPassband": {
+        "lowCut": 200,
+        "highCut": 2800
+      },
+      "expectedStatusSummary": "7.050 MHz | USB | 40m"
+    },
+    {
+      "label": "Kiwi tuning falls back to inferred band and normalized passband",
+      "currentState": {
+        "frequencyHz": 1000000,
+        "mode": "am",
+        "preferredTuneStepHz": 12500,
+        "tuneStepHz": 12500,
+        "tuneStepPreferenceMode": "automatic"
+      },
+      "reportedFrequencyHz": 64000000,
+      "reportedMode": "am",
+      "reportedBandName": " ",
+      "currentPassband": {
+        "lowCut": -4900,
+        "highCut": 4900
+      },
+      "reportedPassband": {
+        "lowCut": 9000,
+        "highCut": 9000
+      },
+      "sampleRateHz": 12000,
+      "expectedState": {
+        "frequencyHz": 32000000,
+        "mode": "am",
+        "preferredTuneStepHz": 12500,
+        "tuneStepHz": 12500,
+        "tuneStepPreferenceMode": "automatic"
+      },
+      "expectedNormalizedBandName": null,
+      "expectedResolvedPassband": {
+        "lowCut": -4900,
+        "highCut": 4900
+      },
+      "expectedStatusSummary": "32.000 MHz | AM | VHF"
+    }
+  ]
+}

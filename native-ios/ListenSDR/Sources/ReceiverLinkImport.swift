@@ -38,12 +38,13 @@ enum ReceiverLinkImportDetector {
     let backend = try detectBackend(from: inspectedURL, html: page.body)
     let normalizedPath = normalizedProfilePath(for: backend, rawPath: inspectedURL.path)
     let displayName = await suggestedName(for: inspectedURL, backend: backend, html: page.body)
+    let useTLS = inspectedURL.scheme?.lowercased() == "https"
     let profile = SDRConnectionProfile(
       name: displayName,
       backend: backend,
       host: inspectedURL.host() ?? "",
-      port: inspectedURL.port ?? defaultPort(for: backend, useTLS: inspectedURL.scheme?.lowercased() == "https"),
-      useTLS: inspectedURL.scheme?.lowercased() == "https",
+      port: inspectedURL.port ?? backend.defaultPort(useTLS: useTLS),
+      useTLS: useTLS,
       path: normalizedPath
     )
 
@@ -138,6 +139,13 @@ enum ReceiverLinkImportDetector {
       }
       return normalizedPath(trimmed)
     }
+  }
+
+  static func adjustedProfile(_ profile: SDRConnectionProfile, for backend: SDRBackend) -> SDRConnectionProfile {
+    var adjusted = profile
+    adjusted.applyBackendChange(backend)
+    adjusted.path = normalizedProfilePath(for: backend, rawPath: profile.path)
+    return adjusted
   }
 
   private static func normalizeInspectableURL(_ url: URL) -> URL {
@@ -245,14 +253,5 @@ enum ReceiverLinkImportDetector {
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
     return title.isEmpty ? nil : title
-  }
-
-  private static func defaultPort(for backend: SDRBackend, useTLS: Bool) -> Int {
-    switch backend {
-    case .kiwiSDR, .openWebRX:
-      return 8073
-    case .fmDxWebserver:
-      return useTLS ? 443 : 8080
-    }
   }
 }

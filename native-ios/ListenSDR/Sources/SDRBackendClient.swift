@@ -1,6 +1,7 @@
 import AVFAudio
 import AudioToolbox
 import Foundation
+import ListenSDRCore
 
 enum BackendRuntimePolicy: Equatable {
   case interactive
@@ -9,6 +10,28 @@ enum BackendRuntimePolicy: Equatable {
 
   var allowsVisualTelemetry: Bool {
     self == .interactive
+  }
+
+  init(_ policy: BackendRuntimePolicyCore.Policy) {
+    switch policy {
+    case .interactive:
+      self = .interactive
+    case .passive:
+      self = .passive
+    case .background:
+      self = .background
+    }
+  }
+
+  var corePolicy: BackendRuntimePolicyCore.Policy {
+    switch self {
+    case .interactive:
+      return .interactive
+    case .passive:
+      return .passive
+    case .background:
+      return .background
+    }
   }
 }
 
@@ -2906,6 +2929,7 @@ final class FMDXMP3AudioPlayer {
 
 actor FMDXWebserverClient: SDRBackendClient {
   let backend: SDRBackend = .fmDxWebserver
+  private let cachedCapabilities: FMDXCapabilities?
 
   private var socket: URLSessionWebSocketTask?
   private var audioSocket: URLSessionWebSocketTask?
@@ -2936,6 +2960,10 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var lastPublishedFMDXPresets: [SDRServerBookmark] = []
   private var lastPublishedFMDXPresetSource = "unknown"
   private var runtimePolicy: BackendRuntimePolicy = .interactive
+
+  init(cachedCapabilities: FMDXCapabilities? = nil) {
+    self.cachedCapabilities = cachedCapabilities
+  }
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -3011,11 +3039,23 @@ actor FMDXWebserverClient: SDRBackendClient {
       indexHTML: html,
       apiScript: apiScript
     )
-    lastCapabilities = capabilities
-    log(
-      "Resolved capabilities: supportsAM=\(capabilities.supportsAM) scriptLoaded=\(apiScript != nil) antennas=\(capabilities.antennas.count) bandwidths=\(capabilities.bandwidths.count) filters=\(capabilities.supportsFilterControls) agc=\(capabilities.supportsAGCControl)"
+    let resolvedCapabilities = FMDXCapabilitiesCacheCore.resolve(
+      primary: .init(capabilities),
+      fallback: cachedCapabilities.map(ListenSDRCore.FMDXCapabilitiesPolicyCore.Capabilities.init)
     )
-    enqueueTelemetry(.fmdxCapabilities(capabilities))
+    let capabilityState = FMDXCapabilitiesSessionCore.connectedState(resolution: resolvedCapabilities)
+    let effectiveCapabilities = FMDXCapabilities(capabilityState.capabilities)
+    lastCapabilities = effectiveCapabilities
+    log(
+      "Resolved capabilities: supportsAM=\(effectiveCapabilities.supportsAM) scriptLoaded=\(apiScript != nil) antennas=\(effectiveCapabilities.antennas.count) bandwidths=\(effectiveCapabilities.bandwidths.count) filters=\(effectiveCapabilities.supportsFilterControls) agc=\(effectiveCapabilities.supportsAGCControl) confirmedSnapshot=\(capabilityState.hasConfirmedSnapshot) usedCachedCapabilities=\(capabilityState.usedCachedCapabilities)"
+    )
+    enqueueTelemetry(
+      .fmdxCapabilities(
+        effectiveCapabilities,
+        hasConfirmedSnapshot: capabilityState.hasConfirmedSnapshot,
+        usedCachedCapabilities: capabilityState.usedCachedCapabilities
+      )
+    )
   }
 
   func disconnect() async {

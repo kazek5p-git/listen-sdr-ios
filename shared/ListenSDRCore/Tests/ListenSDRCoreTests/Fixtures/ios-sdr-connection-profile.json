@@ -1,0 +1,11 @@
+{
+  "id": "0f1e2d3c-4b5a-6978-8091-a2b3c4d5e6f7",
+  "name": "Portable FM-DX",
+  "backend": "fmdx",
+  "host": "receiver.example",
+  "port": 443,
+  "useTLS": true,
+  "path": "/radio",
+  "username": "demo",
+  "password": "secret"
+}

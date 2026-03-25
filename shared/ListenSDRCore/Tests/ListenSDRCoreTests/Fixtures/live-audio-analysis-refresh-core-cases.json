@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "label": "interactive always refreshes immediately",
+      "policy": "interactive",
+      "elapsedSecondsSinceLastReducedActivityRefresh": 0.0,
+      "expectedShouldRefresh": true
+    },
+    {
+      "label": "passive waits below three seconds",
+      "policy": "passive",
+      "elapsedSecondsSinceLastReducedActivityRefresh": 2.9,
+      "expectedShouldRefresh": false
+    },
+    {
+      "label": "passive refreshes at three seconds",
+      "policy": "passive",
+      "elapsedSecondsSinceLastReducedActivityRefresh": 3.0,
+      "expectedShouldRefresh": true
+    },
+    {
+      "label": "background waits below ten seconds",
+      "policy": "background",
+      "elapsedSecondsSinceLastReducedActivityRefresh": 9.9,
+      "expectedShouldRefresh": false
+    },
+    {
+      "label": "background refreshes at ten seconds",
+      "policy": "background",
+      "elapsedSecondsSinceLastReducedActivityRefresh": 10.0,
+      "expectedShouldRefresh": true
+    }
+  ]
+}

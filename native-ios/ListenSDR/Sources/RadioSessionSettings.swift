@@ -1,4 +1,5 @@
 import Foundation
+import ListenSDRCore
 
 enum VoiceOverRDSAnnouncementMode: String, Codable, CaseIterable, Identifiable {
   case off
@@ -15,6 +16,86 @@ enum VoiceOverRDSAnnouncementMode: String, Codable, CaseIterable, Identifiable {
       return L10n.text("settings.accessibility.voiceover_rds_mode.station_only")
     case .full:
       return L10n.text("settings.accessibility.voiceover_rds_mode.full")
+    }
+  }
+}
+
+enum MagicTapAction: String, Codable, CaseIterable, Identifiable {
+  case toggleMute
+  case disconnect
+  case toggleRecording
+
+  var id: String { rawValue }
+
+  private static let legacyStopRecordingIfActiveOtherwiseToggleMuteRawValue =
+    "stopRecordingIfActiveOtherwiseToggleMute"
+
+  var localizedTitle: String {
+    switch self {
+    case .toggleMute:
+      return L10n.text("settings.accessibility.magic_tap.toggle_mute")
+    case .disconnect:
+      return L10n.text("settings.accessibility.magic_tap.disconnect")
+    case .toggleRecording:
+      return L10n.text("settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute")
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .toggleMute:
+      return L10n.text("settings.accessibility.magic_tap.toggle_mute.detail")
+    case .disconnect:
+      return L10n.text("settings.accessibility.magic_tap.disconnect.detail")
+    case .toggleRecording:
+      return L10n.text("settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute.detail")
+    }
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let rawValue = try container.decode(String.self)
+
+    switch rawValue {
+    case Self.legacyStopRecordingIfActiveOtherwiseToggleMuteRawValue:
+      self = .toggleRecording
+    case let value where MagicTapAction(rawValue: value) != nil:
+      self = MagicTapAction(rawValue: value)!
+    default:
+      throw DecodingError.dataCorruptedError(
+        in: container,
+        debugDescription: "Unknown MagicTapAction raw value: \(rawValue)"
+      )
+    }
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(rawValue)
+  }
+}
+
+enum RadiosSearchFiltersVisibility: String, Codable, CaseIterable, Identifiable {
+  case alwaysVisible
+  case whileSearchFieldActive
+
+  var id: String { rawValue }
+
+  var localizedTitle: String {
+    switch self {
+    case .alwaysVisible:
+      return L10n.text("settings.radios.search_filters.always_visible")
+    case .whileSearchFieldActive:
+      return L10n.text("settings.radios.search_filters.while_search_active")
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .alwaysVisible:
+      return L10n.text("settings.radios.search_filters.always_visible.detail")
+    case .whileSearchFieldActive:
+      return L10n.text("settings.radios.search_filters.while_search_active.detail")
     }
   }
 }
@@ -83,37 +164,7 @@ enum TuningGestureDirection: String, Codable, CaseIterable, Identifiable {
   }
 }
 
-enum TuneStepPreferenceMode: String, Codable, CaseIterable, Identifiable {
-  case manual
-  case automatic
-
-  var id: String { rawValue }
-
-  var localizedTitle: String {
-    switch self {
-    case .manual:
-      return L10n.text("settings.tuning.global_step.manual")
-    case .automatic:
-      return L10n.text("settings.tuning.global_step.automatic")
-    }
-  }
-
-  var localizedDetail: String {
-    switch self {
-    case .manual:
-      return L10n.text("settings.tuning.global_step.manual.detail")
-    case .automatic:
-      return L10n.text("settings.tuning.global_step.automatic.detail")
-    }
-  }
-}
-
-enum FMDXBandScanStartBehavior: String, Codable, CaseIterable, Identifiable {
-  case fromBeginning
-  case fromCurrentFrequency
-
-  var id: String { rawValue }
-
+extension FMDXBandScanStartBehavior {
   var localizedTitle: String {
     switch self {
     case .fromBeginning:
@@ -140,13 +191,7 @@ enum FMDXBandScanHitBehavior: String, Codable, CaseIterable, Identifiable {
   }
 }
 
-enum ChannelScannerInterferenceFilterProfile: String, Codable, CaseIterable, Identifiable {
-  case gentle
-  case standard
-  case strong
-
-  var id: String { rawValue }
-
+extension ChannelScannerInterferenceFilterProfile {
   var localizedTitle: String {
     switch self {
     case .gentle:
@@ -341,6 +386,10 @@ struct RadioSessionSettings: Codable, Equatable {
   var kiwiWaterfallMaxDB: Int
   var showRdsErrorCounters: Bool
   var voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode
+  var magicTapAction: MagicTapAction
+  var accessibilityInteractionSoundsEnabled: Bool
+  var accessibilityInteractionSoundsVolume: Double
+  var accessibilityInteractionSoundsMutedDuringRecording: Bool
   var dxNightModeEnabled: Bool
   var autoFilterProfileEnabled: Bool
   var adaptiveScannerEnabled: Bool
@@ -358,6 +407,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var openReceiverAfterHistoryRestore: Bool
   var showRecentFrequencies: Bool
   var includeRecentFrequenciesFromOtherReceivers: Bool
+  var radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility
   var autoConnectSelectedProfileOnLaunch: Bool
   var saveChannelScannerResultsEnabled: Bool
   var stopChannelScannerOnSignal: Bool
@@ -413,6 +463,10 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMaxDB: -20,
     showRdsErrorCounters: false,
     voiceOverRDSAnnouncementMode: .off,
+    magicTapAction: .toggleMute,
+    accessibilityInteractionSoundsEnabled: false,
+    accessibilityInteractionSoundsVolume: 1.0,
+    accessibilityInteractionSoundsMutedDuringRecording: false,
     dxNightModeEnabled: false,
     autoFilterProfileEnabled: false,
     adaptiveScannerEnabled: false,
@@ -430,6 +484,7 @@ struct RadioSessionSettings: Codable, Equatable {
     openReceiverAfterHistoryRestore: false,
     showRecentFrequencies: true,
     includeRecentFrequenciesFromOtherReceivers: false,
+    radiosSearchFiltersVisibility: .alwaysVisible,
     autoConnectSelectedProfileOnLaunch: false,
     saveChannelScannerResultsEnabled: false,
     stopChannelScannerOnSignal: false,
@@ -477,6 +532,10 @@ struct RadioSessionSettings: Codable, Equatable {
     case showRdsErrorCounters
     case voiceOverRDSAnnouncementMode
     case voiceOverAnnouncesRDSChanges
+    case magicTapAction
+    case accessibilityInteractionSoundsEnabled
+    case accessibilityInteractionSoundsVolume
+    case accessibilityInteractionSoundsMutedDuringRecording
     case dxNightModeEnabled
     case autoFilterProfileEnabled
     case adaptiveScannerEnabled
@@ -494,6 +553,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case openReceiverAfterHistoryRestore
     case showRecentFrequencies
     case includeRecentFrequenciesFromOtherReceivers
+    case radiosSearchFiltersVisibility
     case autoConnectSelectedProfileOnLaunch
     case saveChannelScannerResultsEnabled
     case stopChannelScannerOnSignal
@@ -540,6 +600,10 @@ struct RadioSessionSettings: Codable, Equatable {
     kiwiWaterfallMaxDB: Int,
     showRdsErrorCounters: Bool,
     voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode,
+    magicTapAction: MagicTapAction = Self.default.magicTapAction,
+    accessibilityInteractionSoundsEnabled: Bool = Self.default.accessibilityInteractionSoundsEnabled,
+    accessibilityInteractionSoundsVolume: Double = Self.default.accessibilityInteractionSoundsVolume,
+    accessibilityInteractionSoundsMutedDuringRecording: Bool = Self.default.accessibilityInteractionSoundsMutedDuringRecording,
     dxNightModeEnabled: Bool,
     autoFilterProfileEnabled: Bool,
     adaptiveScannerEnabled: Bool,
@@ -557,6 +621,7 @@ struct RadioSessionSettings: Codable, Equatable {
     openReceiverAfterHistoryRestore: Bool,
     showRecentFrequencies: Bool = Self.default.showRecentFrequencies,
     includeRecentFrequenciesFromOtherReceivers: Bool = Self.default.includeRecentFrequenciesFromOtherReceivers,
+    radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility = Self.default.radiosSearchFiltersVisibility,
     autoConnectSelectedProfileOnLaunch: Bool,
     saveChannelScannerResultsEnabled: Bool = Self.default.saveChannelScannerResultsEnabled,
     stopChannelScannerOnSignal: Bool = Self.default.stopChannelScannerOnSignal,
@@ -617,6 +682,12 @@ struct RadioSessionSettings: Codable, Equatable {
     }
     self.showRdsErrorCounters = showRdsErrorCounters
     self.voiceOverRDSAnnouncementMode = voiceOverRDSAnnouncementMode
+    self.magicTapAction = magicTapAction
+    self.accessibilityInteractionSoundsEnabled = accessibilityInteractionSoundsEnabled
+    self.accessibilityInteractionSoundsVolume = Self.clampedAccessibilityInteractionSoundsVolume(
+      accessibilityInteractionSoundsVolume
+    )
+    self.accessibilityInteractionSoundsMutedDuringRecording = accessibilityInteractionSoundsMutedDuringRecording
     self.dxNightModeEnabled = dxNightModeEnabled
     self.autoFilterProfileEnabled = autoFilterProfileEnabled
     self.adaptiveScannerEnabled = adaptiveScannerEnabled
@@ -637,6 +708,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.openReceiverAfterHistoryRestore = openReceiverAfterHistoryRestore
     self.showRecentFrequencies = showRecentFrequencies
     self.includeRecentFrequenciesFromOtherReceivers = includeRecentFrequenciesFromOtherReceivers
+    self.radiosSearchFiltersVisibility = radiosSearchFiltersVisibility
     self.autoConnectSelectedProfileOnLaunch = autoConnectSelectedProfileOnLaunch
     self.saveChannelScannerResultsEnabled = saveChannelScannerResultsEnabled
     self.stopChannelScannerOnSignal = stopChannelScannerOnSignal
@@ -769,6 +841,18 @@ struct RadioSessionSettings: Codable, Equatable {
           ? .full
           : Self.default.voiceOverRDSAnnouncementMode
       )
+    magicTapAction = try container.decodeIfPresent(MagicTapAction.self, forKey: .magicTapAction)
+      ?? Self.default.magicTapAction
+    accessibilityInteractionSoundsEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .accessibilityInteractionSoundsEnabled)
+      ?? Self.default.accessibilityInteractionSoundsEnabled
+    accessibilityInteractionSoundsVolume = Self.clampedAccessibilityInteractionSoundsVolume(
+      try container.decodeIfPresent(Double.self, forKey: .accessibilityInteractionSoundsVolume)
+        ?? Self.default.accessibilityInteractionSoundsVolume
+    )
+    accessibilityInteractionSoundsMutedDuringRecording =
+      try container.decodeIfPresent(Bool.self, forKey: .accessibilityInteractionSoundsMutedDuringRecording)
+      ?? Self.default.accessibilityInteractionSoundsMutedDuringRecording
     dxNightModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxNightModeEnabled) ?? Self.default.dxNightModeEnabled
     autoFilterProfileEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoFilterProfileEnabled) ?? Self.default.autoFilterProfileEnabled
     adaptiveScannerEnabled = try container.decodeIfPresent(Bool.self, forKey: .adaptiveScannerEnabled) ?? Self.default.adaptiveScannerEnabled
@@ -818,6 +902,9 @@ struct RadioSessionSettings: Codable, Equatable {
     includeRecentFrequenciesFromOtherReceivers =
       try container.decodeIfPresent(Bool.self, forKey: .includeRecentFrequenciesFromOtherReceivers)
       ?? Self.default.includeRecentFrequenciesFromOtherReceivers
+    radiosSearchFiltersVisibility =
+      try container.decodeIfPresent(RadiosSearchFiltersVisibility.self, forKey: .radiosSearchFiltersVisibility)
+      ?? Self.default.radiosSearchFiltersVisibility
     autoConnectSelectedProfileOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .autoConnectSelectedProfileOnLaunch)
       ?? Self.default.autoConnectSelectedProfileOnLaunch
     saveChannelScannerResultsEnabled = try container.decodeIfPresent(Bool.self, forKey: .saveChannelScannerResultsEnabled)
@@ -880,6 +967,10 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(kiwiWaterfallMaxDB, forKey: .kiwiWaterfallMaxDB)
     try container.encode(showRdsErrorCounters, forKey: .showRdsErrorCounters)
     try container.encode(voiceOverRDSAnnouncementMode, forKey: .voiceOverRDSAnnouncementMode)
+    try container.encode(magicTapAction, forKey: .magicTapAction)
+    try container.encode(accessibilityInteractionSoundsEnabled, forKey: .accessibilityInteractionSoundsEnabled)
+    try container.encode(accessibilityInteractionSoundsVolume, forKey: .accessibilityInteractionSoundsVolume)
+    try container.encode(accessibilityInteractionSoundsMutedDuringRecording, forKey: .accessibilityInteractionSoundsMutedDuringRecording)
     try container.encode(dxNightModeEnabled, forKey: .dxNightModeEnabled)
     try container.encode(autoFilterProfileEnabled, forKey: .autoFilterProfileEnabled)
     try container.encode(adaptiveScannerEnabled, forKey: .adaptiveScannerEnabled)
@@ -900,6 +991,7 @@ struct RadioSessionSettings: Codable, Equatable {
       includeRecentFrequenciesFromOtherReceivers,
       forKey: .includeRecentFrequenciesFromOtherReceivers
     )
+    try container.encode(radiosSearchFiltersVisibility, forKey: .radiosSearchFiltersVisibility)
     try container.encode(autoConnectSelectedProfileOnLaunch, forKey: .autoConnectSelectedProfileOnLaunch)
     try container.encode(saveChannelScannerResultsEnabled, forKey: .saveChannelScannerResultsEnabled)
     try container.encode(stopChannelScannerOnSignal, forKey: .stopChannelScannerOnSignal)
@@ -955,11 +1047,10 @@ struct RadioSessionSettings: Codable, Equatable {
     min(max(value, -50_000_000), 50_000_000)
   }
 
-  static let kiwiMinimumPassbandHz = 4
+  static let kiwiMinimumPassbandHz = KiwiPassbandCore.minimumPassbandHz
 
   static func kiwiPassbandLimitHz(sampleRateHz: Int?) -> Int {
-    let halfRate = max((sampleRateHz ?? 0) / 2, 5_000)
-    return max(halfRate, kiwiMinimumPassbandHz)
+    KiwiPassbandCore.passbandLimitHz(sampleRateHz: sampleRateHz)
   }
 
   static func normalizedKiwiBandpass(
@@ -967,48 +1058,17 @@ struct RadioSessionSettings: Codable, Equatable {
     mode: DemodulationMode,
     sampleRateHz: Int?
   ) -> ReceiverBandpass {
-    let normalizedMode = mode.normalized(for: .kiwiSDR)
-    let limitHz = kiwiPassbandLimitHz(sampleRateHz: sampleRateHz)
-    let fallback = normalizedMode.kiwiDefaultBandpass
-    var lowCut = min(max(bandpass.lowCut, -limitHz), limitHz)
-    var highCut = min(max(bandpass.highCut, -limitHz), limitHz)
-
-    if lowCut >= highCut {
-      lowCut = min(max(fallback.lowCut, -limitHz), limitHz)
-      highCut = min(max(fallback.highCut, -limitHz), limitHz)
-    }
-
-    let minWidth = kiwiMinimumPassbandHz
-    if (highCut - lowCut) < minWidth {
-      let center = (lowCut + highCut) / 2
-      lowCut = center - (minWidth / 2)
-      highCut = lowCut + minWidth
-      if lowCut < -limitHz {
-        lowCut = -limitHz
-        highCut = lowCut + minWidth
-      }
-      if highCut > limitHz {
-        highCut = limitHz
-        lowCut = highCut - minWidth
-      }
-    }
-
-    if lowCut >= highCut {
-      let fallbackLow = min(max(fallback.lowCut, -limitHz), limitHz)
-      let fallbackHigh = min(max(fallback.highCut, -limitHz), limitHz)
-      return ReceiverBandpass(lowCut: min(fallbackLow, fallbackHigh - minWidth), highCut: max(fallbackHigh, fallbackLow + minWidth))
-    }
-
-    return ReceiverBandpass(lowCut: lowCut, highCut: highCut)
+    KiwiPassbandCore.normalizedBandpass(
+      bandpass,
+      mode: mode,
+      sampleRateHz: sampleRateHz
+    )
   }
 
   func kiwiPassband(for mode: DemodulationMode, sampleRateHz: Int?) -> ReceiverBandpass {
     let normalizedMode = mode.normalized(for: .kiwiSDR)
-    if let storedBandpass = kiwiPassbandsByMode[normalizedMode.rawValue] {
-      return Self.normalizedKiwiBandpass(storedBandpass, mode: normalizedMode, sampleRateHz: sampleRateHz)
-    }
-    return Self.normalizedKiwiBandpass(
-      normalizedMode.kiwiDefaultBandpass,
+    return KiwiPassbandCore.resolvedBandpass(
+      storedBandpass: kiwiPassbandsByMode[normalizedMode.rawValue],
       mode: normalizedMode,
       sampleRateHz: sampleRateHz
     )
@@ -1113,5 +1173,10 @@ struct RadioSessionSettings: Codable, Equatable {
 
   static func clampedFMDXCustomScanMetadataWindowSeconds(_ value: Double) -> Double {
     min(max(value, 0.0), 2.0)
+  }
+
+  static func clampedAccessibilityInteractionSoundsVolume(_ value: Double) -> Double {
+    let clamped = min(max(value, 0.5), 2.5)
+    return (clamped * 20).rounded() / 20
   }
 }

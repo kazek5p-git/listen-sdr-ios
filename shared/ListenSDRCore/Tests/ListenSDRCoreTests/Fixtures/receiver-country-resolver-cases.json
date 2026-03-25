@@ -1,0 +1,82 @@
+{
+  "countryCodeCases": [
+    {
+      "label": "uk maps to gb",
+      "countryCode": "UK",
+      "countryName": null,
+      "expectedCode": "GB"
+    },
+    {
+      "label": "direct iso code wins",
+      "countryCode": "HU",
+      "countryName": "USA",
+      "expectedCode": "HU"
+    },
+    {
+      "label": "falls back to country name",
+      "countryCode": null,
+      "countryName": "USA",
+      "expectedCode": "US"
+    },
+    {
+      "label": "unknown values stay nil",
+      "countryCode": null,
+      "countryName": null,
+      "expectedCode": null
+    }
+  ],
+  "countryNameCases": [
+    {
+      "label": "usa alias",
+      "rawValue": "USA",
+      "expectedCode": "US"
+    },
+    {
+      "label": "flag prefix",
+      "rawValue": "🇭🇺 Hungary",
+      "expectedCode": "HU"
+    },
+    {
+      "label": "manual alias holland",
+      "rawValue": "Holland",
+      "expectedCode": "NL"
+    },
+    {
+      "label": "blank returns nil",
+      "rawValue": "   ",
+      "expectedCode": null
+    }
+  ],
+  "metadataCases": [
+    {
+      "label": "uppercase token in location",
+      "locationLabel": "Budapest, HU",
+      "host": "example.com",
+      "expectedCode": "HU"
+    },
+    {
+      "label": "uk in metadata label",
+      "locationLabel": "Canterbury UK",
+      "host": null,
+      "expectedCode": "GB"
+    },
+    {
+      "label": "flag in metadata label",
+      "locationLabel": "🇵🇱 Warsaw",
+      "host": null,
+      "expectedCode": "PL"
+    },
+    {
+      "label": "falls back to host tld",
+      "locationLabel": null,
+      "host": "receiver.de",
+      "expectedCode": "DE"
+    },
+    {
+      "label": "unknown host tld stays nil",
+      "locationLabel": null,
+      "host": "receiver.example",
+      "expectedCode": null
+    }
+  ]
+}

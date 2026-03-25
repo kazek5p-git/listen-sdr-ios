@@ -1,0 +1,82 @@
+{
+  "stateCases": [
+    {
+      "label": "manual state without backend only normalizes preferred step",
+      "preferredStepHz": 77,
+      "preferenceMode": "manual",
+      "context": null,
+      "expectedTuneStepHz": 100,
+      "expectedPreferredTuneStepHz": 100
+    },
+    {
+      "label": "automatic broadcast fm resolves to default channel step",
+      "preferredStepHz": 50000,
+      "preferenceMode": "automatic",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 102500000,
+        "mode": "fm",
+        "bandName": "Broadcast FM",
+        "bandTags": ["broadcast"]
+      },
+      "expectedTuneStepHz": 100000,
+      "expectedPreferredTuneStepHz": 50000
+    },
+    {
+      "label": "manual hf ssb keeps fine preferred step snapped to supported value",
+      "preferredStepHz": 700,
+      "preferenceMode": "manual",
+      "context": {
+        "backend": "kiwiSDR",
+        "frequencyHz": 7100000,
+        "mode": "usb",
+        "bandName": "40m",
+        "bandTags": ["hamradio"]
+      },
+      "expectedTuneStepHz": 500,
+      "expectedPreferredTuneStepHz": 500
+    },
+    {
+      "label": "automatic airband resolves to 8.33 kHz",
+      "preferredStepHz": 10000,
+      "preferenceMode": "automatic",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 125000000,
+        "mode": "am",
+        "bandName": null,
+        "bandTags": []
+      },
+      "expectedTuneStepHz": 8330,
+      "expectedPreferredTuneStepHz": 10000
+    }
+  ],
+  "manualSelectionCases": [
+    {
+      "label": "manual selection in broadcast fm snaps to nearest channel step",
+      "requestedStepHz": 75000,
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 102500000,
+        "mode": "fm",
+        "bandName": "Broadcast FM",
+        "bandTags": ["broadcast"]
+      },
+      "expectedTuneStepHz": 50000,
+      "expectedPreferredTuneStepHz": 50000
+    },
+    {
+      "label": "manual selection in wideband channel profile prefers 8.33 over 9 kHz",
+      "requestedStepHz": 9000,
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 433920000,
+        "mode": "fm",
+        "bandName": "ISM",
+        "bandTags": []
+      },
+      "expectedTuneStepHz": 8330,
+      "expectedPreferredTuneStepHz": 9000
+    }
+  ]
+}

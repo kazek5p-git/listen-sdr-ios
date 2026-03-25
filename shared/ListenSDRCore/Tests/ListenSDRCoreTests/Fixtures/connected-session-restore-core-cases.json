@@ -1,0 +1,58 @@
+{
+  "cases": [
+    {
+      "label": "no_restore_snapshot_returns_none",
+      "backend": "openWebRX",
+      "frequencyHz": null,
+      "mode": null,
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": false,
+      "expectedAction": "none"
+    },
+    {
+      "label": "non_sync_backend_applies_immediately",
+      "backend": "fmDxWebserver",
+      "frequencyHz": 103500000,
+      "mode": "fm",
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": false,
+      "expectedAction": "applyNow"
+    },
+    {
+      "label": "kiwi_waits_for_initial_tuning_sync",
+      "backend": "kiwiSDR",
+      "frequencyHz": 7250000,
+      "mode": "usb",
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": false,
+      "expectedAction": "deferUntilInitialTuningReady"
+    },
+    {
+      "label": "openwebrx_applies_after_initial_tuning_sync",
+      "backend": "openWebRX",
+      "frequencyHz": 14250000,
+      "mode": "am",
+      "hasInitialServerTuningSync": true,
+      "deadlineReached": false,
+      "expectedAction": "applyNow"
+    },
+    {
+      "label": "deadline_reached_allows_restore",
+      "backend": "kiwiSDR",
+      "frequencyHz": 3700000,
+      "mode": "lsb",
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": true,
+      "expectedAction": "applyNow"
+    },
+    {
+      "label": "nil_backend_defaults_to_apply_now",
+      "backend": null,
+      "frequencyHz": 900000,
+      "mode": "am",
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": false,
+      "expectedAction": "applyNow"
+    }
+  ]
+}

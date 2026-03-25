@@ -91,7 +91,10 @@ private struct ShortcutCommandHost: View {
       .allowsHitTesting(false)
       .accessibilityHidden(true)
       .onAppear {
-        SystemRemoteCommandController.shared.bind(radioSession: radioSession)
+        SystemRemoteCommandController.shared.bind(
+          radioSession: radioSession,
+          recordingStore: recordingStore
+        )
         processPendingShortcuts()
       }
       .onChange(of: scenePhase) { phase in

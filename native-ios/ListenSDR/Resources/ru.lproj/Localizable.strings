@@ -522,6 +522,14 @@
 "settings.accessibility.voiceover_rds.hint" = "Когда VoiceOver активен, зачитывает новое имя станции или текст RDS после изменения.";
 "settings.accessibility.voiceover_rds_mode" = "Озвучивание RDS в VoiceOver";
 "settings.accessibility.voiceover_rds_mode.full" = "Полный RDS";
+"settings.accessibility.magic_tap" = "Действие Magic Tap";
+"settings.accessibility.magic_tap.hint" = "Выберите, что должен делать системный жест Magic Tap, когда Listen SDR активен.";
+"settings.accessibility.magic_tap.toggle_mute" = "Вкл. или выкл. звук";
+"settings.accessibility.magic_tap.toggle_mute.detail" = "Сохраняет текущее поведение и переключает приглушение звука.";
+"settings.accessibility.magic_tap.disconnect" = "Отключить приёмник";
+"settings.accessibility.magic_tap.disconnect.detail" = "Завершает текущее соединение и останавливает аудиопоток.";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute" = "Начать или остановить запись";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute.detail" = "Останавливает активную запись; иначе начинает запись текущего приёмника.";
 "settings.accessibility.voiceover_rds_mode.hint" = "Выберите, должен ли VoiceOver читать только информацию о станции или полные обновления RDS.";
 "settings.accessibility.voiceover_rds_mode.off" = "Выкл.";
 "settings.accessibility.voiceover_rds_mode.station_only" = "Только станция";
@@ -752,3 +760,21 @@
 "scanner.channel.status.stopped_on_signal" = "Сканер остановлен на %@.";
 "scanner.channel.openwebrx_audio_hint" = "В OpenWebRX обнаружение основано на активности аудио. Если сканер ловит слишком много шума, повысьте порог.";
 "scanner.channel.kiwi_hint" = "В KiwiSDR обнаружение основано на RSSI. Для более слабых сигналов понизьте порог.";
+
+"settings.accessibility.interaction_sounds" = "Звуки переключателей";
+"settings.accessibility.interaction_sounds.hint" = "Проигрывает более низкий тон при выключении и более высокий при включении, например для беззвучного режима и стерео.";
+"accessibility.magic_tap.muted" = "Звук выключен";
+"accessibility.magic_tap.unmuted" = "Звук включен";
+"settings.radios.section" = "Радио";
+"settings.radios.search_filters" = "Видимость фильтров поиска";
+"settings.radios.search_filters.hint" = "Выбирает, должны ли фильтры поиска и истории на вкладке Радио быть видимыми всегда или только пока активно поле поиска.";
+"settings.radios.search_filters.always_visible" = "Всегда видимы";
+"settings.radios.search_filters.always_visible.detail" = "Всегда показывает фильтры поиска и истории.";
+"settings.radios.search_filters.while_search_active" = "Только во время поиска";
+"settings.radios.search_filters.while_search_active.detail" = "Показывает фильтры только когда поле поиска активно и клавиатура открыта.";
+"settings.accessibility.interaction_sounds.mute_while_recording" = "Отключать во время записи";
+"settings.accessibility.interaction_sounds.mute_while_recording.hint" = "Отключает звуки переключателей во время активной записи. Сигналы начала и остановки записи при этом сохраняются.";
+"settings.accessibility.interaction_sounds.preview" = "Прослушать звук";
+"settings.accessibility.interaction_sounds.preview.hint" = "Воспроизводит пример звука переключателя с текущей громкостью.";
+"settings.accessibility.interaction_sounds.volume" = "Громкость звуков переключателей";
+"settings.accessibility.interaction_sounds.volume.hint" = "Регулирует громкость звуков переключателей и сигналов начала и остановки записи.";

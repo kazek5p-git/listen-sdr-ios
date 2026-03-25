@@ -1,0 +1,7 @@
+import Foundation
+import ListenSDRCore
+
+typealias ChannelScannerInterferenceMetrics = ListenSDRCore.ChannelScannerInterferenceMetrics
+typealias ChannelScannerInterferenceFilterThresholds = ListenSDRCore.ChannelScannerInterferenceFilterThresholds
+typealias ChannelScannerInterferenceFilterProfile = ListenSDRCore.ChannelScannerInterferenceFilterProfile
+typealias ChannelScannerSignalCore = ListenSDRCore.ChannelScannerSignalCore

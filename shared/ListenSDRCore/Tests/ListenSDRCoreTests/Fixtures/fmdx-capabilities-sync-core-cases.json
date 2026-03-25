@@ -1,0 +1,101 @@
+{
+  "syncCases": [
+    {
+      "label": "legacy bandwidth id remaps without forcing mode change",
+      "input": {
+        "settings": {
+          "frequencyHz": 99800000,
+          "tuneStepHz": 100000,
+          "preferredTuneStepHz": 100000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm"
+        },
+        "selectedBandwidthID": "150000",
+        "capabilities": {
+          "bandwidths": [
+            {
+              "id": "narrow",
+              "legacyValue": "150000"
+            }
+          ],
+          "supportsAM": true
+        }
+      },
+      "expected": {
+        "settings": {
+          "frequencyHz": 99800000,
+          "tuneStepHz": 100000,
+          "preferredTuneStepHz": 100000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm"
+        },
+        "resolvedBandwidthID": "narrow",
+        "changedSettings": false,
+        "forcedFMBandFallback": false
+      }
+    },
+    {
+      "label": "unsupported am falls back to fm and keeps mw tune step profile",
+      "input": {
+        "settings": {
+          "frequencyHz": 1062000,
+          "tuneStepHz": 9000,
+          "preferredTuneStepHz": 10000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "am"
+        },
+        "selectedBandwidthID": null,
+        "capabilities": {
+          "bandwidths": [],
+          "supportsAM": false
+        }
+      },
+      "expected": {
+        "settings": {
+          "frequencyHz": 1062000,
+          "tuneStepHz": 10000,
+          "preferredTuneStepHz": 10000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm"
+        },
+        "resolvedBandwidthID": null,
+        "changedSettings": true,
+        "forcedFMBandFallback": true
+      }
+    },
+    {
+      "label": "blank bandwidth id stays nil and mode remains unchanged",
+      "input": {
+        "settings": {
+          "frequencyHz": 70300000,
+          "tuneStepHz": 30000,
+          "preferredTuneStepHz": 30000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm"
+        },
+        "selectedBandwidthID": "",
+        "capabilities": {
+          "bandwidths": [
+            {
+              "id": "wide",
+              "legacyValue": "110000"
+            }
+          ],
+          "supportsAM": true
+        }
+      },
+      "expected": {
+        "settings": {
+          "frequencyHz": 70300000,
+          "tuneStepHz": 30000,
+          "preferredTuneStepHz": 30000,
+          "tuneStepPreferenceMode": "manual",
+          "mode": "fm"
+        },
+        "resolvedBandwidthID": null,
+        "changedSettings": false,
+        "forcedFMBandFallback": false
+      }
+    }
+  ]
+}

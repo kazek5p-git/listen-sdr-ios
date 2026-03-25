@@ -1,3 +1,4 @@
+import ListenSDRCore
 import SwiftUI
 
 struct SettingsView: View {
@@ -9,16 +10,17 @@ struct SettingsView: View {
   var body: some View {
     NavigationStack {
       Form {
-      sessionSection
-      tuningSection
-      scannerSections
-      dxSection
-      historySection
-      audioSection
-      accessibilitySection
-      diagnosticsSection
-      feedbackSection
-      quickActionsSection
+        sessionSection
+        tuningSection
+        scannerSections
+        dxSection
+        historySection
+        radiosSection
+        audioSection
+        accessibilitySection
+        diagnosticsSection
+        feedbackSection
+        quickActionsSection
         authorSection
       }
       .voiceOverStable()
@@ -158,6 +160,30 @@ struct SettingsView: View {
     Section {
       NavigationLink {
         SelectionListView(
+          title: L10n.text("settings.accessibility.magic_tap"),
+          options: MagicTapAction.allCases.map { action in
+            SelectionListOption(
+              id: action.rawValue,
+              title: action.localizedTitle,
+              detail: action.localizedDetail
+            )
+          },
+          selectedID: settingsController.state.magicTapAction.rawValue
+        ) { value in
+          if let action = MagicTapAction(rawValue: value) {
+            settingsController.setMagicTapAction(action)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.accessibility.magic_tap"),
+          value: settingsController.state.magicTapAction.localizedTitle
+        )
+      }
+      .accessibilityHint(L10n.text("settings.accessibility.magic_tap.hint"))
+
+      NavigationLink {
+        SelectionListView(
           title: L10n.text("settings.accessibility.voiceover_rds_mode"),
           options: VoiceOverRDSAnnouncementMode.allCases.map { mode in
             SelectionListOption(id: mode.rawValue, title: mode.localizedTitle, detail: nil)
@@ -175,6 +201,44 @@ struct SettingsView: View {
         )
       }
       .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds_mode.hint"))
+
+      Toggle(
+        L10n.text("settings.accessibility.interaction_sounds"),
+        isOn: Binding(
+          get: { settingsController.state.accessibilityInteractionSoundsEnabled },
+          set: { settingsController.setAccessibilityInteractionSoundsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.accessibility.interaction_sounds.hint"))
+
+      percentageSlider(
+        title: L10n.text("settings.accessibility.interaction_sounds.volume"),
+        value: settingsController.state.accessibilityInteractionSoundsVolume,
+        range: 0.5...2.5,
+        step: 0.05,
+        hintKey: "settings.accessibility.interaction_sounds.volume.hint"
+      ) {
+        settingsController.setAccessibilityInteractionSoundsVolume($0)
+      }
+      .disabled(!settingsController.state.accessibilityInteractionSoundsEnabled)
+
+      FocusRetainingButton {
+        AppInteractionFeedbackCenter.playInteractionSoundPreviewIfEnabled()
+      } label: {
+        Text(L10n.text("settings.accessibility.interaction_sounds.preview"))
+      }
+      .disabled(!settingsController.state.accessibilityInteractionSoundsEnabled)
+      .accessibilityHint(L10n.text("settings.accessibility.interaction_sounds.preview.hint"))
+
+      Toggle(
+        L10n.text("settings.accessibility.interaction_sounds.mute_while_recording"),
+        isOn: Binding(
+          get: { settingsController.state.accessibilityInteractionSoundsMutedDuringRecording },
+          set: { settingsController.setAccessibilityInteractionSoundsMutedDuringRecording($0) }
+        )
+      )
+      .disabled(!settingsController.state.accessibilityInteractionSoundsEnabled)
+      .accessibilityHint(L10n.text("settings.accessibility.interaction_sounds.mute_while_recording.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.accessibility.section"))
     }
@@ -212,6 +276,37 @@ struct SettingsView: View {
       .accessibilityHint(L10n.text("settings.history.include_other_receivers.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.history.section"))
+    }
+    .appSectionStyle()
+  }
+
+  private var radiosSection: some View {
+    Section {
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text("settings.radios.search_filters"),
+          options: RadiosSearchFiltersVisibility.allCases.map { visibility in
+            SelectionListOption(
+              id: visibility.rawValue,
+              title: visibility.localizedTitle,
+              detail: visibility.localizedDetail
+            )
+          },
+          selectedID: settingsController.state.radiosSearchFiltersVisibility.rawValue
+        ) { value in
+          if let visibility = RadiosSearchFiltersVisibility(rawValue: value) {
+            settingsController.setRadiosSearchFiltersVisibility(visibility)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.radios.search_filters"),
+          value: settingsController.state.radiosSearchFiltersVisibility.localizedTitle
+        )
+      }
+      .accessibilityHint(L10n.text("settings.radios.search_filters.hint"))
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.radios.section"))
     }
     .appSectionStyle()
   }
@@ -670,6 +765,38 @@ struct SettingsView: View {
         label: title,
         value: "\(String(format: valueFormat, value)) s",
         hint: hintKey.map { L10n.text($0) }
+      )
+    }
+  }
+
+  private func percentageSlider(
+    title: String,
+    value: Double,
+    range: ClosedRange<Double>,
+    step: Double,
+    hintKey: String,
+    onChange: @escaping (Double) -> Void
+  ) -> some View {
+    let percentageValue = Int((value * 100).rounded())
+    return VStack(alignment: .leading, spacing: 6) {
+      LabeledContent(
+        title,
+        value: "\(percentageValue)%"
+      )
+      .accessibilityHidden(true)
+
+      Slider(
+        value: Binding(
+          get: { value },
+          set: { onChange($0) }
+        ),
+        in: range,
+        step: step
+      )
+      .accessibleControl(
+        label: title,
+        value: "\(percentageValue)%",
+        hint: L10n.text(hintKey)
       )
     }
   }

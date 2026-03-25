@@ -289,6 +289,90 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertTrue(decoded.mixWithOtherAudioApps)
   }
 
+  func testMagicTapActionDefaultsToToggleMuteAndRoundTrips() throws {
+    XCTAssertEqual(RadioSessionSettings.default.magicTapAction, .toggleMute)
+
+    var settings = RadioSessionSettings.default
+    settings.magicTapAction = .toggleRecording
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertEqual(decoded.magicTapAction, .toggleRecording)
+  }
+
+  func testMagicTapActionDefaultsWhenDecodingLegacySettingsWithoutStoredValue() throws {
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: Data("{}".utf8))
+
+    XCTAssertEqual(decoded.magicTapAction, .toggleMute)
+  }
+
+  func testMagicTapActionDecodesLegacyStopRecordingOrMuteValueAsToggleRecording() throws {
+    let decoded = try JSONDecoder().decode(
+      RadioSessionSettings.self,
+      from: Data(#"{"magicTapAction":"stopRecordingIfActiveOtherwiseToggleMute"}"#.utf8)
+    )
+
+    XCTAssertEqual(decoded.magicTapAction, .toggleRecording)
+  }
+
+  func testAccessibilityInteractionSoundsDefaultToDisabledAndRoundTrip() throws {
+    XCTAssertFalse(RadioSessionSettings.default.accessibilityInteractionSoundsEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.accessibilityInteractionSoundsEnabled = true
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertTrue(decoded.accessibilityInteractionSoundsEnabled)
+  }
+
+  func testAccessibilityInteractionSoundsVolumeDefaultsToOneAndRoundTrip() throws {
+    XCTAssertEqual(RadioSessionSettings.default.accessibilityInteractionSoundsVolume, 1.0, accuracy: 0.0001)
+
+    var settings = RadioSessionSettings.default
+    settings.accessibilityInteractionSoundsVolume = 1.85
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertEqual(decoded.accessibilityInteractionSoundsVolume, 1.85, accuracy: 0.0001)
+  }
+
+  func testAccessibilityInteractionSoundsVolumeClampsWhenDecodingOutOfRangeValue() throws {
+    let decoded = try JSONDecoder().decode(
+      RadioSessionSettings.self,
+      from: Data(#"{"accessibilityInteractionSoundsVolume":3.1}"#.utf8)
+    )
+
+    XCTAssertEqual(decoded.accessibilityInteractionSoundsVolume, 2.5, accuracy: 0.0001)
+  }
+
+  func testAccessibilityInteractionSoundsMutedDuringRecordingDefaultsToDisabledAndRoundTrip() throws {
+    XCTAssertFalse(RadioSessionSettings.default.accessibilityInteractionSoundsMutedDuringRecording)
+
+    var settings = RadioSessionSettings.default
+    settings.accessibilityInteractionSoundsMutedDuringRecording = true
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertTrue(decoded.accessibilityInteractionSoundsMutedDuringRecording)
+  }
+
+  func testRadiosSearchFiltersVisibilityDefaultsToAlwaysVisibleAndRoundTrips() throws {
+    XCTAssertEqual(RadioSessionSettings.default.radiosSearchFiltersVisibility, .alwaysVisible)
+
+    var settings = RadioSessionSettings.default
+    settings.radiosSearchFiltersVisibility = .whileSearchFieldActive
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertEqual(decoded.radiosSearchFiltersVisibility, .whileSearchFieldActive)
+  }
+
   func testRecentFrequenciesSettingsHaveExpectedDefaultsAndRoundTrip() throws {
     XCTAssertTrue(RadioSessionSettings.default.showRecentFrequencies)
     XCTAssertFalse(RadioSessionSettings.default.includeRecentFrequenciesFromOtherReceivers)
@@ -319,6 +403,23 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertEqual(decoded.channelScannerInterferenceFilterProfile, .strong)
   }
 
+  func testSharedNormalizationFixturesMatchCurrentIOSBehavior() throws {
+    let fixture = try SharedRadioSessionSettingsNormalizationFixtureLoader.load()
+
+    for testCase in fixture.cases {
+      let decoded = try JSONDecoder().decode(
+        RadioSessionSettings.self,
+        from: Data(testCase.inputJSON.utf8)
+      )
+
+      assertExpectedSettings(
+        decoded,
+        expected: testCase.expected,
+        label: testCase.label
+      )
+    }
+  }
+
   func testCachedReceiverDataRoundTripsLastOpenWebRXBookmark() throws {
     let bookmark = SDRServerBookmark(
       id: "bookmark-1",
@@ -345,6 +446,7 @@ final class RadioSessionSettingsTests: XCTestCase {
         )
       ],
       fmdxServerPresets: [],
+      fmdxCapabilities: nil,
       fmdxSavedScanResults: [],
       savedAt: Date(timeIntervalSince1970: 1_700_000_000)
     )
@@ -355,5 +457,156 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertEqual(decoded.lastOpenWebRXBookmark, bookmark)
     XCTAssertEqual(decoded.savedChannelScannerResults.count, 1)
     XCTAssertEqual(decoded.savedChannelScannerResults.first?.signalUnit, "dBFS")
+  }
+
+  private func assertExpectedSettings(
+    _ settings: RadioSessionSettings,
+    expected: SharedRadioSessionSettingsNormalizationExpected,
+    label: String
+  ) {
+    if let tuneStepHz = expected.tuneStepHz {
+      XCTAssertEqual(settings.tuneStepHz, tuneStepHz, label)
+    }
+    if let preferredTuneStepHz = expected.preferredTuneStepHz {
+      XCTAssertEqual(settings.preferredTuneStepHz, preferredTuneStepHz, label)
+    }
+    if let openWebRXSquelchLevel = expected.openWebRXSquelchLevel {
+      XCTAssertEqual(settings.openWebRXSquelchLevel, openWebRXSquelchLevel, label)
+    }
+    if let kiwiSquelchThreshold = expected.kiwiSquelchThreshold {
+      XCTAssertEqual(settings.kiwiSquelchThreshold, kiwiSquelchThreshold, label)
+    }
+    if let kiwiNoiseBlankerGate = expected.kiwiNoiseBlankerGate {
+      XCTAssertEqual(settings.kiwiNoiseBlankerGate, kiwiNoiseBlankerGate, label)
+    }
+    if let kiwiNoiseBlankerThreshold = expected.kiwiNoiseBlankerThreshold {
+      XCTAssertEqual(settings.kiwiNoiseBlankerThreshold, kiwiNoiseBlankerThreshold, label)
+    }
+    if let kiwiNoiseBlankerWildThreshold = expected.kiwiNoiseBlankerWildThreshold {
+      XCTAssertEqual(settings.kiwiNoiseBlankerWildThreshold, kiwiNoiseBlankerWildThreshold, accuracy: 0.0001, label)
+    }
+    if let kiwiNoiseBlankerWildTaps = expected.kiwiNoiseBlankerWildTaps {
+      XCTAssertEqual(settings.kiwiNoiseBlankerWildTaps, kiwiNoiseBlankerWildTaps, label)
+    }
+    if let kiwiNoiseBlankerWildImpulseSamples = expected.kiwiNoiseBlankerWildImpulseSamples {
+      XCTAssertEqual(settings.kiwiNoiseBlankerWildImpulseSamples, kiwiNoiseBlankerWildImpulseSamples, label)
+    }
+    if let kiwiDenoiseEnabled = expected.kiwiDenoiseEnabled {
+      XCTAssertEqual(settings.kiwiDenoiseEnabled, kiwiDenoiseEnabled, label)
+    }
+    if let kiwiAutonotchEnabled = expected.kiwiAutonotchEnabled {
+      XCTAssertEqual(settings.kiwiAutonotchEnabled, kiwiAutonotchEnabled, label)
+    }
+    if let kiwiPassbandsByMode = expected.kiwiPassbandsByMode {
+      XCTAssertEqual(settings.kiwiPassbandsByMode, kiwiPassbandsByMode, label)
+    }
+    if let kiwiWaterfallSpeed = expected.kiwiWaterfallSpeed {
+      XCTAssertEqual(settings.kiwiWaterfallSpeed, kiwiWaterfallSpeed, label)
+    }
+    if let kiwiWaterfallWindowFunction = expected.kiwiWaterfallWindowFunction {
+      XCTAssertEqual(settings.kiwiWaterfallWindowFunction, kiwiWaterfallWindowFunction, label)
+    }
+    if let kiwiWaterfallInterpolation = expected.kiwiWaterfallInterpolation {
+      XCTAssertEqual(settings.kiwiWaterfallInterpolation, kiwiWaterfallInterpolation, label)
+    }
+    if let kiwiWaterfallZoom = expected.kiwiWaterfallZoom {
+      XCTAssertEqual(settings.kiwiWaterfallZoom, kiwiWaterfallZoom, label)
+    }
+    if let kiwiWaterfallPanOffsetBins = expected.kiwiWaterfallPanOffsetBins {
+      XCTAssertEqual(settings.kiwiWaterfallPanOffsetBins, kiwiWaterfallPanOffsetBins, label)
+    }
+    if let kiwiWaterfallMinDB = expected.kiwiWaterfallMinDB {
+      XCTAssertEqual(settings.kiwiWaterfallMinDB, kiwiWaterfallMinDB, label)
+    }
+    if let kiwiWaterfallMaxDB = expected.kiwiWaterfallMaxDB {
+      XCTAssertEqual(settings.kiwiWaterfallMaxDB, kiwiWaterfallMaxDB, label)
+    }
+    if let accessibilityInteractionSoundsVolume = expected.accessibilityInteractionSoundsVolume {
+      XCTAssertEqual(
+        settings.accessibilityInteractionSoundsVolume,
+        accessibilityInteractionSoundsVolume,
+        accuracy: 0.0001,
+        label
+      )
+    }
+    if let scannerDwellSeconds = expected.scannerDwellSeconds {
+      XCTAssertEqual(settings.scannerDwellSeconds, scannerDwellSeconds, accuracy: 0.0001, label)
+    }
+    if let scannerHoldSeconds = expected.scannerHoldSeconds {
+      XCTAssertEqual(settings.scannerHoldSeconds, scannerHoldSeconds, accuracy: 0.0001, label)
+    }
+    if let fmdxAudioStartupBufferSeconds = expected.fmdxAudioStartupBufferSeconds {
+      XCTAssertEqual(settings.fmdxAudioStartupBufferSeconds, fmdxAudioStartupBufferSeconds, accuracy: 0.0001, label)
+    }
+    if let fmdxAudioMaxLatencySeconds = expected.fmdxAudioMaxLatencySeconds {
+      XCTAssertEqual(settings.fmdxAudioMaxLatencySeconds, fmdxAudioMaxLatencySeconds, accuracy: 0.0001, label)
+    }
+    if let fmdxAudioPacketHoldSeconds = expected.fmdxAudioPacketHoldSeconds {
+      XCTAssertEqual(settings.fmdxAudioPacketHoldSeconds, fmdxAudioPacketHoldSeconds, accuracy: 0.0001, label)
+    }
+    if let fmdxCustomScanSettleSeconds = expected.fmdxCustomScanSettleSeconds {
+      XCTAssertEqual(settings.fmdxCustomScanSettleSeconds, fmdxCustomScanSettleSeconds, accuracy: 0.0001, label)
+    }
+    if let fmdxCustomScanMetadataWindowSeconds = expected.fmdxCustomScanMetadataWindowSeconds {
+      XCTAssertEqual(
+        settings.fmdxCustomScanMetadataWindowSeconds,
+        fmdxCustomScanMetadataWindowSeconds,
+        accuracy: 0.0001,
+        label
+      )
+    }
+  }
+}
+
+private struct SharedRadioSessionSettingsNormalizationFixtureSet: Decodable {
+  let cases: [Case]
+
+  struct Case: Decodable {
+    let label: String
+    let inputJSON: String
+    let expected: SharedRadioSessionSettingsNormalizationExpected
+  }
+}
+
+private struct SharedRadioSessionSettingsNormalizationExpected: Decodable {
+  let tuneStepHz: Int?
+  let preferredTuneStepHz: Int?
+  let openWebRXSquelchLevel: Int?
+  let kiwiSquelchThreshold: Int?
+  let kiwiNoiseBlankerGate: Int?
+  let kiwiNoiseBlankerThreshold: Int?
+  let kiwiNoiseBlankerWildThreshold: Double?
+  let kiwiNoiseBlankerWildTaps: Int?
+  let kiwiNoiseBlankerWildImpulseSamples: Int?
+  let kiwiDenoiseEnabled: Bool?
+  let kiwiAutonotchEnabled: Bool?
+  let kiwiPassbandsByMode: [String: ReceiverBandpass]?
+  let kiwiWaterfallSpeed: Int?
+  let kiwiWaterfallWindowFunction: Int?
+  let kiwiWaterfallInterpolation: Int?
+  let kiwiWaterfallZoom: Int?
+  let kiwiWaterfallPanOffsetBins: Int?
+  let kiwiWaterfallMinDB: Int?
+  let kiwiWaterfallMaxDB: Int?
+  let accessibilityInteractionSoundsVolume: Double?
+  let scannerDwellSeconds: Double?
+  let scannerHoldSeconds: Double?
+  let fmdxAudioStartupBufferSeconds: Double?
+  let fmdxAudioMaxLatencySeconds: Double?
+  let fmdxAudioPacketHoldSeconds: Double?
+  let fmdxCustomScanSettleSeconds: Double?
+  let fmdxCustomScanMetadataWindowSeconds: Double?
+}
+
+private enum SharedRadioSessionSettingsNormalizationFixtureLoader {
+  static func load() throws -> SharedRadioSessionSettingsNormalizationFixtureSet {
+    let fixtureURL = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("shared/ListenSDRCore/Tests/ListenSDRCoreTests/Fixtures/ios-radio-session-settings-normalization-cases.json")
+
+    let data = try Data(contentsOf: fixtureURL)
+    return try JSONDecoder().decode(SharedRadioSessionSettingsNormalizationFixtureSet.self, from: data)
   }
 }

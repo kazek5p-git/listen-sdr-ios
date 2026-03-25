@@ -1,4 +1,5 @@
 import Foundation
+import ListenSDRCore
 
 struct OpenWebRXProfileOption: Identifiable, Hashable, Codable {
   let id: String
@@ -48,13 +49,13 @@ struct FMDXTxInfo: Equatable {
   let regional: Bool?
 }
 
-struct FMDXControlOption: Identifiable, Hashable {
+struct FMDXControlOption: Identifiable, Hashable, Codable {
   let id: String
   let label: String
   let legacyValue: String?
 }
 
-struct FMDXCapabilities: Equatable {
+struct FMDXCapabilities: Equatable, Codable {
   let antennas: [FMDXControlOption]
   let bandwidths: [FMDXControlOption]
   let supportsAM: Bool
@@ -141,7 +142,7 @@ enum BackendTelemetryEvent: Equatable {
   case openWebRXBandPlan([SDRBandPlanEntry])
   case openWebRXTuning(frequencyHz: Int, mode: DemodulationMode?)
   case kiwiTuning(frequencyHz: Int, mode: DemodulationMode?, bandName: String?, passband: ReceiverBandpass?)
-  case fmdxCapabilities(FMDXCapabilities)
+  case fmdxCapabilities(FMDXCapabilities, hasConfirmedSnapshot: Bool, usedCachedCapabilities: Bool)
   case fmdxPresets([SDRServerBookmark], source: String)
   case fmdx(FMDXTelemetry)
   case kiwi(KiwiTelemetry)

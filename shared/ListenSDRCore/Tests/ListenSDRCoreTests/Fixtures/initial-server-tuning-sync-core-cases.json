@@ -1,0 +1,86 @@
+{
+  "deadlineCases": [
+    {
+      "label": "OpenWebRX waits for initial tuning sync",
+      "backend": "openWebRX",
+      "expectedSeconds": 4.0
+    },
+    {
+      "label": "Kiwi waits for initial tuning sync",
+      "backend": "kiwiSDR",
+      "expectedSeconds": 4.0
+    },
+    {
+      "label": "FM-DX does not wait for initial tuning sync",
+      "backend": "fmDxWebserver",
+      "expectedSeconds": null
+    },
+    {
+      "label": "missing backend does not wait",
+      "backend": null,
+      "expectedSeconds": null
+    }
+  ],
+  "statusCases": [
+    {
+      "label": "OpenWebRX waits before deadline and before sync",
+      "backend": "openWebRX",
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": false,
+      "expected": {
+        "requiresInitialServerTuningSync": true,
+        "canApplyLocalTuning": false,
+        "isWaitingForInitialServerTuningSync": true,
+        "shouldApplyInitialLocalFallback": false
+      }
+    },
+    {
+      "label": "OpenWebRX can apply after live sync",
+      "backend": "openWebRX",
+      "hasInitialServerTuningSync": true,
+      "deadlineReached": false,
+      "expected": {
+        "requiresInitialServerTuningSync": true,
+        "canApplyLocalTuning": true,
+        "isWaitingForInitialServerTuningSync": false,
+        "shouldApplyInitialLocalFallback": false
+      }
+    },
+    {
+      "label": "Kiwi falls back after deadline without sync",
+      "backend": "kiwiSDR",
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": true,
+      "expected": {
+        "requiresInitialServerTuningSync": true,
+        "canApplyLocalTuning": true,
+        "isWaitingForInitialServerTuningSync": false,
+        "shouldApplyInitialLocalFallback": true
+      }
+    },
+    {
+      "label": "FM-DX never waits",
+      "backend": "fmDxWebserver",
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": false,
+      "expected": {
+        "requiresInitialServerTuningSync": false,
+        "canApplyLocalTuning": true,
+        "isWaitingForInitialServerTuningSync": false,
+        "shouldApplyInitialLocalFallback": false
+      }
+    },
+    {
+      "label": "nil backend never waits",
+      "backend": null,
+      "hasInitialServerTuningSync": false,
+      "deadlineReached": false,
+      "expected": {
+        "requiresInitialServerTuningSync": false,
+        "canApplyLocalTuning": true,
+        "isWaitingForInitialServerTuningSync": false,
+        "shouldApplyInitialLocalFallback": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "cases": [
+    {
+      "label": "OpenWebRX keeps legal mode and squelch when scanner is not locking it",
+      "backend": "openwebrx",
+      "mode": "am",
+      "squelchEnabled": true,
+      "isSquelchLockedByScanner": false,
+      "expectedState": {
+        "mode": "am",
+        "squelchEnabled": true
+      }
+    },
+    {
+      "label": "OpenWebRX forces squelch off when scanner locks playback",
+      "backend": "openwebrx",
+      "mode": "am",
+      "squelchEnabled": true,
+      "isSquelchLockedByScanner": true,
+      "expectedState": {
+        "mode": "am",
+        "squelchEnabled": false
+      }
+    },
+    {
+      "label": "Kiwi normalizes mode aliases for backend apply",
+      "backend": "kiwi",
+      "mode": "nnfm",
+      "squelchEnabled": true,
+      "isSquelchLockedByScanner": false,
+      "expectedState": {
+        "mode": "nnfm",
+        "squelchEnabled": true
+      }
+    },
+    {
+      "label": "Kiwi forces squelch off when scanner lock is active",
+      "backend": "kiwi",
+      "mode": "amw",
+      "squelchEnabled": true,
+      "isSquelchLockedByScanner": true,
+      "expectedState": {
+        "mode": "amw",
+        "squelchEnabled": false
+      }
+    },
+    {
+      "label": "FM-DX only normalizes mode for backend apply",
+      "backend": "fmdx",
+      "mode": "nnfm",
+      "squelchEnabled": true,
+      "isSquelchLockedByScanner": false,
+      "expectedState": {
+        "mode": "fm",
+        "squelchEnabled": true
+      }
+    }
+  ]
+}

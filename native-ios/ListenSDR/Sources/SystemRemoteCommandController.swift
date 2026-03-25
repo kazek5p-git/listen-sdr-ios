@@ -7,11 +7,13 @@ final class SystemRemoteCommandController {
 
   private var isConfigured = false
   private weak var radioSession: RadioSessionViewModel?
+  private weak var recordingStore: RecordingStore?
 
   private init() {}
 
-  func bind(radioSession: RadioSessionViewModel) {
+  func bind(radioSession: RadioSessionViewModel, recordingStore: RecordingStore) {
     self.radioSession = radioSession
+    self.recordingStore = recordingStore
 
     guard !isConfigured else { return }
     configureCommandCenter()
@@ -35,7 +37,7 @@ final class SystemRemoteCommandController {
       self?.handleTune(stepCount: 1) ?? .commandFailed
     }
     commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
-      self?.handleToggleMute() ?? .commandFailed
+      self?.handleMagicTapAction() ?? .commandFailed
     }
     commandCenter.pauseCommand.addTarget { [weak self] _ in
       self?.handleSetMuted(true) ?? .commandFailed
@@ -55,13 +57,42 @@ final class SystemRemoteCommandController {
     }
   }
 
-  private func handleToggleMute() -> MPRemoteCommandHandlerStatus {
+  private func handleMagicTapAction() -> MPRemoteCommandHandlerStatus {
     onMainActor {
-      guard let radioSession, radioSession.state == .connected else {
-        return .commandFailed
+      guard let radioSession else { return .commandFailed }
+
+      switch radioSession.settings.magicTapAction {
+      case .toggleMute:
+        guard radioSession.state == .connected else { return .commandFailed }
+        radioSession.toggleAudioMuted()
+        AppAccessibilityAnnouncementCenter.post(
+          L10n.text(
+            radioSession.settings.audioMuted
+              ? "accessibility.magic_tap.muted"
+              : "accessibility.magic_tap.unmuted"
+          )
+        )
+        return .success
+      case .disconnect:
+        guard radioSession.state == .connected else { return .commandFailed }
+        radioSession.disconnect()
+        return .success
+      case .toggleRecording:
+        if let recordingStore, recordingStore.isRecording {
+          recordingStore.stopRecording()
+          return .success
+        }
+        guard let recordingStore, let context = radioSession.currentRecordingContext else {
+          return .commandFailed
+        }
+        recordingStore.startRecording(
+          receiverName: context.receiverName,
+          backend: context.backend,
+          frequencyHz: context.frequencyHz,
+          mode: context.mode
+        )
+        return .success
       }
-      radioSession.setAudioMuted(!radioSession.settings.audioMuted)
-      return .success
     }
   }
 

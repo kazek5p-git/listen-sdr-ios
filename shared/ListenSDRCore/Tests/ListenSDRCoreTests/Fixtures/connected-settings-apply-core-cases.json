@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "label": "skip when session is not connected",
+      "status": {
+        "isConnected": false,
+        "hasConnectedClient": true,
+        "isWaitingForInitialServerTuningSync": false
+      },
+      "expectedAction": "skip"
+    },
+    {
+      "label": "skip when connected client is missing",
+      "status": {
+        "isConnected": true,
+        "hasConnectedClient": false,
+        "isWaitingForInitialServerTuningSync": false
+      },
+      "expectedAction": "skip"
+    },
+    {
+      "label": "defer while initial server tuning sync is still pending",
+      "status": {
+        "isConnected": true,
+        "hasConnectedClient": true,
+        "isWaitingForInitialServerTuningSync": true
+      },
+      "expectedAction": "deferUntilInitialServerTuningSyncCompletes"
+    },
+    {
+      "label": "apply immediately when connected and sync is complete",
+      "status": {
+        "isConnected": true,
+        "hasConnectedClient": true,
+        "isWaitingForInitialServerTuningSync": false
+      },
+      "expectedAction": "applyNow"
+    }
+  ]
+}

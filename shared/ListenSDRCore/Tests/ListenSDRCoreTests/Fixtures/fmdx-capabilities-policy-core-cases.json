@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "label": "empty capabilities snapshot is not meaningful",
+      "capabilities": {
+        "antennas": [],
+        "bandwidths": [],
+        "supportsAM": false,
+        "supportsFilterControls": false,
+        "supportsAGCControl": false
+      },
+      "expected": false
+    },
+    {
+      "label": "antenna options make snapshot meaningful",
+      "capabilities": {
+        "antennas": [
+          {
+            "id": "0",
+            "legacyValue": null
+          }
+        ],
+        "bandwidths": [],
+        "supportsAM": false,
+        "supportsFilterControls": false,
+        "supportsAGCControl": false
+      },
+      "expected": true
+    },
+    {
+      "label": "bandwidth options make snapshot meaningful",
+      "capabilities": {
+        "antennas": [],
+        "bandwidths": [
+          {
+            "id": "wide",
+            "legacyValue": "15"
+          }
+        ],
+        "supportsAM": false,
+        "supportsFilterControls": false,
+        "supportsAGCControl": false
+      },
+      "expected": true
+    },
+    {
+      "label": "am support makes snapshot meaningful",
+      "capabilities": {
+        "antennas": [],
+        "bandwidths": [],
+        "supportsAM": true,
+        "supportsFilterControls": false,
+        "supportsAGCControl": false
+      },
+      "expected": true
+    },
+    {
+      "label": "filter controls make snapshot meaningful",
+      "capabilities": {
+        "antennas": [],
+        "bandwidths": [],
+        "supportsAM": false,
+        "supportsFilterControls": true,
+        "supportsAGCControl": false
+      },
+      "expected": true
+    },
+    {
+      "label": "agc control makes snapshot meaningful",
+      "capabilities": {
+        "antennas": [],
+        "bandwidths": [],
+        "supportsAM": false,
+        "supportsFilterControls": false,
+        "supportsAGCControl": true
+      },
+      "expected": true
+    }
+  ]
+}

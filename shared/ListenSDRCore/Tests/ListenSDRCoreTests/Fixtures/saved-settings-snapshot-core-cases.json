@@ -1,0 +1,70 @@
+{
+  "createCases": [
+    {
+      "label": "saved snapshot disables night mode but keeps current tuning and auto filter flag",
+      "current": {
+        "frequencyHz": 101700000,
+        "dxNightModeEnabled": true,
+        "autoFilterProfileEnabled": true
+      },
+      "expected": {
+        "frequencyHz": 101700000,
+        "dxNightModeEnabled": false,
+        "autoFilterProfileEnabled": true
+      }
+    },
+    {
+      "label": "saved snapshot keeps disabled night mode unchanged",
+      "current": {
+        "frequencyHz": 7020000,
+        "dxNightModeEnabled": false,
+        "autoFilterProfileEnabled": false
+      },
+      "expected": {
+        "frequencyHz": 7020000,
+        "dxNightModeEnabled": false,
+        "autoFilterProfileEnabled": false
+      }
+    }
+  ],
+  "restoreCases": [
+    {
+      "label": "full restore keeps snapshot frequency but preserves current night mode and disables auto filter",
+      "includeFrequency": true,
+      "current": {
+        "frequencyHz": 7020000,
+        "dxNightModeEnabled": true,
+        "autoFilterProfileEnabled": true
+      },
+      "snapshot": {
+        "frequencyHz": 101700000,
+        "dxNightModeEnabled": false,
+        "autoFilterProfileEnabled": true
+      },
+      "expected": {
+        "frequencyHz": 101700000,
+        "dxNightModeEnabled": true,
+        "autoFilterProfileEnabled": false
+      }
+    },
+    {
+      "label": "partial restore preserves current frequency and disables auto filter",
+      "includeFrequency": false,
+      "current": {
+        "frequencyHz": 7200000,
+        "dxNightModeEnabled": false,
+        "autoFilterProfileEnabled": false
+      },
+      "snapshot": {
+        "frequencyHz": 90900000,
+        "dxNightModeEnabled": false,
+        "autoFilterProfileEnabled": true
+      },
+      "expected": {
+        "frequencyHz": 7200000,
+        "dxNightModeEnabled": false,
+        "autoFilterProfileEnabled": false
+      }
+    }
+  ]
+}

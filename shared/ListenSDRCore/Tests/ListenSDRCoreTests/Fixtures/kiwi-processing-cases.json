@@ -1,0 +1,54 @@
+{
+  "commandCases": [
+    {
+      "label": "Drop samples interpolation keeps raw command without CIC compensation",
+      "interpolation": "dropSamples",
+      "cicCompensation": false,
+      "expectedCommandValue": 3
+    },
+    {
+      "label": "Drop samples interpolation adds CIC offset",
+      "interpolation": "dropSamples",
+      "cicCompensation": true,
+      "expectedCommandValue": 13
+    },
+    {
+      "label": "CMA interpolation adds CIC offset",
+      "interpolation": "cma",
+      "cicCompensation": true,
+      "expectedCommandValue": 14
+    }
+  ],
+  "rawValueCases": [
+    {
+      "label": "Medium waterfall rate keeps raw value 3",
+      "kind": "waterfallRate",
+      "name": "medium",
+      "expectedRawValue": 3
+    },
+    {
+      "label": "Blackman-Harris window function keeps raw value 2",
+      "kind": "windowFunction",
+      "name": "blackmanHarris",
+      "expectedRawValue": 2
+    },
+    {
+      "label": "Wild noise blanker keeps raw value 2",
+      "kind": "noiseBlanker",
+      "name": "wild",
+      "expectedRawValue": 2
+    },
+    {
+      "label": "Spectral noise filter keeps raw value 3",
+      "kind": "noiseFilter",
+      "name": "spectral",
+      "expectedRawValue": 3
+    },
+    {
+      "label": "Drop samples interpolation keeps raw value 3",
+      "kind": "interpolation",
+      "name": "dropSamples",
+      "expectedRawValue": 3
+    }
+  ]
+}

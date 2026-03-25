@@ -1,4 +1,5 @@
 import Foundation
+import ListenSDRCore
 
 enum FMDXPresetScriptParser {
   static func qualityScore(for bookmarks: [SDRServerBookmark]) -> Int {

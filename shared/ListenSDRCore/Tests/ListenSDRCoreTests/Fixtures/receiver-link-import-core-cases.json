@@ -1,0 +1,150 @@
+{
+  "normalizedURLCases": [
+    {
+      "label": "adds default http and strips query and fragment",
+      "input": "example.com:8073/owrx/?foo=bar#frag",
+      "expected": {
+        "scheme": "http",
+        "userInfo": null,
+        "host": "example.com",
+        "port": 8073,
+        "path": "/owrx/",
+        "asString": "http://example.com:8073/owrx/"
+      }
+    },
+    {
+      "label": "preserves user info and IPv6 host",
+      "input": "https://demo:secret@[2001:db8::1]:8073/radio",
+      "expected": {
+        "scheme": "https",
+        "userInfo": "demo:secret",
+        "host": "2001:db8::1",
+        "port": 8073,
+        "path": "/radio",
+        "asString": "https://demo:secret@[2001:db8::1]:8073/radio"
+      }
+    },
+    {
+      "label": "rejects empty input",
+      "input": " ",
+      "expectedError": "emptyInput"
+    },
+    {
+      "label": "rejects unsupported scheme",
+      "input": "ftp://example.com",
+      "expectedError": "invalidURL"
+    }
+  ],
+  "normalizeInspectableURLCases": [
+    {
+      "label": "adds trailing slash for empty path",
+      "input": {
+        "scheme": "https",
+        "userInfo": null,
+        "host": "webrx.sytes.net",
+        "port": 8078,
+        "path": "",
+        "asString": null
+      },
+      "expected": {
+        "scheme": "https",
+        "userInfo": null,
+        "host": "webrx.sytes.net",
+        "port": 8078,
+        "path": "/",
+        "asString": "https://webrx.sytes.net:8078/"
+      }
+    }
+  ],
+  "backendDetectionCases": [
+    {
+      "label": "detects KiwiSDR markers",
+      "urlPath": "/",
+      "html": "<html><body><link href=\"kiwisdr.min.css\"></body></html>",
+      "expectedBackend": "kiwiSDR"
+    },
+    {
+      "label": "detects OpenWebRX markers",
+      "urlPath": "/",
+      "html": "<html><body>openwebrx <script src=\"/ws/\"></script></body></html>",
+      "expectedBackend": "openWebRX"
+    },
+    {
+      "label": "detects FM-DX markers",
+      "urlPath": "/receiver/text",
+      "html": "<html><body>FM-DX buttonpresets</body></html>",
+      "expectedBackend": "fmDxWebserver"
+    },
+    {
+      "label": "fails on unknown receiver page",
+      "urlPath": "/",
+      "html": "<html><body>plain page</body></html>",
+      "expectedError": "couldNotDetectReceiver"
+    }
+  ],
+  "normalizedProfilePathCases": [
+    {
+      "label": "kiwi forces root path",
+      "backend": "kiwiSDR",
+      "rawPath": "/kiwi",
+      "expectedPath": "/"
+    },
+    {
+      "label": "openwebrx websocket path collapses to root",
+      "backend": "openWebRX",
+      "rawPath": "/ws/",
+      "expectedPath": "/"
+    },
+    {
+      "label": "fmdx text endpoint trims final leaf",
+      "backend": "fmDxWebserver",
+      "rawPath": "/receiver/text",
+      "expectedPath": "/receiver"
+    },
+    {
+      "label": "fmdx audio endpoint trims final leaf",
+      "backend": "fmDxWebserver",
+      "rawPath": "/receiver/audio",
+      "expectedPath": "/receiver"
+    }
+  ],
+  "preferredTitleCases": [
+    {
+      "label": "returns meaningful HTML title",
+      "html": "<html><title> Test Receiver </title></html>",
+      "expectedTitle": "Test Receiver"
+    },
+    {
+      "label": "filters KiwiSDR branding title",
+      "html": "<html><title> KiwiSDR Receiver </title></html>",
+      "expectedTitle": null
+    },
+    {
+      "label": "filters FM-DX branding title",
+      "html": "<html><title> FM-DX Receiver </title></html>",
+      "expectedTitle": null
+    },
+    {
+      "label": "returns nil when title is missing",
+      "html": "<html><body>No title</body></html>",
+      "expectedTitle": null
+    }
+  ],
+  "fallbackDisplayNameCases": [
+    {
+      "label": "prefers non-empty host",
+      "host": "example.com",
+      "expectedName": "example.com"
+    },
+    {
+      "label": "uses generic name when host missing",
+      "host": null,
+      "expectedName": "Receiver"
+    },
+    {
+      "label": "uses generic name when host is blank",
+      "host": "",
+      "expectedName": "Receiver"
+    }
+  ]
+}

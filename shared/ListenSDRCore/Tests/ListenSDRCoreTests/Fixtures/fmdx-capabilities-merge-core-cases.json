@@ -1,0 +1,174 @@
+{
+  "cases": [
+    {
+      "label": "primary snapshot is kept when fallback is missing",
+      "input": {
+        "primary": {
+          "antennas": [
+            {
+              "id": "0",
+              "label": "Dipole",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": true,
+          "supportsAGCControl": false
+        },
+        "fallback": null
+      },
+      "expected": {
+        "antennas": [
+          {
+            "id": "0",
+            "label": "Dipole",
+            "legacyValue": null
+          }
+        ],
+        "bandwidths": [],
+        "supportsAM": false,
+        "supportsFilterControls": true,
+        "supportsAGCControl": false
+      }
+    },
+    {
+      "label": "fallback fills missing arrays",
+      "input": {
+        "primary": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "fallback": {
+          "antennas": [
+            {
+              "id": "1",
+              "label": "Loop",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [
+            {
+              "id": "wide",
+              "label": "56 kHz",
+              "legacyValue": "15"
+            }
+          ],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        }
+      },
+      "expected": {
+        "antennas": [
+          {
+            "id": "1",
+            "label": "Loop",
+            "legacyValue": null
+          }
+        ],
+        "bandwidths": [
+          {
+            "id": "wide",
+            "label": "56 kHz",
+            "legacyValue": "15"
+          }
+        ],
+        "supportsAM": false,
+        "supportsFilterControls": false,
+        "supportsAGCControl": false
+      }
+    },
+    {
+      "label": "primary arrays win over fallback arrays",
+      "input": {
+        "primary": {
+          "antennas": [
+            {
+              "id": "0",
+              "label": "Dipole",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [
+            {
+              "id": "narrow",
+              "label": "6 kHz",
+              "legacyValue": "6"
+            }
+          ],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "fallback": {
+          "antennas": [
+            {
+              "id": "2",
+              "label": "Loop",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [
+            {
+              "id": "wide",
+              "label": "56 kHz",
+              "legacyValue": "15"
+            }
+          ],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        }
+      },
+      "expected": {
+        "antennas": [
+          {
+            "id": "0",
+            "label": "Dipole",
+            "legacyValue": null
+          }
+        ],
+        "bandwidths": [
+          {
+            "id": "narrow",
+            "label": "6 kHz",
+            "legacyValue": "6"
+          }
+        ],
+        "supportsAM": false,
+        "supportsFilterControls": false,
+        "supportsAGCControl": false
+      }
+    },
+    {
+      "label": "boolean capabilities merge with logical or",
+      "input": {
+        "primary": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": true,
+          "supportsAGCControl": false
+        },
+        "fallback": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": true,
+          "supportsFilterControls": false,
+          "supportsAGCControl": true
+        }
+      },
+      "expected": {
+        "antennas": [],
+        "bandwidths": [],
+        "supportsAM": true,
+        "supportsFilterControls": true,
+        "supportsAGCControl": true
+      }
+    }
+  ]
+}

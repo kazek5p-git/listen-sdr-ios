@@ -1,0 +1,92 @@
+{
+  "cases": [
+    {
+      "label": "Connect requested clears backend status and error",
+      "event": "connectRequested",
+      "backend": null,
+      "expectedPresentation": {
+        "phase": "connecting",
+        "statusKind": "connectingTo",
+        "backendStatusKind": "none",
+        "errorKind": "none"
+      }
+    },
+    {
+      "label": "Reconnect requested shows waiting backend status",
+      "event": "reconnectingRequested",
+      "backend": null,
+      "expectedPresentation": {
+        "phase": "connecting",
+        "statusKind": "reconnectingTo",
+        "backendStatusKind": "reconnectingWait",
+        "errorKind": "none"
+      }
+    },
+    {
+      "label": "Connected Kiwi keeps syncing tuning hint",
+      "event": "connected",
+      "backend": "kiwi",
+      "expectedPresentation": {
+        "phase": "connected",
+        "statusKind": "connectedTo",
+        "backendStatusKind": "syncingTuning",
+        "errorKind": "none"
+      }
+    },
+    {
+      "label": "Connected OpenWebRX keeps syncing tuning hint",
+      "event": "connected",
+      "backend": "openwebrx",
+      "expectedPresentation": {
+        "phase": "connected",
+        "statusKind": "connectedTo",
+        "backendStatusKind": "syncingTuning",
+        "errorKind": "none"
+      }
+    },
+    {
+      "label": "Connected FM-DX clears backend status",
+      "event": "connected",
+      "backend": "fmdx",
+      "expectedPresentation": {
+        "phase": "connected",
+        "statusKind": "connectedTo",
+        "backendStatusKind": "none",
+        "errorKind": "none"
+      }
+    },
+    {
+      "label": "Disconnected clears status details",
+      "event": "disconnected",
+      "backend": null,
+      "expectedPresentation": {
+        "phase": "disconnected",
+        "statusKind": "disconnected",
+        "backendStatusKind": "none",
+        "errorKind": "none"
+      }
+    },
+    {
+      "label": "Connection failure expects provided error message",
+      "event": "connectionFailed",
+      "backend": null,
+      "expectedPresentation": {
+        "phase": "failed",
+        "statusKind": "connectionFailed",
+        "backendStatusKind": "none",
+        "errorKind": "providedMessage"
+      }
+    },
+    {
+      "label": "Reconnect exhaustion surfaces connection lost state",
+      "event": "connectionLostAfterReconnectExhausted",
+      "backend": null,
+      "expectedPresentation": {
+        "phase": "failed",
+        "statusKind": "connectionLost",
+        "backendStatusKind": "none",
+        "errorKind": "reconnectExhausted"
+      }
+    }
+  ]
+}

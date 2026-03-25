@@ -1,0 +1,31 @@
+{
+  "cases": [
+    {
+      "label": "normalizes host scheme and path",
+      "backend": "openWebRX",
+      "host": " RADIO.EXAMPLE ",
+      "port": 8073,
+      "useTLS": true,
+      "path": "Owrx",
+      "expectedKey": "openwebrx|https|radio.example|8073|/owrx"
+    },
+    {
+      "label": "empty path becomes root",
+      "backend": "kiwiSDR",
+      "host": " Kiwi.EXAMPLE ",
+      "port": 8073,
+      "useTLS": false,
+      "path": "   ",
+      "expectedKey": "kiwi|http|kiwi.example|8073|/"
+    },
+    {
+      "label": "lowercases fmdx receiver path",
+      "backend": "fmDxWebserver",
+      "host": "FmDx.Example",
+      "port": 443,
+      "useTLS": true,
+      "path": "/Receiver/Text",
+      "expectedKey": "fmdx|https|fmdx.example|443|/receiver/text"
+    }
+  ]
+}

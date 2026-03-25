@@ -22,9 +22,14 @@ struct SettingsViewState: Equatable {
   var tuneStepPreferenceMode: TuneStepPreferenceMode
   var fmdxTuneConfirmationWarningsEnabled: Bool
   var voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode
+  var magicTapAction: MagicTapAction
+  var accessibilityInteractionSoundsEnabled: Bool
+  var accessibilityInteractionSoundsVolume: Double
+  var accessibilityInteractionSoundsMutedDuringRecording: Bool
   var openReceiverAfterHistoryRestore: Bool
   var showRecentFrequencies: Bool
   var includeRecentFrequenciesFromOtherReceivers: Bool
+  var radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility
   var autoConnectSelectedProfileOnLaunch: Bool
   var saveChannelScannerResultsEnabled: Bool
   var stopChannelScannerOnSignal: Bool
@@ -58,9 +63,14 @@ struct SettingsViewState: Equatable {
     tuneStepPreferenceMode: .manual,
     fmdxTuneConfirmationWarningsEnabled: false,
     voiceOverRDSAnnouncementMode: .off,
+    magicTapAction: .toggleMute,
+    accessibilityInteractionSoundsEnabled: RadioSessionSettings.default.accessibilityInteractionSoundsEnabled,
+    accessibilityInteractionSoundsVolume: RadioSessionSettings.default.accessibilityInteractionSoundsVolume,
+    accessibilityInteractionSoundsMutedDuringRecording: RadioSessionSettings.default.accessibilityInteractionSoundsMutedDuringRecording,
     openReceiverAfterHistoryRestore: false,
     showRecentFrequencies: RadioSessionSettings.default.showRecentFrequencies,
     includeRecentFrequenciesFromOtherReceivers: RadioSessionSettings.default.includeRecentFrequenciesFromOtherReceivers,
+    radiosSearchFiltersVisibility: RadioSessionSettings.default.radiosSearchFiltersVisibility,
     autoConnectSelectedProfileOnLaunch: false,
     saveChannelScannerResultsEnabled: RadioSessionSettings.default.saveChannelScannerResultsEnabled,
     stopChannelScannerOnSignal: RadioSessionSettings.default.stopChannelScannerOnSignal,
@@ -184,6 +194,26 @@ final class SettingsViewController: ObservableObject {
     refreshState(force: true)
   }
 
+  func setMagicTapAction(_ action: MagicTapAction) {
+    radioSession?.setMagicTapAction(action)
+    refreshState(force: true)
+  }
+
+  func setAccessibilityInteractionSoundsEnabled(_ isEnabled: Bool) {
+    radioSession?.setAccessibilityInteractionSoundsEnabled(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setAccessibilityInteractionSoundsVolume(_ value: Double) {
+    radioSession?.setAccessibilityInteractionSoundsVolume(value)
+    refreshState(force: true)
+  }
+
+  func setAccessibilityInteractionSoundsMutedDuringRecording(_ isEnabled: Bool) {
+    radioSession?.setAccessibilityInteractionSoundsMutedDuringRecording(isEnabled)
+    refreshState(force: true)
+  }
+
   func setOpenReceiverAfterHistoryRestore(_ isEnabled: Bool) {
     radioSession?.setOpenReceiverAfterHistoryRestore(isEnabled)
     refreshState(force: true)
@@ -196,6 +226,11 @@ final class SettingsViewController: ObservableObject {
 
   func setIncludeRecentFrequenciesFromOtherReceivers(_ isEnabled: Bool) {
     radioSession?.setIncludeRecentFrequenciesFromOtherReceivers(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setRadiosSearchFiltersVisibility(_ visibility: RadiosSearchFiltersVisibility) {
+    radioSession?.setRadiosSearchFiltersVisibility(visibility)
     refreshState(force: true)
   }
 
@@ -359,9 +394,14 @@ final class SettingsViewController: ObservableObject {
       tuneStepPreferenceMode: radioSession.settings.tuneStepPreferenceMode,
       fmdxTuneConfirmationWarningsEnabled: radioSession.settings.fmdxTuneConfirmationWarningsEnabled,
       voiceOverRDSAnnouncementMode: radioSession.settings.voiceOverRDSAnnouncementMode,
+      magicTapAction: radioSession.settings.magicTapAction,
+      accessibilityInteractionSoundsEnabled: radioSession.settings.accessibilityInteractionSoundsEnabled,
+      accessibilityInteractionSoundsVolume: radioSession.settings.accessibilityInteractionSoundsVolume,
+      accessibilityInteractionSoundsMutedDuringRecording: radioSession.settings.accessibilityInteractionSoundsMutedDuringRecording,
       openReceiverAfterHistoryRestore: radioSession.settings.openReceiverAfterHistoryRestore,
       showRecentFrequencies: radioSession.settings.showRecentFrequencies,
       includeRecentFrequenciesFromOtherReceivers: radioSession.settings.includeRecentFrequenciesFromOtherReceivers,
+      radiosSearchFiltersVisibility: radioSession.settings.radiosSearchFiltersVisibility,
       autoConnectSelectedProfileOnLaunch: radioSession.settings.autoConnectSelectedProfileOnLaunch,
       saveChannelScannerResultsEnabled: radioSession.settings.saveChannelScannerResultsEnabled,
       stopChannelScannerOnSignal: radioSession.settings.stopChannelScannerOnSignal,

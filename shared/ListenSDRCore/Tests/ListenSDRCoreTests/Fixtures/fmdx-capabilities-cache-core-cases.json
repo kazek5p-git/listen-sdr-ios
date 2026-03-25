@@ -1,0 +1,152 @@
+{
+  "cases": [
+    {
+      "label": "meaningful primary snapshot persists without fallback",
+      "input": {
+        "primary": {
+          "antennas": [
+            {
+              "id": "0",
+              "label": "Dipole",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "fallback": null
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [
+            {
+              "id": "0",
+              "label": "Dipole",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "usedFallbackCapabilities": false,
+        "primarySnapshotWasMeaningful": true,
+        "shouldPersistResolvedCapabilities": true
+      }
+    },
+    {
+      "label": "fallback rescues empty primary snapshot",
+      "input": {
+        "primary": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "fallback": {
+          "antennas": [],
+          "bandwidths": [
+            {
+              "id": "wide",
+              "label": "56 kHz",
+              "legacyValue": "15"
+            }
+          ],
+          "supportsAM": true,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        }
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [],
+          "bandwidths": [
+            {
+              "id": "wide",
+              "label": "56 kHz",
+              "legacyValue": "15"
+            }
+          ],
+          "supportsAM": true,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "usedFallbackCapabilities": true,
+        "primarySnapshotWasMeaningful": false,
+        "shouldPersistResolvedCapabilities": true
+      }
+    },
+    {
+      "label": "empty primary without fallback stays non-persistable",
+      "input": {
+        "primary": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "fallback": null
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": false,
+          "supportsAGCControl": false
+        },
+        "usedFallbackCapabilities": false,
+        "primarySnapshotWasMeaningful": false,
+        "shouldPersistResolvedCapabilities": false
+      }
+    },
+    {
+      "label": "meaningful primary can still adopt missing flags from fallback",
+      "input": {
+        "primary": {
+          "antennas": [
+            {
+              "id": "0",
+              "label": "Dipole",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": false,
+          "supportsFilterControls": true,
+          "supportsAGCControl": false
+        },
+        "fallback": {
+          "antennas": [],
+          "bandwidths": [],
+          "supportsAM": true,
+          "supportsFilterControls": false,
+          "supportsAGCControl": true
+        }
+      },
+      "expected": {
+        "capabilities": {
+          "antennas": [
+            {
+              "id": "0",
+              "label": "Dipole",
+              "legacyValue": null
+            }
+          ],
+          "bandwidths": [],
+          "supportsAM": true,
+          "supportsFilterControls": true,
+          "supportsAGCControl": true
+        },
+        "usedFallbackCapabilities": true,
+        "primarySnapshotWasMeaningful": true,
+        "shouldPersistResolvedCapabilities": true
+      }
+    }
+  ]
+}

@@ -18,6 +18,7 @@ struct CachedReceiverData: Codable {
   var openWebRXBandPlan: [SDRBandPlanEntry]
   var savedChannelScannerResults: [ChannelScannerResult]
   var fmdxServerPresets: [SDRServerBookmark]
+  var fmdxCapabilities: FMDXCapabilities?
   var fmdxSavedScanResults: [FMDXBandScanResult]
   var savedAt: Date
 
@@ -29,6 +30,7 @@ struct CachedReceiverData: Codable {
     openWebRXBandPlan: [],
     savedChannelScannerResults: [],
     fmdxServerPresets: [],
+    fmdxCapabilities: nil,
     fmdxSavedScanResults: [],
     savedAt: .distantPast
   )
@@ -41,6 +43,7 @@ struct CachedReceiverData: Codable {
     case openWebRXBandPlan
     case savedChannelScannerResults
     case fmdxServerPresets
+    case fmdxCapabilities
     case fmdxSavedScanResults
     case savedAt
   }
@@ -53,6 +56,7 @@ struct CachedReceiverData: Codable {
     openWebRXBandPlan: [SDRBandPlanEntry],
     savedChannelScannerResults: [ChannelScannerResult],
     fmdxServerPresets: [SDRServerBookmark],
+    fmdxCapabilities: FMDXCapabilities?,
     fmdxSavedScanResults: [FMDXBandScanResult],
     savedAt: Date
   ) {
@@ -63,6 +67,7 @@ struct CachedReceiverData: Codable {
     self.openWebRXBandPlan = openWebRXBandPlan
     self.savedChannelScannerResults = savedChannelScannerResults
     self.fmdxServerPresets = fmdxServerPresets
+    self.fmdxCapabilities = fmdxCapabilities
     self.fmdxSavedScanResults = fmdxSavedScanResults
     self.savedAt = savedAt
   }
@@ -77,6 +82,7 @@ struct CachedReceiverData: Codable {
     savedChannelScannerResults =
       try container.decodeIfPresent([ChannelScannerResult].self, forKey: .savedChannelScannerResults) ?? []
     fmdxServerPresets = try container.decodeIfPresent([SDRServerBookmark].self, forKey: .fmdxServerPresets) ?? []
+    fmdxCapabilities = try container.decodeIfPresent(FMDXCapabilities.self, forKey: .fmdxCapabilities)
     fmdxSavedScanResults = try container.decodeIfPresent([FMDXBandScanResult].self, forKey: .fmdxSavedScanResults) ?? []
     savedAt = try container.decodeIfPresent(Date.self, forKey: .savedAt) ?? .distantPast
   }

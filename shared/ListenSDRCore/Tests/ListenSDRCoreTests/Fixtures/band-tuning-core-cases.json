@@ -1,0 +1,216 @@
+{
+  "profileCases": [
+    {
+      "label": "fmdx oirt profile keeps oirt stepping",
+      "context": {
+        "backend": "fmDxWebserver",
+        "frequencyHz": 70300000,
+        "mode": "fm",
+        "bandName": null,
+        "bandTags": []
+      },
+      "expectedProfile": {
+        "id": "fmdx-oirt-fm",
+        "stepOptionsHz": [10000, 25000, 30000, 50000, 100000],
+        "defaultStepHz": 30000
+      },
+      "expectedAutomaticTuneStepHz": 30000,
+      "manualPreferredTuneStepHz": 40000,
+      "expectedManualTuneStepHz": 30000
+    },
+    {
+      "label": "openwebrx broadcast fm uses channelized profile",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 102500000,
+        "mode": "fm",
+        "bandName": "Broadcast FM",
+        "bandTags": ["broadcast"]
+      },
+      "expectedProfile": {
+        "id": "fm-broadcast",
+        "stepOptionsHz": [50000, 100000, 200000],
+        "defaultStepHz": 100000
+      },
+      "expectedAutomaticTuneStepHz": 100000,
+      "manualPreferredTuneStepHz": 75000,
+      "expectedManualTuneStepHz": 50000
+    },
+    {
+      "label": "airband uses 8.33 and 25 kHz",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 125000000,
+        "mode": "am",
+        "bandName": null,
+        "bandTags": []
+      },
+      "expectedProfile": {
+        "id": "airband",
+        "stepOptionsHz": [8330, 25000],
+        "defaultStepHz": 8330
+      },
+      "expectedAutomaticTuneStepHz": 8330,
+      "manualPreferredTuneStepHz": 10000,
+      "expectedManualTuneStepHz": 8330
+    },
+    {
+      "label": "marine band keeps 12.5 and 25 kHz steps",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 156800000,
+        "mode": "fm",
+        "bandName": "Marine",
+        "bandTags": []
+      },
+      "expectedProfile": {
+        "id": "marine",
+        "stepOptionsHz": [12500, 25000],
+        "defaultStepHz": 25000
+      },
+      "expectedAutomaticTuneStepHz": 25000,
+      "manualPreferredTuneStepHz": 18000,
+      "expectedManualTuneStepHz": 12500
+    },
+    {
+      "label": "pmr band keeps 6.25 and 12.5 kHz steps",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 446031250,
+        "mode": "nfm",
+        "bandName": "PMR446",
+        "bandTags": []
+      },
+      "expectedProfile": {
+        "id": "pmr446",
+        "stepOptionsHz": [6250, 12500],
+        "defaultStepHz": 12500
+      },
+      "expectedAutomaticTuneStepHz": 12500,
+      "manualPreferredTuneStepHz": 10000,
+      "expectedManualTuneStepHz": 12500
+    },
+    {
+      "label": "cb band uses coarse channel steps",
+      "context": {
+        "backend": "kiwiSDR",
+        "frequencyHz": 27185000,
+        "mode": "am",
+        "bandName": "11m CB",
+        "bandTags": []
+      },
+      "expectedProfile": {
+        "id": "cb",
+        "stepOptionsHz": [1000, 5000, 10000],
+        "defaultStepHz": 10000
+      },
+      "expectedAutomaticTuneStepHz": 10000,
+      "manualPreferredTuneStepHz": 6000,
+      "expectedManualTuneStepHz": 5000
+    },
+    {
+      "label": "ham hf am uses broadcast-friendly steps",
+      "context": {
+        "backend": "kiwiSDR",
+        "frequencyHz": 7100000,
+        "mode": "am",
+        "bandName": "40m",
+        "bandTags": ["hamradio"]
+      },
+      "expectedProfile": {
+        "id": "ham-hf-am",
+        "stepOptionsHz": [100, 500, 1000, 5000],
+        "defaultStepHz": 1000
+      },
+      "expectedAutomaticTuneStepHz": 1000,
+      "manualPreferredTuneStepHz": 2000,
+      "expectedManualTuneStepHz": 1000
+    },
+    {
+      "label": "ham hf ssb uses fine tuning steps",
+      "context": {
+        "backend": "kiwiSDR",
+        "frequencyHz": 7100000,
+        "mode": "usb",
+        "bandName": "40m",
+        "bandTags": ["hamradio"]
+      },
+      "expectedProfile": {
+        "id": "ham-hf-fine",
+        "stepOptionsHz": [10, 50, 100, 500, 1000],
+        "defaultStepHz": 100
+      },
+      "expectedAutomaticTuneStepHz": 100,
+      "manualPreferredTuneStepHz": 700,
+      "expectedManualTuneStepHz": 500
+    },
+    {
+      "label": "ham vhf fine profile prefers 500 Hz default",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 145500000,
+        "mode": "usb",
+        "bandName": "2m",
+        "bandTags": ["hamradio"]
+      },
+      "expectedProfile": {
+        "id": "ham-vhf-uhf-fine",
+        "stepOptionsHz": [100, 500, 1000],
+        "defaultStepHz": 500
+      },
+      "expectedAutomaticTuneStepHz": 500,
+      "manualPreferredTuneStepHz": 750,
+      "expectedManualTuneStepHz": 500
+    },
+    {
+      "label": "generic wideband channel profile stays channelized",
+      "context": {
+        "backend": "openWebRX",
+        "frequencyHz": 433920000,
+        "mode": "fm",
+        "bandName": "ISM",
+        "bandTags": []
+      },
+      "expectedProfile": {
+        "id": "wideband-channel",
+        "stepOptionsHz": [6250, 8330, 10000, 12500, 25000],
+        "defaultStepHz": 12500
+      },
+      "expectedAutomaticTuneStepHz": 12500,
+      "manualPreferredTuneStepHz": 9000,
+      "expectedManualTuneStepHz": 8330
+    }
+  ],
+  "kiwiBandNameCases": [
+    {
+      "label": "lw is inferred from longwave frequencies",
+      "frequencyHz": 225000,
+      "expectedBandName": "LW"
+    },
+    {
+      "label": "mw is inferred from mediumwave frequencies",
+      "frequencyHz": 999000,
+      "expectedBandName": "MW"
+    },
+    {
+      "label": "sw is inferred from shortwave frequencies",
+      "frequencyHz": 7050000,
+      "expectedBandName": "SW"
+    },
+    {
+      "label": "fm is inferred from broadcast fm frequencies",
+      "frequencyHz": 87500000,
+      "expectedBandName": "FM"
+    },
+    {
+      "label": "vhf is inferred from higher wideband frequencies",
+      "frequencyHz": 145500000,
+      "expectedBandName": "VHF"
+    },
+    {
+      "label": "out of known kiwi ranges stays unknown",
+      "frequencyHz": 50000,
+      "expectedBandName": null
+    }
+  ]
+}

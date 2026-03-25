@@ -506,6 +506,14 @@
 "settings.accessibility.voiceover_rds_mode.off" = "Wyłączone";
 "settings.accessibility.voiceover_rds_mode.station_only" = "Tylko stacja";
 "settings.accessibility.voiceover_rds_mode.full" = "Pełny RDS";
+"settings.accessibility.magic_tap" = "Akcja Magic Tap";
+"settings.accessibility.magic_tap.hint" = "Wybiera, co ma zrobić systemowy gest Magic Tap, gdy aktywne jest Listen SDR.";
+"settings.accessibility.magic_tap.toggle_mute" = "Wycisz lub odcisz";
+"settings.accessibility.magic_tap.toggle_mute.detail" = "Zachowuje obecne działanie i przełącza wyciszenie audio.";
+"settings.accessibility.magic_tap.disconnect" = "Rozłącz odbiornik";
+"settings.accessibility.magic_tap.disconnect.detail" = "Kończy bieżące połączenie i zatrzymuje strumień audio.";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute" = "Rozpocznij lub zatrzymaj nagrywanie";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute.detail" = "Jeśli trwa nagrywanie, zatrzymuje je; w przeciwnym razie rozpoczyna nagrywanie bieżącego odbioru.";
 "accessibility.rds_announcement.station" = "Stacja %@";
 "accessibility.rds_announcement.ps" = "RDS stacja %@";
 "accessibility.rds_announcement.rt" = "RDS tekst %@";
@@ -840,3 +848,21 @@
 "scanner.channel.status.stopped_on_signal" = "Skaner zatrzymany na %@.";
 "scanner.channel.openwebrx_audio_hint" = "W OpenWebRX wykrywanie działa na podstawie aktywności audio. Jeśli skaner łapie zbyt dużo szumu, podnieś próg.";
 "scanner.channel.kiwi_hint" = "W KiwiSDR wykrywanie działa na podstawie RSSI. Dla słabszych sygnałów obniż próg.";
+
+"settings.accessibility.interaction_sounds" = "Dźwięki przełączników";
+"settings.accessibility.interaction_sounds.hint" = "Odtwarza niższy ton przy wyłączeniu i wyższy przy włączeniu, na przykład dla wyciszenia i trybu stereo.";
+"accessibility.magic_tap.muted" = "Wyciszono";
+"accessibility.magic_tap.unmuted" = "Odciszono";
+"settings.radios.section" = "Radia";
+"settings.radios.search_filters" = "Widoczność filtrów wyszukiwania";
+"settings.radios.search_filters.hint" = "Wybiera, czy filtry wyszukiwania i historii w karcie Radia mają być widoczne zawsze, czy tylko podczas aktywnego pola wyszukiwania.";
+"settings.radios.search_filters.always_visible" = "Zawsze widoczne";
+"settings.radios.search_filters.always_visible.detail" = "Pokazuje filtry wyszukiwania i historii przez cały czas.";
+"settings.radios.search_filters.while_search_active" = "Tylko podczas wyszukiwania";
+"settings.radios.search_filters.while_search_active.detail" = "Pokazuje filtry tylko wtedy, gdy pole wyszukiwania jest aktywne i klawiatura jest otwarta.";
+"settings.accessibility.interaction_sounds.mute_while_recording" = "Wycisz podczas nagrywania";
+"settings.accessibility.interaction_sounds.mute_while_recording.hint" = "Wycisza dźwięki przełączników podczas aktywnego nagrywania. Tony rozpoczęcia i zatrzymania nagrywania nadal są odtwarzane.";
+"settings.accessibility.interaction_sounds.preview" = "Odsłuch dźwięku";
+"settings.accessibility.interaction_sounds.preview.hint" = "Odtwarza przykładowy dźwięk przełącznika z bieżącą głośnością.";
+"settings.accessibility.interaction_sounds.volume" = "Głośność dźwięków przełączników";
+"settings.accessibility.interaction_sounds.volume.hint" = "Reguluje głośność dźwięków przełączników oraz sygnałów rozpoczęcia i zatrzymania nagrywania.";

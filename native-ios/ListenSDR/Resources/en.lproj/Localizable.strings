@@ -355,6 +355,14 @@
 "settings.accessibility.voiceover_rds_mode.off" = "Off";
 "settings.accessibility.voiceover_rds_mode.station_only" = "Station only";
 "settings.accessibility.voiceover_rds_mode.full" = "Full RDS";
+"settings.accessibility.magic_tap" = "Magic Tap action";
+"settings.accessibility.magic_tap.hint" = "Choose what the system Magic Tap gesture should do while Listen SDR is active.";
+"settings.accessibility.magic_tap.toggle_mute" = "Mute or unmute";
+"settings.accessibility.magic_tap.toggle_mute.detail" = "Keeps the current behavior and toggles audio muting.";
+"settings.accessibility.magic_tap.disconnect" = "Disconnect receiver";
+"settings.accessibility.magic_tap.disconnect.detail" = "Ends the current connection and stops the audio stream.";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute" = "Start or stop recording";
+"settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute.detail" = "Stops an active recording; otherwise starts recording the current receiver.";
 "accessibility.rds_announcement.station" = "Station %@";
 "accessibility.rds_announcement.ps" = "RDS station %@";
 "accessibility.rds_announcement.rt" = "RDS text %@";
@@ -689,3 +697,21 @@
 "scanner.channel.status.stopped_on_signal" = "Scanner stopped on %@.";
 "scanner.channel.openwebrx_audio_hint" = "For OpenWebRX, detection is based on audio activity. Raise the threshold if the scanner catches too much noise.";
 "scanner.channel.kiwi_hint" = "For KiwiSDR, detection is based on RSSI. Lower the threshold for weaker signals.";
+
+"settings.accessibility.interaction_sounds" = "Switch sounds";
+"settings.accessibility.interaction_sounds.hint" = "Plays a lower tone when a control turns off and a higher tone when it turns on, for example for mute and stereo mode.";
+"accessibility.magic_tap.muted" = "Muted";
+"accessibility.magic_tap.unmuted" = "Unmuted";
+"settings.radios.section" = "Radios";
+"settings.radios.search_filters" = "Search filter visibility";
+"settings.radios.search_filters.hint" = "Choose whether the search and history filters in the Radios tab stay visible all the time or only while the search field is active.";
+"settings.radios.search_filters.always_visible" = "Always visible";
+"settings.radios.search_filters.always_visible.detail" = "Shows the search and history filters all the time.";
+"settings.radios.search_filters.while_search_active" = "Only while searching";
+"settings.radios.search_filters.while_search_active.detail" = "Shows the filters only while the search field is active and the keyboard is open.";
+"settings.accessibility.interaction_sounds.mute_while_recording" = "Silence while recording";
+"settings.accessibility.interaction_sounds.mute_while_recording.hint" = "Keeps switch sounds silent while a recording is in progress. Recording start and stop tones still play.";
+"settings.accessibility.interaction_sounds.preview" = "Preview sound";
+"settings.accessibility.interaction_sounds.preview.hint" = "Plays a sample switch sound at the current volume.";
+"settings.accessibility.interaction_sounds.volume" = "Switch sound volume";
+"settings.accessibility.interaction_sounds.volume.hint" = "Adjusts the loudness of switch and recording feedback sounds.";

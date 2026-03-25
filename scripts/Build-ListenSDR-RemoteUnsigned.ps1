@@ -78,6 +78,7 @@ function Get-SnapshotPaths {
   $allPaths = @($tracked + $untracked |
     ForEach-Object { if ($null -eq $_) { "" } else { "$_".Trim() } } |
     Where-Object { Test-IncludedSnapshotPath -RelativePath $_ } |
+    Where-Object { Test-Path (Join-Path $RepositoryPath $_) } |
     Sort-Object -Unique)
 
   if ($allPaths.Count -eq 0) {
@@ -166,6 +167,7 @@ DERIVED_DATA_PATH="$BUILD_DIR/build-local-latest"
 PACKAGE_ROOT="$BUILD_DIR/unsigned-ipa-local-latest"
 IPA_PATH="$ROOT/Listen-SDR-unsigned-local-latest.ipa"
 LOG_PATH="$ROOT/native-ios-build-local-latest.log"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 filter_known_xcodebuild_noise() {
   awk '

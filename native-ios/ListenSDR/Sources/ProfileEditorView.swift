@@ -27,16 +27,13 @@ struct ProfileEditorView: View {
             .accessibilityLabel(L10n.text("Profile name"))
             .accessibilityHint(L10n.text("Name shown in your radio list"))
 
-          Picker(L10n.text("Backend"), selection: $draft.backend) {
+          Picker(L10n.text("Backend"), selection: profileBackendBinding) {
             ForEach(SDRBackend.allCases) { backend in
               Text(backend.displayName).tag(backend)
             }
           }
           .pickerStyle(.segmented)
           .accessibilityLabel(L10n.text("Receiver backend"))
-          .onChange(of: draft.backend) { newBackend in
-            draft.port = newBackend.defaultPort
-          }
         }
         .appSectionStyle()
 
@@ -55,7 +52,7 @@ struct ProfileEditorView: View {
             .autocorrectionDisabled()
             .accessibilityLabel(L10n.text("Path"))
 
-          Toggle(L10n.text("Use TLS"), isOn: $draft.useTLS)
+          Toggle(L10n.text("Use TLS"), isOn: profileTLSBinding)
             .accessibilityHint(L10n.text("Enable secure HTTPS or WSS transport"))
         }
         .appSectionStyle()
@@ -95,6 +92,25 @@ struct ProfileEditorView: View {
     profile.host = draft.host.trimmingCharacters(in: .whitespacesAndNewlines)
     profile.path = draft.path.trimmingCharacters(in: .whitespacesAndNewlines)
     return profile
+  }
+
+  private var profileBackendBinding: Binding<SDRBackend> {
+    Binding(
+      get: { draft.backend },
+      set: { newBackend in
+        draft.applyBackendChange(newBackend)
+      }
+    )
+  }
+
+  private var profileTLSBinding: Binding<Bool> {
+    Binding(
+      get: { draft.useTLS },
+      set: { newValue in
+        draft.applyTLSChange(newValue)
+        AppInteractionFeedbackCenter.playIfEnabled(newValue ? .enabled : .disabled)
+      }
+    )
   }
 
   private var isValid: Bool {

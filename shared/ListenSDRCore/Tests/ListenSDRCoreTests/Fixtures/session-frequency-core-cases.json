@@ -1,0 +1,100 @@
+{
+  "normalizedFrequencyCases": [
+    {
+      "label": "fmdx am rounds to nearest kilohertz and clamps to lower band edge",
+      "backend": "fmDxWebserver",
+      "mode": "am",
+      "inputFrequencyHz": 99499,
+      "expectedFrequencyHz": 100000
+    },
+    {
+      "label": "fmdx fm rounds to nearest kilohertz inside fm range",
+      "backend": "fmDxWebserver",
+      "mode": "fm",
+      "inputFrequencyHz": 70123789,
+      "expectedFrequencyHz": 70124000
+    },
+    {
+      "label": "fmdx fm clamps above upper band edge",
+      "backend": "fmDxWebserver",
+      "mode": "fm",
+      "inputFrequencyHz": 110500499,
+      "expectedFrequencyHz": 110000000
+    },
+    {
+      "label": "kiwi clamps below lower edge",
+      "backend": "kiwiSDR",
+      "mode": "usb",
+      "inputFrequencyHz": 9000,
+      "expectedFrequencyHz": 10000
+    },
+    {
+      "label": "kiwi clamps above upper edge",
+      "backend": "kiwiSDR",
+      "mode": "usb",
+      "inputFrequencyHz": 35000000,
+      "expectedFrequencyHz": 32000000
+    },
+    {
+      "label": "openwebrx clamps below lower edge",
+      "backend": "openWebRX",
+      "mode": "nfm",
+      "inputFrequencyHz": 50000,
+      "expectedFrequencyHz": 100000
+    },
+    {
+      "label": "nil backend falls back to openwebrx-compatible lower edge",
+      "backend": null,
+      "mode": "am",
+      "inputFrequencyHz": 75000,
+      "expectedFrequencyHz": 100000
+    }
+  ],
+  "tunedFrequencyCases": [
+    {
+      "label": "fmdx tuned frequency clamps at upper edge",
+      "backend": "fmDxWebserver",
+      "mode": "fm",
+      "currentFrequencyHz": 109950000,
+      "tuneStepHz": 100000,
+      "stepCount": 1,
+      "expectedFrequencyHz": 110000000
+    },
+    {
+      "label": "fmdx tuned frequency rounds after applying delta",
+      "backend": "fmDxWebserver",
+      "mode": "fm",
+      "currentFrequencyHz": 70123500,
+      "tuneStepHz": 25000,
+      "stepCount": 1,
+      "expectedFrequencyHz": 70149000
+    },
+    {
+      "label": "kiwi tuned frequency clamps at lower edge",
+      "backend": "kiwiSDR",
+      "mode": "cw",
+      "currentFrequencyHz": 10000,
+      "tuneStepHz": 100,
+      "stepCount": -1,
+      "expectedFrequencyHz": 10000
+    },
+    {
+      "label": "openwebrx tuned frequency advances by requested steps",
+      "backend": "openWebRX",
+      "mode": "am",
+      "currentFrequencyHz": 14200000,
+      "tuneStepHz": 5000,
+      "stepCount": 2,
+      "expectedFrequencyHz": 14210000
+    },
+    {
+      "label": "zero step count keeps current frequency",
+      "backend": "kiwiSDR",
+      "mode": "usb",
+      "currentFrequencyHz": 7050000,
+      "tuneStepHz": 100,
+      "stepCount": 0,
+      "expectedFrequencyHz": 7050000
+    }
+  ]
+}

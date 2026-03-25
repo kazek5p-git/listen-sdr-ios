@@ -3,14 +3,24 @@ name: ListenSDR
 options:
   minimumXcodeGenVersion: 2.38.0
 
+packages:
+  ListenSDRCore:
+    path: ../shared/ListenSDRCore
+
 targets:
   ListenSDR:
     type: application
     platform: iOS
     deploymentTarget: "16.0"
+    scheme:
+      testTargets:
+        - ListenSDRTests
     sources:
       - path: ListenSDR/Sources
       - path: ListenSDR/Resources
+    dependencies:
+      - package: ListenSDRCore
+        product: ListenSDRCore
     info:
       path: ListenSDR/Info.plist
       properties:
@@ -51,6 +61,8 @@ targets:
       - path: ListenSDRTests
     dependencies:
       - target: ListenSDR
+      - package: ListenSDRCore
+        product: ListenSDRCore
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "label": "foreground receiver tab uses interactive policy",
+      "isForegroundActive": true,
+      "isReceiverTabSelected": true,
+      "expectedPolicy": "interactive"
+    },
+    {
+      "label": "foreground non-receiver tab uses passive policy",
+      "isForegroundActive": true,
+      "isReceiverTabSelected": false,
+      "expectedPolicy": "passive"
+    },
+    {
+      "label": "background receiver tab uses background policy",
+      "isForegroundActive": false,
+      "isReceiverTabSelected": true,
+      "expectedPolicy": "background"
+    },
+    {
+      "label": "background non-receiver tab uses background policy",
+      "isForegroundActive": false,
+      "isReceiverTabSelected": false,
+      "expectedPolicy": "background"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "normalizedSearchTextCases": [
+    {
+      "label": "folds case and diacritics",
+      "input": "Québec   OpenWebRX",
+      "expected": "quebec openwebrx"
+    },
+    {
+      "label": "preserves punctuation while trimming whitespace",
+      "input": "  FM-DX, Test   ",
+      "expected": "fm-dx, test"
+    },
+    {
+      "label": "keeps slash-delimited paths",
+      "input": " /owrx/   profile ",
+      "expected": "/owrx/ profile"
+    }
+  ],
+  "searchableTextCases": [
+    {
+      "label": "joins non-empty fields",
+      "fields": [
+        "Receiver One",
+        "example.com",
+        "https://example.com:443/",
+        "Receiverbook.de",
+        null,
+        "Poland",
+        "Warsaw, Poland",
+        "1.0",
+        "KiwiSDR",
+        "Available"
+      ],
+      "expected": "receiver one example.com https://example.com:443/ receiverbook.de poland warsaw, poland 1.0 kiwisdr available"
+    }
+  ],
+  "matchCases": [
+    {
+      "label": "empty query matches",
+      "query": "   ",
+      "searchableText": "receiver one",
+      "expected": true
+    },
+    {
+      "label": "direct substring match",
+      "query": "warsaw, poland",
+      "searchableText": "receiver one warsaw, poland",
+      "expected": true
+    },
+    {
+      "label": "multi token fallback matches punctuated text",
+      "query": "warsaw poland",
+      "searchableText": "receiver one warsaw, poland",
+      "expected": true
+    },
+    {
+      "label": "single token does not bridge punctuation gap",
+      "query": "fmdx",
+      "searchableText": "nyul fm-dx receiver",
+      "expected": false
+    },
+    {
+      "label": "single token exact punctuated match works",
+      "query": "fm-dx",
+      "searchableText": "nyul fm-dx receiver",
+      "expected": true
+    }
+  ]
+}

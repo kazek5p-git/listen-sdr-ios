@@ -1,0 +1,66 @@
+{
+  "cases": [
+    {
+      "label": "generic kilohertz fallback",
+      "text": "10300",
+      "context": "generic",
+      "expectedHz": 10300000
+    },
+    {
+      "label": "explicit megahertz with decimal separator",
+      "text": "98.5",
+      "context": "fmBroadcast",
+      "expectedHz": 98500000
+    },
+    {
+      "label": "fm shortcut without decimal separator",
+      "text": "985",
+      "context": "fmBroadcast",
+      "expectedHz": 98500000
+    },
+    {
+      "label": "shortwave kilohertz shortcut",
+      "text": "7050",
+      "context": "shortwave",
+      "expectedHz": 7050000
+    },
+    {
+      "label": "preferred range resolves HF value as hertz",
+      "text": "1620",
+      "context": "generic",
+      "preferredRangeHz": {
+        "lower": 1500,
+        "upper": 1700
+      },
+      "expectedHz": 1620
+    },
+    {
+      "label": "preferred range resolves UHF value with extra separators",
+      "text": "446.156.25",
+      "context": "generic",
+      "preferredRangeHz": {
+        "lower": 430000000,
+        "upper": 450000000
+      },
+      "expectedHz": 446156250
+    },
+    {
+      "label": "explicit kilohertz suffix",
+      "text": "1620k",
+      "context": "generic",
+      "expectedHz": 1620000
+    },
+    {
+      "label": "empty input returns nil",
+      "text": " ",
+      "context": "generic",
+      "expectedHz": null
+    },
+    {
+      "label": "non numeric input returns nil",
+      "text": "abc",
+      "context": "generic",
+      "expectedHz": null
+    }
+  ]
+}

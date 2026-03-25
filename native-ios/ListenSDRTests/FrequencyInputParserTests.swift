@@ -1,5 +1,5 @@
 import XCTest
-@testable import ListenSDR
+import ListenSDRCore
 
 final class FrequencyInputParserTests: XCTestCase {
   func testParsesFMBroadcastShortcutWithoutDecimalSeparator() {
