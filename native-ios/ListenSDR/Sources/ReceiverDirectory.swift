@@ -382,7 +382,7 @@ actor ReceiverDirectoryService {
   private func fetchData(from url: URL) async throws -> Data {
     var request = URLRequest(url: url)
     request.timeoutInterval = 20
-    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+    request.applyListenSDRNetworkIdentity()
     let (data, response) = try await session.data(for: request)
 
     guard
@@ -490,7 +490,7 @@ actor ReceiverDirectoryService {
     request.httpMethod = method
     request.timeoutInterval = probeTimeoutSeconds
     request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+    request.applyListenSDRNetworkIdentity()
     if method == "GET" {
       request.setValue("bytes=0-1024", forHTTPHeaderField: "Range")
     }

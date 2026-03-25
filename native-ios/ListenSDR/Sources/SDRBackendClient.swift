@@ -2,6 +2,53 @@ import AVFAudio
 import AudioToolbox
 import Foundation
 import ListenSDRCore
+import UIKit
+
+enum ListenSDRNetworkIdentity {
+  static let clientName = "Listen SDR for iOS"
+  static let userAgent = clientName
+  static let openWebRXHandshake = "SERVER DE CLIENT client=\(clientName) type=receiver"
+
+  static func fmdxUserAgent(
+    platformToken: String = platformToken(),
+    systemVersion: String = UIDevice.current.systemVersion
+  ) -> String {
+    let versionToken = systemVersion
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .replacingOccurrences(of: ".", with: "_")
+    let safariVersion = systemVersion.trimmingCharacters(in: .whitespacesAndNewlines)
+    let normalizedVersionToken = versionToken.isEmpty ? "0_0" : versionToken
+    let normalizedSafariVersion = safariVersion.isEmpty ? "0.0" : safariVersion
+    return
+      "Mozilla/5.0 (\(platformToken); CPU \(platformToken) OS \(normalizedVersionToken) like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/\(normalizedSafariVersion) Mobile/15E148 \(clientName)"
+  }
+
+  static func kiwiIdentUser(username: String) -> String {
+    let displayName = username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      ? clientName
+      : username
+    return kiwiToken(displayName)
+  }
+
+  private static func platformToken() -> String {
+    switch UIDevice.current.userInterfaceIdiom {
+    case .pad:
+      return "iPad"
+    case .phone:
+      return "iPhone"
+    default:
+      return UIDevice.current.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        ? "iPhone"
+        : UIDevice.current.model
+    }
+  }
+}
+
+extension URLRequest {
+  mutating func applyListenSDRNetworkIdentity() {
+    setValue(ListenSDRNetworkIdentity.userAgent, forHTTPHeaderField: "User-Agent")
+  }
+}
 
 enum BackendRuntimePolicy: Equatable {
   case interactive
@@ -267,7 +314,9 @@ actor KiwiSDRClient: SDRBackendClient {
       path: "\(basePath)\(Int(Date().timeIntervalSince1970))/SND"
     )
     log("Connecting audio stream: \(sndURL.absoluteString)")
-    let soundTask = URLSession.shared.webSocketTask(with: sndURL)
+    var soundRequest = URLRequest(url: sndURL)
+    soundRequest.applyListenSDRNetworkIdentity()
+    let soundTask = URLSession.shared.webSocketTask(with: soundRequest)
     sndSocket = soundTask
     soundTask.resume()
     sndReceiveTask = Task { [soundTask] in
@@ -282,10 +331,7 @@ actor KiwiSDRClient: SDRBackendClient {
     }
 
     try await sendSND("SET auth t=kiwi p=\(kiwiToken(profile.password))")
-    let user = kiwiToken(profile.username)
-    if !user.isEmpty {
-      try await sendSND("SET ident_user=\(user)")
-    }
+    try await sendSND("SET ident_user=\(ListenSDRNetworkIdentity.kiwiIdentUser(username: profile.username))")
     try await sendSND("SET compression=0")
     try await sendSND("SET keepalive")
 
@@ -665,7 +711,9 @@ actor KiwiSDRClient: SDRBackendClient {
     let timestamp = Int(Date().timeIntervalSince1970)
     let wfURL = try makeWebSocketURL(profile: profile, path: "\(basePath)\(timestamp)/W/F")
     log("Connecting waterfall stream: \(wfURL.absoluteString)")
-    let waterfallTask = URLSession.shared.webSocketTask(with: wfURL)
+    var waterfallRequest = URLRequest(url: wfURL)
+    waterfallRequest.applyListenSDRNetworkIdentity()
+    let waterfallTask = URLSession.shared.webSocketTask(with: waterfallRequest)
     wfSocket = waterfallTask
     waterfallTask.resume()
     wfReceiveTask = Task { [waterfallTask] in
@@ -1281,7 +1329,9 @@ actor OpenWebRXClient: SDRBackendClient {
     let url = try await resolveWebSocketURL(profile: profile, path: wsPath)
     log("Connecting to \(url.absoluteString)")
 
-    let task = URLSession.shared.webSocketTask(with: url)
+    var request = URLRequest(url: url)
+    request.applyListenSDRNetworkIdentity()
+    let task = URLSession.shared.webSocketTask(with: request)
     socket = task
     task.resume()
 
@@ -1293,7 +1343,7 @@ actor OpenWebRXClient: SDRBackendClient {
       self.logMissingAudioIfNeeded()
     }
 
-    try await send("SERVER DE CLIENT client=ListenSDR type=receiver")
+    try await send(ListenSDRNetworkIdentity.openWebRXHandshake)
     log("Handshake sent")
     try await sendJSON(
       [
@@ -2048,7 +2098,7 @@ actor OpenWebRXClient: SDRBackendClient {
     do {
       var request = URLRequest(url: url)
       request.timeoutInterval = 20
-      request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+      request.applyListenSDRNetworkIdentity()
       let (data, response) = try await URLSession.shared.data(for: request)
       guard
         let httpResponse = response as? HTTPURLResponse,
@@ -3040,11 +3090,59 @@ actor FMDXWebserverClient: SDRBackendClient {
       apiScript: apiScript
     )
     let resolvedCapabilities = FMDXCapabilitiesCacheCore.resolve(
-      primary: .init(capabilities),
-      fallback: cachedCapabilities.map(ListenSDRCore.FMDXCapabilitiesPolicyCore.Capabilities.init)
+      primary: ListenSDRCore.FMDXCapabilitiesPolicyCore.Capabilities(
+        antennas: capabilities.antennas.map { option in
+          ListenSDRCore.FMDXCapabilitiesPolicyCore.ControlOption(
+            id: option.id,
+            label: option.label,
+            legacyValue: option.legacyValue
+          )
+        },
+        bandwidths: capabilities.bandwidths.map { option in
+          ListenSDRCore.FMDXCapabilitiesPolicyCore.ControlOption(
+            id: option.id,
+            label: option.label,
+            legacyValue: option.legacyValue
+          )
+        },
+        supportsAM: capabilities.supportsAM,
+        supportsFilterControls: capabilities.supportsFilterControls,
+        supportsAGCControl: capabilities.supportsAGCControl
+      ),
+      fallback: cachedCapabilities.map { cached in
+        ListenSDRCore.FMDXCapabilitiesPolicyCore.Capabilities(
+          antennas: cached.antennas.map { option in
+            ListenSDRCore.FMDXCapabilitiesPolicyCore.ControlOption(
+              id: option.id,
+              label: option.label,
+              legacyValue: option.legacyValue
+            )
+          },
+          bandwidths: cached.bandwidths.map { option in
+            ListenSDRCore.FMDXCapabilitiesPolicyCore.ControlOption(
+              id: option.id,
+              label: option.label,
+              legacyValue: option.legacyValue
+            )
+          },
+          supportsAM: cached.supportsAM,
+          supportsFilterControls: cached.supportsFilterControls,
+          supportsAGCControl: cached.supportsAGCControl
+        )
+      }
     )
     let capabilityState = FMDXCapabilitiesSessionCore.connectedState(resolution: resolvedCapabilities)
-    let effectiveCapabilities = FMDXCapabilities(capabilityState.capabilities)
+    let effectiveCapabilities = FMDXCapabilities(
+      antennas: capabilityState.capabilities.antennas.map { option in
+        FMDXControlOption(id: option.id, label: option.label, legacyValue: option.legacyValue)
+      },
+      bandwidths: capabilityState.capabilities.bandwidths.map { option in
+        FMDXControlOption(id: option.id, label: option.label, legacyValue: option.legacyValue)
+      },
+      supportsAM: capabilityState.capabilities.supportsAM,
+      supportsFilterControls: capabilityState.capabilities.supportsFilterControls,
+      supportsAGCControl: capabilityState.capabilities.supportsAGCControl
+    )
     lastCapabilities = effectiveCapabilities
     log(
       "Resolved capabilities: supportsAM=\(effectiveCapabilities.supportsAM) scriptLoaded=\(apiScript != nil) antennas=\(effectiveCapabilities.antennas.count) bandwidths=\(effectiveCapabilities.bandwidths.count) filters=\(effectiveCapabilities.supportsFilterControls) agc=\(effectiveCapabilities.supportsAGCControl) confirmedSnapshot=\(capabilityState.hasConfirmedSnapshot) usedCachedCapabilities=\(capabilityState.usedCachedCapabilities)"
@@ -3234,7 +3332,9 @@ actor FMDXWebserverClient: SDRBackendClient {
     let audioURL = try makeWebSocketURL(profile: profile, path: "\(basePath)audio")
     log("Connecting audio stream: \(audioURL.absoluteString)")
 
-    let task = URLSession.shared.webSocketTask(with: audioURL)
+    var audioRequest = URLRequest(url: audioURL)
+    audioRequest.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
+    let task = URLSession.shared.webSocketTask(with: audioRequest)
     audioSocket = task
     task.resume()
 
@@ -3260,7 +3360,9 @@ actor FMDXWebserverClient: SDRBackendClient {
     let url = try makeWebSocketURL(profile: profile, path: "\(basePath)text")
     log("Connecting to \(url.absoluteString)")
 
-    let task = URLSession.shared.webSocketTask(with: url)
+    var textRequest = URLRequest(url: url)
+    textRequest.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
+    let task = URLSession.shared.webSocketTask(with: textRequest)
     socket = task
     task.resume()
 
@@ -3489,7 +3591,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     var request = URLRequest(url: url)
     request.timeoutInterval = 15
     request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
-    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+    request.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
 
     let (data, response) = try await URLSession.shared.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse,
@@ -3510,7 +3612,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     var request = URLRequest(url: url)
     request.timeoutInterval = 15
     request.setValue("application/javascript,text/javascript,*/*;q=0.1", forHTTPHeaderField: "Accept")
-    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+    request.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
 
     let (data, response) = try await URLSession.shared.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse,
@@ -4265,7 +4367,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     var request = URLRequest(url: url)
     request.timeoutInterval = 15
     request.setValue("text/javascript,text/plain,*/*", forHTTPHeaderField: "Accept")
-    request.setValue("ListenSDR/1.0", forHTTPHeaderField: "User-Agent")
+    request.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
 
     let (data, response) = try await URLSession.shared.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse,

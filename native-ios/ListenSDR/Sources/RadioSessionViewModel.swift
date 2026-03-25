@@ -3832,12 +3832,12 @@ final class RadioSessionViewModel: ObservableObject {
     case .fmdxCapabilities(let capabilities, let hasConfirmedSnapshot, _):
       applyFMDXCapabilityState(
         .init(
-          capabilities: .init(capabilities),
+          capabilities: coreFMDXCapabilities(capabilities),
           hasConfirmedSnapshot: hasConfirmedSnapshot,
           usedCachedCapabilities: false
         )
       )
-      if FMDXCapabilitiesPolicyCore.isMeaningful(.init(capabilities)) {
+      if FMDXCapabilitiesPolicyCore.isMeaningful(coreFMDXCapabilities(capabilities)) {
         persistCachedReceiverData { cached in
           cached.fmdxCapabilities = capabilities
         }
@@ -4379,7 +4379,7 @@ final class RadioSessionViewModel: ObservableObject {
     case .fmDxWebserver:
       applyFMDXCapabilityState(
         FMDXCapabilitiesSessionCore.restoredState(
-          cached: cached.fmdxCapabilities.map(FMDXCapabilitiesPolicyCore.Capabilities.init)
+          cached: cached.fmdxCapabilities.map(coreFMDXCapabilities)
         )
       )
       fmdxServerPresets = cached.fmdxServerPresets
@@ -4395,8 +4395,40 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func applyFMDXCapabilityState(_ state: FMDXCapabilitiesSessionCore.State) {
-    fmdxCapabilities = FMDXCapabilities(state.capabilities)
+    fmdxCapabilities = FMDXCapabilities(
+      antennas: state.capabilities.antennas.map { option in
+        FMDXControlOption(id: option.id, label: option.label, legacyValue: option.legacyValue)
+      },
+      bandwidths: state.capabilities.bandwidths.map { option in
+        FMDXControlOption(id: option.id, label: option.label, legacyValue: option.legacyValue)
+      },
+      supportsAM: state.capabilities.supportsAM,
+      supportsFilterControls: state.capabilities.supportsFilterControls,
+      supportsAGCControl: state.capabilities.supportsAGCControl
+    )
     hasFMDXCapabilitySnapshot = state.hasConfirmedSnapshot
+  }
+
+  private func coreFMDXCapabilities(_ capabilities: FMDXCapabilities) -> FMDXCapabilitiesPolicyCore.Capabilities {
+    FMDXCapabilitiesPolicyCore.Capabilities(
+      antennas: capabilities.antennas.map { option in
+        FMDXCapabilitiesPolicyCore.ControlOption(
+          id: option.id,
+          label: option.label,
+          legacyValue: option.legacyValue
+        )
+      },
+      bandwidths: capabilities.bandwidths.map { option in
+        FMDXCapabilitiesPolicyCore.ControlOption(
+          id: option.id,
+          label: option.label,
+          legacyValue: option.legacyValue
+        )
+      },
+      supportsAM: capabilities.supportsAM,
+      supportsFilterControls: capabilities.supportsFilterControls,
+      supportsAGCControl: capabilities.supportsAGCControl
+    )
   }
 
   private func rememberOpenWebRXBookmark(_ bookmark: SDRServerBookmark) {
