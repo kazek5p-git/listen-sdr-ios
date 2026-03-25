@@ -20,6 +20,7 @@
 		2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */; };
 		2E24DB309E0344833D3B83FD /* ReceiverIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950DF21350969254EFC903CF /* ReceiverIdentityTests.swift */; };
 		33F3F8C45A5BB961112E001B /* RadioSessionSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30CF02B6D5C9776336DA7B30 /* RadioSessionSettingsTests.swift */; };
+		347C30C3093802313590E3B7 /* FMDXCapabilitiesPolicyBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1555E324C13738FC619AD1 /* FMDXCapabilitiesPolicyBridge.swift */; };
 		35E8D207EF1F755F3823105F /* ReceiverLinkImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0486B345984166EC54D1381A /* ReceiverLinkImportTests.swift */; };
 		37A2B9CC76C458C794DECA72 /* SDRBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8D52E05033560ABC688416 /* SDRBackend.swift */; };
 		39AB7F078B8E0DF8C6A8ECA6 /* BandTuningProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */; };
@@ -131,6 +132,7 @@
 		6294264E832985350801F669 /* ReceiverDataCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDataCache.swift; sourceTree = "<group>"; };
 		639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPCMUtilitiesTests.swift; sourceTree = "<group>"; };
 		67898200E1DD7BF2FE5AC5A3 /* LiveAudioStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioStabilityTests.swift; sourceTree = "<group>"; };
+		6B1555E324C13738FC619AD1 /* FMDXCapabilitiesPolicyBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXCapabilitiesPolicyBridge.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		7D98E491501B5A7BA10E0AEA /* ReceiverLinkImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverLinkImport.swift; sourceTree = "<group>"; };
 		7E7702C07C09F90A04B6DA7A /* ListenSDRTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ListenSDRTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -229,6 +231,7 @@
 				88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */,
 				051509F0C3FD9100CF44E653 /* FavoritesStore.swift */,
 				11099F867EDFFECA567B45FC /* FMDXBandScanner.swift */,
+				6B1555E324C13738FC619AD1 /* FMDXCapabilitiesPolicyBridge.swift */,
 				E8E5AAA5B9EB3467D7BB3385 /* FMDXCapabilitiesSyncBridge.swift */,
 				C6DE626B86ADD59B5EF7360F /* FMDXPresetScriptParser.swift */,
 				260D2B31601E03EF1A96EE7D /* FMDXTelemetrySyncBridge.swift */,
@@ -438,6 +441,7 @@
 				D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */,
 				9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */,
 				76509925DB5BC007FD140D3A /* FMDXBandScanner.swift in Sources */,
+				347C30C3093802313590E3B7 /* FMDXCapabilitiesPolicyBridge.swift in Sources */,
 				76E0B093C55B985B8931FCA9 /* FMDXCapabilitiesSyncBridge.swift in Sources */,
 				DE15F0055B02E64403FA1BCD /* FMDXPresetScriptParser.swift in Sources */,
 				B215B1F7A563A4A7CF1CE614 /* FMDXTelemetrySyncBridge.swift in Sources */,
