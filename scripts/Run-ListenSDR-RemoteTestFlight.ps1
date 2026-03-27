@@ -104,9 +104,6 @@ if ([string]::IsNullOrWhiteSpace($AppleTeamId)) {
 if ([string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
   $RemoteLoginKeychainPassword = Read-ListenSDRSecret -SecretName "remote-login-keychain-password"
 }
-if ($SigningMode -eq "login" -and [string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
-  throw "Remote login keychain password is missing. Pass -RemoteLoginKeychainPassword, set LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD, or store the encrypted secret file."
-}
 if ($SigningMode -eq "temporary-p12" -and [string]::IsNullOrWhiteSpace($RemoteDistributionP12Password)) {
   throw "Remote distribution .p12 password is missing. Set LISTENSDR_REMOTE_P12_PASSWORD in user environment."
 }
@@ -320,16 +317,16 @@ if security dump-trust-settings 2>/dev/null | grep -q "Apple Distribution:"; the
 fi
 
 if [ "$SIGNING_MODE" = "login" ]; then
-  if [ -z "$LOGIN_KEYCHAIN_PASSWORD" ]; then
-    echo "LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD is required for login keychain signing." >&2
-    exit 4
-  fi
-
   security list-keychains -d user -s "$LOGIN_KEYCHAIN" "/Library/Keychains/System.keychain" >/dev/null
   security default-keychain -d user -s "$LOGIN_KEYCHAIN" >/dev/null
-  security unlock-keychain -p "$LOGIN_KEYCHAIN_PASSWORD" "$LOGIN_KEYCHAIN"
-  security set-keychain-settings -lut 21600 "$LOGIN_KEYCHAIN"
-  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$LOGIN_KEYCHAIN_PASSWORD" "$LOGIN_KEYCHAIN" >/dev/null
+
+  if [ -n "$LOGIN_KEYCHAIN_PASSWORD" ]; then
+    security unlock-keychain -p "$LOGIN_KEYCHAIN_PASSWORD" "$LOGIN_KEYCHAIN"
+    security set-keychain-settings -lut 21600 "$LOGIN_KEYCHAIN"
+    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$LOGIN_KEYCHAIN_PASSWORD" "$LOGIN_KEYCHAIN" >/dev/null
+  else
+    echo "No explicit login keychain password provided; using existing login.keychain-db session." >&2
+  fi
 
   if ! security find-identity -v -p codesigning "$LOGIN_KEYCHAIN" | grep -q "Apple Distribution:"; then
     echo "No Apple Distribution identity found in login.keychain-db." >&2
@@ -501,7 +498,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "==> Build on remote Mac"
 $sshBuildCommand = "chmod +x $remoteRunnerPath && bash $remoteRunnerPath"
-if ($SigningMode -eq "login") {
+if ($SigningMode -eq "login" -and -not [string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
   $quotedLoginPassword = ConvertTo-BashSingleQuotedLiteral -Value $RemoteLoginKeychainPassword
   $sshBuildCommand = "chmod +x $remoteRunnerPath && LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD=$quotedLoginPassword bash $remoteRunnerPath"
 }

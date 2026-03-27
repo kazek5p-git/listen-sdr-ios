@@ -302,11 +302,12 @@ Invoke-CommandCheck -Name "remote-host" -Detail ("Remote host {0} is reachable a
 } | Out-Null
 
 if ($SigningMode -eq "login") {
-  Invoke-CommandCheck -Name "signing" -Detail "Login keychain signing prerequisites are present." -ScriptBlock {
-    if ([string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
-      throw "Remote login keychain password is missing."
-    }
-
+  $signingDetail = if ([string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
+    "Remote Apple Distribution identity is available in login keychain; proceeding without explicit unlock password."
+  } else {
+    "Login keychain signing prerequisites are present."
+  }
+  Invoke-CommandCheck -Name "signing" -Detail $signingDetail -ScriptBlock {
     $command = 'test -f "$HOME/Library/Keychains/login.keychain-db" && security find-identity -v -p codesigning "$HOME/Library/Keychains/login.keychain-db" | grep -q ''Apple Distribution:'' && printf READY'
     $output = ssh $RemoteHost $command
     if ($LASTEXITCODE -ne 0) {
