@@ -79,7 +79,7 @@ function Get-ReleaseNotesPayload {
       throw "Release notes file not found: $($noteFile.Path)"
     }
 
-    $content = (Get-Content $noteFile.Path -Raw)
+    $content = [System.IO.File]::ReadAllText($noteFile.Path, [System.Text.Encoding]::UTF8)
     if ($null -eq $content) {
       $content = ""
     }
