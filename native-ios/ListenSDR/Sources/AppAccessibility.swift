@@ -33,54 +33,40 @@ enum InteractionFeedbackTone {
 }
 
 @MainActor
-private final class InteractionFeedbackPlayer {
+private final class InteractionFeedbackPlayer: NSObject, AVAudioPlayerDelegate {
   static let shared = InteractionFeedbackPlayer()
   private static let baseOutputGain: Double = 0.16
 
-  private let engine = AVAudioEngine()
-  private let playerNode = AVAudioPlayerNode()
-  private var isConfigured = false
+  private var activePlayer: AVAudioPlayer?
 
-  private init() {}
+  private override init() {
+    super.init()
+  }
 
   func play(_ tone: InteractionFeedbackTone, volumeMultiplier: Double) {
     guard let profile = Self.profile(for: tone) else { return }
     let clampedVolumeMultiplier = RadioSessionSettings.clampedAccessibilityInteractionSoundsVolume(
       volumeMultiplier
     )
-    let buffer = Self.makeBuffer(
+    let toneData = Self.makeToneData(
       primaryFrequencyHz: profile.primaryFrequencyHz,
       secondaryFrequencyHz: profile.secondaryFrequencyHz,
       durationSeconds: profile.durationSeconds,
       outputGain: Self.baseOutputGain * clampedVolumeMultiplier
     )
-    guard let buffer else { return }
-    configureIfNeeded()
-    guard ensureEngineIsRunning() else { return }
-
-    playerNode.stop()
-    playerNode.scheduleBuffer(buffer, at: nil, options: .interrupts)
-    playerNode.play()
-  }
-
-  private func configureIfNeeded() {
-    guard !isConfigured else { return }
-    engine.attach(playerNode)
-    engine.connect(playerNode, to: engine.mainMixerNode, format: nil)
-    engine.prepare()
-    isConfigured = true
-  }
-
-  private func ensureEngineIsRunning() -> Bool {
-    if engine.isRunning {
-      return true
-    }
+    guard let toneData else { return }
 
     do {
-      try engine.start()
-      return true
+      let player = try AVAudioPlayer(data: toneData, fileTypeHint: AVFileType.wav.rawValue)
+      player.delegate = self
+      player.prepareToPlay()
+      activePlayer?.stop()
+      activePlayer = player
+      if player.play() == false {
+        activePlayer = nil
+      }
     } catch {
-      return false
+      activePlayer = nil
     }
   }
 
@@ -101,46 +87,30 @@ private final class InteractionFeedbackPlayer {
     }
   }
 
-  private static func makeBuffer(
-    frequencyHz: Double,
-    sampleRate: Double = 44_100,
-    durationSeconds: Double = 0.14,
-    outputGain: Double? = nil
-  ) -> AVAudioPCMBuffer? {
-    makeBuffer(
-      primaryFrequencyHz: frequencyHz,
-      secondaryFrequencyHz: frequencyHz * 2,
-      sampleRate: sampleRate,
-      durationSeconds: durationSeconds,
-      outputGain: outputGain
-    )
+  func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    if activePlayer === player {
+      activePlayer = nil
+    }
   }
 
-  private static func makeBuffer(
+  func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+    if activePlayer === player {
+      activePlayer = nil
+    }
+  }
+
+  private static func makeToneData(
     primaryFrequencyHz: Double,
     secondaryFrequencyHz: Double,
     sampleRate: Double = 44_100,
     durationSeconds: Double = 0.14,
     outputGain: Double? = nil
-  ) -> AVAudioPCMBuffer? {
-    guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else {
-      return nil
-    }
-
-    let frameCount = AVAudioFrameCount(durationSeconds * sampleRate)
-    guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
-      return nil
-    }
-
-    buffer.frameLength = frameCount
-    guard let channel = buffer.floatChannelData?.pointee else {
-      return nil
-    }
-
-    let totalFrames = Int(frameCount)
+  ) -> Data? {
+    let totalFrames = max(1, Int(durationSeconds * sampleRate))
     let attackFrames = max(1, Int(sampleRate * 0.012))
     let releaseFrames = max(1, Int(sampleRate * 0.055))
     let resolvedOutputGain = outputGain ?? baseOutputGain
+    var pcmData = Data(capacity: totalFrames * 2)
 
     for frame in 0..<totalFrames {
       let time = Double(frame) / sampleRate
@@ -151,10 +121,53 @@ private final class InteractionFeedbackPlayer {
       let primary = sin(2 * Double.pi * primaryFrequencyHz * time)
       let accent = 0.28 * sin(2 * Double.pi * secondaryFrequencyHz * time + (Double.pi / 9))
       let subharmonic = 0.09 * sin(Double.pi * primaryFrequencyHz * time)
-      channel[frame] = Float((primary + accent + subharmonic) * resolvedOutputGain * softenedEnvelope)
+      let sample = max(
+        -1.0,
+        min(1.0, (primary + accent + subharmonic) * resolvedOutputGain * softenedEnvelope)
+      )
+      var littleEndian = Int16((sample * Double(Int16.max)).rounded()).littleEndian
+      withUnsafeBytes(of: &littleEndian) { pcmData.append(contentsOf: $0) }
     }
 
-    return buffer
+    var waveData = Data()
+    waveData.append(
+      makeWAVHeader(
+        sampleRate: UInt32(max(8_000, min(192_000, Int(sampleRate.rounded())))),
+        totalPCMBytes: pcmData.count
+      )
+    )
+    waveData.append(pcmData)
+    return waveData
+  }
+
+  private static func makeWAVHeader(sampleRate: UInt32, totalPCMBytes: Int) -> Data {
+    let channels: UInt16 = 1
+    let bitsPerSample: UInt16 = 16
+    let byteRate = sampleRate * UInt32(channels) * UInt32(bitsPerSample / 8)
+    let blockAlign = channels * (bitsPerSample / 8)
+    let chunkSize = UInt32(totalPCMBytes + 36)
+    let dataSize = UInt32(totalPCMBytes)
+
+    var data = Data()
+    data.append("RIFF".data(using: .ascii)!)
+    data.append(littleEndianData(chunkSize))
+    data.append("WAVE".data(using: .ascii)!)
+    data.append("fmt ".data(using: .ascii)!)
+    data.append(littleEndianData(UInt32(16)))
+    data.append(littleEndianData(UInt16(1)))
+    data.append(littleEndianData(channels))
+    data.append(littleEndianData(sampleRate))
+    data.append(littleEndianData(byteRate))
+    data.append(littleEndianData(blockAlign))
+    data.append(littleEndianData(bitsPerSample))
+    data.append("data".data(using: .ascii)!)
+    data.append(littleEndianData(dataSize))
+    return data
+  }
+
+  private static func littleEndianData<T: FixedWidthInteger>(_ value: T) -> Data {
+    var little = value.littleEndian
+    return withUnsafeBytes(of: &little) { Data($0) }
   }
 }
 

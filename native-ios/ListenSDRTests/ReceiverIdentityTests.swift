@@ -46,6 +46,7 @@ final class ReceiverIdentityTests: XCTestCase {
   }
 }
 
+@MainActor
 final class ProfileStoreSecretPersistenceTests: XCTestCase {
   private var defaults: UserDefaults!
   private var suiteName: String!
