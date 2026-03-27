@@ -232,6 +232,16 @@
     </section>
 
     <section class="panel section">
+      <h2>For blind and low-vision listeners</h2>
+      <ul class="highlight-list">
+        <li><strong>Designed around non-visual workflow:</strong> the app is meant to be operated efficiently with VoiceOver, not treated as a visual interface with accessibility added at the end.</li>
+        <li><strong>Reduced focus noise:</strong> important items such as receiver rows, history entries, controls, and grouped settings are intentionally structured to avoid exhausting swipe-by-swipe navigation.</li>
+        <li><strong>Practical spoken context:</strong> status changes, selections, recording actions, connection events, and other important states can be surfaced through announcements and sound feedback.</li>
+        <li><strong>Useful for real radio listening:</strong> the accessibility work is focused on everyday listening tasks such as connecting to receivers, tuning, changing modes, working with bookmarks, browsing directories, and recording sessions.</li>
+      </ul>
+    </section>
+
+    <section class="panel section">
       <h2>Core listening features</h2>
       <ul class="highlight-list">
         <li><strong>Public receiver browsing:</strong> browse receiver directories, import receiver links directly, and save radios for later use.</li>
@@ -239,6 +249,28 @@
         <li><strong>Local recording:</strong> save recordings on the device and come back to them later.</li>
         <li><strong>AirPlay-ready audio session:</strong> route listening audio through the standard iOS audio output picker when using other speakers or devices.</li>
       </ul>
+    </section>
+
+    <section class="panel section">
+      <h2>Why this is different from generic SDR clients</h2>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <h3>It is not only a network receiver browser</h3>
+          <p>Listen SDR is built around actual listening sessions: tuning, reconnecting, keeping useful history, managing saved radios, and working directly with receiver-specific controls.</p>
+        </article>
+        <article class="feature-card">
+          <h3>It respects backend differences</h3>
+          <p>FM-DX Webserver, KiwiSDR, and OpenWebRX do not behave the same way. Listen SDR exposes the controls and flows that matter for each backend instead of flattening everything into a lowest-common-denominator UI.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Accessibility affects product design</h3>
+          <p>The accessibility layer is part of the product architecture. That changes focus order, action grouping, feedback design, and the structure of the receiver workflows themselves.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Built as a native iPhone app</h3>
+          <p>Listen SDR is not a thin wrapper around a web page. It is a native client designed for iPhone workflows, iOS audio routing, VoiceOver, local recordings, and platform-native interaction patterns.</p>
+        </article>
+      </div>
     </section>
 
     <section class="panel section">
