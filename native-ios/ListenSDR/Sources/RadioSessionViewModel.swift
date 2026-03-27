@@ -2280,6 +2280,13 @@ final class RadioSessionViewModel: ObservableObject {
     playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
+  func setShowTutorialOnLaunchEnabled(_ enabled: Bool) {
+    guard settings.showTutorialOnLaunchEnabled != enabled else { return }
+    settings.showTutorialOnLaunchEnabled = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
   func setRememberSquelchOnConnectEnabled(_ enabled: Bool) {
     guard settings.rememberSquelchOnConnectEnabled != enabled else { return }
     settings.rememberSquelchOnConnectEnabled = enabled

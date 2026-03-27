@@ -29,6 +29,7 @@ struct SettingsViewState: Equatable {
   var accessibilitySelectionAnnouncementsEnabled: Bool
   var accessibilityConnectionSoundsEnabled: Bool
   var accessibilityRecordingSoundsEnabled: Bool
+  var showTutorialOnLaunchEnabled: Bool
   var rememberSquelchOnConnectEnabled: Bool
   var openReceiverAfterHistoryRestore: Bool
   var showRecentFrequencies: Bool
@@ -74,6 +75,7 @@ struct SettingsViewState: Equatable {
     accessibilitySelectionAnnouncementsEnabled: RadioSessionSettings.default.accessibilitySelectionAnnouncementsEnabled,
     accessibilityConnectionSoundsEnabled: RadioSessionSettings.default.accessibilityConnectionSoundsEnabled,
     accessibilityRecordingSoundsEnabled: RadioSessionSettings.default.accessibilityRecordingSoundsEnabled,
+    showTutorialOnLaunchEnabled: RadioSessionSettings.default.showTutorialOnLaunchEnabled,
     rememberSquelchOnConnectEnabled: RadioSessionSettings.default.rememberSquelchOnConnectEnabled,
     openReceiverAfterHistoryRestore: false,
     showRecentFrequencies: RadioSessionSettings.default.showRecentFrequencies,
@@ -107,6 +109,7 @@ struct SettingsViewState: Equatable {
 @MainActor
 final class SettingsViewController: ObservableObject {
   @Published private(set) var state: SettingsViewState = .empty
+  @Published private(set) var isBound = false
 
   private weak var accessibilityState: AppAccessibilityState?
   private weak var radioSession: RadioSessionViewModel?
@@ -123,6 +126,7 @@ final class SettingsViewController: ObservableObject {
       && self.accessibilityState === accessibilityState
     guard !isSameBinding else {
       refreshState(force: true)
+      isBound = true
       return
     }
 
@@ -131,6 +135,7 @@ final class SettingsViewController: ObservableObject {
     self.accessibilityState = accessibilityState
     cancellables.removeAll()
     refreshState(force: true)
+    isBound = true
 
     radioSession.objectWillChange
       .sink { [weak self] _ in
@@ -234,6 +239,11 @@ final class SettingsViewController: ObservableObject {
 
   func setAccessibilityRecordingSoundsEnabled(_ isEnabled: Bool) {
     radioSession?.setAccessibilityRecordingSoundsEnabled(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setShowTutorialOnLaunchEnabled(_ isEnabled: Bool) {
+    radioSession?.setShowTutorialOnLaunchEnabled(isEnabled)
     refreshState(force: true)
   }
 
@@ -429,6 +439,7 @@ final class SettingsViewController: ObservableObject {
       accessibilitySelectionAnnouncementsEnabled: radioSession.settings.accessibilitySelectionAnnouncementsEnabled,
       accessibilityConnectionSoundsEnabled: radioSession.settings.accessibilityConnectionSoundsEnabled,
       accessibilityRecordingSoundsEnabled: radioSession.settings.accessibilityRecordingSoundsEnabled,
+      showTutorialOnLaunchEnabled: radioSession.settings.showTutorialOnLaunchEnabled,
       rememberSquelchOnConnectEnabled: radioSession.settings.rememberSquelchOnConnectEnabled,
       openReceiverAfterHistoryRestore: radioSession.settings.openReceiverAfterHistoryRestore,
       showRecentFrequencies: radioSession.settings.showRecentFrequencies,

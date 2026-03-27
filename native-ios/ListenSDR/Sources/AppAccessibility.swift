@@ -29,7 +29,13 @@ enum AppAccessibilityAnnouncementCenter {
       return
     }
     guard let selectedItemTitle, !selectedItemTitle.isEmpty else { return }
-    post(L10n.text("common.announcement.selected_item", selectedItemTitle))
+    post(
+      L10n.text(
+        "common.announcement.selected_item",
+        fallback: "%@ selected",
+        selectedItemTitle
+      )
+    )
   }
 }
 
@@ -486,6 +492,7 @@ struct AppAccessibilityRotorHost: View {
       isEnabled: isEnabled,
       frequencyRotorName: L10n.text("receiver.voiceover_rotor.frequency"),
       tuneStepRotorName: L10n.text("receiver.voiceover_rotor.tune_step"),
+      bookmarkRotorName: bookmarkRotorTitle(for: backend),
       onTuneIncrement: {
         guard let backend else { return }
         radioSession.tune(byStepCount: frequencyAdjustmentStepCount(forIncrement: true))
@@ -503,6 +510,14 @@ struct AppAccessibilityRotorHost: View {
       onStepDecrement: {
         guard let backend else { return }
         cycleTuneStep(by: -1, backend: backend)
+      },
+      onBookmarkIncrement: {
+        guard let backend else { return }
+        cycleBookmarkRotor(by: 1, backend: backend)
+      },
+      onBookmarkDecrement: {
+        guard let backend else { return }
+        cycleBookmarkRotor(by: -1, backend: backend)
       }
     )
     .frame(width: 0, height: 0)
@@ -556,6 +571,83 @@ struct AppAccessibilityRotorHost: View {
     }
 
     AppAccessibilityAnnouncementCenter.post(announcement)
+  }
+
+  private func bookmarkRotorTitle(for backend: SDRBackend?) -> String? {
+    guard let backend else { return nil }
+    guard !bookmarkRotorItems(for: backend).isEmpty else { return nil }
+    return L10n.text(
+      "receiver.voiceover_rotor.bookmarks",
+      fallback: "Bookmarks and presets"
+    )
+  }
+
+  private func bookmarkRotorItems(for backend: SDRBackend) -> [SDRServerBookmark] {
+    switch backend {
+    case .openWebRX:
+      return radioSession.serverBookmarks
+    case .fmDxWebserver:
+      return radioSession.fmdxServerPresets
+    case .kiwiSDR:
+      return []
+    }
+  }
+
+  private func cycleBookmarkRotor(by offset: Int, backend: SDRBackend) {
+    let items = bookmarkRotorItems(for: backend)
+    guard !items.isEmpty else { return }
+
+    let currentIndex = currentBookmarkRotorIndex(in: items, backend: backend)
+    let nextIndex = min(max(currentIndex + offset, 0), items.count - 1)
+    guard nextIndex != currentIndex else { return }
+
+    let bookmark = items[nextIndex]
+    applyBookmarkRotorItem(bookmark, backend: backend)
+  }
+
+  private func currentBookmarkRotorIndex(
+    in items: [SDRServerBookmark],
+    backend: SDRBackend
+  ) -> Int {
+    if backend == .openWebRX, let lastOpenWebRXBookmark = radioSession.lastOpenWebRXBookmark,
+      let exactLastIndex = items.firstIndex(of: lastOpenWebRXBookmark) {
+      return exactLastIndex
+    }
+
+    if let currentIndex = items.firstIndex(where: {
+      $0.frequencyHz == radioSession.settings.frequencyHz
+        && ($0.modulation == nil || $0.modulation == radioSession.settings.mode)
+    }) {
+      return currentIndex
+    }
+
+    return items.enumerated().min(by: {
+      abs($0.element.frequencyHz - radioSession.settings.frequencyHz)
+        < abs($1.element.frequencyHz - radioSession.settings.frequencyHz)
+    })?.offset ?? 0
+  }
+
+  private func applyBookmarkRotorItem(
+    _ bookmark: SDRServerBookmark,
+    backend: SDRBackend
+  ) {
+    switch backend {
+    case .openWebRX:
+      radioSession.applyServerBookmark(bookmark)
+    case .fmDxWebserver:
+      if let mode = bookmark.modulation {
+        radioSession.setMode(mode)
+      }
+      radioSession.setFrequencyHz(bookmark.frequencyHz)
+    case .kiwiSDR:
+      return
+    }
+
+    if AppAccessibilitySettingsStore.currentSettings().accessibilitySelectionAnnouncementsEnabled {
+      AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(bookmark.name)
+    } else {
+      announceFrequency(for: backend)
+    }
   }
 }
 

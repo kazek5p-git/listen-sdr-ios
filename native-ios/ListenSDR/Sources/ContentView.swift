@@ -6,7 +6,10 @@ struct ContentView: View {
   @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var settingsController: SettingsViewController
   @State private var hasAttemptedStartupAutoConnect = false
+  @State private var hasEvaluatedStartupTutorial = false
+  @State private var isStartupTutorialPresented = false
 
   var body: some View {
     TabView(selection: $navigationState.selectedTab) {
@@ -34,6 +37,12 @@ struct ContentView: View {
     .background(AppAccessibilityRotorHost())
     .background(ShortcutCommandHost(scenePhase: scenePhase))
     .appScreenBackground()
+    .sheet(isPresented: $isStartupTutorialPresented) {
+      NavigationStack {
+        AppTutorialView(isPresentedOnLaunch: true)
+      }
+      .presentationDragIndicator(.visible)
+    }
     .onAppear {
       accessibilityState.selectedTab = navigationState.selectedTab
       radioSession.updateRuntimePolicy(
@@ -41,6 +50,7 @@ struct ContentView: View {
         selectedTab: navigationState.selectedTab
       )
       attemptStartupAutoConnectIfNeeded()
+      attemptStartupTutorialPresentationIfNeeded()
     }
     .onChange(of: navigationState.selectedTab) { selectedTab in
       accessibilityState.selectedTab = selectedTab
@@ -55,6 +65,10 @@ struct ContentView: View {
         selectedTab: navigationState.selectedTab
       )
       attemptStartupAutoConnectIfNeeded()
+      attemptStartupTutorialPresentationIfNeeded()
+    }
+    .onChange(of: settingsController.isBound) { _ in
+      attemptStartupTutorialPresentationIfNeeded()
     }
   }
 
@@ -73,6 +87,15 @@ struct ContentView: View {
       message: "Startup auto-connect requested for \(selectedProfile.name)"
     )
     radioSession.connect(to: selectedProfile)
+  }
+
+  private func attemptStartupTutorialPresentationIfNeeded() {
+    guard !hasEvaluatedStartupTutorial else { return }
+    guard scenePhase == .active else { return }
+    guard settingsController.isBound else { return }
+
+    hasEvaluatedStartupTutorial = true
+    isStartupTutorialPresented = settingsController.state.showTutorialOnLaunchEnabled
   }
 }
 

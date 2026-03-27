@@ -21,6 +21,7 @@ struct SettingsView: View {
         diagnosticsSection
         feedbackSection
         quickActionsSection
+        helpSection
         authorSection
       }
       .voiceOverStable()
@@ -705,6 +706,39 @@ struct SettingsView: View {
       Text("Kazek5p")
     } header: {
       AppSectionHeader(title: L10n.text("settings.author.section"))
+    }
+    .appSectionStyle()
+  }
+
+  private var helpSection: some View {
+    Section {
+      NavigationLink {
+        AppTutorialView(isPresentedOnLaunch: false)
+      } label: {
+        Label(
+          L10n.text("tutorial.navigation_title", fallback: "Tutorial"),
+          systemImage: "questionmark.circle"
+        )
+      }
+
+      Toggle(
+        L10n.text(
+          "tutorial.show_on_launch.title",
+          fallback: "Show this tutorial on app start"
+        ),
+        isOn: Binding(
+          get: { settingsController.state.showTutorialOnLaunchEnabled },
+          set: { settingsController.setShowTutorialOnLaunchEnabled($0) }
+        )
+      )
+      .accessibilityHint(
+        L10n.text(
+          "tutorial.show_on_launch.hint",
+          fallback: "Turn this off if you do not want the tutorial to open automatically next time."
+        )
+      )
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.help.section", fallback: "Help"))
     }
     .appSectionStyle()
   }

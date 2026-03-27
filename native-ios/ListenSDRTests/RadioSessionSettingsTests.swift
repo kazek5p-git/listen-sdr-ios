@@ -373,6 +373,18 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertTrue(decoded.accessibilitySelectionAnnouncementsEnabled)
   }
 
+  func testShowTutorialOnLaunchDefaultsToEnabledAndRoundTrip() throws {
+    XCTAssertTrue(RadioSessionSettings.default.showTutorialOnLaunchEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.showTutorialOnLaunchEnabled = false
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertFalse(decoded.showTutorialOnLaunchEnabled)
+  }
+
   func testAccessibilityConnectionSoundsDefaultToDisabledAndRoundTrip() throws {
     XCTAssertFalse(RadioSessionSettings.default.accessibilityConnectionSoundsEnabled)
 

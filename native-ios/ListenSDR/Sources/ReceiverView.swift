@@ -638,6 +638,7 @@ struct ReceiverView: View {
           LabeledContent(L10n.text("openwebrx.active_bookmark"), value: lastBookmark.name)
           FocusRetainingButton {
             radioSession.restoreLastOpenWebRXBookmark()
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(lastBookmark.name)
           } label: {
             Label(L10n.text("openwebrx.active_bookmark.apply"), systemImage: "bookmark.fill")
           }
@@ -647,6 +648,7 @@ struct ReceiverView: View {
         if let activeBand = activeOpenWebRXBandEntry() {
           FocusRetainingButton {
             radioSession.tuneToBand(activeBand)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(activeBand.name)
           } label: {
             Label(L10n.text("openwebrx.active_band.center"), systemImage: "scope")
           }
@@ -658,9 +660,11 @@ struct ReceiverView: View {
                 band: activeBand,
                 onTuneBandCenter: {
                   radioSession.tuneToBand(activeBand)
+                  AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(activeBand.name)
                 },
                 onTuneFrequency: { item in
                   radioSession.tuneToBand(activeBand, using: item)
+                  AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(item.name)
                 }
               )
             } label: {
@@ -692,6 +696,7 @@ struct ReceiverView: View {
           bookmarks: radioSession.serverBookmarks,
           onSelect: { bookmark in
             radioSession.applyServerBookmark(bookmark)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(bookmark.name)
           }
         )
       } label: {
@@ -714,9 +719,11 @@ struct ReceiverView: View {
           bands: radioSession.openWebRXBandPlan,
           onTuneBandCenter: { band in
             radioSession.tuneToBand(band)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(band.name)
           },
           onTuneFrequency: { band, item in
             radioSession.tuneToBand(band, using: item)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(item.name)
           }
         )
       } label: {
@@ -741,6 +748,7 @@ struct ReceiverView: View {
               bookmarks: radioSession.serverBookmarks,
               onSelect: { bookmark in
                 radioSession.applyServerBookmark(bookmark)
+                AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(bookmark.name)
               }
             )
           } label: {
@@ -770,9 +778,11 @@ struct ReceiverView: View {
               bands: radioSession.openWebRXBandPlan,
               onTuneBandCenter: { band in
                 radioSession.tuneToBand(band)
+                AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(band.name)
               },
               onTuneFrequency: { band, item in
                 radioSession.tuneToBand(band, using: item)
+                AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(item.name)
               }
             )
           } label: {
@@ -1079,6 +1089,7 @@ struct ReceiverView: View {
   private func fmdxServerBookmarkRow(preset: SDRServerBookmark) -> some View {
     FocusRetainingButton {
       radioSession.setFrequencyHz(preset.frequencyHz)
+      AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(preset.name)
     } label: {
       HStack {
         Text(preset.name)
@@ -2100,7 +2111,9 @@ struct ReceiverView: View {
       }
       .accessibilityElement(children: .combine)
       .accessibilityLabel(L10n.text("Audio volume"))
-      .accessibilityValue("\(Int((radioSession.settings.audioVolume * 100).rounded())) percent")
+      .accessibilityValue(
+        L10n.text("audio.volume_percent", Int((radioSession.settings.audioVolume * 100).rounded()))
+      )
 
       Toggle(
         "Mute audio",

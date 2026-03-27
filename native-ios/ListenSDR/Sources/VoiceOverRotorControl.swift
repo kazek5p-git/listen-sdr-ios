@@ -5,10 +5,13 @@ struct GlobalVoiceOverRotorBridge: UIViewRepresentable {
   let isEnabled: Bool
   let frequencyRotorName: String
   let tuneStepRotorName: String
+  let bookmarkRotorName: String?
   let onTuneIncrement: () -> Void
   let onTuneDecrement: () -> Void
   let onStepIncrement: () -> Void
   let onStepDecrement: () -> Void
+  let onBookmarkIncrement: (() -> Void)?
+  let onBookmarkDecrement: (() -> Void)?
 
   func makeUIView(context: Context) -> GlobalVoiceOverRotorInstallerView {
     GlobalVoiceOverRotorInstallerView()
@@ -19,10 +22,13 @@ struct GlobalVoiceOverRotorBridge: UIViewRepresentable {
       isEnabled: isEnabled,
       frequencyRotorName: frequencyRotorName,
       tuneStepRotorName: tuneStepRotorName,
+      bookmarkRotorName: bookmarkRotorName,
       onTuneIncrement: onTuneIncrement,
       onTuneDecrement: onTuneDecrement,
       onStepIncrement: onStepIncrement,
-      onStepDecrement: onStepDecrement
+      onStepDecrement: onStepDecrement,
+      onBookmarkIncrement: onBookmarkIncrement,
+      onBookmarkDecrement: onBookmarkDecrement
     )
   }
 }
@@ -33,10 +39,13 @@ final class GlobalVoiceOverRotorInstallerView: UIView {
   private var isEnabled = false
   private var frequencyRotorName = ""
   private var tuneStepRotorName = ""
+  private var bookmarkRotorName: String?
   private var onTuneIncrement: (() -> Void)?
   private var onTuneDecrement: (() -> Void)?
   private var onStepIncrement: (() -> Void)?
   private var onStepDecrement: (() -> Void)?
+  private var onBookmarkIncrement: (() -> Void)?
+  private var onBookmarkDecrement: (() -> Void)?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -56,18 +65,24 @@ final class GlobalVoiceOverRotorInstallerView: UIView {
     isEnabled: Bool,
     frequencyRotorName: String,
     tuneStepRotorName: String,
+    bookmarkRotorName: String?,
     onTuneIncrement: @escaping () -> Void,
     onTuneDecrement: @escaping () -> Void,
     onStepIncrement: @escaping () -> Void,
-    onStepDecrement: @escaping () -> Void
+    onStepDecrement: @escaping () -> Void,
+    onBookmarkIncrement: (() -> Void)?,
+    onBookmarkDecrement: (() -> Void)?
   ) {
     self.isEnabled = isEnabled
     self.frequencyRotorName = frequencyRotorName
     self.tuneStepRotorName = tuneStepRotorName
+    self.bookmarkRotorName = bookmarkRotorName
     self.onTuneIncrement = onTuneIncrement
     self.onTuneDecrement = onTuneDecrement
     self.onStepIncrement = onStepIncrement
     self.onStepDecrement = onStepDecrement
+    self.onBookmarkIncrement = onBookmarkIncrement
+    self.onBookmarkDecrement = onBookmarkDecrement
     applyRotorsIfPossible()
   }
 
@@ -100,12 +115,26 @@ final class GlobalVoiceOverRotorInstallerView: UIView {
       installedRootView = rootView
     }
 
-    let rotors = isEnabled
-      ? [
+    let rotors: [UIAccessibilityCustomRotor]
+    if isEnabled {
+      var configuredRotors = [
         makeRotor(name: frequencyRotorName, forward: onTuneIncrement, backward: onTuneDecrement),
         makeRotor(name: tuneStepRotorName, forward: onStepIncrement, backward: onStepDecrement)
       ]
-      : []
+      if let bookmarkRotorName, !bookmarkRotorName.isEmpty,
+        (onBookmarkIncrement != nil || onBookmarkDecrement != nil) {
+        configuredRotors.append(
+          makeRotor(
+            name: bookmarkRotorName,
+            forward: onBookmarkIncrement,
+            backward: onBookmarkDecrement
+          )
+        )
+      }
+      rotors = configuredRotors
+    } else {
+      rotors = []
+    }
 
     installedWindow?.accessibilityCustomRotors = rotors
     installedRootView?.accessibilityCustomRotors = rotors
