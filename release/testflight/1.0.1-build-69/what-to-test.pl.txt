@@ -1,0 +1,8 @@
+Najważniejsze nowości w tym buildzie to wygodniejszy zapis nagrań i poprawki dla czytników ekranu.
+
+Proszę szczególnie sprawdzić:
+- Nagrania: wybór własnego folderu zapisu w Audio, w tym folderów dostępnych przez systemowe Pliki i podłączone chmury.
+- Nagrania: poprawne działanie domyślnego folderu aplikacji oraz udostępniania nagrań po zapisaniu do wybranego miejsca.
+- Czytnik ekranu: ustawienie RDS jest teraz opisane ogólnie dla czytnika ekranu, a nie tylko VoiceOver.
+- Czytnik ekranu: na Androidzie automatyczny odczyt RDS powinien działać po pojawieniu się nowej nazwy stacji, tekstu radiowego albo PI.
+- Ustawienia audio: opcja wyrównywania głośności mowy pozostaje w sekcji Audio i nie powinna wpływać na zapis nagrań.

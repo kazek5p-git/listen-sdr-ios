@@ -1,0 +1,8 @@
+This build focuses on more flexible recording storage and screen reader improvements.
+
+Please pay special attention to:
+- Recordings: choosing a custom recording folder in Audio, including folders exposed through the system Files app and connected cloud providers.
+- Recordings: correct behavior of the default app folder and sharing recordings after saving them to the selected destination.
+- Screen reader: the RDS setting is now described generically for the screen reader instead of VoiceOver only.
+- Screen reader: on Android, automatic RDS announcements should now trigger when a new station name, radio text, or PI appears.
+- Audio settings: speech loudness leveling remains in Audio and should not affect recording output.
