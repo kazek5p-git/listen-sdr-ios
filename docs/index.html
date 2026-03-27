@@ -148,6 +148,33 @@
       gap: 14px;
       margin-top: 24px;
     }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .button-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      text-decoration: none;
+      font-weight: 700;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .button-link.primary {
+      background: #f5efe2;
+      color: #173649;
+    }
+    .button-link.secondary {
+      background: transparent;
+      border-color: rgba(255, 255, 255, 0.2);
+      color: var(--hero-text);
+    }
     .links a {
       display: block;
       padding: 14px 16px;
@@ -183,6 +210,10 @@
         <span class="pill">KiwiSDR</span>
         <span class="pill">OpenWebRX</span>
         <span class="pill">Local recordings</span>
+      </div>
+      <div class="hero-actions">
+        <a class="button-link primary" href="https://testflight.apple.com/join/bbTvprWc">Join TestFlight</a>
+        <a class="button-link secondary" href="./support.html">Read Support Info</a>
       </div>
       <div class="hero-grid">
         <div class="hero-card">
