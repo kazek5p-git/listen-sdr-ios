@@ -51,6 +51,8 @@ final class AudioOutputEngine {
   private var muted = false
   private var scannerPlaybackMuted = false
   private var mixWithOtherAudioApps = false
+  private var speechLoudnessLevelingEnabled = false
+  private let speechLoudnessLeveler = SpeechLoudnessLeveler()
   private var lastInputSampleRateHz: Int?
   private var lastEnqueueAt = Date.distantPast
   private var lastLevelDBFS: Double?
@@ -83,7 +85,10 @@ final class AudioOutputEngine {
       to: outputSampleRate
     )
     guard !resampledSamples.isEmpty else { return }
-    let bufferDurationSeconds = Double(resampledSamples.count) / outputSampleRate
+    let playbackSamples = speechLoudnessLevelingEnabled
+      ? speechLoudnessLeveler.process(resampledSamples)
+      : resampledSamples
+    let bufferDurationSeconds = Double(playbackSamples.count) / outputSampleRate
 
     configureAudioSessionIfNeeded(force: !sessionConfigured || !engine.isRunning)
     ensureGraphConfigured()
@@ -96,7 +101,7 @@ final class AudioOutputEngine {
       return
     }
 
-    buffer.frameLength = AVAudioFrameCount(resampledSamples.count)
+    buffer.frameLength = AVAudioFrameCount(playbackSamples.count)
     guard
       let leftChannel = buffer.floatChannelData?[0],
       let rightChannel = buffer.floatChannelData?[1]
@@ -110,7 +115,7 @@ final class AudioOutputEngine {
     var zeroCrossings = 0
     var previousValue = 0.0
     var hasPreviousValue = false
-    for (index, sample) in resampledSamples.enumerated() {
+    for (index, sample) in playbackSamples.enumerated() {
       leftChannel[index] = sample
       rightChannel[index] = sample
       let value = Double(sample)
@@ -128,26 +133,26 @@ final class AudioOutputEngine {
       }
       previousValue = value
     }
-    let rms = sqrt(sumSquares / Double(resampledSamples.count))
+    let rms = sqrt(sumSquares / Double(playbackSamples.count))
     let levelDBFS: Double = {
       guard rms.isFinite, rms > 0.000_001 else { return -80 }
       return max(-80, min(0, 20.0 * log10(rms)))
     }()
-    let meanAbsolute = sumAbsolute / Double(resampledSamples.count)
+    let meanAbsolute = sumAbsolute / Double(playbackSamples.count)
     let envelopeVariance = max(
       0,
-      (sumAbsoluteSquares / Double(resampledSamples.count)) - (meanAbsolute * meanAbsolute)
+      (sumAbsoluteSquares / Double(playbackSamples.count)) - (meanAbsolute * meanAbsolute)
     )
     let envelopeVariation = meanAbsolute > 0.000_001
       ? min(4.0, sqrt(envelopeVariance) / meanAbsolute)
       : 0
-    let zeroCrossingRate = resampledSamples.count > 1
-      ? Double(zeroCrossings) / Double(resampledSamples.count - 1)
+    let zeroCrossingRate = playbackSamples.count > 1
+      ? Double(zeroCrossings) / Double(playbackSamples.count - 1)
       : 0
-    let spectralActivity = resampledSamples.count > 1 && meanAbsolute > 0.000_001
+    let spectralActivity = playbackSamples.count > 1 && meanAbsolute > 0.000_001
       ? min(
         4.0,
-        (sumAbsoluteDelta / Double(resampledSamples.count - 1)) / meanAbsolute
+        (sumAbsoluteDelta / Double(playbackSamples.count - 1)) / meanAbsolute
       )
       : 0
     let analysisTimestamp = Date()
@@ -200,6 +205,7 @@ final class AudioOutputEngine {
     lastLevelSampleAt = .distantPast
     recentSignalMetrics.removeAll()
     scannerPlaybackMuted = false
+    speechLoudnessLeveler.reset()
     NowPlayingMetadataController.shared.stopPlayback()
     deactivateAudioSessionIfPossible()
   }
@@ -226,6 +232,14 @@ final class AudioOutputEngine {
     sessionConfigured = false
     if engine.isRunning || queuedBuffers > 0 {
       configureAudioSessionIfNeeded(force: true)
+    }
+  }
+
+  func setSpeechLoudnessLevelingEnabled(_ enabled: Bool) {
+    guard speechLoudnessLevelingEnabled != enabled else { return }
+    speechLoudnessLevelingEnabled = enabled
+    if !enabled {
+      speechLoudnessLeveler.reset()
     }
   }
 
@@ -335,6 +349,7 @@ final class AudioOutputEngine {
     queuedDurationSeconds = 0
     queuedBufferDurations.removeAll()
     recentSignalMetrics.removeAll()
+    speechLoudnessLeveler.reset()
     scannerPlaybackMuted = false
     needsBufferedPlaybackStart = true
     graphConfigured = false

@@ -29,6 +29,7 @@ struct SettingsViewState: Equatable {
   var accessibilitySelectionAnnouncementsEnabled: Bool
   var accessibilityConnectionSoundsEnabled: Bool
   var accessibilityRecordingSoundsEnabled: Bool
+  var accessibilitySpeechLoudnessLevelingEnabled: Bool
   var showTutorialOnLaunchEnabled: Bool
   var rememberSquelchOnConnectEnabled: Bool
   var openReceiverAfterHistoryRestore: Bool
@@ -75,6 +76,7 @@ struct SettingsViewState: Equatable {
     accessibilitySelectionAnnouncementsEnabled: RadioSessionSettings.default.accessibilitySelectionAnnouncementsEnabled,
     accessibilityConnectionSoundsEnabled: RadioSessionSettings.default.accessibilityConnectionSoundsEnabled,
     accessibilityRecordingSoundsEnabled: RadioSessionSettings.default.accessibilityRecordingSoundsEnabled,
+    accessibilitySpeechLoudnessLevelingEnabled: RadioSessionSettings.default.accessibilitySpeechLoudnessLevelingEnabled,
     showTutorialOnLaunchEnabled: RadioSessionSettings.default.showTutorialOnLaunchEnabled,
     rememberSquelchOnConnectEnabled: RadioSessionSettings.default.rememberSquelchOnConnectEnabled,
     openReceiverAfterHistoryRestore: false,
@@ -239,6 +241,11 @@ final class SettingsViewController: ObservableObject {
 
   func setAccessibilityRecordingSoundsEnabled(_ isEnabled: Bool) {
     radioSession?.setAccessibilityRecordingSoundsEnabled(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setAccessibilitySpeechLoudnessLevelingEnabled(_ isEnabled: Bool) {
+    radioSession?.setAccessibilitySpeechLoudnessLevelingEnabled(isEnabled)
     refreshState(force: true)
   }
 
@@ -439,6 +446,7 @@ final class SettingsViewController: ObservableObject {
       accessibilitySelectionAnnouncementsEnabled: radioSession.settings.accessibilitySelectionAnnouncementsEnabled,
       accessibilityConnectionSoundsEnabled: radioSession.settings.accessibilityConnectionSoundsEnabled,
       accessibilityRecordingSoundsEnabled: radioSession.settings.accessibilityRecordingSoundsEnabled,
+      accessibilitySpeechLoudnessLevelingEnabled: radioSession.settings.accessibilitySpeechLoudnessLevelingEnabled,
       showTutorialOnLaunchEnabled: radioSession.settings.showTutorialOnLaunchEnabled,
       rememberSquelchOnConnectEnabled: radioSession.settings.rememberSquelchOnConnectEnabled,
       openReceiverAfterHistoryRestore: radioSession.settings.openReceiverAfterHistoryRestore,

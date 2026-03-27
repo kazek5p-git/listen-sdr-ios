@@ -497,8 +497,8 @@
 "settings.accessibility.section" = "Dostępność";
 "settings.accessibility.voiceover_rds" = "Czytaj zmiany RDS";
 "settings.accessibility.voiceover_rds.hint" = "Gdy VoiceOver jest włączony, odczytuje nową nazwę stacji lub tekst RDS po zmianie.";
-"settings.accessibility.voiceover_rds_mode" = "Odczyt RDS przez VoiceOver";
-"settings.accessibility.voiceover_rds_mode.hint" = "Wybiera, czy VoiceOver ma czytać tylko informacje o stacji, czy pełny RDS.";
+"settings.accessibility.voiceover_rds_mode" = "Odczyt RDS przez czytnik ekranu";
+"settings.accessibility.voiceover_rds_mode.hint" = "Wybiera, czy czytnik ekranu ma czytać tylko informacje o stacji, czy pełny RDS.";
 "settings.history.section" = "Historia";
 "settings.history.open_receiver_after_restore" = "Po wybraniu wpisu z historii przechodź do karty Odbiornik";
 "settings.history.open_receiver_after_restore.hint" = "Po przywróceniu wpisu z historii aplikacja automatycznie przejdzie do karty Odbiornik.";
@@ -522,6 +522,11 @@
 
 "settings.integrations.section" = "Integracje";
 "settings.audio.section" = "Ustawienia audio";
+"settings.audio.recording_folder" = "Folder nagrań";
+"settings.audio.recording_folder.hint" = "Wybierz miejsce zapisu nowych nagrań. Domyślną lokalizacją jest folder Recordings aplikacji.";
+"settings.audio.recording_folder.choose" = "Wybierz folder nagrań";
+"settings.audio.recording_folder.reset" = "Użyj domyślnego folderu aplikacji";
+"settings.audio.recording_folder.providers" = "Możesz wybrać iCloud Drive, Dropbox, Dysk Google, OneDrive, Box, Nextcloud, udziały SMB i inne foldery widoczne w aplikacji Pliki.";
 "settings.audio.startup_buffer" = "Bufor startowy";
 "settings.audio.startup_buffer.hint" = "Większa wartość zmniejsza przycinki, ale zwiększa opóźnienie.";
 "settings.audio.max_latency" = "Maksymalne opóźnienie na żywo";
@@ -877,6 +882,8 @@
 "settings.accessibility.connection_sounds.hint" = "Odtwarza krótki sygnał po udanym połączeniu z odbiornikiem oraz osobny sygnał przy nieudanym połączeniu.";
 "settings.accessibility.recording_sounds" = "Dźwięki nagrywania";
 "settings.accessibility.recording_sounds.hint" = "Odtwarza osobne tony przy rozpoczęciu i zatrzymaniu nagrywania.";
+"settings.accessibility.speech_loudness_leveling" = "Wyrównywanie głośności mowy";
+"settings.accessibility.speech_loudness_leveling.hint" = "Utrzymuje odsłuch mowy z KiwiSDR i OpenWebRX bliżej jednego poziomu głośności. Nagrania i odtwarzanie FM-DX pozostają bez zmian.";
 "accessibility.magic_tap.muted" = "Wyciszono";
 "accessibility.magic_tap.unmuted" = "Odciszono";
 "settings.radios.section" = "Radia";

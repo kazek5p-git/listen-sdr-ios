@@ -14,7 +14,7 @@ struct RecordingsView: View {
         } else {
           ForEach(recordingStore.recordings) { recording in
             Button {
-              sharedRecordingURL = recording.fileURL
+              sharedRecordingURL = recordingStore.shareURL(for: recording)
             } label: {
               let createdAtText = recording.createdAt.formatted(date: .abbreviated, time: .shortened)
 
@@ -51,7 +51,7 @@ struct RecordingsView: View {
             .buttonStyle(.plain)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
               Button {
-                sharedRecordingURL = recording.fileURL
+                sharedRecordingURL = recordingStore.shareURL(for: recording)
               } label: {
                 Label(L10n.text("recordings.share"), systemImage: "square.and.arrow.up")
               }

@@ -373,6 +373,18 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertTrue(decoded.accessibilitySelectionAnnouncementsEnabled)
   }
 
+  func testAccessibilitySpeechLoudnessLevelingDefaultsToDisabledAndRoundTrip() throws {
+    XCTAssertFalse(RadioSessionSettings.default.accessibilitySpeechLoudnessLevelingEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.accessibilitySpeechLoudnessLevelingEnabled = true
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertTrue(decoded.accessibilitySpeechLoudnessLevelingEnabled)
+  }
+
   func testShowTutorialOnLaunchDefaultsToEnabledAndRoundTrip() throws {
     XCTAssertTrue(RadioSessionSettings.default.showTutorialOnLaunchEnabled)
 

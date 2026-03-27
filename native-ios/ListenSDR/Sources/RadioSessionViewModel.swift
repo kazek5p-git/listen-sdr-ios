@@ -272,6 +272,9 @@ final class RadioSessionViewModel: ObservableObject {
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     SharedAudioOutput.engine.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
+    SharedAudioOutput.engine.setSpeechLoudnessLevelingEnabled(
+      settings.accessibilitySpeechLoudnessLevelingEnabled
+    )
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
@@ -2280,6 +2283,14 @@ final class RadioSessionViewModel: ObservableObject {
     playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
+  func setAccessibilitySpeechLoudnessLevelingEnabled(_ enabled: Bool) {
+    guard settings.accessibilitySpeechLoudnessLevelingEnabled != enabled else { return }
+    settings.accessibilitySpeechLoudnessLevelingEnabled = enabled
+    SharedAudioOutput.engine.setSpeechLoudnessLevelingEnabled(enabled)
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
   func setShowTutorialOnLaunchEnabled(_ enabled: Bool) {
     guard settings.showTutorialOnLaunchEnabled != enabled else { return }
     settings.showTutorialOnLaunchEnabled = enabled
@@ -3033,6 +3044,9 @@ final class RadioSessionViewModel: ObservableObject {
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
     SharedAudioOutput.engine.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
+    SharedAudioOutput.engine.setSpeechLoudnessLevelingEnabled(
+      settings.accessibilitySpeechLoudnessLevelingEnabled
+    )
     FMDXMP3AudioPlayer.shared.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
     applyFMDXAudioTuning()
 

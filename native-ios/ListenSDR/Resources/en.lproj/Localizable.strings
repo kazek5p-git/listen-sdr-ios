@@ -346,8 +346,8 @@
 
 "settings.accessibility.voiceover_rds" = "Announce RDS changes";
 "settings.accessibility.voiceover_rds.hint" = "When VoiceOver is active, reads a new station name or RDS text after it changes.";
-"settings.accessibility.voiceover_rds_mode" = "VoiceOver RDS reading";
-"settings.accessibility.voiceover_rds_mode.hint" = "Choose whether VoiceOver reads only station information or full RDS updates.";
+"settings.accessibility.voiceover_rds_mode" = "Screen reader RDS reading";
+"settings.accessibility.voiceover_rds_mode.hint" = "Choose whether the screen reader reads only station information or full RDS updates.";
 "settings.history.section" = "History";
 "settings.history.open_receiver_after_restore" = "Open Receiver tab after restoring from history";
 "settings.history.open_receiver_after_restore.hint" = "After restoring a history entry, the app will automatically switch to the Receiver tab.";
@@ -371,6 +371,11 @@
 
 "settings.integrations.section" = "Integrations";
 "settings.audio.section" = "Audio settings";
+"settings.audio.recording_folder" = "Recording folder";
+"settings.audio.recording_folder.hint" = "Choose where new recordings are saved. The default location is the app's Recordings folder.";
+"settings.audio.recording_folder.choose" = "Choose recording folder";
+"settings.audio.recording_folder.reset" = "Use default app folder";
+"settings.audio.recording_folder.providers" = "You can choose iCloud Drive, Dropbox, Google Drive, OneDrive, Box, Nextcloud, SMB shares, and other folders exposed in the Files app.";
 "settings.audio.startup_buffer" = "Startup buffer";
 "settings.audio.startup_buffer.hint" = "Higher values reduce stutter, but increase delay.";
 "settings.audio.max_latency" = "Maximum live delay";
@@ -726,6 +731,8 @@
 "settings.accessibility.connection_sounds.hint" = "Plays a short success tone after a receiver connects and a failure tone when the connection does not succeed.";
 "settings.accessibility.recording_sounds" = "Recording sounds";
 "settings.accessibility.recording_sounds.hint" = "Plays separate tones when recording starts and stops.";
+"settings.accessibility.speech_loudness_leveling" = "Speech loudness leveling";
+"settings.accessibility.speech_loudness_leveling.hint" = "Keeps KiwiSDR and OpenWebRX speech audio closer to one listening level. Recordings and FM-DX playback stay unchanged.";
 "accessibility.magic_tap.muted" = "Muted";
 "accessibility.magic_tap.unmuted" = "Unmuted";
 "settings.radios.section" = "Radios";

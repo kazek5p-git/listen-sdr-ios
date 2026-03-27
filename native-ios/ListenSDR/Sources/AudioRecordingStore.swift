@@ -32,12 +32,13 @@ struct AudioRecordingInfo: Identifiable, Codable, Hashable {
   let mode: DemodulationMode?
   let format: AudioRecordingFormat
   let filePath: String
+  let fileBookmarkData: Data?
   let createdAt: Date
   let finishedAt: Date
   let byteCount: Int64
 
   var fileURL: URL {
-    URL(fileURLWithPath: filePath)
+    resolvedFileURL() ?? URL(fileURLWithPath: filePath)
   }
 
   var displayFileName: String {
@@ -50,6 +51,42 @@ struct AudioRecordingInfo: Identifiable, Codable, Hashable {
 
   var durationText: String {
     Self.durationFormatter.string(from: durationSeconds) ?? "0:00"
+  }
+
+  func withScopedFileAccess<T>(_ body: (URL) throws -> T) rethrows -> T? {
+    if let fileBookmarkData {
+      var isStale = false
+      guard let url = try? URL(
+        resolvingBookmarkData: fileBookmarkData,
+        options: [],
+        relativeTo: nil,
+        bookmarkDataIsStale: &isStale
+      ) else {
+        return nil
+      }
+      let granted = url.startAccessingSecurityScopedResource()
+      defer {
+        if granted {
+          url.stopAccessingSecurityScopedResource()
+        }
+      }
+      return try body(url)
+    }
+
+    return try body(URL(fileURLWithPath: filePath))
+  }
+
+  private func resolvedFileURL() -> URL? {
+    if let fileBookmarkData {
+      var isStale = false
+      return try? URL(
+        resolvingBookmarkData: fileBookmarkData,
+        options: [],
+        relativeTo: nil,
+        bookmarkDataIsStale: &isStale
+      )
+    }
+    return URL(fileURLWithPath: filePath)
   }
 
   private static let durationFormatter: DateComponentsFormatter = {
@@ -85,6 +122,7 @@ private struct ActiveAudioRecording {
   let id: UUID
   let context: AudioRecordingContext
   let fileURL: URL
+  let usesCustomDestination: Bool
   let handle: FileHandle
   let createdAt: Date
   var byteCount: Int64
@@ -97,17 +135,18 @@ final class AudioRecordingController {
 
   private let queue = DispatchQueue(label: "ListenSDR.AudioRecordingController")
   private let fileManager = FileManager.default
+  private let defaultRecordingsDirectoryURL: URL
+  private let destinationStore = RecordingDestinationStore.shared
   private let indexURL: URL
-  private let recordingsDirectoryURL: URL
   private var recordings: [AudioRecordingInfo] = []
   private var activeRecording: ActiveAudioRecording?
 
   private init() {
     let root = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-    recordingsDirectoryURL = root.appendingPathComponent("Recordings", isDirectory: true)
-    indexURL = recordingsDirectoryURL.appendingPathComponent("recordings-index.json")
+    defaultRecordingsDirectoryURL = root.appendingPathComponent("Recordings", isDirectory: true)
+    indexURL = defaultRecordingsDirectoryURL.appendingPathComponent("recordings-index.json")
     try? fileManager.createDirectory(
-      at: recordingsDirectoryURL,
+      at: defaultRecordingsDirectoryURL,
       withIntermediateDirectories: true,
       attributes: nil
     )
@@ -130,6 +169,14 @@ final class AudioRecordingController {
     }
   }
 
+  func currentDestinationInfo() -> RecordingDestinationInfo {
+    destinationStore.currentDestinationInfo(defaultFolderURL: defaultRecordingsDirectoryURL)
+  }
+
+  func setCustomRecordingFolderURL(_ url: URL?) throws {
+    try destinationStore.saveCustomFolderURL(url)
+  }
+
   func startRecording(context: AudioRecordingContext) throws -> AudioRecordingSessionSnapshot {
     try queue.sync {
       if activeRecording != nil {
@@ -140,14 +187,25 @@ final class AudioRecordingController {
       let timestamp = recordingTimestampFormatter.string(from: Date())
       let safeReceiver = sanitizedFileComponent(context.receiverName)
       let fileName = "\(timestamp)-\(safeReceiver).\(context.format.fileExtension)"
-      let fileURL = recordingsDirectoryURL.appendingPathComponent(fileName)
-      fileManager.createFile(atPath: fileURL.path, contents: nil)
+      let destinationSelection = destinationStore.currentFolderSelection(defaultFolderURL: defaultRecordingsDirectoryURL)
+      let fileURL = try destinationStore.withFolderAccess(selection: destinationSelection) { folderURL in
+        try fileManager.createDirectory(
+          at: folderURL,
+          withIntermediateDirectories: true,
+          attributes: nil
+        )
+
+        let fileURL = folderURL.appendingPathComponent(fileName)
+        fileManager.createFile(atPath: fileURL.path, contents: nil)
+        return fileURL
+      }
       let handle = try FileHandle(forWritingTo: fileURL)
 
       var recording = ActiveAudioRecording(
         id: id,
         context: context,
         fileURL: fileURL,
+        usesCustomDestination: destinationSelection.isCustomSelected,
         handle: handle,
         createdAt: Date(),
         byteCount: 0,
@@ -174,7 +232,9 @@ final class AudioRecordingController {
   func delete(_ recording: AudioRecordingInfo) {
     queue.sync {
       recordings.removeAll { $0.id == recording.id }
-      try? fileManager.removeItem(at: recording.fileURL)
+      _ = recording.withScopedFileAccess { url in
+        try? fileManager.removeItem(at: url)
+      }
       persistRecordingsLocked()
     }
   }
@@ -236,6 +296,20 @@ final class AudioRecordingController {
     }
     recording.handle.closeFile()
 
+    let fileBookmarkData: Data?
+    if recording.usesCustomDestination {
+      let selection = destinationStore.currentFolderSelection(defaultFolderURL: defaultRecordingsDirectoryURL)
+      fileBookmarkData = try? destinationStore.withFolderAccess(selection: selection) { _ in
+        try recording.fileURL.bookmarkData(
+          options: [],
+          includingResourceValuesForKeys: nil,
+          relativeTo: nil
+        )
+      }
+    } else {
+      fileBookmarkData = nil
+    }
+
     let finishedAt = Date()
     let info = AudioRecordingInfo(
       id: recording.id,
@@ -245,6 +319,7 @@ final class AudioRecordingController {
       mode: recording.context.mode,
       format: recording.context.format,
       filePath: recording.fileURL.path,
+      fileBookmarkData: fileBookmarkData,
       createdAt: recording.createdAt,
       finishedAt: finishedAt,
       byteCount: max(recording.byteCount, 0)
@@ -265,7 +340,11 @@ final class AudioRecordingController {
       return
     }
 
-    recordings = decoded.filter { fileManager.fileExists(atPath: $0.filePath) }
+    recordings = decoded.filter {
+      $0.withScopedFileAccess { url in
+        fileManager.fileExists(atPath: url.path)
+      } ?? false
+    }
     persistRecordingsLocked()
   }
 
@@ -338,10 +417,34 @@ final class RecordingStore: ObservableObject {
   @Published private(set) var isRecording = false
   @Published private(set) var activeReceiverName: String?
   @Published private(set) var activeFormat: AudioRecordingFormat?
+  @Published private(set) var recordingDestinationSummary: String = ""
+  @Published private(set) var hasCustomRecordingDestination = false
 
   func refresh() {
     recordings = AudioRecordingController.shared.listRecordings()
     apply(snapshot: AudioRecordingController.shared.currentSnapshot())
+    let destinationInfo = AudioRecordingController.shared.currentDestinationInfo()
+    recordingDestinationSummary = destinationInfo.summary
+    hasCustomRecordingDestination = destinationInfo.isCustomSelected
+  }
+
+  func setCustomRecordingFolderURL(_ url: URL) {
+    try? AudioRecordingController.shared.setCustomRecordingFolderURL(url)
+    refresh()
+  }
+
+  func resetRecordingFolderToDefault() {
+    try? AudioRecordingController.shared.setCustomRecordingFolderURL(nil)
+    refresh()
+  }
+
+  func shareURL(for recording: AudioRecordingInfo) -> URL? {
+    try? recording.withScopedFileAccess { sourceURL in
+      let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(sourceURL.lastPathComponent)
+      try? FileManager.default.removeItem(at: destinationURL)
+      try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+      return destinationURL
+    } ?? nil
   }
 
   func startRecording(

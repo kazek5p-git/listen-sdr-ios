@@ -393,6 +393,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var accessibilitySelectionAnnouncementsEnabled: Bool
   var accessibilityConnectionSoundsEnabled: Bool
   var accessibilityRecordingSoundsEnabled: Bool
+  var accessibilitySpeechLoudnessLevelingEnabled: Bool
   var showTutorialOnLaunchEnabled: Bool
   var rememberSquelchOnConnectEnabled: Bool
   var dxNightModeEnabled: Bool
@@ -475,6 +476,7 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilitySelectionAnnouncementsEnabled: false,
     accessibilityConnectionSoundsEnabled: false,
     accessibilityRecordingSoundsEnabled: true,
+    accessibilitySpeechLoudnessLevelingEnabled: false,
     showTutorialOnLaunchEnabled: true,
     rememberSquelchOnConnectEnabled: true,
     dxNightModeEnabled: false,
@@ -549,6 +551,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case accessibilitySelectionAnnouncementsEnabled
     case accessibilityConnectionSoundsEnabled
     case accessibilityRecordingSoundsEnabled
+    case accessibilitySpeechLoudnessLevelingEnabled
     case showTutorialOnLaunchEnabled
     case rememberSquelchOnConnectEnabled
     case dxNightModeEnabled
@@ -622,6 +625,7 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilitySelectionAnnouncementsEnabled: Bool = Self.default.accessibilitySelectionAnnouncementsEnabled,
     accessibilityConnectionSoundsEnabled: Bool = Self.default.accessibilityConnectionSoundsEnabled,
     accessibilityRecordingSoundsEnabled: Bool = Self.default.accessibilityRecordingSoundsEnabled,
+    accessibilitySpeechLoudnessLevelingEnabled: Bool = Self.default.accessibilitySpeechLoudnessLevelingEnabled,
     showTutorialOnLaunchEnabled: Bool = Self.default.showTutorialOnLaunchEnabled,
     rememberSquelchOnConnectEnabled: Bool = Self.default.rememberSquelchOnConnectEnabled,
     dxNightModeEnabled: Bool,
@@ -711,6 +715,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.accessibilitySelectionAnnouncementsEnabled = accessibilitySelectionAnnouncementsEnabled
     self.accessibilityConnectionSoundsEnabled = accessibilityConnectionSoundsEnabled
     self.accessibilityRecordingSoundsEnabled = accessibilityRecordingSoundsEnabled
+    self.accessibilitySpeechLoudnessLevelingEnabled = accessibilitySpeechLoudnessLevelingEnabled
     self.showTutorialOnLaunchEnabled = showTutorialOnLaunchEnabled
     self.rememberSquelchOnConnectEnabled = rememberSquelchOnConnectEnabled
     self.dxNightModeEnabled = dxNightModeEnabled
@@ -887,6 +892,9 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityRecordingSoundsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .accessibilityRecordingSoundsEnabled)
       ?? Self.default.accessibilityRecordingSoundsEnabled
+    accessibilitySpeechLoudnessLevelingEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .accessibilitySpeechLoudnessLevelingEnabled)
+      ?? Self.default.accessibilitySpeechLoudnessLevelingEnabled
     showTutorialOnLaunchEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .showTutorialOnLaunchEnabled)
       ?? Self.default.showTutorialOnLaunchEnabled
@@ -1014,6 +1022,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(accessibilitySelectionAnnouncementsEnabled, forKey: .accessibilitySelectionAnnouncementsEnabled)
     try container.encode(accessibilityConnectionSoundsEnabled, forKey: .accessibilityConnectionSoundsEnabled)
     try container.encode(accessibilityRecordingSoundsEnabled, forKey: .accessibilityRecordingSoundsEnabled)
+    try container.encode(accessibilitySpeechLoudnessLevelingEnabled, forKey: .accessibilitySpeechLoudnessLevelingEnabled)
     try container.encode(showTutorialOnLaunchEnabled, forKey: .showTutorialOnLaunchEnabled)
     try container.encode(rememberSquelchOnConnectEnabled, forKey: .rememberSquelchOnConnectEnabled)
     try container.encode(dxNightModeEnabled, forKey: .dxNightModeEnabled)

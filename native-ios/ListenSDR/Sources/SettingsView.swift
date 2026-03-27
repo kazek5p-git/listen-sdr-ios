@@ -3,9 +3,11 @@ import SwiftUI
 
 struct SettingsView: View {
   @EnvironmentObject private var settingsController: SettingsViewController
+  @EnvironmentObject private var recordingStore: RecordingStore
   @State private var isCheckingFeedbackServer = false
   @State private var feedbackServerStatus: FeedbackServerStatus = .idle
   @State private var feedbackServerAlert: FeedbackServerAlert?
+  @State private var isRecordingFolderPickerPresented = false
 
   var body: some View {
     NavigationStack {
@@ -28,6 +30,17 @@ struct SettingsView: View {
       .scrollContentBackground(.hidden)
       .navigationTitle(L10n.text("Settings"))
       .appScreenBackground()
+      .sheet(isPresented: $isRecordingFolderPickerPresented) {
+        RecordingFolderPicker(
+          onPick: { url in
+            recordingStore.setCustomRecordingFolderURL(url)
+            isRecordingFolderPickerPresented = false
+          },
+          onCancel: {
+            isRecordingFolderPickerPresented = false
+          }
+        )
+      }
       .alert(
         feedbackServerAlert?.title ?? "",
         isPresented: Binding(
@@ -614,6 +627,75 @@ struct SettingsView: View {
       ) {
         settingsController.setFMDXAudioPacketHoldSeconds($0)
       }
+
+      Toggle(
+        L10n.text(
+          "settings.accessibility.speech_loudness_leveling",
+          fallback: "Speech loudness leveling"
+        ),
+        isOn: Binding(
+          get: { settingsController.state.accessibilitySpeechLoudnessLevelingEnabled },
+          set: { settingsController.setAccessibilitySpeechLoudnessLevelingEnabled($0) }
+        )
+      )
+      .accessibilityHint(
+        L10n.text(
+          "settings.accessibility.speech_loudness_leveling.hint",
+          fallback: "Keeps KiwiSDR and OpenWebRX speech audio closer to one listening level. Recordings and FM-DX playback stay unchanged."
+        )
+      )
+
+      LabeledContent(
+        L10n.text(
+          "settings.audio.recording_folder",
+          fallback: "Recording folder"
+        ),
+        value: recordingStore.recordingDestinationSummary
+      )
+
+      Text(
+        L10n.text(
+          "settings.audio.recording_folder.hint",
+          fallback: "Choose where new recordings are saved. The default location is the app's Recordings folder."
+        )
+      )
+      .font(.footnote)
+      .foregroundStyle(.secondary)
+
+      FocusRetainingButton {
+        isRecordingFolderPickerPresented = true
+      } label: {
+        Text(
+          L10n.text(
+            "settings.audio.recording_folder.choose",
+            fallback: "Choose recording folder"
+          )
+        )
+      }
+      .disabled(recordingStore.isRecording)
+
+      if recordingStore.hasCustomRecordingDestination {
+        FocusRetainingButton {
+          recordingStore.resetRecordingFolderToDefault()
+        } label: {
+          Text(
+            L10n.text(
+              "settings.audio.recording_folder.reset",
+              fallback: "Use default app folder"
+            )
+          )
+        }
+        .disabled(recordingStore.isRecording)
+      }
+
+      Text(
+        L10n.text(
+          "settings.audio.recording_folder.providers",
+          fallback: "You can choose iCloud Drive, Dropbox, Google Drive, OneDrive, Box, Nextcloud, SMB shares, and other folders exposed in the Files app."
+        )
+      )
+      .font(.footnote)
+      .foregroundStyle(.secondary)
 
       FocusRetainingButton {
         settingsController.resetFMDXAudioTuning()
