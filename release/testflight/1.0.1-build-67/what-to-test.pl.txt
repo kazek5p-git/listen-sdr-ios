@@ -1,0 +1,8 @@
+Najważniejsze nowości w tym buildzie to rozbudowane opcje dostępności audio oraz poprawki stabilności.
+
+Proszę szczególnie sprawdzić:
+- Ustawienia > Dostępność: potwierdzenia wyboru, dźwięki przełączników, dźwięki połączenia, dźwięki nagrywania, wspólną głośność dźwięków oraz zachowanie podglądu dźwięku.
+- Nagrywanie: start/stop nagrywania, brak zamykania aplikacji po rozpoczęciu nagrywania oraz poprawne sygnały dźwiękowe.
+- Połączenie i ponowne połączenie z odbiornikiem: zapamiętywanie blokady szumów po połączeniu, opcję wyłączenia tego zapamiętywania oraz poprawne przywracanie squelcha po reconnect.
+- FM-DX: logowanie i identyfikację urządzenia jako iPhone w logach odbiornika.
+- Ogólną stabilność połączeń, audio i przywracania stanu sesji po reconnect.

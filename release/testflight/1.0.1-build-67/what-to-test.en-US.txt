@@ -1,0 +1,8 @@
+This build focuses on expanded accessibility audio controls and stability fixes.
+
+Please pay special attention to:
+- Settings > Accessibility: selection confirmations, switch sounds, connection sounds, recording sounds, shared feedback volume, and preview sound behavior.
+- Recording: start/stop recording, no app crash when recording begins, and correct feedback tones.
+- Connect and reconnect flows: remembering squelch on connect, disabling that preference, and correct squelch restore after reconnect.
+- FM-DX: login behavior and device identification as iPhone in receiver logs.
+- Overall connection stability, audio behavior, and session state restore after reconnect.
