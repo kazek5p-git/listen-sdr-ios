@@ -1,0 +1,8 @@
+This build focuses on accessibility refinements and a smoother first-run experience.
+
+Please pay special attention to:
+- Tutorial: showing on first launch, turning automatic presentation on or off, and reopening it later from Settings.
+- VoiceOver: fast rotor navigation through receiver bookmarks and presets without opening extra screens.
+- Volume slider: correct localized percentage reading in different languages, without a hard-coded English “percent”.
+- Bookmarks and presets: spoken selection confirmations after tuning from bookmark, band, and preset lists.
+- Squelch: enabling squelch should no longer retune the receiver to FM and should still behave correctly after reconnect.

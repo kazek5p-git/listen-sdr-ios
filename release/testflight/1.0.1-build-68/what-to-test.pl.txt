@@ -1,0 +1,8 @@
+Najważniejsze nowości w tym buildzie to poprawki dostępności i wygodniejsza obsługa aplikacji od pierwszego uruchomienia.
+
+Proszę szczególnie sprawdzić:
+- Samouczek: uruchamianie przy starcie aplikacji, możliwość wyłączenia jego automatycznego pokazywania oraz ponowne otwieranie z Ustawień.
+- VoiceOver: szybkie przechodzenie po zakładkach i presetach odbiornika przez rotor, bez otwierania dodatkowych okien.
+- Suwak głośności: poprawny odczyt wartości procentowej w różnych językach, bez angielskiego „percent”.
+- Zakładki i presety: komunikaty potwierdzające wybór elementu po strojeniu z list zakładek, pasm i presetów.
+- Blokada szumów: włączenie squelcha nie powinno już zmieniać trybu/pasma na FM i powinno działać poprawnie także po ponownym połączeniu.
