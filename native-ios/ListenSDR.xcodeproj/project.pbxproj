@@ -25,6 +25,7 @@
 		37A2B9CC76C458C794DECA72 /* SDRBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8D52E05033560ABC688416 /* SDRBackend.swift */; };
 		39AB7F078B8E0DF8C6A8ECA6 /* BandTuningProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */; };
 		3D199DA0C04AC43A8B628250 /* TuneStepPreferenceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD1C8D99F65C7CAD5126479 /* TuneStepPreferenceMode.swift */; };
+		3E2755D3C3B1A94376FBDDD6 /* AppAccessibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0099FA003BD98E52868FCF81 /* AppAccessibilityTests.swift */; };
 		3E7958F395139FFF50E12C41 /* ListenSDRFeedbackSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5854269FF520F5087EA1E2F3 /* ListenSDRFeedbackSender.swift */; };
 		41BD2FA1F71A8000434283F9 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C476CA16083ED45EBA81466 /* ShareSheet.swift */; };
 		442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */; };
@@ -95,6 +96,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0099FA003BD98E52868FCF81 /* AppAccessibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessibilityTests.swift; sourceTree = "<group>"; };
 		0486B345984166EC54D1381A /* ReceiverLinkImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverLinkImportTests.swift; sourceTree = "<group>"; };
 		051509F0C3FD9100CF44E653 /* FavoritesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesStore.swift; sourceTree = "<group>"; };
 		06AE9E9DC3D6C964E0BAF0F9 /* ListenSDRApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRApp.swift; sourceTree = "<group>"; };
@@ -306,6 +308,7 @@
 		E3EE7FF8D5264A2F25A49F4F /* ListenSDRTests */ = {
 			isa = PBXGroup;
 			children = (
+				0099FA003BD98E52868FCF81 /* AppAccessibilityTests.swift */,
 				639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */,
 				B30168AE215D849558215B5A /* DemodulationModeTests.swift */,
 				F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */,
@@ -375,9 +378,10 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = AF8487B3C0FD7B5B2B944019 /* Build configuration list for PBXProject "ListenSDR" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -397,6 +401,7 @@
 				7571981B61C64D8A9A7C46DF /* XCLocalSwiftPackageReference "../shared/ListenSDRCore" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 59E6BB988DAD6EED4F7BD2D4 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -487,6 +492,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3E2755D3C3B1A94376FBDDD6 /* AppAccessibilityTests.swift in Sources */,
 				288CC8F359232EA856E298B8 /* AudioPCMUtilitiesTests.swift in Sources */,
 				6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */,
 				2787CD26843D7631A05BFEEB /* FMDXBandScannerTests.swift in Sources */,
