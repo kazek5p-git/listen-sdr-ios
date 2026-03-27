@@ -83,6 +83,7 @@
 		F1D937053202CA81759996E2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 7B8C0A52D13309CB9883A20A /* Localizable.strings */; };
 		F95C89B3900EBD196A458D33 /* FMDXStationListResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F5A68FE08373C6C9818B34 /* FMDXStationListResolverTests.swift */; };
 		FD2A46F7134EB59E0B1C8FAD /* KiwiWaterfallProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */; };
+		FF0BD08CFF4B3108710BEF00 /* AppTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4275A45DF4651D0079994B01 /* AppTutorialView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -118,6 +119,7 @@
 		3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
 		3BA532EA2B2941E71FB621C0 /* ListenSDRCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ListenSDRCore; path = ../shared/ListenSDRCore; sourceTree = SOURCE_ROOT; };
 		3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackendClient.swift; sourceTree = "<group>"; };
+		4275A45DF4651D0079994B01 /* AppTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTutorialView.swift; sourceTree = "<group>"; };
 		4286BB33324D82C98CA59BFE /* ReceiverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverView.swift; sourceTree = "<group>"; };
 		478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXPresetScriptParserTests.swift; sourceTree = "<group>"; };
 		4AA3EF25749DE49C7AFCB68C /* AppNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationState.swift; sourceTree = "<group>"; };
@@ -218,6 +220,7 @@
 				4AA3EF25749DE49C7AFCB68C /* AppNavigationState.swift */,
 				2EAE78AE7AA5A2BB4FA77A82 /* AppShortcutCommandCenter.swift */,
 				1030E7AA0B8CC314535900F8 /* AppTheme.swift */,
+				4275A45DF4651D0079994B01 /* AppTutorialView.swift */,
 				FF8CEEFF5137077F585714EE /* AudioDecoders.swift */,
 				BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */,
 				289E855420AAC4FEB4FE9053 /* AudioPCMUtilities.swift */,
@@ -432,6 +435,7 @@
 				A5B5C702F7D887555E1937CC /* AppNavigationState.swift in Sources */,
 				ACA7E73CDBC90170E8094621 /* AppShortcutCommandCenter.swift in Sources */,
 				4D7ABA4F816056972029EBCC /* AppTheme.swift in Sources */,
+				FF0BD08CFF4B3108710BEF00 /* AppTutorialView.swift in Sources */,
 				71B847E2C1F32E19C3DF299F /* AudioDecoders.swift in Sources */,
 				A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */,
 				DDE4048086B329E1DA759831 /* AudioPCMUtilities.swift in Sources */,
