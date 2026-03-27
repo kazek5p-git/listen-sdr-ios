@@ -1967,7 +1967,11 @@ final class RadioSessionViewModel: ObservableObject {
       return
     }
     if activeBackend == .openWebRX {
-      applyIfConnected()
+      sendOpenWebRXSquelchControl()
+      return
+    }
+    if activeBackend == .kiwiSDR {
+      sendKiwiSquelchControl()
       return
     }
     applyIfConnected()
@@ -1984,7 +1988,7 @@ final class RadioSessionViewModel: ObservableObject {
     settings.kiwiSquelchThreshold = RadioSessionSettings.clampedKiwiSquelchThreshold(value)
     persistSettings()
     guard activeBackend == .kiwiSDR else { return }
-    applyIfConnected()
+    sendKiwiSquelchControl()
   }
 
   func setKiwiNoiseBlankerAlgorithm(_ algorithm: KiwiNoiseBlankerAlgorithm) {
@@ -2615,10 +2619,11 @@ final class RadioSessionViewModel: ObservableObject {
   private func sendOpenWebRXSquelchControl() {
     guard state == .connected, activeBackend == .openWebRX, let client else { return }
     let level = settings.openWebRXSquelchLevel
+    let enabled = effectiveOpenWebRXSquelchEnabled
 
     Task {
       do {
-        try await client.sendControl(.setOpenWebRXSquelchLevel(level))
+        try await client.sendControl(.setOpenWebRXSquelchLevel(level: level, enabled: enabled))
       } catch {
         await MainActor.run {
           self.lastError = error.localizedDescription
@@ -2628,6 +2633,28 @@ final class RadioSessionViewModel: ObservableObject {
           severity: .warning,
           category: "Session",
           message: "OpenWebRX squelch control failed: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  private func sendKiwiSquelchControl() {
+    guard state == .connected, activeBackend == .kiwiSDR, let client else { return }
+    let threshold = settings.kiwiSquelchThreshold
+    let enabled = effectiveKiwiSquelchEnabled
+
+    Task {
+      do {
+        try await client.sendControl(.setKiwiSquelch(enabled: enabled, threshold: threshold))
+      } catch {
+        await MainActor.run {
+          self.lastError = error.localizedDescription
+          self.statusText = L10n.text("session.status.connected_with_setting_error")
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Session",
+          message: "Kiwi squelch control failed: \(error.localizedDescription)"
         )
       }
     }
@@ -4277,7 +4304,14 @@ final class RadioSessionViewModel: ObservableObject {
     guard settings.squelchEnabled else { return }
     guard state == .connected else { return }
     guard activeBackend == backend else { return }
-    applyCurrentSettingsToConnectedBackend()
+    switch backend {
+    case .openWebRX:
+      sendOpenWebRXSquelchControl()
+    case .kiwiSDR:
+      sendKiwiSquelchControl()
+    case .fmDxWebserver:
+      break
+    }
   }
 
   private func scheduleInitialTuningFallbackAfterConnection(profileID: UUID) {

@@ -1,5 +1,6 @@
 import XCTest
 import ListenSDRCore
+@testable import ListenSDR
 
 final class OpenWebRXScannerSquelchPolicyTests: XCTestCase {
   func testEffectiveEnabledTurnsOffSquelchWhenScannerLockIsActive() {
@@ -55,5 +56,21 @@ final class OpenWebRXScannerSquelchPolicyTests: XCTestCase {
     XCTAssertFalse(lockedState.squelchEnabled)
     XCTAssertEqual(.nnfm, aliasState.mode)
     XCTAssertTrue(aliasState.squelchEnabled)
+  }
+
+  func testRuntimeOpenWebRXSquelchControlDoesNotNeedModeToDisableGate() {
+    XCTAssertEqual(-95, SquelchRuntimeControl.openWebRXSquelchLevel(enabled: true, level: -95))
+    XCTAssertEqual(-150, SquelchRuntimeControl.openWebRXSquelchLevel(enabled: false, level: -95))
+  }
+
+  func testRuntimeKiwiSquelchControlDisablesGateWithoutTouchingMode() {
+    XCTAssertEqual(
+      SquelchRuntimeControl.KiwiCommand(enabledFlag: 1, max: 6),
+      SquelchRuntimeControl.kiwiCommand(enabled: true, threshold: 6)
+    )
+    XCTAssertEqual(
+      SquelchRuntimeControl.KiwiCommand(enabledFlag: 0, max: 0),
+      SquelchRuntimeControl.kiwiCommand(enabled: false, threshold: 6)
+    )
   }
 }

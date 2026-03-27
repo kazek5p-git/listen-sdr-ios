@@ -150,7 +150,8 @@ enum BackendTelemetryEvent: Equatable {
 
 enum BackendControlCommand {
   case selectOpenWebRXProfile(String)
-  case setOpenWebRXSquelchLevel(Int)
+  case setOpenWebRXSquelchLevel(level: Int, enabled: Bool)
+  case setKiwiSquelch(enabled: Bool, threshold: Int)
   case setKiwiWaterfall(
     speed: Int,
     zoom: Int,
@@ -182,4 +183,22 @@ enum BackendControlCommand {
   case setFMDXForcedStereo(Bool)
   case setFMDXAntenna(String)
   case setFMDXBandwidth(value: String, legacyValue: String?)
+}
+
+enum SquelchRuntimeControl {
+  struct KiwiCommand: Equatable {
+    let enabledFlag: Int
+    let max: Int
+  }
+
+  static func openWebRXSquelchLevel(enabled: Bool, level: Int) -> Int {
+    enabled ? level : -150
+  }
+
+  static func kiwiCommand(enabled: Bool, threshold: Int) -> KiwiCommand {
+    if enabled {
+      return KiwiCommand(enabledFlag: 1, max: threshold)
+    }
+    return KiwiCommand(enabledFlag: 0, max: 0)
+  }
 }

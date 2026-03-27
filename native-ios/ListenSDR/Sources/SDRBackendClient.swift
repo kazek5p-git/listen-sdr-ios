@@ -435,9 +435,11 @@ actor KiwiSDRClient: SDRBackendClient {
       try await sendSND("SET agc=0 hang=0 thresh=-100 slope=6 decay=1000 manGain=\(manualGain)")
     }
 
-      let squelchEnabled = settings.squelchEnabled ? 1 : 0
-      let squelchThreshold = settings.squelchEnabled ? RadioSessionSettings.clampedKiwiSquelchThreshold(settings.kiwiSquelchThreshold) : 0
-      try await sendSND("SET squelch=\(squelchEnabled) max=\(squelchThreshold)")
+      let squelch = SquelchRuntimeControl.kiwiCommand(
+        enabled: settings.squelchEnabled,
+        threshold: RadioSessionSettings.clampedKiwiSquelchThreshold(settings.kiwiSquelchThreshold)
+      )
+      try await sendSND("SET squelch=\(squelch.enabledFlag) max=\(squelch.max)")
       try await sendKiwiNoiseBlanker(settings: settings)
       try await sendKiwiNoiseFilter(settings: settings)
     }
@@ -587,6 +589,18 @@ actor KiwiSDRClient: SDRBackendClient {
         log(
           "Kiwi noise filter updated: algo=\(algorithm.rawValue), denoise=\(denoiseEnabled ? 1 : 0), autonotch=\(autonotchEnabled ? 1 : 0)"
         )
+
+      case .setKiwiSquelch(let enabled, let threshold):
+        var snapshot = lastAppliedSettings ?? .default
+        snapshot.squelchEnabled = enabled
+        snapshot.kiwiSquelchThreshold = RadioSessionSettings.clampedKiwiSquelchThreshold(threshold)
+        lastAppliedSettings = snapshot
+        let squelch = SquelchRuntimeControl.kiwiCommand(
+          enabled: snapshot.squelchEnabled,
+          threshold: snapshot.kiwiSquelchThreshold
+        )
+        try await sendSND("SET squelch=\(squelch.enabledFlag) max=\(squelch.max)")
+        log("Kiwi squelch updated: enabled=\(snapshot.squelchEnabled) threshold=\(snapshot.kiwiSquelchThreshold)")
 
       default:
         throw SDRClientError.unsupported("KiwiSDR does not support this control.")
@@ -1471,17 +1485,23 @@ actor OpenWebRXClient: SDRBackendClient {
       emitProfiles()
       log("Profile selected: \(profileID)")
 
-    case .setOpenWebRXSquelchLevel(let level):
+    case .setOpenWebRXSquelchLevel(let level, let enabled):
       var snapshot = lastAppliedSettings ?? .default
+      snapshot.squelchEnabled = enabled
       snapshot.openWebRXSquelchLevel = RadioSessionSettings.clampedOpenWebRXSquelchLevel(level)
       lastAppliedSettings = snapshot
       try await sendJSON(
         [
           "type": "dspcontrol",
-          "params": openWebRXParams(from: snapshot)
+          "params": [
+            "squelch_level": SquelchRuntimeControl.openWebRXSquelchLevel(
+              enabled: snapshot.squelchEnabled,
+              level: snapshot.openWebRXSquelchLevel
+            )
+          ]
         ]
       )
-      log("OpenWebRX squelch level set to \(snapshot.openWebRXSquelchLevel) dB")
+      log("OpenWebRX squelch updated: enabled=\(snapshot.squelchEnabled) level=\(snapshot.openWebRXSquelchLevel) dB")
 
     default:
       throw SDRClientError.unsupported("OpenWebRX does not support this control.")
@@ -1535,7 +1555,10 @@ actor OpenWebRXClient: SDRBackendClient {
     let mode = openWebRXMode(from: settings.mode)
     let passband = openWebRXBandpass(for: settings.mode)
     let offset = boundedOpenWebRXOffset(for: settings.frequencyHz)
-    let squelchLevel = settings.squelchEnabled ? RadioSessionSettings.clampedOpenWebRXSquelchLevel(settings.openWebRXSquelchLevel) : -150
+    let squelchLevel = SquelchRuntimeControl.openWebRXSquelchLevel(
+      enabled: settings.squelchEnabled,
+      level: RadioSessionSettings.clampedOpenWebRXSquelchLevel(settings.openWebRXSquelchLevel)
+    )
 
     return [
       "mod": mode,
@@ -3272,6 +3295,9 @@ actor FMDXWebserverClient: SDRBackendClient {
 
     case .setOpenWebRXSquelchLevel:
       throw SDRClientError.unsupported("FM-DX does not support OpenWebRX squelch control.")
+
+    case .setKiwiSquelch:
+      throw SDRClientError.unsupported("FM-DX does not support Kiwi squelch control.")
 
     case .setKiwiWaterfall:
       throw SDRClientError.unsupported("FM-DX does not support Kiwi waterfall control.")
