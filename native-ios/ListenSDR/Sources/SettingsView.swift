@@ -203,6 +203,15 @@ struct SettingsView: View {
       .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds_mode.hint"))
 
       Toggle(
+        L10n.text("settings.accessibility.selection_announcements"),
+        isOn: Binding(
+          get: { settingsController.state.accessibilitySelectionAnnouncementsEnabled },
+          set: { settingsController.setAccessibilitySelectionAnnouncementsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.accessibility.selection_announcements.hint"))
+
+      Toggle(
         L10n.text("settings.accessibility.interaction_sounds"),
         isOn: Binding(
           get: { settingsController.state.accessibilityInteractionSoundsEnabled },
@@ -210,6 +219,24 @@ struct SettingsView: View {
         )
       )
       .accessibilityHint(L10n.text("settings.accessibility.interaction_sounds.hint"))
+
+      Toggle(
+        L10n.text("settings.accessibility.connection_sounds"),
+        isOn: Binding(
+          get: { settingsController.state.accessibilityConnectionSoundsEnabled },
+          set: { settingsController.setAccessibilityConnectionSoundsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.accessibility.connection_sounds.hint"))
+
+      Toggle(
+        L10n.text("settings.accessibility.recording_sounds"),
+        isOn: Binding(
+          get: { settingsController.state.accessibilityRecordingSoundsEnabled },
+          set: { settingsController.setAccessibilityRecordingSoundsEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.accessibility.recording_sounds.hint"))
 
       percentageSlider(
         title: L10n.text("settings.accessibility.interaction_sounds.volume"),
@@ -220,7 +247,7 @@ struct SettingsView: View {
       ) {
         settingsController.setAccessibilityInteractionSoundsVolume($0)
       }
-      .disabled(!settingsController.state.accessibilityInteractionSoundsEnabled)
+      .disabled(!hasAnyAccessibilityFeedbackSoundsEnabled)
 
       FocusRetainingButton {
         AppInteractionFeedbackCenter.playInteractionSoundPreviewIfEnabled()
@@ -522,6 +549,15 @@ struct SettingsView: View {
       )
       .accessibilityHint(L10n.text("settings.audio.mix_with_other_apps.hint"))
 
+      Toggle(
+        L10n.text("settings.audio.remember_squelch_on_connect"),
+        isOn: Binding(
+          get: { settingsController.state.rememberSquelchOnConnectEnabled },
+          set: { settingsController.setRememberSquelchOnConnectEnabled($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.audio.remember_squelch_on_connect.hint"))
+
       SettingsLiveAudioInsightSection()
 
       NavigationLink {
@@ -799,6 +835,12 @@ struct SettingsView: View {
         hint: L10n.text(hintKey)
       )
     }
+  }
+
+  private var hasAnyAccessibilityFeedbackSoundsEnabled: Bool {
+    settingsController.state.accessibilityInteractionSoundsEnabled
+      || settingsController.state.accessibilityConnectionSoundsEnabled
+      || settingsController.state.accessibilityRecordingSoundsEnabled
   }
 
   private func startFeedbackServerHealthCheck() {

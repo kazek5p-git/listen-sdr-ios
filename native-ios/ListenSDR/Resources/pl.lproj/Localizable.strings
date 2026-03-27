@@ -174,6 +174,7 @@
 "common.no" = "Nie";
 "common.selected" = "Wybrany";
 "common.not_selected" = "Niewybrany";
+"common.announcement.selected_item" = "%@ wybrany";
 "common.not_added" = "Nie dodano";
 "common.added" = "Dodany";
 "directory.receiver.state.not_added" = "Nie dodano";
@@ -851,6 +852,12 @@
 
 "settings.accessibility.interaction_sounds" = "Dźwięki przełączników";
 "settings.accessibility.interaction_sounds.hint" = "Odtwarza niższy ton przy wyłączeniu i wyższy przy włączeniu, na przykład dla wyciszenia i trybu stereo.";
+"settings.accessibility.selection_announcements" = "Potwierdzenia wyboru";
+"settings.accessibility.selection_announcements.hint" = "Odczytuje wybrany element po wyborze z listy, na przykład zakładkę lub kanał.";
+"settings.accessibility.connection_sounds" = "Dźwięki połączenia";
+"settings.accessibility.connection_sounds.hint" = "Odtwarza krótki sygnał po udanym połączeniu z odbiornikiem oraz osobny sygnał przy nieudanym połączeniu.";
+"settings.accessibility.recording_sounds" = "Dźwięki nagrywania";
+"settings.accessibility.recording_sounds.hint" = "Odtwarza osobne tony przy rozpoczęciu i zatrzymaniu nagrywania.";
 "accessibility.magic_tap.muted" = "Wyciszono";
 "accessibility.magic_tap.unmuted" = "Odciszono";
 "settings.radios.section" = "Radia";
@@ -864,5 +871,7 @@
 "settings.accessibility.interaction_sounds.mute_while_recording.hint" = "Wycisza dźwięki przełączników podczas aktywnego nagrywania. Tony rozpoczęcia i zatrzymania nagrywania nadal są odtwarzane.";
 "settings.accessibility.interaction_sounds.preview" = "Odsłuch dźwięku";
 "settings.accessibility.interaction_sounds.preview.hint" = "Odtwarza przykładowy dźwięk przełącznika z bieżącą głośnością.";
-"settings.accessibility.interaction_sounds.volume" = "Głośność dźwięków przełączników";
-"settings.accessibility.interaction_sounds.volume.hint" = "Reguluje głośność dźwięków przełączników oraz sygnałów rozpoczęcia i zatrzymania nagrywania.";
+"settings.accessibility.interaction_sounds.volume" = "Głośność dźwięków informacji zwrotnej";
+"settings.accessibility.interaction_sounds.volume.hint" = "Reguluje głośność dźwięków przełączników, połączenia oraz sygnałów nagrywania.";
+"settings.audio.remember_squelch_on_connect" = "Pamiętaj blokadę szumów po połączeniu";
+"settings.audio.remember_squelch_on_connect.hint" = "Jeśli opcja jest włączona, po połączeniu lub wznowieniu połączenia blokada szumów aktywuje się od razu. Jeśli jest wyłączona, każde nowe połączenie zaczyna się z wyłączoną blokadą szumów.";

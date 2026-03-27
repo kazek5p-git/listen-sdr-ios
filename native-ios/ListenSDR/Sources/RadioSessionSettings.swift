@@ -390,6 +390,10 @@ struct RadioSessionSettings: Codable, Equatable {
   var accessibilityInteractionSoundsEnabled: Bool
   var accessibilityInteractionSoundsVolume: Double
   var accessibilityInteractionSoundsMutedDuringRecording: Bool
+  var accessibilitySelectionAnnouncementsEnabled: Bool
+  var accessibilityConnectionSoundsEnabled: Bool
+  var accessibilityRecordingSoundsEnabled: Bool
+  var rememberSquelchOnConnectEnabled: Bool
   var dxNightModeEnabled: Bool
   var autoFilterProfileEnabled: Bool
   var adaptiveScannerEnabled: Bool
@@ -467,6 +471,10 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityInteractionSoundsEnabled: false,
     accessibilityInteractionSoundsVolume: 1.0,
     accessibilityInteractionSoundsMutedDuringRecording: false,
+    accessibilitySelectionAnnouncementsEnabled: false,
+    accessibilityConnectionSoundsEnabled: false,
+    accessibilityRecordingSoundsEnabled: true,
+    rememberSquelchOnConnectEnabled: true,
     dxNightModeEnabled: false,
     autoFilterProfileEnabled: false,
     adaptiveScannerEnabled: false,
@@ -536,6 +544,10 @@ struct RadioSessionSettings: Codable, Equatable {
     case accessibilityInteractionSoundsEnabled
     case accessibilityInteractionSoundsVolume
     case accessibilityInteractionSoundsMutedDuringRecording
+    case accessibilitySelectionAnnouncementsEnabled
+    case accessibilityConnectionSoundsEnabled
+    case accessibilityRecordingSoundsEnabled
+    case rememberSquelchOnConnectEnabled
     case dxNightModeEnabled
     case autoFilterProfileEnabled
     case adaptiveScannerEnabled
@@ -604,6 +616,10 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityInteractionSoundsEnabled: Bool = Self.default.accessibilityInteractionSoundsEnabled,
     accessibilityInteractionSoundsVolume: Double = Self.default.accessibilityInteractionSoundsVolume,
     accessibilityInteractionSoundsMutedDuringRecording: Bool = Self.default.accessibilityInteractionSoundsMutedDuringRecording,
+    accessibilitySelectionAnnouncementsEnabled: Bool = Self.default.accessibilitySelectionAnnouncementsEnabled,
+    accessibilityConnectionSoundsEnabled: Bool = Self.default.accessibilityConnectionSoundsEnabled,
+    accessibilityRecordingSoundsEnabled: Bool = Self.default.accessibilityRecordingSoundsEnabled,
+    rememberSquelchOnConnectEnabled: Bool = Self.default.rememberSquelchOnConnectEnabled,
     dxNightModeEnabled: Bool,
     autoFilterProfileEnabled: Bool,
     adaptiveScannerEnabled: Bool,
@@ -688,6 +704,10 @@ struct RadioSessionSettings: Codable, Equatable {
       accessibilityInteractionSoundsVolume
     )
     self.accessibilityInteractionSoundsMutedDuringRecording = accessibilityInteractionSoundsMutedDuringRecording
+    self.accessibilitySelectionAnnouncementsEnabled = accessibilitySelectionAnnouncementsEnabled
+    self.accessibilityConnectionSoundsEnabled = accessibilityConnectionSoundsEnabled
+    self.accessibilityRecordingSoundsEnabled = accessibilityRecordingSoundsEnabled
+    self.rememberSquelchOnConnectEnabled = rememberSquelchOnConnectEnabled
     self.dxNightModeEnabled = dxNightModeEnabled
     self.autoFilterProfileEnabled = autoFilterProfileEnabled
     self.adaptiveScannerEnabled = adaptiveScannerEnabled
@@ -853,6 +873,18 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityInteractionSoundsMutedDuringRecording =
       try container.decodeIfPresent(Bool.self, forKey: .accessibilityInteractionSoundsMutedDuringRecording)
       ?? Self.default.accessibilityInteractionSoundsMutedDuringRecording
+    accessibilitySelectionAnnouncementsEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .accessibilitySelectionAnnouncementsEnabled)
+      ?? Self.default.accessibilitySelectionAnnouncementsEnabled
+    accessibilityConnectionSoundsEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .accessibilityConnectionSoundsEnabled)
+      ?? Self.default.accessibilityConnectionSoundsEnabled
+    accessibilityRecordingSoundsEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .accessibilityRecordingSoundsEnabled)
+      ?? Self.default.accessibilityRecordingSoundsEnabled
+    rememberSquelchOnConnectEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .rememberSquelchOnConnectEnabled)
+      ?? Self.default.rememberSquelchOnConnectEnabled
     dxNightModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxNightModeEnabled) ?? Self.default.dxNightModeEnabled
     autoFilterProfileEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoFilterProfileEnabled) ?? Self.default.autoFilterProfileEnabled
     adaptiveScannerEnabled = try container.decodeIfPresent(Bool.self, forKey: .adaptiveScannerEnabled) ?? Self.default.adaptiveScannerEnabled
@@ -971,6 +1003,10 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(accessibilityInteractionSoundsEnabled, forKey: .accessibilityInteractionSoundsEnabled)
     try container.encode(accessibilityInteractionSoundsVolume, forKey: .accessibilityInteractionSoundsVolume)
     try container.encode(accessibilityInteractionSoundsMutedDuringRecording, forKey: .accessibilityInteractionSoundsMutedDuringRecording)
+    try container.encode(accessibilitySelectionAnnouncementsEnabled, forKey: .accessibilitySelectionAnnouncementsEnabled)
+    try container.encode(accessibilityConnectionSoundsEnabled, forKey: .accessibilityConnectionSoundsEnabled)
+    try container.encode(accessibilityRecordingSoundsEnabled, forKey: .accessibilityRecordingSoundsEnabled)
+    try container.encode(rememberSquelchOnConnectEnabled, forKey: .rememberSquelchOnConnectEnabled)
     try container.encode(dxNightModeEnabled, forKey: .dxNightModeEnabled)
     try container.encode(autoFilterProfileEnabled, forKey: .autoFilterProfileEnabled)
     try container.encode(adaptiveScannerEnabled, forKey: .adaptiveScannerEnabled)

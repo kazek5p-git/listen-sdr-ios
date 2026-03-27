@@ -23,13 +23,45 @@ enum AppAccessibilityAnnouncementCenter {
     guard let text, !text.isEmpty else { return }
     UIAccessibility.post(notification: .announcement, argument: text)
   }
+
+  static func postSelectionIfEnabled(_ selectedItemTitle: String?) {
+    guard AppAccessibilitySettingsStore.currentSettings().accessibilitySelectionAnnouncementsEnabled else {
+      return
+    }
+    guard let selectedItemTitle, !selectedItemTitle.isEmpty else { return }
+    post(L10n.text("common.announcement.selected_item", selectedItemTitle))
+  }
 }
 
 enum InteractionFeedbackTone {
   case disabled
   case enabled
+  case connectionSucceeded
+  case connectionFailed
   case recordingStarted
   case recordingStopped
+}
+
+private enum AppAccessibilitySettingsStore {
+  static let settingsKey = "ListenSDR.sessionSettings.v1"
+
+  static func currentSettings() -> RadioSessionSettings {
+    guard
+      let raw = UserDefaults.standard.data(forKey: settingsKey),
+      let decoded = try? JSONDecoder().decode(RadioSessionSettings.self, from: raw)
+    else {
+      return .default
+    }
+
+    return decoded
+  }
+}
+
+private struct InteractionFeedbackToneSegment {
+  let primaryFrequencyHz: Double
+  let secondaryFrequencyHz: Double
+  let durationSeconds: Double
+  let gapAfterSeconds: Double
 }
 
 @MainActor
@@ -44,14 +76,13 @@ private final class InteractionFeedbackPlayer: NSObject, AVAudioPlayerDelegate {
   }
 
   func play(_ tone: InteractionFeedbackTone, volumeMultiplier: Double) {
-    guard let profile = Self.profile(for: tone) else { return }
+    let segments = Self.profile(for: tone)
+    guard !segments.isEmpty else { return }
     let clampedVolumeMultiplier = RadioSessionSettings.clampedAccessibilityInteractionSoundsVolume(
       volumeMultiplier
     )
     let toneData = Self.makeToneData(
-      primaryFrequencyHz: profile.primaryFrequencyHz,
-      secondaryFrequencyHz: profile.secondaryFrequencyHz,
-      durationSeconds: profile.durationSeconds,
+      segments: segments,
       outputGain: Self.baseOutputGain * clampedVolumeMultiplier
     )
     guard let toneData else { return }
@@ -70,20 +101,36 @@ private final class InteractionFeedbackPlayer: NSObject, AVAudioPlayerDelegate {
     }
   }
 
-  private static func profile(for tone: InteractionFeedbackTone) -> (
-    primaryFrequencyHz: Double,
-    secondaryFrequencyHz: Double,
-    durationSeconds: Double
-  )? {
+  private static func profile(for tone: InteractionFeedbackTone) -> [InteractionFeedbackToneSegment] {
     switch tone {
     case .disabled:
-      return (440, 880, 0.14)
+      return [
+        .init(primaryFrequencyHz: 440, secondaryFrequencyHz: 880, durationSeconds: 0.14, gapAfterSeconds: 0)
+      ]
     case .enabled:
-      return (660, 1_320, 0.14)
+      return [
+        .init(primaryFrequencyHz: 660, secondaryFrequencyHz: 1_320, durationSeconds: 0.14, gapAfterSeconds: 0)
+      ]
+    case .connectionSucceeded:
+      return [
+        .init(primaryFrequencyHz: 840, secondaryFrequencyHz: 1_260, durationSeconds: 0.12, gapAfterSeconds: 0.03),
+        .init(primaryFrequencyHz: 840, secondaryFrequencyHz: 1_260, durationSeconds: 0.05, gapAfterSeconds: 0.03),
+        .init(primaryFrequencyHz: 840, secondaryFrequencyHz: 1_260, durationSeconds: 0.12, gapAfterSeconds: 0.03),
+        .init(primaryFrequencyHz: 840, secondaryFrequencyHz: 1_260, durationSeconds: 0.05, gapAfterSeconds: 0)
+      ]
+    case .connectionFailed:
+      return [
+        .init(primaryFrequencyHz: 360, secondaryFrequencyHz: 240, durationSeconds: 0.09, gapAfterSeconds: 0.04),
+        .init(primaryFrequencyHz: 300, secondaryFrequencyHz: 180, durationSeconds: 0.14, gapAfterSeconds: 0)
+      ]
     case .recordingStarted:
-      return (740, 920, 0.18)
+      return [
+        .init(primaryFrequencyHz: 740, secondaryFrequencyHz: 920, durationSeconds: 0.18, gapAfterSeconds: 0)
+      ]
     case .recordingStopped:
-      return (410, 320, 0.20)
+      return [
+        .init(primaryFrequencyHz: 410, secondaryFrequencyHz: 320, durationSeconds: 0.20, gapAfterSeconds: 0)
+      ]
     }
   }
 
@@ -100,33 +147,48 @@ private final class InteractionFeedbackPlayer: NSObject, AVAudioPlayerDelegate {
   }
 
   private static func makeToneData(
-    primaryFrequencyHz: Double,
-    secondaryFrequencyHz: Double,
+    segments: [InteractionFeedbackToneSegment],
     sampleRate: Double = 44_100,
-    durationSeconds: Double = 0.14,
     outputGain: Double? = nil
   ) -> Data? {
-    let totalFrames = max(1, Int(durationSeconds * sampleRate))
-    let attackFrames = max(1, Int(sampleRate * 0.012))
-    let releaseFrames = max(1, Int(sampleRate * 0.055))
+    let totalFrames = max(
+      1,
+      segments.reduce(0) { partial, segment in
+        partial + max(1, Int(segment.durationSeconds * sampleRate))
+          + max(0, Int(segment.gapAfterSeconds * sampleRate))
+      }
+    )
     let resolvedOutputGain = outputGain ?? baseOutputGain
     var pcmData = Data(capacity: totalFrames * 2)
 
-    for frame in 0..<totalFrames {
-      let time = Double(frame) / sampleRate
-      let attackEnvelope = min(1, Double(frame) / Double(attackFrames))
-      let releaseEnvelope = min(1, Double(totalFrames - frame) / Double(releaseFrames))
-      let envelope = min(attackEnvelope, releaseEnvelope)
-      let softenedEnvelope = envelope * envelope * (3 - 2 * envelope)
-      let primary = sin(2 * Double.pi * primaryFrequencyHz * time)
-      let accent = 0.28 * sin(2 * Double.pi * secondaryFrequencyHz * time + (Double.pi / 9))
-      let subharmonic = 0.09 * sin(Double.pi * primaryFrequencyHz * time)
-      let sample = max(
-        -1.0,
-        min(1.0, (primary + accent + subharmonic) * resolvedOutputGain * softenedEnvelope)
-      )
-      var littleEndian = Int16((sample * Double(Int16.max)).rounded()).littleEndian
-      withUnsafeBytes(of: &littleEndian) { pcmData.append(contentsOf: $0) }
+    for segment in segments {
+      let segmentFrames = max(1, Int(segment.durationSeconds * sampleRate))
+      let attackFrames = max(1, Int(sampleRate * 0.012))
+      let releaseFrames = max(1, Int(sampleRate * 0.055))
+
+      for frame in 0..<segmentFrames {
+        let time = Double(frame) / sampleRate
+        let attackEnvelope = min(1, Double(frame) / Double(attackFrames))
+        let releaseEnvelope = min(1, Double(segmentFrames - frame) / Double(releaseFrames))
+        let envelope = min(attackEnvelope, releaseEnvelope)
+        let softenedEnvelope = envelope * envelope * (3 - 2 * envelope)
+        let primary = sin(2 * Double.pi * segment.primaryFrequencyHz * time)
+        let accent = 0.28 * sin(
+          2 * Double.pi * segment.secondaryFrequencyHz * time + (Double.pi / 9)
+        )
+        let subharmonic = 0.09 * sin(Double.pi * segment.primaryFrequencyHz * time)
+        let sample = max(
+          -1.0,
+          min(1.0, (primary + accent + subharmonic) * resolvedOutputGain * softenedEnvelope)
+        )
+        var littleEndian = Int16((sample * Double(Int16.max)).rounded()).littleEndian
+        withUnsafeBytes(of: &littleEndian) { pcmData.append(contentsOf: $0) }
+      }
+
+      let gapFrames = max(0, Int(segment.gapAfterSeconds * sampleRate))
+      if gapFrames > 0 {
+        pcmData.append(Data(repeating: 0, count: gapFrames * 2))
+      }
     }
 
     var waveData = Data()
@@ -172,12 +234,11 @@ private final class InteractionFeedbackPlayer: NSObject, AVAudioPlayerDelegate {
 }
 
 enum AppInteractionFeedbackCenter {
-  private static let settingsKey = "ListenSDR.sessionSettings.v1"
-
   static func playIfEnabled(_ tone: InteractionFeedbackTone) {
     let configuration = interactionSoundConfiguration()
-    guard configuration.isEnabled else { return }
-    if configuration.muteWhileRecording, AudioRecordingController.shared.currentSnapshot().isRecording {
+    guard configuration.switchSoundsEnabled else { return }
+    if configuration.muteSwitchSoundsWhileRecording,
+      AudioRecordingController.shared.currentSnapshot().isRecording {
       return
     }
     play(tone, volumeMultiplier: configuration.volumeMultiplier)
@@ -187,22 +248,31 @@ enum AppInteractionFeedbackCenter {
     let configuration = interactionSoundConfiguration()
     if enabled {
       play(.enabled, volumeMultiplier: configuration.volumeMultiplier)
-    } else if configuration.isEnabled {
+    } else if configuration.switchSoundsEnabled {
       play(.disabled, volumeMultiplier: configuration.volumeMultiplier)
     }
   }
 
   static func playInteractionSoundPreviewIfEnabled() {
     let configuration = interactionSoundConfiguration()
-    guard configuration.isEnabled else { return }
+    guard configuration.switchSoundsEnabled else { return }
     play(.enabled, volumeMultiplier: configuration.volumeMultiplier)
   }
 
   static func playRecordingTransitionIfEnabled(isRecording: Bool) {
     let configuration = interactionSoundConfiguration()
-    guard configuration.isEnabled else { return }
+    guard configuration.recordingSoundsEnabled else { return }
     play(
       isRecording ? .recordingStarted : .recordingStopped,
+      volumeMultiplier: configuration.volumeMultiplier
+    )
+  }
+
+  static func playConnectionTransitionIfEnabled(succeeded: Bool) {
+    let configuration = interactionSoundConfiguration()
+    guard configuration.connectionSoundsEnabled else { return }
+    play(
+      succeeded ? .connectionSucceeded : .connectionFailed,
       volumeMultiplier: configuration.volumeMultiplier
     )
   }
@@ -214,24 +284,17 @@ enum AppInteractionFeedbackCenter {
   }
 
   private static func interactionSoundConfiguration() -> (
-    isEnabled: Bool,
-    muteWhileRecording: Bool,
+    switchSoundsEnabled: Bool,
+    connectionSoundsEnabled: Bool,
+    recordingSoundsEnabled: Bool,
+    muteSwitchSoundsWhileRecording: Bool,
     volumeMultiplier: Double
   ) {
-    guard
-      let raw = UserDefaults.standard.data(forKey: settingsKey),
-      let decoded = try? JSONDecoder().decode(RadioSessionSettings.self, from: raw)
-    else {
-      let defaults = RadioSessionSettings.default
-      return (
-        defaults.accessibilityInteractionSoundsEnabled,
-        defaults.accessibilityInteractionSoundsMutedDuringRecording,
-        defaults.accessibilityInteractionSoundsVolume
-      )
-    }
-
+    let decoded = AppAccessibilitySettingsStore.currentSettings()
     return (
       decoded.accessibilityInteractionSoundsEnabled,
+      decoded.accessibilityConnectionSoundsEnabled,
+      decoded.accessibilityRecordingSoundsEnabled,
       decoded.accessibilityInteractionSoundsMutedDuringRecording,
       decoded.accessibilityInteractionSoundsVolume
     )

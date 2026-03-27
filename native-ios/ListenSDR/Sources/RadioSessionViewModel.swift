@@ -2255,6 +2255,34 @@ final class RadioSessionViewModel: ObservableObject {
     playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
+  func setAccessibilitySelectionAnnouncementsEnabled(_ enabled: Bool) {
+    guard settings.accessibilitySelectionAnnouncementsEnabled != enabled else { return }
+    settings.accessibilitySelectionAnnouncementsEnabled = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setAccessibilityConnectionSoundsEnabled(_ enabled: Bool) {
+    guard settings.accessibilityConnectionSoundsEnabled != enabled else { return }
+    settings.accessibilityConnectionSoundsEnabled = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setAccessibilityRecordingSoundsEnabled(_ enabled: Bool) {
+    guard settings.accessibilityRecordingSoundsEnabled != enabled else { return }
+    settings.accessibilityRecordingSoundsEnabled = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setRememberSquelchOnConnectEnabled(_ enabled: Bool) {
+    guard settings.rememberSquelchOnConnectEnabled != enabled else { return }
+    settings.rememberSquelchOnConnectEnabled = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
   func setRadiosSearchFiltersVisibility(_ visibility: RadiosSearchFiltersVisibility) {
     guard settings.radiosSearchFiltersVisibility != visibility else { return }
     settings.radiosSearchFiltersVisibility = visibility
@@ -2993,6 +3021,13 @@ final class RadioSessionViewModel: ObservableObject {
   private func normalizeSettingsForBackendBeforeConnect(_ backend: SDRBackend) {
     var changed = false
 
+    if backend != .fmDxWebserver,
+      settings.rememberSquelchOnConnectEnabled == false,
+      settings.squelchEnabled {
+      settings.squelchEnabled = false
+      changed = true
+    }
+
     let clampedDwell = RadioSessionSettings.clampedScannerDwellSeconds(settings.scannerDwellSeconds)
     if settings.scannerDwellSeconds != clampedDwell {
       settings.scannerDwellSeconds = clampedDwell
@@ -3632,6 +3667,7 @@ final class RadioSessionViewModel: ObservableObject {
     profileName: String? = nil,
     errorMessage: String? = nil
   ) {
+    let previousState = state
     state = connectionState(for: presentation.phase)
     statusText = localizedSessionStatusText(
       for: presentation.statusKind,
@@ -3644,6 +3680,11 @@ final class RadioSessionViewModel: ObservableObject {
       for: presentation.errorKind,
       errorMessage: errorMessage
     )
+    if presentation.phase == .connected, previousState != .connected {
+      AppInteractionFeedbackCenter.playConnectionTransitionIfEnabled(succeeded: true)
+    } else if presentation.phase == .failed, previousState != .failed {
+      AppInteractionFeedbackCenter.playConnectionTransitionIfEnabled(succeeded: false)
+    }
   }
 
   private func connectionState(
@@ -3772,6 +3813,7 @@ final class RadioSessionViewModel: ObservableObject {
     case .openWebRXTuning(let frequencyHz, let mode):
       initialTuningFallbackTask?.cancel()
       initialTuningFallbackTask = nil
+      let completedInitialServerTuningSync = hasInitialServerTuningSync == false
       hasInitialServerTuningSync = true
       NowPlayingMetadataController.shared.setTitle(nil)
       let normalizedFrequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
@@ -3792,11 +3834,15 @@ final class RadioSessionViewModel: ObservableObject {
         persistSettings()
       }
       updateBackendStatusText(result.statusSummary)
+      if completedInitialServerTuningSync {
+        applyRememberedSquelchAfterInitialTuningSyncIfNeeded(for: .openWebRX)
+      }
       scheduleListeningHistoryCapture()
 
     case .kiwiTuning(let frequencyHz, let mode, let bandName, let passband):
       initialTuningFallbackTask?.cancel()
       initialTuningFallbackTask = nil
+      let completedInitialServerTuningSync = hasInitialServerTuningSync == false
       hasInitialServerTuningSync = true
       NowPlayingMetadataController.shared.setTitle(nil)
       let activeMode = mode ?? settings.mode
@@ -3824,6 +3870,9 @@ final class RadioSessionViewModel: ObservableObject {
         persistSettings()
       }
       updateBackendStatusText(result.statusSummary)
+      if completedInitialServerTuningSync {
+        applyRememberedSquelchAfterInitialTuningSyncIfNeeded(for: .kiwiSDR)
+      }
       scheduleListeningHistoryCapture()
       if activeBackend == .kiwiSDR, state == .connected {
         sendKiwiWaterfallControl()
@@ -4221,6 +4270,14 @@ final class RadioSessionViewModel: ObservableObject {
         mode: mode
       )
     }
+  }
+
+  private func applyRememberedSquelchAfterInitialTuningSyncIfNeeded(for backend: SDRBackend) {
+    guard settings.rememberSquelchOnConnectEnabled else { return }
+    guard settings.squelchEnabled else { return }
+    guard state == .connected else { return }
+    guard activeBackend == backend else { return }
+    applyCurrentSettingsToConnectedBackend()
   }
 
   private func scheduleInitialTuningFallbackAfterConnection(profileID: UUID) {

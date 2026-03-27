@@ -3561,6 +3561,7 @@ struct SelectionListView: View {
         ForEach(options) { option in
           Button {
             onSelect(option.id)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(option.title)
             dismiss()
           } label: {
             HStack(spacing: 12) {

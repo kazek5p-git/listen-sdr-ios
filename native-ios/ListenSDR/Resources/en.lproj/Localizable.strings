@@ -22,6 +22,7 @@
 "common.no" = "No";
 "common.selected" = "Selected";
 "common.not_selected" = "Not selected";
+"common.announcement.selected_item" = "%@ selected";
 "common.not_added" = "Not added";
 "common.added" = "Added";
 "directory.receiver.state.not_added" = "Not added";
@@ -700,6 +701,12 @@
 
 "settings.accessibility.interaction_sounds" = "Switch sounds";
 "settings.accessibility.interaction_sounds.hint" = "Plays a lower tone when a control turns off and a higher tone when it turns on, for example for mute and stereo mode.";
+"settings.accessibility.selection_announcements" = "Selection confirmations";
+"settings.accessibility.selection_announcements.hint" = "Announces the selected item after you choose it from a list, for example a bookmark or channel.";
+"settings.accessibility.connection_sounds" = "Connection sounds";
+"settings.accessibility.connection_sounds.hint" = "Plays a short success tone after a receiver connects and a failure tone when the connection does not succeed.";
+"settings.accessibility.recording_sounds" = "Recording sounds";
+"settings.accessibility.recording_sounds.hint" = "Plays separate tones when recording starts and stops.";
 "accessibility.magic_tap.muted" = "Muted";
 "accessibility.magic_tap.unmuted" = "Unmuted";
 "settings.radios.section" = "Radios";
@@ -713,5 +720,7 @@
 "settings.accessibility.interaction_sounds.mute_while_recording.hint" = "Keeps switch sounds silent while a recording is in progress. Recording start and stop tones still play.";
 "settings.accessibility.interaction_sounds.preview" = "Preview sound";
 "settings.accessibility.interaction_sounds.preview.hint" = "Plays a sample switch sound at the current volume.";
-"settings.accessibility.interaction_sounds.volume" = "Switch sound volume";
-"settings.accessibility.interaction_sounds.volume.hint" = "Adjusts the loudness of switch and recording feedback sounds.";
+"settings.accessibility.interaction_sounds.volume" = "Feedback sound volume";
+"settings.accessibility.interaction_sounds.volume.hint" = "Adjusts the loudness of switch, connection, and recording feedback sounds.";
+"settings.audio.remember_squelch_on_connect" = "Remember squelch on connect";
+"settings.audio.remember_squelch_on_connect.hint" = "If enabled, reconnecting restores the squelch gate immediately. If disabled, each new connection starts with squelch off.";

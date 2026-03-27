@@ -361,6 +361,54 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertTrue(decoded.accessibilityInteractionSoundsMutedDuringRecording)
   }
 
+  func testAccessibilitySelectionAnnouncementsDefaultToDisabledAndRoundTrip() throws {
+    XCTAssertFalse(RadioSessionSettings.default.accessibilitySelectionAnnouncementsEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.accessibilitySelectionAnnouncementsEnabled = true
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertTrue(decoded.accessibilitySelectionAnnouncementsEnabled)
+  }
+
+  func testAccessibilityConnectionSoundsDefaultToDisabledAndRoundTrip() throws {
+    XCTAssertFalse(RadioSessionSettings.default.accessibilityConnectionSoundsEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.accessibilityConnectionSoundsEnabled = true
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertTrue(decoded.accessibilityConnectionSoundsEnabled)
+  }
+
+  func testAccessibilityRecordingSoundsDefaultToEnabledAndRoundTrip() throws {
+    XCTAssertTrue(RadioSessionSettings.default.accessibilityRecordingSoundsEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.accessibilityRecordingSoundsEnabled = false
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertFalse(decoded.accessibilityRecordingSoundsEnabled)
+  }
+
+  func testRememberSquelchOnConnectDefaultsToEnabledAndRoundTrip() throws {
+    XCTAssertTrue(RadioSessionSettings.default.rememberSquelchOnConnectEnabled)
+
+    var settings = RadioSessionSettings.default
+    settings.rememberSquelchOnConnectEnabled = false
+
+    let encoded = try JSONEncoder().encode(settings)
+    let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
+
+    XCTAssertFalse(decoded.rememberSquelchOnConnectEnabled)
+  }
+
   func testRadiosSearchFiltersVisibilityDefaultsToAlwaysVisibleAndRoundTrips() throws {
     XCTAssertEqual(RadioSessionSettings.default.radiosSearchFiltersVisibility, .alwaysVisible)
 

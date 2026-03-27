@@ -35,7 +35,8 @@ final class AppAccessibilityTests: XCTestCase {
     persistInteractionSoundSettings(
       enabled: true,
       muteWhileRecording: true,
-      volumeMultiplier: 1.0
+      volumeMultiplier: 1.0,
+      recordingSoundsEnabled: true
     )
 
     AppInteractionFeedbackCenter.playRecordingTransitionIfEnabled(isRecording: true)
@@ -57,15 +58,33 @@ final class AppAccessibilityTests: XCTestCase {
     waitForPlaybackDispatch()
   }
 
+  func testConnectionTransitionDoesNotCrashWhenEnabled() {
+    persistInteractionSoundSettings(
+      enabled: false,
+      muteWhileRecording: false,
+      volumeMultiplier: 1.0,
+      connectionSoundsEnabled: true
+    )
+
+    AppInteractionFeedbackCenter.playConnectionTransitionIfEnabled(succeeded: true)
+    AppInteractionFeedbackCenter.playConnectionTransitionIfEnabled(succeeded: false)
+
+    waitForPlaybackDispatch()
+  }
+
   private func persistInteractionSoundSettings(
     enabled: Bool,
     muteWhileRecording: Bool,
-    volumeMultiplier: Double
+    volumeMultiplier: Double,
+    connectionSoundsEnabled: Bool = false,
+    recordingSoundsEnabled: Bool = true
   ) {
     var settings = RadioSessionSettings.default
     settings.accessibilityInteractionSoundsEnabled = enabled
     settings.accessibilityInteractionSoundsMutedDuringRecording = muteWhileRecording
     settings.accessibilityInteractionSoundsVolume = volumeMultiplier
+    settings.accessibilityConnectionSoundsEnabled = connectionSoundsEnabled
+    settings.accessibilityRecordingSoundsEnabled = recordingSoundsEnabled
     let data = try! JSONEncoder().encode(settings)
     UserDefaults.standard.set(data, forKey: settingsKey)
   }

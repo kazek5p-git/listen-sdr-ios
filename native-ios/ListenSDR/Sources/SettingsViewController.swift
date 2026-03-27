@@ -26,6 +26,10 @@ struct SettingsViewState: Equatable {
   var accessibilityInteractionSoundsEnabled: Bool
   var accessibilityInteractionSoundsVolume: Double
   var accessibilityInteractionSoundsMutedDuringRecording: Bool
+  var accessibilitySelectionAnnouncementsEnabled: Bool
+  var accessibilityConnectionSoundsEnabled: Bool
+  var accessibilityRecordingSoundsEnabled: Bool
+  var rememberSquelchOnConnectEnabled: Bool
   var openReceiverAfterHistoryRestore: Bool
   var showRecentFrequencies: Bool
   var includeRecentFrequenciesFromOtherReceivers: Bool
@@ -67,6 +71,10 @@ struct SettingsViewState: Equatable {
     accessibilityInteractionSoundsEnabled: RadioSessionSettings.default.accessibilityInteractionSoundsEnabled,
     accessibilityInteractionSoundsVolume: RadioSessionSettings.default.accessibilityInteractionSoundsVolume,
     accessibilityInteractionSoundsMutedDuringRecording: RadioSessionSettings.default.accessibilityInteractionSoundsMutedDuringRecording,
+    accessibilitySelectionAnnouncementsEnabled: RadioSessionSettings.default.accessibilitySelectionAnnouncementsEnabled,
+    accessibilityConnectionSoundsEnabled: RadioSessionSettings.default.accessibilityConnectionSoundsEnabled,
+    accessibilityRecordingSoundsEnabled: RadioSessionSettings.default.accessibilityRecordingSoundsEnabled,
+    rememberSquelchOnConnectEnabled: RadioSessionSettings.default.rememberSquelchOnConnectEnabled,
     openReceiverAfterHistoryRestore: false,
     showRecentFrequencies: RadioSessionSettings.default.showRecentFrequencies,
     includeRecentFrequenciesFromOtherReceivers: RadioSessionSettings.default.includeRecentFrequenciesFromOtherReceivers,
@@ -211,6 +219,26 @@ final class SettingsViewController: ObservableObject {
 
   func setAccessibilityInteractionSoundsMutedDuringRecording(_ isEnabled: Bool) {
     radioSession?.setAccessibilityInteractionSoundsMutedDuringRecording(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setAccessibilitySelectionAnnouncementsEnabled(_ isEnabled: Bool) {
+    radioSession?.setAccessibilitySelectionAnnouncementsEnabled(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setAccessibilityConnectionSoundsEnabled(_ isEnabled: Bool) {
+    radioSession?.setAccessibilityConnectionSoundsEnabled(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setAccessibilityRecordingSoundsEnabled(_ isEnabled: Bool) {
+    radioSession?.setAccessibilityRecordingSoundsEnabled(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setRememberSquelchOnConnectEnabled(_ isEnabled: Bool) {
+    radioSession?.setRememberSquelchOnConnectEnabled(isEnabled)
     refreshState(force: true)
   }
 
@@ -398,6 +426,10 @@ final class SettingsViewController: ObservableObject {
       accessibilityInteractionSoundsEnabled: radioSession.settings.accessibilityInteractionSoundsEnabled,
       accessibilityInteractionSoundsVolume: radioSession.settings.accessibilityInteractionSoundsVolume,
       accessibilityInteractionSoundsMutedDuringRecording: radioSession.settings.accessibilityInteractionSoundsMutedDuringRecording,
+      accessibilitySelectionAnnouncementsEnabled: radioSession.settings.accessibilitySelectionAnnouncementsEnabled,
+      accessibilityConnectionSoundsEnabled: radioSession.settings.accessibilityConnectionSoundsEnabled,
+      accessibilityRecordingSoundsEnabled: radioSession.settings.accessibilityRecordingSoundsEnabled,
+      rememberSquelchOnConnectEnabled: radioSession.settings.rememberSquelchOnConnectEnabled,
       openReceiverAfterHistoryRestore: radioSession.settings.openReceiverAfterHistoryRestore,
       showRecentFrequencies: radioSession.settings.showRecentFrequencies,
       includeRecentFrequenciesFromOtherReceivers: radioSession.settings.includeRecentFrequenciesFromOtherReceivers,
