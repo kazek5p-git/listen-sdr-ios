@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local release state
+release/testflight/last-publish-state.json

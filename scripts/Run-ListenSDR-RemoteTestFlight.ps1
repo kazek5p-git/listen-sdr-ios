@@ -563,12 +563,23 @@ if [ -z "$IPA_PATH" ]; then
 fi
 
 if [ "$UPLOAD_TO_TESTFLIGHT" = "true" ]; then
+  set +e
   xcrun altool \
     --upload-app \
     --type ios \
     --file "$IPA_PATH" \
     --apiKey "$ASC_KEY_ID" \
     --apiIssuer "$ASC_ISSUER_ID" | tee "$LOG_UPLOAD"
+  upload_status=${PIPESTATUS[0]}
+  tee_status=${PIPESTATUS[1]}
+  set -e
+
+  if [ "$upload_status" -ne 0 ]; then
+    exit "$upload_status"
+  fi
+  if [ "$tee_status" -ne 0 ]; then
+    exit "$tee_status"
+  fi
 fi
 
 printf 'IPA_PATH=%s\n' "$IPA_PATH"
