@@ -14,6 +14,11 @@ This project is the public source of truth for Listen SDR releases.
 - The public Android download must be published as a GitHub Release asset in this public repository.
 - Do not publish public Android download links from the private `android-starter-app` repository.
 - FM-DX descriptions, landing pages, support pages, and other public materials should point Android users to the public APK hosted from this repository.
+- The standard iOS beta flow should attach the build to both TestFlight groups:
+  - `wewnetrzna`
+  - `publiczna`
+- If the upload step succeeds but the wrapper stops while waiting for App Store Connect processing, resume with:
+  `scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -SkipRemoteBuild`
 
 ### Current Android public release convention
 

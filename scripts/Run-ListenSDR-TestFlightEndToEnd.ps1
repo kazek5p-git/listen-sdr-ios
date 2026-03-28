@@ -9,9 +9,14 @@ param(
   [string]$ReleaseNotesRoot,
   [string]$BetaGroupName = "wewnetrzna",
   [string]$BetaGroupId = "89359342-cf9d-480b-9c75-8e34a7fef728",
+  [string]$PublicBetaGroupName = "publiczna",
+  [string]$PublicBetaGroupId = "f4e0a82c-19ea-4aa2-aaef-fe0d930d4126",
   [switch]$DryRun,
   [switch]$SkipPreflight,
   [switch]$SkipMetadataPublish,
+  [switch]$SkipPublicGroup,
+  [switch]$SkipRemoteBuild,
+  [switch]$SkipWaitForProcessing,
   [int]$StatusPollIntervalSeconds = 10,
   [int]$StatusTimeoutMinutes = 20
 )
@@ -36,12 +41,17 @@ if (-not $SkipMetadataPublish -and -not (Test-Path $metadataScriptPath)) {
   throw "TestFlight metadata script not found: $metadataScriptPath"
 }
 
+$publicScriptPath = Join-Path $PSScriptRoot "Publish-ListenSDR-PublicTestFlight.ps1"
+if (-not $SkipMetadataPublish -and -not $SkipPublicGroup -and -not (Test-Path $publicScriptPath)) {
+  throw "Public TestFlight script not found: $publicScriptPath"
+}
+
 $preflightScriptPath = Join-Path $PSScriptRoot "Test-ListenSDR-TestFlightPreflight.ps1"
 if (-not $SkipPreflight -and -not (Test-Path $preflightScriptPath)) {
   throw "TestFlight preflight script not found: $preflightScriptPath"
 }
 
-if (-not $SkipPreflight) {
+if (-not $SkipPreflight -and -not $SkipRemoteBuild) {
   Write-Host ""
   Write-Host ("==> TestFlight preflight (" + ($(if ($DryRun) { "DryRun" } else { "Publish" })) + ")")
 
@@ -67,39 +77,50 @@ if (-not $SkipPreflight) {
   }
 }
 
-$arguments = @{
-  SigningMode = $SigningMode
-  RemoteHost = $RemoteHost
-  RemoteRepoDir = $RemoteRepoDir
-  RepoUrl = $RepoUrl
-  StatusPollIntervalSeconds = $StatusPollIntervalSeconds
-  StatusTimeoutMinutes = $StatusTimeoutMinutes
-}
+if (-not $SkipRemoteBuild) {
+  $arguments = @{
+    SigningMode = $SigningMode
+    RemoteHost = $RemoteHost
+    RemoteRepoDir = $RemoteRepoDir
+    RepoUrl = $RepoUrl
+    StatusPollIntervalSeconds = $StatusPollIntervalSeconds
+    StatusTimeoutMinutes = $StatusTimeoutMinutes
+  }
 
-if (-not $DryRun) {
-  $arguments.UploadToTestFlight = $true
-  $arguments.WaitForTestFlightProcessing = $true
-}
+  if (-not $DryRun) {
+    $arguments.UploadToTestFlight = $true
+    if (-not $SkipWaitForProcessing) {
+      $arguments.WaitForTestFlightProcessing = $true
+    }
+  }
 
-if ($SigningMode -eq "login") {
-  if (-not [string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
-    $arguments.RemoteLoginKeychainPassword = $RemoteLoginKeychainPassword
+  if ($SigningMode -eq "login") {
+    if (-not [string]::IsNullOrWhiteSpace($RemoteLoginKeychainPassword)) {
+      $arguments.RemoteLoginKeychainPassword = $RemoteLoginKeychainPassword
+    }
+  } else {
+    $arguments.RemoteDistributionP12Password = $RemoteDistributionP12Password
+  }
+
+  Write-Host ""
+  Write-Host ("==> Remote build (" + ($(if ($DryRun) { "DryRun" } else { "Publish" })) + ")")
+  if ($SkipWaitForProcessing -and -not $DryRun) {
+    Write-Host "Skipping ASC processing wait after upload. Use -SkipRemoteBuild later to resume metadata and group publish."
+  }
+  & $remoteScriptPath @arguments
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "End-to-end TestFlight pipeline failed."
   }
 } else {
-  $arguments.RemoteDistributionP12Password = $RemoteDistributionP12Password
-}
-
-Write-Host ""
-Write-Host ("==> Remote build (" + ($(if ($DryRun) { "DryRun" } else { "Publish" })) + ")")
-& $remoteScriptPath @arguments
-
-if ($LASTEXITCODE -ne 0) {
-  throw "End-to-end TestFlight pipeline failed."
+  Write-Host ""
+  Write-Host "==> Resume mode"
+  Write-Host "Skipping remote build/upload and continuing from existing App Store Connect build."
 }
 
 if (-not $SkipMetadataPublish) {
   Write-Host ""
-  Write-Host ("==> Metadata " + ($(if ($DryRun) { "validation" } else { "publish" })))
+  Write-Host ("==> Internal metadata " + ($(if ($DryRun) { "validation" } else { "publish" })))
 
   $metadataArguments = @{
     ReleaseNotesRoot = $ReleaseNotesRoot
@@ -114,5 +135,35 @@ if (-not $SkipMetadataPublish) {
 
   if ($LASTEXITCODE -ne 0) {
     throw "TestFlight metadata step failed."
+  }
+
+  if (-not $SkipPublicGroup) {
+    Write-Host ""
+    Write-Host ("==> Public metadata " + ($(if ($DryRun) { "validation" } else { "publish" })))
+
+    $publicMetadataArguments = @{
+      ReleaseNotesRoot = $ReleaseNotesRoot
+      BetaGroupName = $PublicBetaGroupName
+      BetaGroupId = $PublicBetaGroupId
+    }
+    if ($DryRun) {
+      $publicMetadataArguments.ValidateOnly = $true
+    }
+
+    & $metadataScriptPath @publicMetadataArguments
+
+    if ($LASTEXITCODE -ne 0) {
+      throw "Public TestFlight metadata step failed."
+    }
+
+    if (-not $DryRun) {
+      Write-Host ""
+      Write-Host "==> Public TestFlight review"
+      & $publicScriptPath -PublicBetaGroupName $PublicBetaGroupName -PublicBetaGroupId $PublicBetaGroupId
+
+      if ($LASTEXITCODE -ne 0) {
+        throw "Public TestFlight submission step failed."
+      }
+    }
   }
 }
