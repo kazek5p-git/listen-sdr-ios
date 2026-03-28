@@ -21,6 +21,17 @@ function Assert-Tool {
   }
 }
 
+function Write-UnixTextFile {
+  param(
+    [string]$Path,
+    [string]$Content
+  )
+
+  $normalizedContent = ($Content -replace "`r`n", "`n") -replace "`r", "`n"
+  $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+  [System.IO.File]::WriteAllText($Path, $normalizedContent, $utf8NoBom)
+}
+
 function ConvertTo-BashSingleQuotedLiteral {
   param([string]$Value)
 
@@ -268,7 +279,7 @@ $remoteScript = $remoteScriptTemplate.
   Replace('__BUILD_DIR__', (ConvertTo-BashSingleQuotedLiteral -Value $remoteBuildDir))
 
 $tempRunnerPath = Join-Path $env:TEMP "build-listensdr-remote-unsigned.sh"
-Set-Content -Path $tempRunnerPath -Value $remoteScript -NoNewline -Encoding ascii
+Write-UnixTextFile -Path $tempRunnerPath -Content $remoteScript
 
 Write-Host ""
 Write-Host "==> Prepare remote unsigned build workspace"
