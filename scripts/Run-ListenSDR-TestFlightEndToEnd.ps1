@@ -12,7 +12,7 @@ param(
   [switch]$DryRun,
   [switch]$SkipPreflight,
   [switch]$SkipMetadataPublish,
-  [int]$StatusPollIntervalSeconds = 30,
+  [int]$StatusPollIntervalSeconds = 10,
   [int]$StatusTimeoutMinutes = 20
 )
 

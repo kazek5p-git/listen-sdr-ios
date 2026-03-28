@@ -6,7 +6,7 @@ param(
   [string]$BuildVersion,
   [int]$MaxResults = 5,
   [switch]$WaitUntilProcessed,
-  [int]$PollIntervalSeconds = 30,
+  [int]$PollIntervalSeconds = 10,
   [int]$TimeoutMinutes = 20,
   [switch]$Json
 )

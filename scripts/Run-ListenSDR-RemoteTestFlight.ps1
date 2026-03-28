@@ -17,7 +17,7 @@ param(
   [string]$RemoteDistributionP12Password = [Environment]::GetEnvironmentVariable("LISTENSDR_REMOTE_P12_PASSWORD", "User"),
   [switch]$UploadToTestFlight,
   [switch]$WaitForTestFlightProcessing,
-  [int]$StatusPollIntervalSeconds = 30,
+  [int]$StatusPollIntervalSeconds = 10,
   [int]$StatusTimeoutMinutes = 20
 )
 
