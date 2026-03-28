@@ -17,6 +17,12 @@ This project is the public source of truth for Listen SDR releases.
 - The standard iOS beta flow should attach the build to both TestFlight groups:
   - `wewnetrzna`
   - `publiczna`
+- Standard safe TestFlight flow:
+  - phase 1 upload only:
+    `scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -SkipWaitForProcessing`
+  - phase 2 resume after App Store Connect processing:
+    `scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -SkipRemoteBuild`
+- The signed remote build now uses the current local source snapshot, not a stale git clone on the Mac.
 - If the upload step succeeds but the wrapper stops while waiting for App Store Connect processing, resume with:
   `scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -SkipRemoteBuild`
 

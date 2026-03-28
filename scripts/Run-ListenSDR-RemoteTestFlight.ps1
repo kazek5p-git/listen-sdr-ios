@@ -93,6 +93,108 @@ function ConvertTo-BashSingleQuotedLiteral {
   return "'" + ($Value -replace "'", $bashSingleQuoteEscape) + "'"
 }
 
+function Write-UnixTextFile {
+  param(
+    [string]$Path,
+    [string]$Content
+  )
+
+  $normalizedContent = ($Content -replace "`r`n", "`n") -replace "`r", "`n"
+  $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+  [System.IO.File]::WriteAllText($Path, $normalizedContent, $utf8NoBom)
+}
+
+function Test-IncludedSnapshotPath {
+  param([string]$RelativePath)
+
+  $normalized = ($RelativePath -replace '\\', '/').TrimStart('./')
+  if ([string]::IsNullOrWhiteSpace($normalized)) {
+    return $false
+  }
+
+  $excludePatterns = @(
+    '(^|/)\.git($|/)',
+    '(^|/)sideloadlydaemon\.log$',
+    '(^|/)Listen-SDR-unsigned-local-.*\.ipa$',
+    '(^|/)native-ios-build-local-.*\.log$',
+    '(^|/)native-ios/build-local',
+    '(^|/)native-ios/build-log-filter-test',
+    '(^|/)native-ios/unsigned-ipa',
+    '(^|/)server/listen-sdr-feedback-bot/__pycache__($|/)',
+    '(^|/)\.expo($|/)',
+    '(^|/).+\.xcresult($|/)'
+  )
+
+  foreach ($pattern in $excludePatterns) {
+    if ($normalized -match $pattern) {
+      return $false
+    }
+  }
+
+  return $true
+}
+
+function Get-SnapshotPaths {
+  param([string]$RepositoryPath)
+
+  $tracked = @(& git -C $RepositoryPath ls-files)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Unable to list tracked files."
+  }
+
+  $untracked = @(& git -C $RepositoryPath ls-files --others --exclude-standard)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Unable to list untracked files."
+  }
+
+  $allPaths = @($tracked + $untracked |
+    ForEach-Object { if ($null -eq $_) { "" } else { "$_".Trim() } } |
+    Where-Object { Test-IncludedSnapshotPath -RelativePath $_ } |
+    Where-Object { Test-Path (Join-Path $RepositoryPath $_) } |
+    Sort-Object -Unique)
+
+  if ($allPaths.Count -eq 0) {
+    throw "No files selected for remote snapshot."
+  }
+
+  return $allPaths
+}
+
+function New-RepoSnapshotArchive {
+  param(
+    [string]$RepositoryPath,
+    [string[]]$SnapshotPaths
+  )
+
+  $tempRoot = Join-Path $env:TEMP "listen-sdr-remote-testflight"
+  New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+
+  $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+  $archivePath = Join-Path $tempRoot ("listen-sdr-testflight-" + $stamp + ".tar.gz")
+  $fileListPath = Join-Path $tempRoot ("listen-sdr-testflight-" + $stamp + ".files.txt")
+
+  if (Test-Path $archivePath) {
+    Remove-Item $archivePath -Force
+  }
+
+  Set-Content -Path $fileListPath -Value $SnapshotPaths -Encoding ascii
+
+  Push-Location $RepositoryPath
+  try {
+    & tar -czf $archivePath -T $fileListPath
+    if ($LASTEXITCODE -ne 0) {
+      throw "Failed to create repository snapshot archive."
+    }
+  } finally {
+    Pop-Location
+  }
+
+  return @{
+    ArchivePath = $archivePath
+    FileListPath = $fileListPath
+  }
+}
+
 Assert-LocalFile -Path $AscApiKeyPath -Label "ASC API key"
 
 if ([string]::IsNullOrWhiteSpace($AscKeyId) -or [string]::IsNullOrWhiteSpace($AscIssuerId)) {
@@ -115,6 +217,9 @@ if (-not (Get-Command scp -ErrorAction SilentlyContinue)) {
 }
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
   throw "python is not available in PATH."
+}
+if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {
+  throw "tar is not available in PATH."
 }
 
 $status = @(& git -C $RepoRoot status --short | Where-Object {
@@ -151,6 +256,13 @@ $remoteBuildDir = "$remoteHome/.listen-sdr-build"
 $remoteKeyPath = "$remoteCiDir/" + [System.IO.Path]::GetFileName($AscApiKeyPath)
 $remoteProfilePath = "$remoteCiDir/ListenSDR_AppStore.mobileprovision"
 $remoteRunnerPath = "$remoteCiDir/run-testflight.sh"
+$remoteArchivePath = "$remoteCiDir/source.tar.gz"
+$remoteSourceDir = "$remoteHome/.listen-sdr-src"
+$remoteSourceStagingDir = "$remoteHome/.listen-sdr-src.new"
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+$snapshotPaths = Get-SnapshotPaths -RepositoryPath $resolvedRepoRoot
+$snapshot = New-RepoSnapshotArchive -RepositoryPath $resolvedRepoRoot -SnapshotPaths $snapshotPaths
 
 Write-Host ""
 Write-Host "==> Prepare remote directories"
@@ -187,6 +299,13 @@ if ($LASTEXITCODE -ne 0) {
   throw "Unable to upload provisioning profile."
 }
 
+Write-Host ""
+Write-Host "==> Upload local source snapshot to remote Mac"
+scp $snapshot.ArchivePath "${RemoteHost}:$remoteArchivePath" | Out-Null
+if ($LASTEXITCODE -ne 0) {
+  throw "Unable to upload source snapshot."
+}
+
 $remoteDistributionP12PathExpanded = if ($RemoteDistributionP12Path -eq "~") {
   '$HOME'
 } elseif ($RemoteDistributionP12Path -like "~/*") {
@@ -200,7 +319,8 @@ $distP12PasswordValue = if ($SigningMode -eq "temporary-p12") { $RemoteDistribut
 $remoteScriptTemplate = @'
 set -euo pipefail
 REPO_DIR=__REPO_DIR__
-REPO_URL=__REPO_URL__
+ARCHIVE_PATH=__ARCHIVE_PATH__
+STAGING_DIR=__STAGING_DIR__
 CI_ROOT=__CI_ROOT__
 BUILD_ROOT=__BUILD_ROOT__
 KEY_PATH=__KEY_PATH__
@@ -220,19 +340,14 @@ UPLOAD_TO_TESTFLIGHT=__UPLOAD_TO_TESTFLIGHT__
 LOGIN_KEYCHAIN_PASSWORD="${LISTENSDR_REMOTE_LOGIN_KEYCHAIN_PASSWORD:-}"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-if [ -d "$REPO_DIR" ] && [ ! -d "$REPO_DIR/.git" ]; then
-  rm -rf "$REPO_DIR"
-fi
-
-if [ ! -d "$REPO_DIR/.git" ]; then
-  git clone "$REPO_URL" "$REPO_DIR"
-fi
+mkdir -p "$CI_ROOT"
+rm -rf "$STAGING_DIR"
+mkdir -p "$STAGING_DIR"
+tar -xzf "$ARCHIVE_PATH" -C "$STAGING_DIR"
+rm -rf "$REPO_DIR"
+mv "$STAGING_DIR" "$REPO_DIR"
 
 cd "$REPO_DIR"
-git fetch origin
-git checkout main
-git reset --hard origin/main
-git clean -fdx
 
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT/export"
@@ -464,7 +579,8 @@ printf 'UPLOAD_LOG=%s\n' "$LOG_UPLOAD"
 
 $remoteScript = $remoteScriptTemplate.
   Replace('__REPO_DIR__', $remoteRepoDirExpanded).
-  Replace('__REPO_URL__', $RepoUrl).
+  Replace('__ARCHIVE_PATH__', $remoteArchivePath).
+  Replace('__STAGING_DIR__', $remoteSourceStagingDir).
   Replace('__CI_ROOT__', $remoteCiDir).
   Replace('__BUILD_ROOT__', $remoteBuildDir).
   Replace('__KEY_PATH__', $remoteKeyPath).
@@ -487,9 +603,7 @@ Write-Host "==> Upload remote runner script"
 $tempDir = Join-Path $env:TEMP "listen-sdr-remote-runner"
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 $localRunnerPath = Join-Path $tempDir "run-testflight.sh"
-$remoteScriptUnix = $remoteScript -replace "`r`n", "`n"
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($localRunnerPath, $remoteScriptUnix, $utf8NoBom)
+Write-UnixTextFile -Path $localRunnerPath -Content $remoteScript
 scp $localRunnerPath "${RemoteHost}:$remoteRunnerPath" | Out-Null
 if ($LASTEXITCODE -ne 0) {
   throw "Unable to upload remote runner script."

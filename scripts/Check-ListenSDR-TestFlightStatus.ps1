@@ -119,6 +119,12 @@ except urllib.error.HTTPError as exc:
         "status": exc.code,
         "body": exc.read().decode('utf-8', errors='replace')
     }))
+except urllib.error.URLError as exc:
+    print(json.dumps({
+        "ok": False,
+        "error": "NETWORK_ERROR",
+        "message": str(exc)
+    }))
 "@
 
   $result = $pythonScript | python -
@@ -158,6 +164,17 @@ do {
   $payload = Get-TestFlightStatus
 
   if (-not $payload.ok) {
+    if ($WaitUntilProcessed -and $payload.error -eq "NETWORK_ERROR" -and (Get-Date) -lt $deadline) {
+      if ($Json) {
+        $payload | ConvertTo-Json -Depth 8
+      } else {
+        Write-Host ("Transient App Store Connect network error: " + $payload.message)
+        Write-Host ("Retrying in " + $PollIntervalSeconds + "s.")
+      }
+      Start-Sleep -Seconds $PollIntervalSeconds
+      continue
+    }
+
     if ($Json) {
       $payload | ConvertTo-Json -Depth 8
     } elseif ($payload.error -eq "APP_NOT_FOUND") {

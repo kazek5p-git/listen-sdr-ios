@@ -27,6 +27,8 @@ if ([string]::IsNullOrWhiteSpace($ReleaseNotesRoot)) {
   $ReleaseNotesRoot = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "release\testflight"
 }
 
+$resumeStatePath = Join-Path $ReleaseNotesRoot "last-publish-state.json"
+
 if ($SigningMode -eq "temporary-p12" -and [string]::IsNullOrWhiteSpace($RemoteDistributionP12Password)) {
   throw "Remote distribution .p12 password is missing. Set LISTENSDR_REMOTE_P12_PASSWORD in user environment or pass -RemoteDistributionP12Password."
 }
@@ -111,6 +113,28 @@ if (-not $SkipRemoteBuild) {
 
   if ($LASTEXITCODE -ne 0) {
     throw "End-to-end TestFlight pipeline failed."
+  }
+
+  if ($SkipWaitForProcessing -and -not $DryRun) {
+    $resumeState = [ordered]@{
+      releaseNotesRoot = $ReleaseNotesRoot
+      betaGroupName = $BetaGroupName
+      betaGroupId = $BetaGroupId
+      publicBetaGroupName = $PublicBetaGroupName
+      publicBetaGroupId = $PublicBetaGroupId
+      createdAt = (Get-Date).ToString("o")
+      resumeCommand = "powershell -ExecutionPolicy Bypass -File `"$PSScriptRoot\Run-ListenSDR-TestFlightEndToEnd.ps1`" -SkipRemoteBuild"
+    }
+
+    $resumeState | ConvertTo-Json -Depth 6 | Set-Content -Path $resumeStatePath -Encoding utf8
+
+    if (-not $SkipMetadataPublish) {
+      Write-Host ""
+      Write-Host "Skipping metadata publish because ASC processing wait was skipped."
+      Write-Host ("Resume later with: " + $resumeState.resumeCommand)
+      Write-Host ("State file: " + $resumeStatePath)
+      return
+    }
   }
 } else {
   Write-Host ""
