@@ -1,0 +1,7 @@
+This build focuses on more stable automatic RDS announcements for screen reader users.
+
+Please pay special attention to:
+- RDS: on strong stations, automatic reading should no longer speak partially decoded or unfinished text.
+- RDS: station name, radio text, and PI should only be announced after the content has stabilized.
+- RDS: full reading mode should avoid truncated fragments while the incoming data is still changing quickly.
+- General playback and accessibility stability after the update.
