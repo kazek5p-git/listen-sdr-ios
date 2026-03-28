@@ -200,21 +200,21 @@ final class RadioSessionViewModel: ObservableObject {
     stabilityInterval: { kind in
       switch kind {
       case .station:
-        return 1.0
+        return 0.25
       case .radioText:
-        return 2.5
+        return 0.6
       case .pi:
-        return 1.5
+        return 0.4
       }
     },
     minimumInterval: { kind in
       switch kind {
       case .station:
-        return 1.2
+        return 0.65
       case .radioText:
-        return 4.0
+        return 1.4
       case .pi:
-        return 2.0
+        return 0.9
       }
     }
   )
@@ -5176,7 +5176,7 @@ final class RadioSessionViewModel: ObservableObject {
       .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
       .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    guard normalized.count >= 8 else { return nil }
+    guard normalized.count >= 5 else { return nil }
     guard normalized != preferredRDSStationName(from: telemetry) else { return nil }
     return normalized
   }

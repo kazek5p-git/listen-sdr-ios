@@ -1,7 +1,7 @@
-Najważniejsza poprawka w tym buildzie to stabilniejsze automatyczne czytanie RDS przez czytnik ekranu.
+Najważniejsza poprawka w tym buildzie to szybsze i nadal stabilne automatyczne czytanie RDS przez czytnik ekranu.
 
 Proszę szczególnie sprawdzić:
-- RDS: na silnych stacjach automatyczny odczyt nie powinien już czytać niedokończonego lub częściowo zdekodowanego tekstu.
-- RDS: nazwa stacji, tekst radiowy i PI powinny być ogłaszane dopiero po ustabilizowaniu się treści.
+- RDS: na silnych stacjach automatyczny odczyt powinien reagować szybciej niż wcześniej, ale nadal nie powinien czytać niedokończonego lub częściowo zdekodowanego tekstu.
+- RDS: nazwa stacji, tekst radiowy i PI powinny być ogłaszane po krótkim ustabilizowaniu się treści, bez nadmiernego opóźnienia.
 - RDS: przy pełnym odczycie czytnik ekranu nie powinien powtarzać urwanych fragmentów podczas szybkich zmian danych.
 - Ogólna stabilność odsłuchu i dostępności po aktualizacji.
