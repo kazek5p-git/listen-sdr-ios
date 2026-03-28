@@ -1,0 +1,8 @@
+The main changes in this build are the new typed-frequency behavior and fixes around settings backup and accessibility.
+
+Please focus on:
+- Tuning: the new "Typed frequency" setting lets you choose automatic tuning or manual confirmation.
+- Tuning: in automatic mode, a valid typed frequency should tune after a short pause without the Apply button.
+- Tuning: in manual mode, the Apply button should return and tuning should not start on its own.
+- Settings: exporting a settings backup should let you choose the save location, and restoring should let you pick a backup file.
+- Accessibility: Magic Tap should work even when playback is allowed together with other apps.

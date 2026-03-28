@@ -201,13 +201,13 @@ final class RadioSessionViewModel: ObservableObject {
     stabilityInterval: { kind in
       switch kind {
       case .stationName:
-        return 0.24
-      case .programService:
         return 0.30
+      case .programService:
+        return 0.36
       case .radioText:
-        return 0.54
+        return 0.65
       case .pi:
-        return 0.34
+        return 0.40
       }
     },
     minimumInterval: { kind in
@@ -1645,6 +1645,16 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
+  func setFrequencyEntryCommitMode(_ mode: FrequencyEntryCommitMode) {
+    guard settings.frequencyEntryCommitMode != mode else { return }
+    settings.frequencyEntryCommitMode = mode
+    persistSettings()
+    Diagnostics.log(
+      category: "Session",
+      message: "Frequency entry commit mode set to \(mode.rawValue)"
+    )
+  }
+
   func setTuningGestureDirection(_ direction: TuningGestureDirection) {
     guard settings.tuningGestureDirection != direction else { return }
     settings.tuningGestureDirection = direction
@@ -2270,6 +2280,40 @@ final class RadioSessionViewModel: ObservableObject {
     persistSettings()
   }
 
+  @discardableResult
+  func performMagicTapAction(recordingStore: RecordingStore?) -> Bool {
+    switch settings.magicTapAction {
+    case .toggleMute:
+      guard state == .connected else { return false }
+      toggleAudioMuted()
+      AppAccessibilityAnnouncementCenter.post(
+        L10n.text(
+          settings.audioMuted
+            ? "accessibility.magic_tap.muted"
+            : "accessibility.magic_tap.unmuted"
+        )
+      )
+      return true
+    case .disconnect:
+      guard state == .connected else { return false }
+      disconnect()
+      return true
+    case .toggleRecording:
+      if let recordingStore, recordingStore.isRecording {
+        recordingStore.stopRecording()
+        return true
+      }
+      guard let recordingStore, let context = currentRecordingContext else { return false }
+      recordingStore.startRecording(
+        receiverName: context.receiverName,
+        backend: context.backend,
+        frequencyHz: context.frequencyHz,
+        mode: context.mode
+      )
+      return true
+    }
+  }
+
   func setAccessibilityInteractionSoundsEnabled(_ enabled: Bool) {
     guard settings.accessibilityInteractionSoundsEnabled != enabled else { return }
     AppInteractionFeedbackCenter.playInteractionSoundsToggleTransition(to: enabled)
@@ -2293,9 +2337,18 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setAccessibilitySelectionAnnouncementsEnabled(_ enabled: Bool) {
     guard settings.accessibilitySelectionAnnouncementsEnabled != enabled else { return }
+    settings.accessibilitySelectionAnnouncementMode = enabled ? .channel : .off
     settings.accessibilitySelectionAnnouncementsEnabled = enabled
     persistSettings()
     playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setAccessibilitySelectionAnnouncementMode(_ mode: ScreenReaderSelectionAnnouncementMode) {
+    guard settings.accessibilitySelectionAnnouncementMode != mode else { return }
+    settings.accessibilitySelectionAnnouncementMode = mode
+    settings.accessibilitySelectionAnnouncementsEnabled = mode != .off
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: mode != .off)
   }
 
   func setAccessibilityConnectionSoundsEnabled(_ enabled: Bool) {
@@ -2505,6 +2558,17 @@ final class RadioSessionViewModel: ObservableObject {
     guard let snapshot = manualSettingsSnapshot else { return }
     applySettingsSnapshot(snapshot, includeFrequency: true)
     Diagnostics.log(category: "Session", message: "Settings snapshot restored")
+  }
+
+  func importSettingsBackup(_ imported: RadioSessionSettings) {
+    settings = imported
+    if let backend = activeBackend {
+      normalizeSettingsForBackendBeforeConnect(backend)
+    } else {
+      persistSettings()
+    }
+    applyCurrentSettingsToConnectedBackend()
+    Diagnostics.log(category: "Session", message: "Imported settings backup")
   }
 
   func setDXNightModeEnabled(_ enabled: Bool) {
@@ -5120,9 +5184,12 @@ final class RadioSessionViewModel: ObservableObject {
     }
 
     let announcement = rdsAnnouncement(previous: previous, current: current)
+    let currentAnnouncement = currentRDSAnnouncement(current).flatMap { candidate in
+      candidate.text != lastPostedRDSAnnouncementText ? candidate : nil
+    }
     let effectiveAnnouncement = announcement ?? pendingRDSAnnouncement.flatMap { candidate in
       matchesCurrentRDSAnnouncement(candidate, telemetry: current) ? candidate : nil
-    }
+    } ?? currentAnnouncement
     if let stableAnnouncement = rdsAnnouncementGate.evaluate(candidate: effectiveAnnouncement, now: now) {
       clearPendingRDSAnnouncement()
       postRDSAnnouncement(stableAnnouncement, now: now)
@@ -5179,6 +5246,45 @@ final class RadioSessionViewModel: ObservableObject {
     let previousPI = normalizedRDSValue(previous?.pi)
     let currentPI = normalizedRDSValue(current.pi)
     if hadPreviousRDS, currentPI != previousPI, let currentPI, currentPS == nil {
+      return StableAnnouncementCandidate(
+        kind: .pi,
+        text: L10n.text("accessibility.rds_announcement.pi", currentPI)
+      )
+    }
+
+    return nil
+  }
+
+  private func currentRDSAnnouncement(
+    _ current: FMDXTelemetry
+  ) -> StableAnnouncementCandidate<RDSAnnouncementKind>? {
+    let mode = settings.voiceOverRDSAnnouncementMode
+    let currentPS = normalizedRDSValue(current.ps)
+    let currentStation = preferredRDSStationName(from: current)
+
+    if let currentStation {
+      return StableAnnouncementCandidate(
+        kind: .stationName,
+        text: L10n.text("accessibility.rds_announcement.station", currentStation)
+      )
+    }
+    if mode == .full, let currentPS, currentPS != currentStation {
+      return StableAnnouncementCandidate(
+        kind: .programService,
+        text: L10n.text("accessibility.rds_announcement.ps", currentPS)
+      )
+    }
+
+    guard mode == .full else { return nil }
+
+    if let currentRT = stableRDSRadioText(from: current) {
+      return StableAnnouncementCandidate(
+        kind: .radioText,
+        text: L10n.text("accessibility.rds_announcement.rt", currentRT)
+      )
+    }
+
+    if let currentPI = normalizedRDSValue(current.pi), currentPS == nil {
       return StableAnnouncementCandidate(
         kind: .pi,
         text: L10n.text("accessibility.rds_announcement.pi", currentPI)

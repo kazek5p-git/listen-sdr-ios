@@ -24,18 +24,77 @@ enum AppAccessibilityAnnouncementCenter {
     UIAccessibility.post(notification: .announcement, argument: text)
   }
 
-  static func postSelectionIfEnabled(_ selectedItemTitle: String?) {
-    guard AppAccessibilitySettingsStore.currentSettings().accessibilitySelectionAnnouncementsEnabled else {
-      return
+  static func postSelectionIfEnabled(
+    _ selectedItemTitle: String?,
+    frequencyHz: Int? = nil,
+    backend: SDRBackend? = nil
+  ) {
+    let settings = AppAccessibilitySettingsStore.currentSettings()
+    let mode = settings.accessibilitySelectionAnnouncementMode
+    guard mode != .off else { return }
+
+    let trimmedTitle = selectedItemTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let formattedTitle: String? = trimmedTitle?.isEmpty == false ? trimmedTitle : nil
+    let formattedFrequency: String? = if let frequencyHz, let backend {
+      selectionFrequencyText(frequencyHz: frequencyHz, backend: backend)
+    } else {
+      nil
     }
-    guard let selectedItemTitle, !selectedItemTitle.isEmpty else { return }
-    post(
-      L10n.text(
-        "common.announcement.selected_item",
-        fallback: "%@ selected",
-        selectedItemTitle
-      )
-    )
+
+    let announcement: String? = switch mode {
+    case .off:
+      nil
+    case .channel:
+      formattedTitle.map {
+        L10n.text(
+          "common.announcement.selected_item",
+          fallback: "%@ selected",
+          $0
+        )
+      }
+    case .frequency:
+      formattedFrequency ?? formattedTitle.map {
+        L10n.text(
+          "common.announcement.selected_item",
+          fallback: "%@ selected",
+          $0
+        )
+      }
+    case .channelAndFrequency:
+      if let formattedTitle, let formattedFrequency {
+        L10n.text(
+          "common.announcement.selected_item_and_frequency",
+          fallback: "%@, %@",
+          formattedTitle,
+          formattedFrequency
+        )
+      } else if let formattedFrequency {
+        formattedFrequency
+      } else {
+        formattedTitle.map {
+          L10n.text(
+            "common.announcement.selected_item",
+            fallback: "%@ selected",
+            $0
+          )
+        }
+      }
+    }
+
+    post(announcement)
+  }
+
+  private static func selectionFrequencyText(frequencyHz: Int, backend: SDRBackend) -> String {
+    switch backend {
+    case .fmDxWebserver:
+      return FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz)
+    case .kiwiSDR, .openWebRX:
+      if frequencyHz < 1_000_000 {
+        let kilohertz = Int((Double(frequencyHz) / 1_000.0).rounded())
+        return "\(kilohertz) kHz"
+      }
+      return FrequencyFormatter.mhzText(fromHz: frequencyHz)
+    }
   }
 }
 
@@ -555,22 +614,11 @@ struct AppAccessibilityRotorHost: View {
   }
 
   private func announceFrequency(for backend: SDRBackend) {
-    let value = radioSession.settings.frequencyHz
-    let announcement: String
-
-    switch backend {
-    case .fmDxWebserver:
-      announcement = FrequencyFormatter.fmDxMHzText(fromHz: value)
-    case .kiwiSDR, .openWebRX:
-      if value < 1_000_000 {
-        let kilohertz = Int((Double(value) / 1_000.0).rounded())
-        announcement = "\(kilohertz) kHz"
-      } else {
-        announcement = FrequencyFormatter.mhzText(fromHz: value)
-      }
-    }
-
-    AppAccessibilityAnnouncementCenter.post(announcement)
+    AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+      nil,
+      frequencyHz: radioSession.settings.frequencyHz,
+      backend: backend
+    )
   }
 
   private func bookmarkRotorTitle(for backend: SDRBackend?) -> String? {
@@ -643,11 +691,11 @@ struct AppAccessibilityRotorHost: View {
       return
     }
 
-    if AppAccessibilitySettingsStore.currentSettings().accessibilitySelectionAnnouncementsEnabled {
-      AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(bookmark.name)
-    } else {
-      announceFrequency(for: backend)
-    }
+    AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+      bookmark.name,
+      frequencyHz: bookmark.frequencyHz,
+      backend: backend
+    )
   }
 }
 

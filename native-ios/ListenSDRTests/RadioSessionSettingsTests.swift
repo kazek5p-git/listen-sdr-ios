@@ -2,6 +2,21 @@ import XCTest
 @testable import ListenSDR
 
 final class RadioSessionSettingsTests: XCTestCase {
+  func testSettingsBackupCodecRoundTripsCurrentSettingsFormat() throws {
+    var settings = RadioSessionSettings.default
+    settings.mixWithOtherAudioApps = true
+    settings.magicTapAction = .toggleRecording
+    settings.voiceOverRDSAnnouncementMode = .full
+    settings.accessibilitySelectionAnnouncementMode = .channelAndFrequency
+    settings.accessibilitySelectionAnnouncementsEnabled = true
+    settings.audioVolume = 0.63
+
+    let data = try RadioSessionSettingsBackupCodec.encode(settings)
+    let decoded = try RadioSessionSettingsBackupCodec.decode(data)
+
+    XCTAssertEqual(decoded, settings)
+  }
+
   func testKiwiPassbandIsStoredPerNormalizedMode() {
     var settings = RadioSessionSettings.default
 
@@ -363,14 +378,27 @@ final class RadioSessionSettingsTests: XCTestCase {
 
   func testAccessibilitySelectionAnnouncementsDefaultToDisabledAndRoundTrip() throws {
     XCTAssertFalse(RadioSessionSettings.default.accessibilitySelectionAnnouncementsEnabled)
+    XCTAssertEqual(RadioSessionSettings.default.accessibilitySelectionAnnouncementMode, .off)
 
     var settings = RadioSessionSettings.default
+    settings.accessibilitySelectionAnnouncementMode = .channelAndFrequency
     settings.accessibilitySelectionAnnouncementsEnabled = true
 
     let encoded = try JSONEncoder().encode(settings)
     let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
 
     XCTAssertTrue(decoded.accessibilitySelectionAnnouncementsEnabled)
+    XCTAssertEqual(decoded.accessibilitySelectionAnnouncementMode, .channelAndFrequency)
+  }
+
+  func testLegacySelectionAnnouncementsBooleanMigratesToChannelMode() throws {
+    let decoded = try JSONDecoder().decode(
+      RadioSessionSettings.self,
+      from: Data(#"{"accessibilitySelectionAnnouncementsEnabled":true}"#.utf8)
+    )
+
+    XCTAssertTrue(decoded.accessibilitySelectionAnnouncementsEnabled)
+    XCTAssertEqual(decoded.accessibilitySelectionAnnouncementMode, .channel)
   }
 
   func testAccessibilitySpeechLoudnessLevelingDefaultsToDisabledAndRoundTrip() throws {

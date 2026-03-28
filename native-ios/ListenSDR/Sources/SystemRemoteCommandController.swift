@@ -60,39 +60,7 @@ final class SystemRemoteCommandController {
   private func handleMagicTapAction() -> MPRemoteCommandHandlerStatus {
     onMainActor {
       guard let radioSession else { return .commandFailed }
-
-      switch radioSession.settings.magicTapAction {
-      case .toggleMute:
-        guard radioSession.state == .connected else { return .commandFailed }
-        radioSession.toggleAudioMuted()
-        AppAccessibilityAnnouncementCenter.post(
-          L10n.text(
-            radioSession.settings.audioMuted
-              ? "accessibility.magic_tap.muted"
-              : "accessibility.magic_tap.unmuted"
-          )
-        )
-        return .success
-      case .disconnect:
-        guard radioSession.state == .connected else { return .commandFailed }
-        radioSession.disconnect()
-        return .success
-      case .toggleRecording:
-        if let recordingStore, recordingStore.isRecording {
-          recordingStore.stopRecording()
-          return .success
-        }
-        guard let recordingStore, let context = radioSession.currentRecordingContext else {
-          return .commandFailed
-        }
-        recordingStore.startRecording(
-          receiverName: context.receiverName,
-          backend: context.backend,
-          frequencyHz: context.frequencyHz,
-          mode: context.mode
-        )
-        return .success
-      }
+      return radioSession.performMagicTapAction(recordingStore: recordingStore) ? .success : .commandFailed
     }
   }
 

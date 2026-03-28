@@ -638,7 +638,11 @@ struct ReceiverView: View {
           LabeledContent(L10n.text("openwebrx.active_bookmark"), value: lastBookmark.name)
           FocusRetainingButton {
             radioSession.restoreLastOpenWebRXBookmark()
-            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(lastBookmark.name)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+              lastBookmark.name,
+              frequencyHz: lastBookmark.frequencyHz,
+              backend: .openWebRX
+            )
           } label: {
             Label(L10n.text("openwebrx.active_bookmark.apply"), systemImage: "bookmark.fill")
           }
@@ -664,7 +668,11 @@ struct ReceiverView: View {
                 },
                 onTuneFrequency: { item in
                   radioSession.tuneToBand(activeBand, using: item)
-                  AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(item.name)
+                  AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+                    item.name,
+                    frequencyHz: item.frequencyHz,
+                    backend: .openWebRX
+                  )
                 }
               )
             } label: {
@@ -696,7 +704,11 @@ struct ReceiverView: View {
           bookmarks: radioSession.serverBookmarks,
           onSelect: { bookmark in
             radioSession.applyServerBookmark(bookmark)
-            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(bookmark.name)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+              bookmark.name,
+              frequencyHz: bookmark.frequencyHz,
+              backend: .openWebRX
+            )
           }
         )
       } label: {
@@ -723,7 +735,11 @@ struct ReceiverView: View {
           },
           onTuneFrequency: { band, item in
             radioSession.tuneToBand(band, using: item)
-            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(item.name)
+            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+              item.name,
+              frequencyHz: item.frequencyHz,
+              backend: .openWebRX
+            )
           }
         )
       } label: {
@@ -748,7 +764,11 @@ struct ReceiverView: View {
               bookmarks: radioSession.serverBookmarks,
               onSelect: { bookmark in
                 radioSession.applyServerBookmark(bookmark)
-                AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(bookmark.name)
+                AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+                  bookmark.name,
+                  frequencyHz: bookmark.frequencyHz,
+                  backend: .openWebRX
+                )
               }
             )
           } label: {
@@ -782,7 +802,11 @@ struct ReceiverView: View {
               },
               onTuneFrequency: { band, item in
                 radioSession.tuneToBand(band, using: item)
-                AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(item.name)
+                AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+                  item.name,
+                  frequencyHz: item.frequencyHz,
+                  backend: .openWebRX
+                )
               }
             )
           } label: {
@@ -1089,7 +1113,11 @@ struct ReceiverView: View {
   private func fmdxServerBookmarkRow(preset: SDRServerBookmark) -> some View {
     FocusRetainingButton {
       radioSession.setFrequencyHz(preset.frequencyHz)
-      AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(preset.name)
+      AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+        preset.name,
+        frequencyHz: preset.frequencyHz,
+        backend: .fmDxWebserver
+      )
     } label: {
       HStack {
         Text(preset.name)
@@ -2683,7 +2711,14 @@ struct ReceiverView: View {
             inlineFrequencyError = nil
           }
           if !isEditing {
-            submitInlineFrequencyInput(for: backend)
+            if radioSession.settings.frequencyEntryCommitMode == .automatic {
+              submitInlineFrequencyInput(for: backend)
+            } else {
+              inlineFrequencyApplyTask?.cancel()
+              if inlineFrequencyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                resetInlineFrequencyInput()
+              }
+            }
           }
         }
       )
@@ -2701,9 +2736,17 @@ struct ReceiverView: View {
         ToolbarItemGroup(placement: .keyboard) {
           Spacer()
           FocusRetainingButton {
-            submitInlineFrequencyInput(for: backend)
+            if radioSession.settings.frequencyEntryCommitMode == .automatic {
+              isInlineFrequencyFocused = false
+            } else {
+              submitInlineFrequencyInput(for: backend)
+            }
           } label: {
-            Text(L10n.text("Apply"))
+            Text(
+              radioSession.settings.frequencyEntryCommitMode == .automatic
+                ? L10n.text("Done")
+                : L10n.text("Apply")
+            )
           }
         }
       }
@@ -2731,11 +2774,12 @@ struct ReceiverView: View {
   }
 
   private func scheduleInlineFrequencyApply(for backend: SDRBackend) {
+    guard radioSession.settings.frequencyEntryCommitMode == .automatic else { return }
     guard inlineFrequencyEditing else { return }
     inlineFrequencyApplyTask?.cancel()
     guard shouldScheduleInlineFrequencyAutoApply(inlineFrequencyInput, backend: backend) else { return }
     inlineFrequencyApplyTask = Task { @MainActor in
-      let delayNanoseconds: UInt64 = backend == .fmDxWebserver ? 2_400_000_000 : 1_200_000_000
+      let delayNanoseconds: UInt64 = backend == .fmDxWebserver ? 900_000_000 : 700_000_000
       try? await Task.sleep(nanoseconds: delayNanoseconds)
       if Task.isCancelled { return }
       guard shouldAttemptInlineFrequencyApply(inlineFrequencyInput, backend: backend) else { return }

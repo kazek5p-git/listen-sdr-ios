@@ -20,12 +20,14 @@ struct SettingsViewState: Equatable {
   var tuneStepHz: Int
   var tuneStepOptions: [Int]
   var tuneStepPreferenceMode: TuneStepPreferenceMode
+  var frequencyEntryCommitMode: FrequencyEntryCommitMode
   var fmdxTuneConfirmationWarningsEnabled: Bool
   var voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode
   var magicTapAction: MagicTapAction
   var accessibilityInteractionSoundsEnabled: Bool
   var accessibilityInteractionSoundsVolume: Double
   var accessibilityInteractionSoundsMutedDuringRecording: Bool
+  var accessibilitySelectionAnnouncementMode: ScreenReaderSelectionAnnouncementMode
   var accessibilitySelectionAnnouncementsEnabled: Bool
   var accessibilityConnectionSoundsEnabled: Bool
   var accessibilityRecordingSoundsEnabled: Bool
@@ -67,12 +69,14 @@ struct SettingsViewState: Equatable {
     tuneStepHz: RadioSessionSettings.default.tuneStepHz,
     tuneStepOptions: [],
     tuneStepPreferenceMode: .manual,
+    frequencyEntryCommitMode: .automatic,
     fmdxTuneConfirmationWarningsEnabled: false,
     voiceOverRDSAnnouncementMode: .off,
     magicTapAction: .toggleMute,
     accessibilityInteractionSoundsEnabled: RadioSessionSettings.default.accessibilityInteractionSoundsEnabled,
     accessibilityInteractionSoundsVolume: RadioSessionSettings.default.accessibilityInteractionSoundsVolume,
     accessibilityInteractionSoundsMutedDuringRecording: RadioSessionSettings.default.accessibilityInteractionSoundsMutedDuringRecording,
+    accessibilitySelectionAnnouncementMode: RadioSessionSettings.default.accessibilitySelectionAnnouncementMode,
     accessibilitySelectionAnnouncementsEnabled: RadioSessionSettings.default.accessibilitySelectionAnnouncementsEnabled,
     accessibilityConnectionSoundsEnabled: RadioSessionSettings.default.accessibilityConnectionSoundsEnabled,
     accessibilityRecordingSoundsEnabled: RadioSessionSettings.default.accessibilityRecordingSoundsEnabled,
@@ -169,6 +173,34 @@ final class SettingsViewController: ObservableObject {
     refreshState(force: true)
   }
 
+  var settingsBackupSuggestedFilename: String {
+    SettingsBackupDocument.defaultFilename
+  }
+
+  func makeSettingsBackupDocument() throws -> SettingsBackupDocument {
+    guard let radioSession else {
+      throw NSError(
+        domain: "ListenSDR.SettingsBackup",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "Settings are not available yet."]
+      )
+    }
+    return try SettingsBackupDocument(data: RadioSessionSettingsBackupCodec.encode(radioSession.settings))
+  }
+
+  func importSettingsBackup(from data: Data) throws {
+    guard let radioSession else {
+      throw NSError(
+        domain: "ListenSDR.SettingsBackup",
+        code: 2,
+        userInfo: [NSLocalizedDescriptionKey: "Settings are not available yet."]
+      )
+    }
+    let imported = try RadioSessionSettingsBackupCodec.decode(data)
+    radioSession.importSettingsBackup(imported)
+    refreshState(force: true)
+  }
+
   func restoreSavedSettingsSnapshot() {
     radioSession?.restoreSavedSettingsSnapshot()
     refreshState(force: true)
@@ -196,6 +228,11 @@ final class SettingsViewController: ObservableObject {
 
   func setTuneStepPreferenceMode(_ mode: TuneStepPreferenceMode) {
     radioSession?.setTuneStepPreferenceMode(mode)
+    refreshState(force: true)
+  }
+
+  func setFrequencyEntryCommitMode(_ mode: FrequencyEntryCommitMode) {
+    radioSession?.setFrequencyEntryCommitMode(mode)
     refreshState(force: true)
   }
 
@@ -231,6 +268,11 @@ final class SettingsViewController: ObservableObject {
 
   func setAccessibilitySelectionAnnouncementsEnabled(_ isEnabled: Bool) {
     radioSession?.setAccessibilitySelectionAnnouncementsEnabled(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setAccessibilitySelectionAnnouncementMode(_ mode: ScreenReaderSelectionAnnouncementMode) {
+    radioSession?.setAccessibilitySelectionAnnouncementMode(mode)
     refreshState(force: true)
   }
 
@@ -437,12 +479,14 @@ final class SettingsViewController: ObservableObject {
       tuneStepHz: currentTuneStep,
       tuneStepOptions: tuneStepOptions,
       tuneStepPreferenceMode: radioSession.settings.tuneStepPreferenceMode,
+      frequencyEntryCommitMode: radioSession.settings.frequencyEntryCommitMode,
       fmdxTuneConfirmationWarningsEnabled: radioSession.settings.fmdxTuneConfirmationWarningsEnabled,
       voiceOverRDSAnnouncementMode: radioSession.settings.voiceOverRDSAnnouncementMode,
       magicTapAction: radioSession.settings.magicTapAction,
       accessibilityInteractionSoundsEnabled: radioSession.settings.accessibilityInteractionSoundsEnabled,
       accessibilityInteractionSoundsVolume: radioSession.settings.accessibilityInteractionSoundsVolume,
       accessibilityInteractionSoundsMutedDuringRecording: radioSession.settings.accessibilityInteractionSoundsMutedDuringRecording,
+      accessibilitySelectionAnnouncementMode: radioSession.settings.accessibilitySelectionAnnouncementMode,
       accessibilitySelectionAnnouncementsEnabled: radioSession.settings.accessibilitySelectionAnnouncementsEnabled,
       accessibilityConnectionSoundsEnabled: radioSession.settings.accessibilityConnectionSoundsEnabled,
       accessibilityRecordingSoundsEnabled: radioSession.settings.accessibilityRecordingSoundsEnabled,

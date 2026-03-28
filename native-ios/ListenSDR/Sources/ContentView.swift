@@ -6,6 +6,7 @@ struct ContentView: View {
   @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var recordingStore: RecordingStore
   @EnvironmentObject private var settingsController: SettingsViewController
   @State private var hasAttemptedStartupAutoConnect = false
   @State private var hasEvaluatedStartupTutorial = false
@@ -37,6 +38,9 @@ struct ContentView: View {
     .background(AppAccessibilityRotorHost())
     .background(ShortcutCommandHost(scenePhase: scenePhase))
     .appScreenBackground()
+    .accessibilityAction(.magicTap) {
+      _ = radioSession.performMagicTapAction(recordingStore: recordingStore)
+    }
     .sheet(isPresented: $isStartupTutorialPresented) {
       NavigationStack {
         AppTutorialView(isPresentedOnLaunch: true)

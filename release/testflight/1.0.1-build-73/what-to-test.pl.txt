@@ -1,0 +1,8 @@
+Najważniejsze zmiany w tym buildzie to nowe zachowanie wpisanej częstotliwości oraz poprawki obsługi ustawień i dostępności.
+
+Proszę szczególnie sprawdzić:
+- Strojenie: nowa opcja "Wpisana częstotliwość" pozwala wybrać automatyczne dostrajanie albo ręczne zatwierdzanie.
+- Strojenie: w trybie automatycznym częstotliwość powinna dostroić się po krótkiej chwili bez przycisku Zastosuj.
+- Strojenie: w trybie ręcznym powinien wrócić przycisk Zastosuj i strojenie nie powinno startować samo.
+- Ustawienia: eksport kopii ustawień powinien pozwalać wybrać miejsce zapisu, a import powinien pozwalać wskazać plik.
+- Dostępność: gest Magic Tap powinien działać także przy włączonym odtwarzaniu razem z innymi aplikacjami.

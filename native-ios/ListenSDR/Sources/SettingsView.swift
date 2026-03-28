@@ -6,13 +6,17 @@ struct SettingsView: View {
   @EnvironmentObject private var recordingStore: RecordingStore
   @State private var isCheckingFeedbackServer = false
   @State private var feedbackServerStatus: FeedbackServerStatus = .idle
-  @State private var feedbackServerAlert: FeedbackServerAlert?
+  @State private var activeAlert: FeedbackServerAlert?
   @State private var isRecordingFolderPickerPresented = false
+  @State private var settingsBackupDocument: SettingsBackupDocument?
+  @State private var isSettingsBackupExporterPresented = false
+  @State private var isSettingsBackupImporterPresented = false
 
   var body: some View {
     NavigationStack {
       Form {
         sessionSection
+        backupSection
         tuningSection
         scannerSections
         dxSection
@@ -41,18 +45,86 @@ struct SettingsView: View {
           }
         )
       }
+      .fileExporter(
+        isPresented: $isSettingsBackupExporterPresented,
+        document: settingsBackupDocument,
+        contentType: SettingsBackupDocument.readableContentTypes.first ?? .json,
+        defaultFilename: settingsController.settingsBackupSuggestedFilename
+      ) { result in
+        switch result {
+        case .success:
+          activeAlert = FeedbackServerAlert(
+            title: L10n.text(
+              "settings.backup.export.success.title",
+              fallback: "Settings backup saved"
+            ),
+            message: L10n.text(
+              "settings.backup.export.success.body",
+              fallback: "The settings backup file was saved successfully."
+            )
+          )
+        case let .failure(error):
+          activeAlert = FeedbackServerAlert(
+            title: L10n.text(
+              "settings.backup.export.failure.title",
+              fallback: "Unable to save settings backup"
+            ),
+            message: error.localizedDescription
+          )
+        }
+      }
+      .fileImporter(
+        isPresented: $isSettingsBackupImporterPresented,
+        allowedContentTypes: SettingsBackupDocument.readableContentTypes,
+        allowsMultipleSelection: false
+      ) { result in
+        switch result {
+        case let .success(urls):
+          guard let url = urls.first else { return }
+          do {
+            let data = try SettingsBackupDocument.readData(from: url)
+            try settingsController.importSettingsBackup(from: data)
+            activeAlert = FeedbackServerAlert(
+              title: L10n.text(
+                "settings.backup.import.success.title",
+                fallback: "Settings backup restored"
+              ),
+              message: L10n.text(
+                "settings.backup.import.success.body",
+                fallback: "The selected settings backup file was restored."
+              )
+            )
+          } catch {
+            activeAlert = FeedbackServerAlert(
+              title: L10n.text(
+                "settings.backup.import.failure.title",
+                fallback: "Unable to restore settings backup"
+              ),
+              message: error.localizedDescription
+            )
+          }
+        case let .failure(error):
+          activeAlert = FeedbackServerAlert(
+            title: L10n.text(
+              "settings.backup.import.failure.title",
+              fallback: "Unable to restore settings backup"
+            ),
+            message: error.localizedDescription
+          )
+        }
+      }
       .alert(
-        feedbackServerAlert?.title ?? "",
+        activeAlert?.title ?? "",
         isPresented: Binding(
-          get: { feedbackServerAlert != nil },
-          set: { if !$0 { feedbackServerAlert = nil } }
+          get: { activeAlert != nil },
+          set: { if !$0 { activeAlert = nil } }
         )
       ) {
         Button(L10n.text("OK")) {
-          feedbackServerAlert = nil
+          activeAlert = nil
         }
       } message: {
-        Text(feedbackServerAlert?.message ?? "")
+        Text(activeAlert?.message ?? "")
       }
     }
   }
@@ -62,13 +134,13 @@ struct SettingsView: View {
       FocusRetainingButton {
         settingsController.saveCurrentSettingsSnapshot()
       } label: {
-        Text(L10n.text("settings.session.save_snapshot"))
+              Text(L10n.text("settings.session.save_snapshot", fallback: "Save quick restore point"))
       }
 
       FocusRetainingButton {
         settingsController.restoreSavedSettingsSnapshot()
       } label: {
-        Text(L10n.text("settings.session.restore_snapshot"))
+              Text(L10n.text("settings.session.restore_snapshot", fallback: "Restore quick restore point"))
       }
       .disabled(!settingsController.state.hasSavedSettingsSnapshot)
 
@@ -90,6 +162,45 @@ struct SettingsView: View {
       .accessibilityHint(L10n.text("settings.session.auto_connect_selected_on_launch.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.session.section"))
+    }
+    .appSectionStyle()
+  }
+
+  private var backupSection: some View {
+    Section {
+      FocusRetainingButton {
+        do {
+          settingsBackupDocument = try settingsController.makeSettingsBackupDocument()
+          isSettingsBackupExporterPresented = true
+        } catch {
+          activeAlert = FeedbackServerAlert(
+            title: L10n.text(
+              "settings.backup.export.failure.title",
+              fallback: "Unable to save settings backup"
+            ),
+            message: error.localizedDescription
+          )
+        }
+      } label: {
+        Text(L10n.text("settings.backup.export", fallback: "Export settings backup"))
+      }
+
+      FocusRetainingButton {
+        isSettingsBackupImporterPresented = true
+      } label: {
+        Text(L10n.text("settings.backup.import", fallback: "Import settings backup"))
+      }
+
+      Text(
+        L10n.text(
+          "settings.backup.file_hint",
+          fallback: "Choose where to save a backup file, or restore settings from an existing backup file."
+        )
+      )
+      .font(.footnote)
+      .foregroundStyle(.secondary)
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.backup.section", fallback: "Settings backup"))
     }
     .appSectionStyle()
   }
@@ -156,6 +267,35 @@ struct SettingsView: View {
       }
       .accessibilityHint(L10n.text("settings.tuning.global_step.hint"))
 
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text(
+            "settings.tuning.typed_frequency",
+            fallback: "Typed frequency"
+          ),
+          options: frequencyEntryCommitSelectionOptions(),
+          selectedID: settingsController.state.frequencyEntryCommitMode.rawValue
+        ) { value in
+          if let mode = FrequencyEntryCommitMode(rawValue: value) {
+            settingsController.setFrequencyEntryCommitMode(mode)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text(
+            "settings.tuning.typed_frequency",
+            fallback: "Typed frequency"
+          ),
+          value: settingsController.state.frequencyEntryCommitMode.localizedTitle
+        )
+      }
+      .accessibilityHint(
+        L10n.text(
+          "settings.tuning.typed_frequency.hint",
+          fallback: "Choose whether a typed frequency should tune automatically or wait for manual confirmation."
+        )
+      )
+
       Toggle(
         L10n.text("settings.tuning.fmdx_tune_confirmation_warnings"),
         isOn: Binding(
@@ -216,13 +356,24 @@ struct SettingsView: View {
       }
       .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds_mode.hint"))
 
-      Toggle(
-        L10n.text("settings.accessibility.selection_announcements"),
-        isOn: Binding(
-          get: { settingsController.state.accessibilitySelectionAnnouncementsEnabled },
-          set: { settingsController.setAccessibilitySelectionAnnouncementsEnabled($0) }
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text("settings.accessibility.selection_announcements"),
+          options: ScreenReaderSelectionAnnouncementMode.allCases.map { mode in
+            SelectionListOption(id: mode.rawValue, title: mode.localizedTitle, detail: nil)
+          },
+          selectedID: settingsController.state.accessibilitySelectionAnnouncementMode.rawValue
+        ) { value in
+          if let mode = ScreenReaderSelectionAnnouncementMode(rawValue: value) {
+            settingsController.setAccessibilitySelectionAnnouncementMode(mode)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.accessibility.selection_announcements"),
+          value: settingsController.state.accessibilitySelectionAnnouncementMode.localizedTitle
         )
-      )
+      }
       .accessibilityHint(L10n.text("settings.accessibility.selection_announcements.hint"))
 
       Toggle(
@@ -889,6 +1040,16 @@ struct SettingsView: View {
     return [automaticOption] + manualOptions
   }
 
+  private func frequencyEntryCommitSelectionOptions() -> [SelectionListOption] {
+    FrequencyEntryCommitMode.allCases.map { mode in
+      SelectionListOption(
+        id: mode.rawValue,
+        title: mode.localizedTitle,
+        detail: mode.localizedDetail
+      )
+    }
+  }
+
   private func scannerSlider(
     title: String,
     value: Double,
@@ -972,13 +1133,13 @@ struct SettingsView: View {
           isCheckingFeedbackServer = false
           if isHealthy {
             feedbackServerStatus = .success
-            feedbackServerAlert = FeedbackServerAlert(
+            activeAlert = FeedbackServerAlert(
               title: L10n.text("settings.feedback.health_check.success.title"),
               message: L10n.text("settings.feedback.health_check.success.body")
             )
           } else {
             feedbackServerStatus = .failure
-            feedbackServerAlert = FeedbackServerAlert(
+            activeAlert = FeedbackServerAlert(
               title: L10n.text("settings.feedback.health_check.failure.title"),
               message: L10n.text("settings.feedback.health_check.failure.body")
             )
@@ -988,7 +1149,7 @@ struct SettingsView: View {
         await MainActor.run {
           isCheckingFeedbackServer = false
           feedbackServerStatus = .failure
-          feedbackServerAlert = FeedbackServerAlert(
+          activeAlert = FeedbackServerAlert(
             title: L10n.text("settings.feedback.health_check.failure.title"),
             message: L10n.text("settings.feedback.health_check.failure.body")
           )

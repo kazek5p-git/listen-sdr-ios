@@ -20,6 +20,31 @@ enum VoiceOverRDSAnnouncementMode: String, Codable, CaseIterable, Identifiable {
   }
 }
 
+enum ScreenReaderSelectionAnnouncementMode: String, Codable, CaseIterable, Identifiable {
+  case off
+  case channel
+  case frequency
+  case channelAndFrequency
+
+  var id: String { rawValue }
+
+  var localizedTitle: String {
+    switch self {
+    case .off:
+      return L10n.text("settings.accessibility.selection_announcements.mode.off", fallback: "Off")
+    case .channel:
+      return L10n.text("settings.accessibility.selection_announcements.mode.channel", fallback: "Channel")
+    case .frequency:
+      return L10n.text("settings.accessibility.selection_announcements.mode.frequency", fallback: "Frequency")
+    case .channelAndFrequency:
+      return L10n.text(
+        "settings.accessibility.selection_announcements.mode.channel_and_frequency",
+        fallback: "Channel and frequency"
+      )
+    }
+  }
+}
+
 enum MagicTapAction: String, Codable, CaseIterable, Identifiable {
   case toggleMute
   case disconnect
@@ -160,6 +185,43 @@ enum TuningGestureDirection: String, Codable, CaseIterable, Identifiable {
       return 1
     case .reversed:
       return -1
+    }
+  }
+}
+
+enum FrequencyEntryCommitMode: String, Codable, CaseIterable, Identifiable {
+  case automatic
+  case manual
+
+  var id: String { rawValue }
+
+  var localizedTitle: String {
+    switch self {
+    case .automatic:
+      return L10n.text(
+        "settings.tuning.typed_frequency.automatic",
+        fallback: "Automatic tuning"
+      )
+    case .manual:
+      return L10n.text(
+        "settings.tuning.typed_frequency.manual",
+        fallback: "Manual confirmation"
+      )
+    }
+  }
+
+  var localizedDetail: String {
+    switch self {
+    case .automatic:
+      return L10n.text(
+        "settings.tuning.typed_frequency.automatic.detail",
+        fallback: "Tunes after a short pause when the typed frequency is valid."
+      )
+    case .manual:
+      return L10n.text(
+        "settings.tuning.typed_frequency.manual.detail",
+        fallback: "Shows the Apply button and tunes only after manual confirmation."
+      )
     }
   }
 }
@@ -355,6 +417,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var tuneStepHz: Int
   var preferredTuneStepHz: Int
   var tuneStepPreferenceMode: TuneStepPreferenceMode
+  var frequencyEntryCommitMode: FrequencyEntryCommitMode
   var mode: DemodulationMode
   var rfGain: Double
   var audioVolume: Double
@@ -390,6 +453,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var accessibilityInteractionSoundsEnabled: Bool
   var accessibilityInteractionSoundsVolume: Double
   var accessibilityInteractionSoundsMutedDuringRecording: Bool
+  var accessibilitySelectionAnnouncementMode: ScreenReaderSelectionAnnouncementMode
   var accessibilitySelectionAnnouncementsEnabled: Bool
   var accessibilityConnectionSoundsEnabled: Bool
   var accessibilityRecordingSoundsEnabled: Bool
@@ -438,6 +502,7 @@ struct RadioSessionSettings: Codable, Equatable {
     tuneStepHz: 100,
     preferredTuneStepHz: 100,
     tuneStepPreferenceMode: .manual,
+    frequencyEntryCommitMode: .automatic,
     mode: .am,
     rfGain: 30,
     audioVolume: 0.85,
@@ -473,6 +538,7 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityInteractionSoundsEnabled: false,
     accessibilityInteractionSoundsVolume: 1.0,
     accessibilityInteractionSoundsMutedDuringRecording: false,
+    accessibilitySelectionAnnouncementMode: .off,
     accessibilitySelectionAnnouncementsEnabled: false,
     accessibilityConnectionSoundsEnabled: false,
     accessibilityRecordingSoundsEnabled: true,
@@ -512,6 +578,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case tuneStepHz
     case preferredTuneStepHz
     case tuneStepPreferenceMode
+    case frequencyEntryCommitMode
     case mode
     case rfGain
     case audioVolume
@@ -548,6 +615,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case accessibilityInteractionSoundsEnabled
     case accessibilityInteractionSoundsVolume
     case accessibilityInteractionSoundsMutedDuringRecording
+    case accessibilitySelectionAnnouncementMode
     case accessibilitySelectionAnnouncementsEnabled
     case accessibilityConnectionSoundsEnabled
     case accessibilityRecordingSoundsEnabled
@@ -587,6 +655,7 @@ struct RadioSessionSettings: Codable, Equatable {
     tuneStepHz: Int,
     preferredTuneStepHz: Int,
     tuneStepPreferenceMode: TuneStepPreferenceMode = .manual,
+    frequencyEntryCommitMode: FrequencyEntryCommitMode = .automatic,
     mode: DemodulationMode,
     rfGain: Double,
     audioVolume: Double,
@@ -622,6 +691,7 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityInteractionSoundsEnabled: Bool = Self.default.accessibilityInteractionSoundsEnabled,
     accessibilityInteractionSoundsVolume: Double = Self.default.accessibilityInteractionSoundsVolume,
     accessibilityInteractionSoundsMutedDuringRecording: Bool = Self.default.accessibilityInteractionSoundsMutedDuringRecording,
+    accessibilitySelectionAnnouncementMode: ScreenReaderSelectionAnnouncementMode = Self.default.accessibilitySelectionAnnouncementMode,
     accessibilitySelectionAnnouncementsEnabled: Bool = Self.default.accessibilitySelectionAnnouncementsEnabled,
     accessibilityConnectionSoundsEnabled: Bool = Self.default.accessibilityConnectionSoundsEnabled,
     accessibilityRecordingSoundsEnabled: Bool = Self.default.accessibilityRecordingSoundsEnabled,
@@ -659,6 +729,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.tuneStepHz = Self.normalizedTuneStep(tuneStepHz)
     self.preferredTuneStepHz = Self.normalizedTuneStep(preferredTuneStepHz)
     self.tuneStepPreferenceMode = tuneStepPreferenceMode
+    self.frequencyEntryCommitMode = frequencyEntryCommitMode
     self.mode = mode
     self.rfGain = rfGain
     self.audioVolume = audioVolume
@@ -712,7 +783,12 @@ struct RadioSessionSettings: Codable, Equatable {
       accessibilityInteractionSoundsVolume
     )
     self.accessibilityInteractionSoundsMutedDuringRecording = accessibilityInteractionSoundsMutedDuringRecording
-    self.accessibilitySelectionAnnouncementsEnabled = accessibilitySelectionAnnouncementsEnabled
+    let resolvedSelectionAnnouncementMode =
+      accessibilitySelectionAnnouncementMode == .off && accessibilitySelectionAnnouncementsEnabled
+      ? .channel
+      : accessibilitySelectionAnnouncementMode
+    self.accessibilitySelectionAnnouncementMode = resolvedSelectionAnnouncementMode
+    self.accessibilitySelectionAnnouncementsEnabled = resolvedSelectionAnnouncementMode != .off
     self.accessibilityConnectionSoundsEnabled = accessibilityConnectionSoundsEnabled
     self.accessibilityRecordingSoundsEnabled = accessibilityRecordingSoundsEnabled
     self.accessibilitySpeechLoudnessLevelingEnabled = accessibilitySpeechLoudnessLevelingEnabled
@@ -759,6 +835,9 @@ struct RadioSessionSettings: Codable, Equatable {
     tuneStepPreferenceMode =
       try container.decodeIfPresent(TuneStepPreferenceMode.self, forKey: .tuneStepPreferenceMode)
       ?? Self.default.tuneStepPreferenceMode
+    frequencyEntryCommitMode =
+      try container.decodeIfPresent(FrequencyEntryCommitMode.self, forKey: .frequencyEntryCommitMode)
+      ?? Self.default.frequencyEntryCommitMode
     mode = try container.decodeIfPresent(DemodulationMode.self, forKey: .mode) ?? Self.default.mode
     rfGain = try container.decodeIfPresent(Double.self, forKey: .rfGain) ?? Self.default.rfGain
     audioVolume = try container.decodeIfPresent(Double.self, forKey: .audioVolume) ?? Self.default.audioVolume
@@ -883,9 +962,13 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityInteractionSoundsMutedDuringRecording =
       try container.decodeIfPresent(Bool.self, forKey: .accessibilityInteractionSoundsMutedDuringRecording)
       ?? Self.default.accessibilityInteractionSoundsMutedDuringRecording
-    accessibilitySelectionAnnouncementsEnabled =
+    let legacySelectionAnnouncementsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .accessibilitySelectionAnnouncementsEnabled)
       ?? Self.default.accessibilitySelectionAnnouncementsEnabled
+    accessibilitySelectionAnnouncementMode =
+      try container.decodeIfPresent(ScreenReaderSelectionAnnouncementMode.self, forKey: .accessibilitySelectionAnnouncementMode)
+      ?? (legacySelectionAnnouncementsEnabled ? .channel : Self.default.accessibilitySelectionAnnouncementMode)
+    accessibilitySelectionAnnouncementsEnabled = accessibilitySelectionAnnouncementMode != .off
     accessibilityConnectionSoundsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .accessibilityConnectionSoundsEnabled)
       ?? Self.default.accessibilityConnectionSoundsEnabled
@@ -984,6 +1067,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(tuneStepHz, forKey: .tuneStepHz)
     try container.encode(preferredTuneStepHz, forKey: .preferredTuneStepHz)
     try container.encode(tuneStepPreferenceMode, forKey: .tuneStepPreferenceMode)
+    try container.encode(frequencyEntryCommitMode, forKey: .frequencyEntryCommitMode)
     try container.encode(mode, forKey: .mode)
     try container.encode(rfGain, forKey: .rfGain)
     try container.encode(audioVolume, forKey: .audioVolume)
@@ -1019,6 +1103,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(accessibilityInteractionSoundsEnabled, forKey: .accessibilityInteractionSoundsEnabled)
     try container.encode(accessibilityInteractionSoundsVolume, forKey: .accessibilityInteractionSoundsVolume)
     try container.encode(accessibilityInteractionSoundsMutedDuringRecording, forKey: .accessibilityInteractionSoundsMutedDuringRecording)
+    try container.encode(accessibilitySelectionAnnouncementMode, forKey: .accessibilitySelectionAnnouncementMode)
     try container.encode(accessibilitySelectionAnnouncementsEnabled, forKey: .accessibilitySelectionAnnouncementsEnabled)
     try container.encode(accessibilityConnectionSoundsEnabled, forKey: .accessibilityConnectionSoundsEnabled)
     try container.encode(accessibilityRecordingSoundsEnabled, forKey: .accessibilityRecordingSoundsEnabled)
