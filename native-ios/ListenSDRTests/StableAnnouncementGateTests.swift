@@ -64,4 +64,26 @@ final class StableAnnouncementGateTests: XCTestCase {
     XCTAssertNil(gate.evaluate(candidate: candidate, now: Date(timeIntervalSince1970: 2.0)))
     XCTAssertEqual(candidate, gate.evaluate(candidate: candidate, now: Date(timeIntervalSince1970: 2.5)))
   }
+
+  func testNextEvaluationDateTracksStabilityAndMinimumInterval() {
+    let gate = StableAnnouncementGate<String>(
+      stabilityInterval: { _ in 0.2 },
+      minimumInterval: { _ in 0.5 }
+    )
+    let first = StableAnnouncementCandidate(kind: "station", text: "Station: Radio One")
+    let second = StableAnnouncementCandidate(kind: "station", text: "Station: Radio Two")
+
+    XCTAssertNil(gate.evaluate(candidate: first, now: Date(timeIntervalSince1970: 0.0)))
+    XCTAssertEqual(
+      Date(timeIntervalSince1970: 0.2),
+      gate.nextEvaluationDate(candidate: first, now: Date(timeIntervalSince1970: 0.0))
+    )
+    XCTAssertEqual(first, gate.evaluate(candidate: first, now: Date(timeIntervalSince1970: 0.2)))
+
+    XCTAssertNil(gate.evaluate(candidate: second, now: Date(timeIntervalSince1970: 0.25)))
+    XCTAssertEqual(
+      Date(timeIntervalSince1970: 0.7),
+      gate.nextEvaluationDate(candidate: second, now: Date(timeIntervalSince1970: 0.25))
+    )
+  }
 }

@@ -50,6 +50,28 @@ final class StableAnnouncementGate<Kind: Equatable> {
     return candidate
   }
 
+  func nextEvaluationDate(
+    candidate: StableAnnouncementCandidate<Kind>?,
+    now: Date
+  ) -> Date? {
+    guard let candidate else { return nil }
+    if lastAnnounced == candidate {
+      return nil
+    }
+
+    guard let pending else {
+      return now.addingTimeInterval(stabilityInterval(candidate.kind))
+    }
+
+    guard pending.candidate == candidate else {
+      return now.addingTimeInterval(stabilityInterval(candidate.kind))
+    }
+
+    let stabilityDate = pending.firstSeenAt.addingTimeInterval(stabilityInterval(candidate.kind))
+    let minimumIntervalDate = lastAnnouncedAt.addingTimeInterval(minimumInterval(candidate.kind))
+    return max(stabilityDate, minimumIntervalDate)
+  }
+
   func reset() {
     pending = nil
     lastAnnounced = nil

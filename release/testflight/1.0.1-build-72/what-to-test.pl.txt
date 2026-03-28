@@ -1,0 +1,7 @@
+Najważniejsza poprawka w tym buildzie to bardziej niezawodne automatyczne czytanie RDS przez czytnik ekranu.
+
+Proszę szczególnie sprawdzić:
+- FM-DX: automatyczny odczyt RDS powinien startować szybciej po ustabilizowaniu tekstu.
+- FM-DX: ta sama nazwa stacji lub radio text nie powinny już powtarzać się kilka razy pod rząd.
+- FM-DX: odczyt RDS powinien działać przez cały odsłuch i nie powinien przestawać po chwili.
+- Porównanie trybu tylko stacja i pełnego odczytu RDS.

@@ -1,0 +1,7 @@
+The main change in this build is more reliable automatic RDS reading for screen reader users.
+
+Please focus on:
+- FM-DX: automatic RDS reading should start sooner after the text becomes stable.
+- FM-DX: the same station name or radio text should not repeat several times in a row.
+- FM-DX: RDS reading should continue during listening instead of stopping after a short time.
+- Compare station-only and full RDS reading modes.

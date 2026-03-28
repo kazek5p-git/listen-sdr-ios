@@ -79,7 +79,8 @@ enum FMDXFilterProfile: String, CaseIterable, Identifiable {
 }
 
 private enum RDSAnnouncementKind {
-  case station
+  case stationName
+  case programService
   case radioText
   case pi
 }
@@ -199,25 +200,33 @@ final class RadioSessionViewModel: ObservableObject {
   private let rdsAnnouncementGate = StableAnnouncementGate<RDSAnnouncementKind>(
     stabilityInterval: { kind in
       switch kind {
-      case .station:
-        return 0.25
+      case .stationName:
+        return 0.24
+      case .programService:
+        return 0.30
       case .radioText:
-        return 0.6
+        return 0.54
       case .pi:
-        return 0.4
+        return 0.34
       }
     },
     minimumInterval: { kind in
       switch kind {
-      case .station:
-        return 0.65
-      case .radioText:
-        return 1.4
-      case .pi:
+      case .stationName:
         return 0.9
+      case .programService:
+        return 1.15
+      case .radioText:
+        return 1.7
+      case .pi:
+        return 1.3
       }
     }
   )
+  private var pendingRDSAnnouncement: StableAnnouncementCandidate<RDSAnnouncementKind>?
+  private var pendingRDSAnnouncementTask: Task<Void, Never>?
+  private var lastPostedRDSAnnouncementText: String?
+  private var lastPostedRDSAnnouncementAt = Date.distantPast
   private var lastLoggedAudioSuggestionPreset: FMDXAudioTuningPreset?
   private var lastLoggedFMDXAudioQualityLevel: FMDXAudioQualityLevel?
   private var lastFMDXAudioQualitySampleAt = Date.distantPast
@@ -2249,6 +2258,9 @@ final class RadioSessionViewModel: ObservableObject {
   func setVoiceOverRDSAnnouncementMode(_ mode: VoiceOverRDSAnnouncementMode) {
     settings.voiceOverRDSAnnouncementMode = mode
     rdsAnnouncementGate.reset()
+    clearPendingRDSAnnouncement()
+    lastPostedRDSAnnouncementText = nil
+    lastPostedRDSAnnouncementAt = .distantPast
     persistSettings()
   }
 
@@ -4814,6 +4826,9 @@ final class RadioSessionViewModel: ObservableObject {
     hasInitialServerTuningSync = false
     initialServerTuningSyncDeadline = Date.distantPast
     rdsAnnouncementGate.reset()
+    clearPendingRDSAnnouncement()
+    lastPostedRDSAnnouncementText = nil
+    lastPostedRDSAnnouncementAt = .distantPast
     fmdxAudioQualityReport = nil
     fmdxAudioQualityTrend = []
     audioPresetSuggestion = nil
@@ -5097,17 +5112,29 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func announceRDSChangeIfNeeded(previous: FMDXTelemetry?, current: FMDXTelemetry) {
-    guard settings.voiceOverRDSAnnouncementMode != .off else { return }
-    guard UIAccessibility.isVoiceOverRunning else { return }
-    guard activeBackend == .fmDxWebserver else { return }
-    guard state == .connected else { return }
-    guard !isScannerRunning else { return }
-    guard accessibilityState?.isReceiverTabActive ?? true else { return }
-
     let now = Date()
+    guard canAnnounceRDSAutomatically() else {
+      _ = rdsAnnouncementGate.evaluate(candidate: nil, now: now)
+      clearPendingRDSAnnouncement()
+      return
+    }
+
     let announcement = rdsAnnouncement(previous: previous, current: current)
-    guard let stableAnnouncement = rdsAnnouncementGate.evaluate(candidate: announcement, now: now) else { return }
-    AppAccessibilityAnnouncementCenter.post(stableAnnouncement.text)
+    let effectiveAnnouncement = announcement ?? pendingRDSAnnouncement.flatMap { candidate in
+      matchesCurrentRDSAnnouncement(candidate, telemetry: current) ? candidate : nil
+    }
+    if let stableAnnouncement = rdsAnnouncementGate.evaluate(candidate: effectiveAnnouncement, now: now) {
+      clearPendingRDSAnnouncement()
+      postRDSAnnouncement(stableAnnouncement, now: now)
+      return
+    }
+
+    guard let effectiveAnnouncement else {
+      clearPendingRDSAnnouncement()
+      return
+    }
+
+    schedulePendingRDSAnnouncement(effectiveAnnouncement)
   }
 
   private func rdsAnnouncement(
@@ -5122,13 +5149,13 @@ final class RadioSessionViewModel: ObservableObject {
 
     if currentStation != previousStation, let currentStation {
       return StableAnnouncementCandidate(
-        kind: .station,
+        kind: .stationName,
         text: L10n.text("accessibility.rds_announcement.station", currentStation)
       )
     }
-    if currentPS != previousPS, let currentPS, mode == .full {
+    if currentPS != previousPS, let currentPS, mode == .full, currentPS != currentStation {
       return StableAnnouncementCandidate(
-        kind: .station,
+        kind: .programService,
         text: L10n.text("accessibility.rds_announcement.ps", currentPS)
       )
     }
@@ -5189,6 +5216,134 @@ final class RadioSessionViewModel: ObservableObject {
     guard !normalized.isEmpty else { return nil }
     guard normalized != "?" else { return nil }
     return normalized
+  }
+
+  private func canAnnounceRDSAutomatically() -> Bool {
+    guard settings.voiceOverRDSAnnouncementMode != .off else { return false }
+    guard UIAccessibility.isVoiceOverRunning else { return false }
+    guard activeBackend == .fmDxWebserver else { return false }
+    guard state == .connected else { return false }
+    guard !isScannerRunning else { return false }
+    guard accessibilityState?.isReceiverTabActive ?? true else { return false }
+    return true
+  }
+
+  private func schedulePendingRDSAnnouncement(
+    _ candidate: StableAnnouncementCandidate<RDSAnnouncementKind>
+  ) {
+    if pendingRDSAnnouncement == candidate, pendingRDSAnnouncementTask != nil {
+      return
+    }
+
+    pendingRDSAnnouncement = candidate
+    pendingRDSAnnouncementTask?.cancel()
+    pendingRDSAnnouncementTask = Task { @MainActor [weak self] in
+      guard let self else { return }
+      while !Task.isCancelled, self.pendingRDSAnnouncement == candidate {
+        let now = Date()
+        guard let nextEvaluationDate = self.rdsAnnouncementGate.nextEvaluationDate(
+          candidate: candidate,
+          now: now
+        ) else {
+          break
+        }
+
+        let delay = max(0, nextEvaluationDate.timeIntervalSince(now))
+        if delay > 0 {
+          try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        }
+
+        guard !Task.isCancelled, self.pendingRDSAnnouncement == candidate else { return }
+
+        let evaluationNow = Date()
+        guard self.canAnnounceRDSAutomatically() else {
+          _ = self.rdsAnnouncementGate.evaluate(candidate: nil, now: evaluationNow)
+          self.clearPendingRDSAnnouncement(cancelTask: false)
+          return
+        }
+
+        if let stableAnnouncement = self.rdsAnnouncementGate.evaluate(
+          candidate: candidate,
+          now: evaluationNow
+        ) {
+          self.clearPendingRDSAnnouncement(cancelTask: false)
+          self.postRDSAnnouncement(stableAnnouncement, now: evaluationNow)
+          return
+        }
+      }
+
+      if self.pendingRDSAnnouncement == candidate {
+        self.clearPendingRDSAnnouncement(cancelTask: false)
+      }
+    }
+  }
+
+  private func clearPendingRDSAnnouncement(cancelTask: Bool = true) {
+    if cancelTask {
+      pendingRDSAnnouncementTask?.cancel()
+    }
+    pendingRDSAnnouncementTask = nil
+    pendingRDSAnnouncement = nil
+  }
+
+  private func duplicateRDSAnnouncementWindow(for kind: RDSAnnouncementKind) -> TimeInterval {
+    switch kind {
+    case .stationName:
+      return 3.8
+    case .programService:
+      return 4.2
+    case .radioText:
+      return 6.0
+    case .pi:
+      return 4.8
+    }
+  }
+
+  private func postRDSAnnouncement(
+    _ candidate: StableAnnouncementCandidate<RDSAnnouncementKind>,
+    now: Date
+  ) {
+    if lastPostedRDSAnnouncementText == candidate.text,
+       now.timeIntervalSince(lastPostedRDSAnnouncementAt) < duplicateRDSAnnouncementWindow(for: candidate.kind) {
+      return
+    }
+
+    lastPostedRDSAnnouncementText = candidate.text
+    lastPostedRDSAnnouncementAt = now
+    AppAccessibilityAnnouncementCenter.post(candidate.text)
+  }
+
+  private func matchesCurrentRDSAnnouncement(
+    _ candidate: StableAnnouncementCandidate<RDSAnnouncementKind>,
+    telemetry: FMDXTelemetry
+  ) -> Bool {
+    candidate.text == currentRDSAnnouncementText(for: candidate.kind, telemetry: telemetry)
+  }
+
+  private func currentRDSAnnouncementText(
+    for kind: RDSAnnouncementKind,
+    telemetry: FMDXTelemetry
+  ) -> String? {
+    switch kind {
+    case .stationName:
+      return preferredRDSStationName(from: telemetry).map {
+        L10n.text("accessibility.rds_announcement.station", $0)
+      }
+    case .programService:
+      return normalizedRDSValue(telemetry.ps)
+        .flatMap { $0 == preferredRDSStationName(from: telemetry) ? nil : $0 }
+        .map {
+          L10n.text("accessibility.rds_announcement.ps", $0)
+        }
+    case .radioText:
+      return stableRDSRadioText(from: telemetry).map {
+        L10n.text("accessibility.rds_announcement.rt", $0)
+      }
+    case .pi:
+      return normalizedRDSValue(telemetry.pi).map {
+        L10n.text("accessibility.rds_announcement.pi", $0)
+      }
+    }
   }
 
   private func canPushLocalTuningToServerYet() -> Bool {
