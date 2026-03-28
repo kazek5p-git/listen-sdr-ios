@@ -196,9 +196,28 @@ final class RadioSessionViewModel: ObservableObject {
   private var suppressAutoFilterUntil = Date.distantPast
   private var hasInitialServerTuningSync = false
   private var initialServerTuningSyncDeadline = Date.distantPast
-  private var lastRDSAnnouncementText: String?
-  private var lastRDSAnnouncementAt = Date.distantPast
-  private var lastRDSAnnouncementKind: RDSAnnouncementKind?
+  private let rdsAnnouncementGate = StableAnnouncementGate<RDSAnnouncementKind>(
+    stabilityInterval: { kind in
+      switch kind {
+      case .station:
+        return 1.0
+      case .radioText:
+        return 2.5
+      case .pi:
+        return 1.5
+      }
+    },
+    minimumInterval: { kind in
+      switch kind {
+      case .station:
+        return 1.2
+      case .radioText:
+        return 4.0
+      case .pi:
+        return 2.0
+      }
+    }
+  )
   private var lastLoggedAudioSuggestionPreset: FMDXAudioTuningPreset?
   private var lastLoggedFMDXAudioQualityLevel: FMDXAudioQualityLevel?
   private var lastFMDXAudioQualitySampleAt = Date.distantPast
@@ -2229,9 +2248,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setVoiceOverRDSAnnouncementMode(_ mode: VoiceOverRDSAnnouncementMode) {
     settings.voiceOverRDSAnnouncementMode = mode
-    lastRDSAnnouncementText = nil
-    lastRDSAnnouncementAt = .distantPast
-    lastRDSAnnouncementKind = nil
+    rdsAnnouncementGate.reset()
     persistSettings()
   }
 
@@ -4796,9 +4813,7 @@ final class RadioSessionViewModel: ObservableObject {
     suppressAutoFilterUntil = Date.distantPast
     hasInitialServerTuningSync = false
     initialServerTuningSyncDeadline = Date.distantPast
-    lastRDSAnnouncementText = nil
-    lastRDSAnnouncementAt = Date.distantPast
-    lastRDSAnnouncementKind = nil
+    rdsAnnouncementGate.reset()
     fmdxAudioQualityReport = nil
     fmdxAudioQualityTrend = []
     audioPresetSuggestion = nil
@@ -5090,22 +5105,15 @@ final class RadioSessionViewModel: ObservableObject {
     guard accessibilityState?.isReceiverTabActive ?? true else { return }
 
     let now = Date()
-    guard let announcement = rdsAnnouncement(previous: previous, current: current) else { return }
-    if now.timeIntervalSince(lastRDSAnnouncementAt) < minimumAnnouncementInterval(for: announcement.kind) {
-      return
-    }
-    guard announcement.text != lastRDSAnnouncementText || announcement.kind != lastRDSAnnouncementKind else { return }
-
-    lastRDSAnnouncementText = announcement.text
-    lastRDSAnnouncementAt = now
-    lastRDSAnnouncementKind = announcement.kind
-    AppAccessibilityAnnouncementCenter.post(announcement.text)
+    let announcement = rdsAnnouncement(previous: previous, current: current)
+    guard let stableAnnouncement = rdsAnnouncementGate.evaluate(candidate: announcement, now: now) else { return }
+    AppAccessibilityAnnouncementCenter.post(stableAnnouncement.text)
   }
 
   private func rdsAnnouncement(
     previous: FMDXTelemetry?,
     current: FMDXTelemetry
-  ) -> (kind: RDSAnnouncementKind, text: String)? {
+  ) -> StableAnnouncementCandidate<RDSAnnouncementKind>? {
     let mode = settings.voiceOverRDSAnnouncementMode
     let previousPS = normalizedRDSValue(previous?.ps)
     let currentPS = normalizedRDSValue(current.ps)
@@ -5113,10 +5121,16 @@ final class RadioSessionViewModel: ObservableObject {
     let currentStation = preferredRDSStationName(from: current)
 
     if currentStation != previousStation, let currentStation {
-      return (.station, L10n.text("accessibility.rds_announcement.station", currentStation))
+      return StableAnnouncementCandidate(
+        kind: .station,
+        text: L10n.text("accessibility.rds_announcement.station", currentStation)
+      )
     }
     if currentPS != previousPS, let currentPS, mode == .full {
-      return (.station, L10n.text("accessibility.rds_announcement.ps", currentPS))
+      return StableAnnouncementCandidate(
+        kind: .station,
+        text: L10n.text("accessibility.rds_announcement.ps", currentPS)
+      )
     }
 
     guard mode == .full else { return nil }
@@ -5129,27 +5143,22 @@ final class RadioSessionViewModel: ObservableObject {
     let previousRT = stableRDSRadioText(from: previous)
     let currentRT = stableRDSRadioText(from: current)
     if hadPreviousRDS, currentRT != previousRT, let currentRT {
-      return (.radioText, L10n.text("accessibility.rds_announcement.rt", currentRT))
+      return StableAnnouncementCandidate(
+        kind: .radioText,
+        text: L10n.text("accessibility.rds_announcement.rt", currentRT)
+      )
     }
 
     let previousPI = normalizedRDSValue(previous?.pi)
     let currentPI = normalizedRDSValue(current.pi)
     if hadPreviousRDS, currentPI != previousPI, let currentPI, currentPS == nil {
-      return (.pi, L10n.text("accessibility.rds_announcement.pi", currentPI))
+      return StableAnnouncementCandidate(
+        kind: .pi,
+        text: L10n.text("accessibility.rds_announcement.pi", currentPI)
+      )
     }
 
     return nil
-  }
-
-  private func minimumAnnouncementInterval(for kind: RDSAnnouncementKind) -> TimeInterval {
-    switch kind {
-    case .station:
-      return 1.2
-    case .radioText:
-      return 4.0
-    case .pi:
-      return 2.0
-    }
   }
 
   private func preferredRDSStationName(from telemetry: FMDXTelemetry?) -> String? {
