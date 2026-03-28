@@ -1,0 +1,7 @@
+The main change in this build is a clearer FM-DX Webserver login flow.
+
+Please focus on:
+- FM-DX: the Username field should no longer be shown when adding or editing an FM-DX receiver.
+- FM-DX: the Password field should clearly indicate that the tune or admin password must be entered.
+- FM-DX: saving the profile and reconnecting with the tune/admin password should continue to work as before.
+- General stability of the receiver profile editor after this change.

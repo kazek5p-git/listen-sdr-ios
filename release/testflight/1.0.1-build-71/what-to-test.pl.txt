@@ -1,0 +1,7 @@
+Najważniejsza poprawka w tym buildzie to uproszczenie logowania do FM-DX Webserver.
+
+Proszę szczególnie sprawdzić:
+- FM-DX: w edycji lub dodawaniu radia pole Nazwa użytkownika nie powinno już być widoczne.
+- FM-DX: pole Hasło powinno jasno wskazywać, że trzeba wpisać hasło tune albo admin.
+- FM-DX: zapis profilu i ponowne połączenie z hasłem tune/admin powinny działać jak wcześniej.
+- Ogólną stabilność formularza profilu odbiornika po tej zmianie.

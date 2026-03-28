@@ -58,13 +58,34 @@ struct ProfileEditorView: View {
         .appSectionStyle()
 
         Section(L10n.text("Authentication")) {
-          TextField(L10n.text("Username"), text: $draft.username)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
+          if draft.backend != .fmDxWebserver {
+            TextField(L10n.text("Username"), text: $draft.username)
+              .textInputAutocapitalization(.never)
+              .autocorrectionDisabled()
+          }
 
           SecureField(L10n.text("Password"), text: $draft.password)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
+            .accessibilityHint(
+              draft.backend == .fmDxWebserver
+                ? L10n.text(
+                  "For FM-DX Webserver enter the tune or admin password. Username is not used.",
+                  fallback: "For FM-DX Webserver enter the tune or admin password. Username is not used."
+                )
+                : ""
+            )
+
+          if draft.backend == .fmDxWebserver {
+            Text(
+              L10n.text(
+                "For FM-DX Webserver enter the tune or admin password. Username is not used.",
+                fallback: "For FM-DX Webserver enter the tune or admin password. Username is not used."
+              )
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+          }
         }
         .appSectionStyle()
       }
