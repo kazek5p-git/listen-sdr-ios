@@ -1,7 +1,7 @@
 The main changes in this build clean up network, backup, and tuning behavior.
 
 Please focus on:
-- Settings: the new “Allowed network” option lets you choose Wi‑Fi only or Wi‑Fi plus cellular data.
+- Settings: the new “Allowed network” option lets you choose Wi-Fi only or Wi-Fi plus cellular data.
 - Settings: the new privacy section explains that the app does not send diagnostics or listening history without your action.
 - Backup and restore: you can now choose whether the backup includes app settings, saved radios, passwords, favorites, and listening history.
 - Backup and restore: export should no longer create an empty file, and importing an empty file should now fail with an error.

@@ -1,7 +1,7 @@
 Najważniejsze zmiany w tym buildzie porządkują sieć, kopię ustawień i zachowanie strojenia.
 
 Proszę szczególnie sprawdzić:
-- Ustawienia: nowa opcja „Dozwolona sieć” pozwala wybrać tylko Wi‑Fi albo Wi‑Fi i dane komórkowe.
+- Ustawienia: nowa opcja „Dozwolona sieć” pozwala wybrać tylko Wi-Fi albo Wi-Fi i dane komórkowe.
 - Ustawienia: sekcja prywatności wyjaśnia, że aplikacja nie wysyła danych diagnostycznych ani historii bez Twojego działania.
 - Kopia i przywracanie: można teraz wybrać, czy backup ma obejmować ustawienia, zapisane radia, hasła, ulubione i historię słuchania.
 - Kopia i przywracanie: eksport nie powinien już tworzyć pustego pliku, a import pustego pliku powinien zostać odrzucony błędem.
