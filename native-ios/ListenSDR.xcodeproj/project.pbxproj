@@ -38,6 +38,7 @@
 		5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */; };
 		5B6794859996E3232249EE49 /* BackendTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C372985075C01F819DD5C32F /* BackendTelemetry.swift */; };
 		60A7646E16C2E86C8EE29D40 /* SDRConnectionProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D789A0EBC5CC4FC1EFE8E90A /* SDRConnectionProfile.swift */; };
+		64D53B13A96F59388A01A58A /* ConnectionNetworkPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0824AE53AE902C225CE4DE5 /* ConnectionNetworkPolicy.swift */; };
 		658BC2FBCD202B84E793D6DD /* ReceiverDataCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6294264E832985350801F669 /* ReceiverDataCache.swift */; };
 		67470D4EA59E0FC4620CD74B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A91F49239EA191572FD45 /* SettingsView.swift */; };
 		6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30168AE215D849558215B5A /* DemodulationModeTests.swift */; };
@@ -55,6 +56,7 @@
 		7F21A7B2B4BE8EAEB9DF08B9 /* ListenSDRAppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9508B28DC86C178D8A2BD7 /* ListenSDRAppShortcuts.swift */; };
 		817BC8EE996142812994AAA3 /* ReceiverDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */; };
 		82428741563F6BEB47648217 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 293251298AE8C5A5C89DFF78 /* Assets.xcassets */; };
+		8948677C0ED62F0809B97D46 /* SpeechLoudnessLevelingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 715098CB8FB779868AF3E9DC /* SpeechLoudnessLevelingMode.swift */; };
 		899E90DCF3F8E5489D3F5613 /* ReceiverDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */; };
 		8B826A963B180CA475FCD2F3 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE45DEDE28EA384BBF400F2 /* SettingsViewController.swift */; };
 		8EEE5FD254E0DE0BAF51E579 /* FrequencyInputParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */; };
@@ -147,6 +149,7 @@
 		639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPCMUtilitiesTests.swift; sourceTree = "<group>"; };
 		67898200E1DD7BF2FE5AC5A3 /* LiveAudioStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioStabilityTests.swift; sourceTree = "<group>"; };
 		6B1555E324C13738FC619AD1 /* FMDXCapabilitiesPolicyBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXCapabilitiesPolicyBridge.swift; sourceTree = "<group>"; };
+		715098CB8FB779868AF3E9DC /* SpeechLoudnessLevelingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechLoudnessLevelingMode.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		7D98E491501B5A7BA10E0AEA /* ReceiverLinkImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverLinkImport.swift; sourceTree = "<group>"; };
 		7E7702C07C09F90A04B6DA7A /* ListenSDRTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ListenSDRTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -170,6 +173,7 @@
 		AB68F42E636A470995C63355 /* ListenSDRFeedbackFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRFeedbackFormView.swift; sourceTree = "<group>"; };
 		AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningHistoryStoreTests.swift; sourceTree = "<group>"; };
 		AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B0824AE53AE902C225CE4DE5 /* ConnectionNetworkPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionNetworkPolicy.swift; sourceTree = "<group>"; };
 		B30168AE215D849558215B5A /* DemodulationModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationModeTests.swift; sourceTree = "<group>"; };
 		BABBB82F47D1CC59A071FA43 /* ReceiverDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectoryView.swift; sourceTree = "<group>"; };
 		BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputEngine.swift; sourceTree = "<group>"; };
@@ -244,6 +248,7 @@
 				C372985075C01F819DD5C32F /* BackendTelemetry.swift */,
 				C8620FE8AD9F4B9ACE05A1E6 /* BandTuningProfile.swift */,
 				D6B2838C0A3517392C242645 /* ChannelScannerSignalCore.swift */,
+				B0824AE53AE902C225CE4DE5 /* ConnectionNetworkPolicy.swift */,
 				AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */,
 				9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */,
 				A08F4C0EC7957D2F44890F03 /* DiagnosticsExportBuilder.swift */,
@@ -291,6 +296,7 @@
 				4BE45DEDE28EA384BBF400F2 /* SettingsViewController.swift */,
 				2C476CA16083ED45EBA81466 /* ShareSheet.swift */,
 				DEAB72153F050B8965259B27 /* SpeechLoudnessLeveler.swift */,
+				715098CB8FB779868AF3E9DC /* SpeechLoudnessLevelingMode.swift */,
 				1C777C6695B92488F095F27C /* StableAnnouncementGate.swift */,
 				4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */,
 				EAD1C8D99F65C7CAD5126479 /* TuneStepPreferenceMode.swift */,
@@ -467,6 +473,7 @@
 				5B6794859996E3232249EE49 /* BackendTelemetry.swift in Sources */,
 				39AB7F078B8E0DF8C6A8ECA6 /* BandTuningProfile.swift in Sources */,
 				A85BB4C1E4D9B6BA4C2914C1 /* ChannelScannerSignalCore.swift in Sources */,
+				64D53B13A96F59388A01A58A /* ConnectionNetworkPolicy.swift in Sources */,
 				ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */,
 				97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */,
 				D3F4C7905F934163B69D3D83 /* DiagnosticsExportBuilder.swift in Sources */,
@@ -514,6 +521,7 @@
 				8B826A963B180CA475FCD2F3 /* SettingsViewController.swift in Sources */,
 				41BD2FA1F71A8000434283F9 /* ShareSheet.swift in Sources */,
 				9E8A626DE4609D0BCB843FD0 /* SpeechLoudnessLeveler.swift in Sources */,
+				8948677C0ED62F0809B97D46 /* SpeechLoudnessLevelingMode.swift in Sources */,
 				AB76E3B4F5EFBA54A76658E6 /* StableAnnouncementGate.swift in Sources */,
 				721B688F74C2905447CF723D /* SystemRemoteCommandController.swift in Sources */,
 				3D199DA0C04AC43A8B628250 /* TuneStepPreferenceMode.swift in Sources */,
@@ -662,7 +670,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 74;
+				CURRENT_PROJECT_VERSION = 75;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -757,7 +765,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 74;
+				CURRENT_PROJECT_VERSION = 75;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
