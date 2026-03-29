@@ -576,6 +576,11 @@ if [ "$UPLOAD_TO_TESTFLIGHT" = "true" ]; then
   if [ "$upload_status" -ne 0 ]; then
     exit "$upload_status"
   fi
+
+  if grep -Eiq '(^|[[:space:]])ERROR:|Failed to upload archive|Failed to upload package' "$LOG_UPLOAD"; then
+    echo "Upload log indicates a failed TestFlight upload." >&2
+    exit 1
+  fi
 fi
 
 printf 'IPA_PATH=%s\n' "$IPA_PATH"
