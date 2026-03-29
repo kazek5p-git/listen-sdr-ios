@@ -1,0 +1,8 @@
+Najważniejsze zmiany w tym buildzie porządkują ustawienia i skracają przewijanie.
+
+Proszę szczególnie sprawdzić:
+- Ustawienia: ekran główny ustawień został podzielony na krótsze działy, otwierane jako osobne ekrany.
+- Ustawienia: kolejność działów została uporządkowana pod codzienne użycie, a „Kopia i przywracanie” jest teraz niżej.
+- Ustawienia: opcja „Reset DSP” ma teraz czytelniejszą nazwę „Przywróć domyślne ustawienia sygnału”.
+- Ustawienia: pod resetem sygnału jest krótki opis wyjaśniający, że zakres zależy od typu odbiornika.
+- Sprawdź proszę wygodę nawigacji VoiceOver i TalkBack po nowej strukturze ustawień.

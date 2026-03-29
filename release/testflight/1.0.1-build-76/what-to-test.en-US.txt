@@ -1,0 +1,8 @@
+The main changes in this build reorganize Settings and reduce long scrolling.
+
+Please focus on:
+- Settings: the main Settings screen is now split into shorter sections that open as separate screens.
+- Settings: section order is now optimized for everyday use, and “Backup and restore” is placed lower in the list.
+- Settings: the old “Reset DSP” action is now labeled more clearly as “Reset signal settings”.
+- Settings: the reset action now includes a short explanation that the exact scope depends on the receiver type.
+- Please check overall VoiceOver and TalkBack navigation comfort with the new Settings structure.

@@ -63,6 +63,8 @@
 
 "directory.status.available" = "Available";
 "directory.status.limited" = "Limited";
+"Reset signal settings" = "Reset signal settings";
+"Restores demodulation mode and signal processing controls to their defaults. The exact range depends on the receiver type." = "Restores demodulation mode and signal processing controls to their defaults. The exact range depends on the receiver type.";
 "directory.status.unreachable" = "Unreachable";
 "directory.status.unknown" = "Unknown";
 "directory.last_update" = "Last update: %@";
@@ -288,7 +290,12 @@
 "settings.session.no_snapshot" = "No quick restore point saved yet.";
 "settings.session.has_snapshot" = "A quick restore point is available.";
 "settings.startup.section" = "Startup";
+"settings.group.startup_connection" = "Startup and connection";
 "settings.backup_restore.section" = "Backup and restore";
+"settings.group.tuning_scanning" = "Tuning and scanning";
+"settings.group.history_radios" = "History and radios";
+"settings.group.diagnostics_feedback" = "Diagnostics and feedback";
+"settings.group.help_privacy" = "Help and privacy";
 "settings.backup_restore.local_point.title" = "Local restore point";
 "settings.backup_restore.local_point.description" = "Saves one temporary restore point on this device. Use it to return quickly to your earlier settings without creating a file.";
 "settings.backup_restore.local_point.save" = "Save local restore point";

@@ -50,6 +50,7 @@
 "Quick Actions" = "Szybkie akcje";
 "Reconnect" = "Połącz ponownie";
 "Reset DSP" = "Reset DSP";
+"Reset signal settings" = "Przywróć domyślne ustawienia sygnału";
 "Copy diagnostics" = "Kopiuj diagnostykę";
 "Logs" = "Logi";
 "No Diagnostics Yet" = "Brak danych diagnostycznych";
@@ -132,6 +133,7 @@
 "Squelch" = "Squelch";
 "Reset DSP settings" = "Reset ustawień DSP";
 "Restores demodulation mode and DSP controls to defaults" = "Przywraca domyślne ustawienia demodulacji i DSP";
+"Restores demodulation mode and signal processing controls to their defaults. The exact range depends on the receiver type." = "Przywraca domyślne ustawienia demodulacji i przetwarzania sygnału. Dokładny zakres zależy od typu odbiornika.";
 
 "Favorites" = "Ulubione";
 "Save current frequency" = "Zapisz bieżącą częstotliwość";
@@ -440,7 +442,12 @@
 "settings.session.no_snapshot" = "Brak zapisanego punktu szybkiego przywracania.";
 "settings.session.has_snapshot" = "Masz zapisany punkt szybkiego przywracania.";
 "settings.startup.section" = "Start";
+"settings.group.startup_connection" = "Start i połączenie";
 "settings.backup_restore.section" = "Kopia i przywracanie";
+"settings.group.tuning_scanning" = "Strojenie i skanowanie";
+"settings.group.history_radios" = "Historia i radia";
+"settings.group.diagnostics_feedback" = "Diagnostyka i opinie";
+"settings.group.help_privacy" = "Pomoc i prywatność";
 "settings.backup_restore.local_point.title" = "Lokalny punkt przywracania";
 "settings.backup_restore.local_point.description" = "Zapisuje jeden tymczasowy punkt przywracania na tym urządzeniu. Użyj go, aby szybko wrócić do wcześniejszych ustawień bez tworzenia pliku.";
 "settings.backup_restore.local_point.save" = "Zapisz lokalny punkt przywracania";

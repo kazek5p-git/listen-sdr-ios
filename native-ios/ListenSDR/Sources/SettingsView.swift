@@ -14,23 +14,7 @@ struct SettingsView: View {
 
   var body: some View {
     NavigationStack {
-      Form {
-        startupSection
-        connectionSection
-        backupRestoreSection
-        tuningSection
-        scannerSections
-        dxSection
-      historySection
-      radiosSection
-      audioSection
-      accessibilitySection
-      diagnosticsSection
-      feedbackSection
-      helpSection
-      authorSection
-      privacyAndFeedbackSection
-      }
+      settingsRootList
       .voiceOverStable()
       .scrollContentBackground(.hidden)
       .navigationTitle(L10n.text("Settings"))
@@ -140,6 +124,150 @@ struct SettingsView: View {
         Text(activeAlert?.message ?? "")
       }
     }
+  }
+
+  private var settingsRootList: some View {
+    Form {
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text(
+            "settings.group.startup_connection",
+            fallback: "Startup and connection"
+          )
+        ) {
+          startupSection
+          connectionSection
+        }
+      } label: {
+        Text(
+          L10n.text(
+            "settings.group.startup_connection",
+            fallback: "Startup and connection"
+          )
+        )
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text(
+            "settings.group.tuning_scanning",
+            fallback: "Tuning and scanning"
+          )
+        ) {
+          tuningSection
+          scannerSections
+          dxSection
+        }
+      } label: {
+        Text(
+          L10n.text(
+            "settings.group.tuning_scanning",
+            fallback: "Tuning and scanning"
+          )
+        )
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text(
+            "settings.group.history_radios",
+            fallback: "History and radios"
+          )
+        ) {
+          historySection
+          radiosSection
+        }
+      } label: {
+        Text(
+          L10n.text(
+            "settings.group.history_radios",
+            fallback: "History and radios"
+          )
+        )
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text("settings.audio.section")
+        ) {
+          audioSection
+        }
+      } label: {
+        Text(L10n.text("settings.audio.section"))
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text("settings.accessibility.section")
+        ) {
+          accessibilitySection
+        }
+      } label: {
+        Text(L10n.text("settings.accessibility.section"))
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text("settings.backup_restore.section", fallback: "Backup and restore")
+        ) {
+          backupRestoreSection
+        }
+      } label: {
+        Text(L10n.text("settings.backup_restore.section", fallback: "Backup and restore"))
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text(
+            "settings.group.diagnostics_feedback",
+            fallback: "Diagnostics and feedback"
+          )
+        ) {
+          diagnosticsSection
+          feedbackSection
+        }
+      } label: {
+        Text(
+          L10n.text(
+            "settings.group.diagnostics_feedback",
+            fallback: "Diagnostics and feedback"
+          )
+        )
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
+          title: L10n.text(
+            "settings.group.help_privacy",
+            fallback: "Help and privacy"
+          )
+        ) {
+          helpSection
+          authorSection
+          privacyAndFeedbackSection
+        }
+      } label: {
+        Text(
+          L10n.text(
+            "settings.group.help_privacy",
+            fallback: "Help and privacy"
+          )
+        )
+      }
+    }
+  }
+
+  private func settingsDestinationScreen<Content: View>(
+    title: String,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    Form {
+      content()
+    }
+    .voiceOverStable()
+    .scrollContentBackground(.hidden)
+    .navigationTitle(title)
+    .appScreenBackground()
   }
 
   private var startupSection: some View {
@@ -1064,8 +1192,15 @@ struct SettingsView: View {
       FocusRetainingButton {
         settingsController.resetDSPSettings()
       } label: {
-        Text(L10n.text("Reset DSP"))
+        Text(L10n.text("Reset signal settings"))
       }
+
+      settingsInfoBlock(
+        title: L10n.text("Reset signal settings"),
+        description: L10n.text(
+          "Restores demodulation mode and signal processing controls to their defaults. The exact range depends on the receiver type."
+        )
+      )
     } header: {
       AppSectionHeader(title: L10n.text("settings.diagnostics.section"))
     }
