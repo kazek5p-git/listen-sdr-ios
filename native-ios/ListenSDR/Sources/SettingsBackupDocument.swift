@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsBackupDocument: FileDocument {
-  static let defaultFilename = "ListenSDR-settings-backup"
+  static let defaultFilename = "ListenSDR-settings-backup.json"
   static var readableContentTypes: [UTType] { [.json] }
 
   let data: Data
@@ -19,7 +19,8 @@ struct SettingsBackupDocument: FileDocument {
   }
 
   func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-    FileWrapper(regularFileWithContents: data)
+    try RadioSessionSettingsBackupCodec.validateBackupData(data)
+    return FileWrapper(regularFileWithContents: data)
   }
 
   static func readData(from url: URL) throws -> Data {
@@ -29,6 +30,8 @@ struct SettingsBackupDocument: FileDocument {
         url.stopAccessingSecurityScopedResource()
       }
     }
-    return try Data(contentsOf: url)
+    let data = try Data(contentsOf: url)
+    try RadioSessionSettingsBackupCodec.validateBackupData(data)
+    return data
   }
 }

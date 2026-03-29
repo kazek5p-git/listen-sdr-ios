@@ -199,15 +199,19 @@ private final class InteractionFeedbackPlayer: NSObject, AVAudioPlayerDelegate {
     }
   }
 
-  func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-    if activePlayer === player {
-      activePlayer = nil
+  nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    Task { @MainActor in
+      if self.activePlayer === player {
+        self.activePlayer = nil
+      }
     }
   }
 
-  func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-    if activePlayer === player {
-      activePlayer = nil
+  nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+    Task { @MainActor in
+      if self.activePlayer === player {
+        self.activePlayer = nil
+      }
     }
   }
 

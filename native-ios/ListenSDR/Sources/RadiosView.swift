@@ -433,7 +433,7 @@ struct RadiosView: View {
   @ViewBuilder
   private func profileRow(for profile: SDRConnectionProfile, isFavorite: Bool) -> some View {
     FocusRetainingButton {
-      profileStore.updateSelection(profile.id)
+      selectProfile(profile)
     } label: {
       HStack(alignment: .top, spacing: 12) {
         Image(systemName: backendIconName(for: profile.backend))
@@ -517,6 +517,15 @@ struct RadiosView: View {
         ? L10n.text("common.selected")
         : L10n.text("common.not_selected")
     )
+  }
+
+  private func selectProfile(_ profile: SDRConnectionProfile) {
+    profileStore.updateSelection(profile.id)
+    guard radioSession.settings.autoConnectSelectedProfileAfterSelection else { return }
+    if radioSession.state != .connected || radioSession.connectedProfileID != profile.id {
+      radioSession.connect(to: profile)
+    }
+    navigationState.selectedTab = .receiver
   }
 
   @ViewBuilder

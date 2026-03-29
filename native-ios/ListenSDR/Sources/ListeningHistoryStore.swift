@@ -262,6 +262,21 @@ final class ListeningHistoryStore: ObservableObject {
     persistRecentFrequencies()
   }
 
+  func restoreBackup(
+    recentReceivers restoredReceivers: [RecentReceiverRecord],
+    recentListening restoredListening: [RecentListeningRecord],
+    recentFrequencies restoredFrequencies: [RecentFrequencyRecord]
+  ) {
+    recentReceivers = restoredReceivers
+    persistReceivers()
+
+    recentListening = restoredListening
+    persistListening()
+
+    recentFrequencies = restoredFrequencies
+    persistRecentFrequencies()
+  }
+
   private func normalizedTitle(_ value: String?) -> String? {
     let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     return normalized.isEmpty ? nil : normalized

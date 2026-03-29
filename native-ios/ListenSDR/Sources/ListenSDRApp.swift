@@ -30,6 +30,8 @@ struct ListenSDRApp: App {
           settingsController.bind(
             radioSession: radioSession,
             profileStore: profileStore,
+            favoritesStore: favoritesStore,
+            historyStore: historyStore,
             accessibilityState: accessibilityState
           )
           recordingStore.refresh()

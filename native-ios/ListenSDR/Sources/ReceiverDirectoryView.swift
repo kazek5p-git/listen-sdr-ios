@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct ReceiverDirectoryView: View {
+  @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var favoritesStore: FavoritesStore
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
   @StateObject private var viewModel = ReceiverDirectoryViewModel()
@@ -168,8 +170,7 @@ struct ReceiverDirectoryView: View {
     let isFavorite = favoritesStore.isFavoriteReceiver(entry)
 
     FocusRetainingButton {
-      let storedProfile = profileStore.upsertImportedProfile(candidateProfile)
-      profileStore.updateSelection(storedProfile.id)
+      selectReceiverDirectoryEntry(candidateProfile)
     } label: {
       HStack(alignment: .top, spacing: 12) {
         Image(systemName: backendIconName(for: entry.backend))
@@ -263,6 +264,21 @@ struct ReceiverDirectoryView: View {
     .accessibilityHint(
       receiverHintText(existingProfile: existingProfile, isSelected: isSelected)
     )
+    .accessibilityAction {
+      selectReceiverDirectoryEntry(candidateProfile)
+    }
+    .accessibilityAction(
+      named: Text(
+        isFavorite
+          ? L10n.text("favorites.receiver.remove")
+          : L10n.text("favorites.receiver.add")
+      )
+    ) {
+      toggleFavoriteReceiver(entry, isFavorite: isFavorite)
+    }
+    .accessibilityAction(named: Text(L10n.text("directory.receiver.open_website"))) {
+      openReceiverWebsite(for: entry)
+    }
     .accessibilityRemoveTraits(.isSelected)
   }
 
@@ -505,6 +521,30 @@ struct ReceiverDirectoryView: View {
   private func openReceiverWebsite(for entry: ReceiverDirectoryEntry) {
     guard let url = URL(string: entry.endpointURL) else { return }
     openURL(url)
+  }
+
+  private func selectReceiverDirectoryEntry(_ profile: SDRConnectionProfile) {
+    let storedProfile = profileStore.upsertImportedProfile(profile)
+    profileStore.updateSelection(storedProfile.id)
+    if radioSession.settings.autoConnectSelectedProfileAfterSelection {
+      if radioSession.state != .connected || radioSession.connectedProfileID != storedProfile.id {
+        radioSession.connect(to: storedProfile)
+      }
+    }
+    navigationState.selectedTab = .receiver
+    dismiss()
+  }
+
+  private func toggleFavoriteReceiver(_ entry: ReceiverDirectoryEntry, isFavorite: Bool) {
+    favoritesStore.toggleReceiver(entry)
+    AppAccessibilityAnnouncementCenter.post(
+      L10n.text(
+        isFavorite
+          ? "directory.receiver.favorite_removed"
+          : "directory.receiver.favorite_added",
+        entry.name
+      )
+    )
   }
 
   private func receiverStateText(

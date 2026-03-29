@@ -147,6 +147,34 @@ final class ProfileStore: ObservableObject {
     return profile
   }
 
+  func exportProfilesForBackup(includePasswords: Bool) -> [SDRConnectionProfile] {
+    profiles.map { profile in
+      guard includePasswords else { return profile.copying(password: "") }
+      return profile
+    }
+  }
+
+  func restoreProfilesFromBackup(
+    _ importedProfiles: [SDRConnectionProfile],
+    selectedProfileID importedSelectedProfileID: UUID?
+  ) {
+    let previousIDs = Set(profiles.map(\.id))
+    let importedIDs = Set(importedProfiles.map(\.id))
+    let removedIDs = previousIDs.subtracting(importedIDs)
+
+    removedIDs.forEach { profileID in
+      _ = passwordStore.removePassword(for: profileID)
+    }
+
+    profiles = importedProfiles.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    if let importedSelectedProfileID, profiles.contains(where: { $0.id == importedSelectedProfileID }) {
+      selectedProfileID = importedSelectedProfileID
+    } else {
+      selectedProfileID = profiles.first?.id
+    }
+    persistProfiles()
+  }
+
   func hasMatchingProfile(_ profile: SDRConnectionProfile) -> Bool {
     indexOfMatchingProfile(profile) != nil
   }
@@ -231,5 +259,13 @@ final class ProfileStore: ObservableObject {
     }
 
     return migrated
+  }
+}
+
+private extension SDRConnectionProfile {
+  func copying(password: String) -> SDRConnectionProfile {
+    var copy = self
+    copy.password = password
+    return copy
   }
 }

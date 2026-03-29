@@ -17,6 +17,165 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertEqual(decoded, settings)
   }
 
+  func testSettingsBackupPayloadRoundTripsSelectedSections() throws {
+    var settings = RadioSessionSettings.default
+    settings.mixWithOtherAudioApps = true
+
+    let profile = SDRConnectionProfile(
+      id: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
+      name: "Test FM-DX",
+      backend: .fmDxWebserver,
+      host: "example.com",
+      port: 8080,
+      useTLS: true,
+      path: "/tuner",
+      username: "",
+      password: "secret"
+    )
+    let favoriteReceiver = FavoriteReceiver(
+      id: "receiver-1",
+      backend: .fmDxWebserver,
+      name: "Receiver 1",
+      host: "example.com",
+      port: 8080,
+      useTLS: true,
+      path: "/tuner",
+      createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+    )
+    let favoriteStation = FavoriteStation(
+      id: "station-1",
+      receiverID: "receiver-1",
+      receiverName: "Receiver 1",
+      backend: .fmDxWebserver,
+      title: "Station 1",
+      frequencyHz: 101_700_000,
+      mode: .fm,
+      createdAt: Date(timeIntervalSince1970: 1_700_000_100)
+    )
+    let recentReceiver = RecentReceiverRecord(
+      id: "receiver-1",
+      receiverName: "Receiver 1",
+      backend: .fmDxWebserver,
+      host: "example.com",
+      port: 8080,
+      useTLS: true,
+      path: "/tuner",
+      username: "",
+      password: "secret",
+      lastUsedAt: Date(timeIntervalSince1970: 1_700_000_200)
+    )
+    let recentListening = RecentListeningRecord(
+      id: "listen-1",
+      receiverID: "receiver-1",
+      receiverName: "Receiver 1",
+      backend: .fmDxWebserver,
+      host: "example.com",
+      port: 8080,
+      useTLS: true,
+      path: "/tuner",
+      username: "",
+      password: "secret",
+      frequencyHz: 101_700_000,
+      mode: .fm,
+      stationTitle: "Station 1",
+      lastHeardAt: Date(timeIntervalSince1970: 1_700_000_300)
+    )
+    let recentFrequency = RecentFrequencyRecord(
+      id: "freq-1",
+      receiverID: "receiver-1",
+      receiverName: "Receiver 1",
+      backend: .fmDxWebserver,
+      frequencyHz: 101_700_000,
+      mode: .fm,
+      stationTitle: "Station 1",
+      lastUsedAt: Date(timeIntervalSince1970: 1_700_000_400)
+    )
+
+    let payload = SettingsBackupPayload(
+      settings: settings,
+      profiles: [profile],
+      selectedProfileID: profile.id,
+      favoriteReceivers: [favoriteReceiver],
+      favoriteStations: [favoriteStation],
+      recentReceivers: [recentReceiver],
+      recentListening: [recentListening],
+      recentFrequencies: [recentFrequency]
+    )
+
+    let data = try RadioSessionSettingsBackupCodec.encode(payload: payload)
+    let decoded = try RadioSessionSettingsBackupCodec.decodePayload(data)
+
+    XCTAssertEqual(decoded, payload)
+  }
+
+  func testSettingsBackupPayloadDecodesLegacySettingsOnlyBackup() throws {
+    var settings = RadioSessionSettings.default
+    settings.voiceOverRDSAnnouncementMode = .full
+
+    let legacyData = try JSONEncoder().encode(settings)
+    let decoded = try RadioSessionSettingsBackupCodec.decodePayload(legacyData)
+
+    XCTAssertEqual(decoded.settings, settings)
+    XCTAssertNil(decoded.profiles)
+    XCTAssertNil(decoded.favoriteReceivers)
+    XCTAssertNil(decoded.recentListening)
+  }
+
+  func testSettingsBackupPayloadAllowsNonSettingsBackup() throws {
+    let profile = SDRConnectionProfile(
+      id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
+      name: "Portable receiver",
+      backend: .openWebRX,
+      host: "receiver.example",
+      port: 8073,
+      useTLS: false,
+      path: "/",
+      username: "",
+      password: ""
+    )
+    let payload = SettingsBackupPayload(
+      settings: nil,
+      profiles: [profile],
+      selectedProfileID: profile.id,
+      favoriteReceivers: [],
+      favoriteStations: [],
+      recentReceivers: nil,
+      recentListening: nil,
+      recentFrequencies: nil
+    )
+
+    let data = try RadioSessionSettingsBackupCodec.encode(payload: payload)
+    let decoded = try RadioSessionSettingsBackupCodec.decodePayload(data)
+
+    XCTAssertNil(decoded.settings)
+    XCTAssertEqual(decoded.profiles, [profile])
+    XCTAssertEqual(decoded.selectedProfileID, profile.id)
+  }
+
+  func testSettingsBackupCodecRejectsEmptyPayload() {
+    XCTAssertThrowsError(try RadioSessionSettingsBackupCodec.decode(Data())) { error in
+      XCTAssertTrue(error.localizedDescription.contains("empty"))
+    }
+  }
+
+  func testSettingsBackupPayloadRejectsPayloadWithoutAnyContent() throws {
+    let emptyPayloadData = try JSONEncoder().encode(SettingsBackupPayload())
+
+    XCTAssertThrowsError(try RadioSessionSettingsBackupCodec.decodePayload(emptyPayloadData)) { error in
+      XCTAssertTrue(error.localizedDescription.contains("does not contain any data"))
+    }
+  }
+
+  func testSettingsBackupPayloadRejectsEmptyJsonObject() throws {
+    XCTAssertThrowsError(try RadioSessionSettingsBackupCodec.decodePayload(Data("{}".utf8))) { error in
+      XCTAssertTrue(error.localizedDescription.contains("does not contain any data"))
+    }
+  }
+
+  func testSettingsBackupFilenameUsesJsonExtension() {
+    XCTAssertTrue(SettingsBackupDocument.defaultFilename.hasSuffix(".json"))
+  }
+
   func testKiwiPassbandIsStoredPerNormalizedMode() {
     var settings = RadioSessionSettings.default
 
@@ -280,8 +439,8 @@ final class RadioSessionSettingsTests: XCTestCase {
     XCTAssertEqual(decoded.fmdxCustomScanMetadataWindowSeconds, 2.0, accuracy: 0.0001)
   }
 
-  func testTuneStepPreferenceModeDefaultsToManualAndRoundTrips() throws {
-    XCTAssertEqual(RadioSessionSettings.default.tuneStepPreferenceMode, .manual)
+  func testTuneStepPreferenceModeDefaultsToAutomaticAndRoundTrips() throws {
+    XCTAssertEqual(RadioSessionSettings.default.tuneStepPreferenceMode, .automatic)
 
     var settings = RadioSessionSettings.default
     settings.tuneStepPreferenceMode = .automatic

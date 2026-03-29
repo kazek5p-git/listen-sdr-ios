@@ -21,7 +21,7 @@ struct SettingsViewState: Equatable {
   var tuneStepOptions: [Int]
   var tuneStepPreferenceMode: TuneStepPreferenceMode
   var frequencyEntryCommitMode: FrequencyEntryCommitMode
-  var fmdxTuneConfirmationWarningsEnabled: Bool
+  var tuneConfirmationWarningsEnabled: Bool
   var voiceOverRDSAnnouncementMode: VoiceOverRDSAnnouncementMode
   var magicTapAction: MagicTapAction
   var accessibilityInteractionSoundsEnabled: Bool
@@ -31,7 +31,10 @@ struct SettingsViewState: Equatable {
   var accessibilitySelectionAnnouncementsEnabled: Bool
   var accessibilityConnectionSoundsEnabled: Bool
   var accessibilityRecordingSoundsEnabled: Bool
-  var accessibilitySpeechLoudnessLevelingEnabled: Bool
+  var accessibilitySpeechLoudnessLevelingMode: SpeechLoudnessLevelingMode
+  var accessibilitySpeechLoudnessCustomTargetRMS: Double
+  var accessibilitySpeechLoudnessCustomMaximumGain: Double
+  var accessibilitySpeechLoudnessCustomPeakLimit: Double
   var showTutorialOnLaunchEnabled: Bool
   var rememberSquelchOnConnectEnabled: Bool
   var openReceiverAfterHistoryRestore: Bool
@@ -39,6 +42,8 @@ struct SettingsViewState: Equatable {
   var includeRecentFrequenciesFromOtherReceivers: Bool
   var radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility
   var autoConnectSelectedProfileOnLaunch: Bool
+  var autoConnectSelectedProfileAfterSelection: Bool
+  var connectionNetworkPolicy: ConnectionNetworkPolicy
   var saveChannelScannerResultsEnabled: Bool
   var stopChannelScannerOnSignal: Bool
   var filterChannelScannerInterferenceEnabled: Bool
@@ -60,6 +65,11 @@ struct SettingsViewState: Equatable {
   var audioQualityInsight: AudioQualityInsight?
   var audioSuggestionInsight: AudioSuggestionInsight?
   var canReconnectSelectedProfile: Bool
+  var backupIncludesAppSettings: Bool
+  var backupIncludesProfiles: Bool
+  var backupIncludesProfilePasswords: Bool
+  var backupIncludesFavorites: Bool
+  var backupIncludesHistory: Bool
 
   static let empty = SettingsViewState(
     hasSavedSettingsSnapshot: false,
@@ -68,9 +78,9 @@ struct SettingsViewState: Equatable {
     tuningGestureDirection: .natural,
     tuneStepHz: RadioSessionSettings.default.tuneStepHz,
     tuneStepOptions: [],
-    tuneStepPreferenceMode: .manual,
+    tuneStepPreferenceMode: .automatic,
     frequencyEntryCommitMode: .automatic,
-    fmdxTuneConfirmationWarningsEnabled: false,
+    tuneConfirmationWarningsEnabled: false,
     voiceOverRDSAnnouncementMode: .off,
     magicTapAction: .toggleMute,
     accessibilityInteractionSoundsEnabled: RadioSessionSettings.default.accessibilityInteractionSoundsEnabled,
@@ -80,7 +90,10 @@ struct SettingsViewState: Equatable {
     accessibilitySelectionAnnouncementsEnabled: RadioSessionSettings.default.accessibilitySelectionAnnouncementsEnabled,
     accessibilityConnectionSoundsEnabled: RadioSessionSettings.default.accessibilityConnectionSoundsEnabled,
     accessibilityRecordingSoundsEnabled: RadioSessionSettings.default.accessibilityRecordingSoundsEnabled,
-    accessibilitySpeechLoudnessLevelingEnabled: RadioSessionSettings.default.accessibilitySpeechLoudnessLevelingEnabled,
+    accessibilitySpeechLoudnessLevelingMode: RadioSessionSettings.default.accessibilitySpeechLoudnessLevelingMode,
+    accessibilitySpeechLoudnessCustomTargetRMS: RadioSessionSettings.default.accessibilitySpeechLoudnessCustomTargetRMS,
+    accessibilitySpeechLoudnessCustomMaximumGain: RadioSessionSettings.default.accessibilitySpeechLoudnessCustomMaximumGain,
+    accessibilitySpeechLoudnessCustomPeakLimit: RadioSessionSettings.default.accessibilitySpeechLoudnessCustomPeakLimit,
     showTutorialOnLaunchEnabled: RadioSessionSettings.default.showTutorialOnLaunchEnabled,
     rememberSquelchOnConnectEnabled: RadioSessionSettings.default.rememberSquelchOnConnectEnabled,
     openReceiverAfterHistoryRestore: false,
@@ -88,6 +101,8 @@ struct SettingsViewState: Equatable {
     includeRecentFrequenciesFromOtherReceivers: RadioSessionSettings.default.includeRecentFrequenciesFromOtherReceivers,
     radiosSearchFiltersVisibility: RadioSessionSettings.default.radiosSearchFiltersVisibility,
     autoConnectSelectedProfileOnLaunch: false,
+    autoConnectSelectedProfileAfterSelection: false,
+    connectionNetworkPolicy: RadioSessionSettings.default.connectionNetworkPolicy,
     saveChannelScannerResultsEnabled: RadioSessionSettings.default.saveChannelScannerResultsEnabled,
     stopChannelScannerOnSignal: RadioSessionSettings.default.stopChannelScannerOnSignal,
     filterChannelScannerInterferenceEnabled: RadioSessionSettings.default.filterChannelScannerInterferenceEnabled,
@@ -108,7 +123,12 @@ struct SettingsViewState: Equatable {
     mixWithOtherAudioApps: RadioSessionSettings.default.mixWithOtherAudioApps,
     audioQualityInsight: nil,
     audioSuggestionInsight: nil,
-    canReconnectSelectedProfile: false
+    canReconnectSelectedProfile: false,
+    backupIncludesAppSettings: true,
+    backupIncludesProfiles: true,
+    backupIncludesProfilePasswords: false,
+    backupIncludesFavorites: true,
+    backupIncludesHistory: false
   )
 }
 
@@ -120,15 +140,27 @@ final class SettingsViewController: ObservableObject {
   private weak var accessibilityState: AppAccessibilityState?
   private weak var radioSession: RadioSessionViewModel?
   private weak var profileStore: ProfileStore?
+  private weak var favoritesStore: FavoritesStore?
+  private weak var historyStore: ListeningHistoryStore?
+  private let defaults = UserDefaults.standard
   private var cancellables: Set<AnyCancellable> = []
+  private let backupIncludesAppSettingsKey = "ListenSDR.settingsBackup.includeAppSettings.v1"
+  private let backupIncludesProfilesKey = "ListenSDR.settingsBackup.includeProfiles.v1"
+  private let backupIncludesProfilePasswordsKey = "ListenSDR.settingsBackup.includeProfilePasswords.v1"
+  private let backupIncludesFavoritesKey = "ListenSDR.settingsBackup.includeFavorites.v1"
+  private let backupIncludesHistoryKey = "ListenSDR.settingsBackup.includeHistory.v1"
 
   func bind(
     radioSession: RadioSessionViewModel,
     profileStore: ProfileStore,
+    favoritesStore: FavoritesStore,
+    historyStore: ListeningHistoryStore,
     accessibilityState: AppAccessibilityState
   ) {
     let isSameBinding = self.radioSession === radioSession
       && self.profileStore === profileStore
+      && self.favoritesStore === favoritesStore
+      && self.historyStore === historyStore
       && self.accessibilityState === accessibilityState
     guard !isSameBinding else {
       refreshState(force: true)
@@ -138,6 +170,8 @@ final class SettingsViewController: ObservableObject {
 
     self.radioSession = radioSession
     self.profileStore = profileStore
+    self.favoritesStore = favoritesStore
+    self.historyStore = historyStore
     self.accessibilityState = accessibilityState
     cancellables.removeAll()
     refreshState(force: true)
@@ -152,6 +186,22 @@ final class SettingsViewController: ObservableObject {
       .store(in: &cancellables)
 
     profileStore.objectWillChange
+      .sink { [weak self] _ in
+        Task { @MainActor [weak self] in
+          self?.refreshState()
+        }
+      }
+      .store(in: &cancellables)
+
+    favoritesStore.objectWillChange
+      .sink { [weak self] _ in
+        Task { @MainActor [weak self] in
+          self?.refreshState()
+        }
+      }
+      .store(in: &cancellables)
+
+    historyStore.objectWillChange
       .sink { [weak self] _ in
         Task { @MainActor [weak self] in
           self?.refreshState()
@@ -178,14 +228,34 @@ final class SettingsViewController: ObservableObject {
   }
 
   func makeSettingsBackupDocument() throws -> SettingsBackupDocument {
-    guard let radioSession else {
+    guard let radioSession, let profileStore else {
       throw NSError(
         domain: "ListenSDR.SettingsBackup",
         code: 1,
         userInfo: [NSLocalizedDescriptionKey: "Settings are not available yet."]
       )
     }
-    return try SettingsBackupDocument(data: RadioSessionSettingsBackupCodec.encode(radioSession.settings))
+
+    let options = currentBackupOptions()
+    guard options.hasAnyEnabled else {
+      throw NSError(
+        domain: "ListenSDR.SettingsBackup",
+        code: 7,
+        userInfo: [NSLocalizedDescriptionKey: "Choose at least one type of data to include in the backup."]
+      )
+    }
+
+    let payload = SettingsBackupPayload(
+      settings: options.includeAppSettings ? radioSession.settings : nil,
+      profiles: options.includeProfiles ? profileStore.exportProfilesForBackup(includePasswords: options.includeProfilePasswords) : nil,
+      selectedProfileID: options.includeProfiles ? profileStore.selectedProfileID : nil,
+      favoriteReceivers: options.includeFavorites ? favoritesStore?.favoriteReceivers : nil,
+      favoriteStations: options.includeFavorites ? favoritesStore?.favoriteStations : nil,
+      recentReceivers: options.includeHistory ? historyStore?.recentReceivers : nil,
+      recentListening: options.includeHistory ? historyStore?.recentListening : nil,
+      recentFrequencies: options.includeHistory ? historyStore?.recentFrequencies : nil
+    )
+    return try SettingsBackupDocument(data: RadioSessionSettingsBackupCodec.encode(payload: payload))
   }
 
   func importSettingsBackup(from data: Data) throws {
@@ -196,13 +266,59 @@ final class SettingsViewController: ObservableObject {
         userInfo: [NSLocalizedDescriptionKey: "Settings are not available yet."]
       )
     }
-    let imported = try RadioSessionSettingsBackupCodec.decode(data)
-    radioSession.importSettingsBackup(imported)
+    let imported = try RadioSessionSettingsBackupCodec.decodePayload(data)
+    if let settings = imported.settings {
+      radioSession.importSettingsBackup(settings)
+    }
+    if let profiles = imported.profiles {
+      profileStore?.restoreProfilesFromBackup(profiles, selectedProfileID: imported.selectedProfileID)
+    }
+    if imported.favoriteReceivers != nil || imported.favoriteStations != nil {
+      favoritesStore?.restoreBackup(
+        favoriteReceivers: imported.favoriteReceivers ?? [],
+        favoriteStations: imported.favoriteStations ?? []
+      )
+    }
+    if imported.recentReceivers != nil || imported.recentListening != nil || imported.recentFrequencies != nil {
+      historyStore?.restoreBackup(
+        recentReceivers: imported.recentReceivers ?? [],
+        recentListening: imported.recentListening ?? [],
+        recentFrequencies: imported.recentFrequencies ?? []
+      )
+    }
     refreshState(force: true)
   }
 
   func restoreSavedSettingsSnapshot() {
     radioSession?.restoreSavedSettingsSnapshot()
+    refreshState(force: true)
+  }
+
+  func setBackupIncludesAppSettings(_ value: Bool) {
+    defaults.set(value, forKey: backupIncludesAppSettingsKey)
+    refreshState(force: true)
+  }
+
+  func setBackupIncludesProfiles(_ value: Bool) {
+    defaults.set(value, forKey: backupIncludesProfilesKey)
+    if !value {
+      defaults.set(false, forKey: backupIncludesProfilePasswordsKey)
+    }
+    refreshState(force: true)
+  }
+
+  func setBackupIncludesProfilePasswords(_ value: Bool) {
+    defaults.set(value, forKey: backupIncludesProfilePasswordsKey)
+    refreshState(force: true)
+  }
+
+  func setBackupIncludesFavorites(_ value: Bool) {
+    defaults.set(value, forKey: backupIncludesFavoritesKey)
+    refreshState(force: true)
+  }
+
+  func setBackupIncludesHistory(_ value: Bool) {
+    defaults.set(value, forKey: backupIncludesHistoryKey)
     refreshState(force: true)
   }
 
@@ -236,8 +352,8 @@ final class SettingsViewController: ObservableObject {
     refreshState(force: true)
   }
 
-  func setFMDXTuneConfirmationWarningsEnabled(_ isEnabled: Bool) {
-    radioSession?.setFMDXTuneConfirmationWarningsEnabled(isEnabled)
+  func setTuneConfirmationWarningsEnabled(_ isEnabled: Bool) {
+    radioSession?.setTuneConfirmationWarningsEnabled(isEnabled)
     refreshState(force: true)
   }
 
@@ -286,8 +402,23 @@ final class SettingsViewController: ObservableObject {
     refreshState(force: true)
   }
 
-  func setAccessibilitySpeechLoudnessLevelingEnabled(_ isEnabled: Bool) {
-    radioSession?.setAccessibilitySpeechLoudnessLevelingEnabled(isEnabled)
+  func setSpeechLoudnessLevelingMode(_ mode: SpeechLoudnessLevelingMode) {
+    radioSession?.setSpeechLoudnessLevelingMode(mode)
+    refreshState(force: true)
+  }
+
+  func setSpeechLoudnessCustomTargetRMS(_ value: Double) {
+    radioSession?.setSpeechLoudnessCustomTargetRMS(value)
+    refreshState(force: true)
+  }
+
+  func setSpeechLoudnessCustomMaximumGain(_ value: Double) {
+    radioSession?.setSpeechLoudnessCustomMaximumGain(value)
+    refreshState(force: true)
+  }
+
+  func setSpeechLoudnessCustomPeakLimit(_ value: Double) {
+    radioSession?.setSpeechLoudnessCustomPeakLimit(value)
     refreshState(force: true)
   }
 
@@ -323,6 +454,16 @@ final class SettingsViewController: ObservableObject {
 
   func setAutoConnectSelectedProfileOnLaunch(_ isEnabled: Bool) {
     radioSession?.setAutoConnectSelectedProfileOnLaunch(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setAutoConnectSelectedProfileAfterSelection(_ isEnabled: Bool) {
+    radioSession?.setAutoConnectSelectedProfileAfterSelection(isEnabled)
+    refreshState(force: true)
+  }
+
+  func setConnectionNetworkPolicy(_ policy: ConnectionNetworkPolicy) {
+    radioSession?.setConnectionNetworkPolicy(policy)
     refreshState(force: true)
   }
 
@@ -448,6 +589,7 @@ final class SettingsViewController: ObservableObject {
 
   private func makeState() -> SettingsViewState {
     guard let radioSession else { return .empty }
+    let backupOptions = currentBackupOptions()
 
     let backend = radioSession.currentTuningBackend ?? profileStore?.selectedProfile?.backend
     let tuneStepOptions = backend.map { radioSession.tuneStepOptions(for: $0) } ?? []
@@ -480,7 +622,7 @@ final class SettingsViewController: ObservableObject {
       tuneStepOptions: tuneStepOptions,
       tuneStepPreferenceMode: radioSession.settings.tuneStepPreferenceMode,
       frequencyEntryCommitMode: radioSession.settings.frequencyEntryCommitMode,
-      fmdxTuneConfirmationWarningsEnabled: radioSession.settings.fmdxTuneConfirmationWarningsEnabled,
+      tuneConfirmationWarningsEnabled: radioSession.settings.tuneConfirmationWarningsEnabled,
       voiceOverRDSAnnouncementMode: radioSession.settings.voiceOverRDSAnnouncementMode,
       magicTapAction: radioSession.settings.magicTapAction,
       accessibilityInteractionSoundsEnabled: radioSession.settings.accessibilityInteractionSoundsEnabled,
@@ -490,7 +632,10 @@ final class SettingsViewController: ObservableObject {
       accessibilitySelectionAnnouncementsEnabled: radioSession.settings.accessibilitySelectionAnnouncementsEnabled,
       accessibilityConnectionSoundsEnabled: radioSession.settings.accessibilityConnectionSoundsEnabled,
       accessibilityRecordingSoundsEnabled: radioSession.settings.accessibilityRecordingSoundsEnabled,
-      accessibilitySpeechLoudnessLevelingEnabled: radioSession.settings.accessibilitySpeechLoudnessLevelingEnabled,
+      accessibilitySpeechLoudnessLevelingMode: radioSession.settings.accessibilitySpeechLoudnessLevelingMode,
+      accessibilitySpeechLoudnessCustomTargetRMS: radioSession.settings.accessibilitySpeechLoudnessCustomTargetRMS,
+      accessibilitySpeechLoudnessCustomMaximumGain: radioSession.settings.accessibilitySpeechLoudnessCustomMaximumGain,
+      accessibilitySpeechLoudnessCustomPeakLimit: radioSession.settings.accessibilitySpeechLoudnessCustomPeakLimit,
       showTutorialOnLaunchEnabled: radioSession.settings.showTutorialOnLaunchEnabled,
       rememberSquelchOnConnectEnabled: radioSession.settings.rememberSquelchOnConnectEnabled,
       openReceiverAfterHistoryRestore: radioSession.settings.openReceiverAfterHistoryRestore,
@@ -498,6 +643,8 @@ final class SettingsViewController: ObservableObject {
       includeRecentFrequenciesFromOtherReceivers: radioSession.settings.includeRecentFrequenciesFromOtherReceivers,
       radiosSearchFiltersVisibility: radioSession.settings.radiosSearchFiltersVisibility,
       autoConnectSelectedProfileOnLaunch: radioSession.settings.autoConnectSelectedProfileOnLaunch,
+      autoConnectSelectedProfileAfterSelection: radioSession.settings.autoConnectSelectedProfileAfterSelection,
+      connectionNetworkPolicy: radioSession.settings.connectionNetworkPolicy,
       saveChannelScannerResultsEnabled: radioSession.settings.saveChannelScannerResultsEnabled,
       stopChannelScannerOnSignal: radioSession.settings.stopChannelScannerOnSignal,
       filterChannelScannerInterferenceEnabled: radioSession.settings.filterChannelScannerInterferenceEnabled,
@@ -518,7 +665,37 @@ final class SettingsViewController: ObservableObject {
       mixWithOtherAudioApps: radioSession.settings.mixWithOtherAudioApps,
       audioQualityInsight: audioQualityInsight,
       audioSuggestionInsight: audioSuggestionInsight,
-      canReconnectSelectedProfile: profileStore?.selectedProfile != nil
+      canReconnectSelectedProfile: profileStore?.selectedProfile != nil,
+      backupIncludesAppSettings: backupOptions.includeAppSettings,
+      backupIncludesProfiles: backupOptions.includeProfiles,
+      backupIncludesProfilePasswords: backupOptions.includeProfilePasswords,
+      backupIncludesFavorites: backupOptions.includeFavorites,
+      backupIncludesHistory: backupOptions.includeHistory
+    )
+  }
+}
+
+private extension SettingsViewController {
+  struct BackupOptions {
+    let includeAppSettings: Bool
+    let includeProfiles: Bool
+    let includeProfilePasswords: Bool
+    let includeFavorites: Bool
+    let includeHistory: Bool
+
+    var hasAnyEnabled: Bool {
+      includeAppSettings || includeProfiles || includeFavorites || includeHistory
+    }
+  }
+
+  func currentBackupOptions() -> BackupOptions {
+    let includeProfiles = defaults.object(forKey: backupIncludesProfilesKey) as? Bool ?? true
+    return BackupOptions(
+      includeAppSettings: defaults.object(forKey: backupIncludesAppSettingsKey) as? Bool ?? true,
+      includeProfiles: includeProfiles,
+      includeProfilePasswords: includeProfiles && (defaults.object(forKey: backupIncludesProfilePasswordsKey) as? Bool ?? false),
+      includeFavorites: defaults.object(forKey: backupIncludesFavoritesKey) as? Bool ?? true,
+      includeHistory: defaults.object(forKey: backupIncludesHistoryKey) as? Bool ?? false
     )
   }
 }

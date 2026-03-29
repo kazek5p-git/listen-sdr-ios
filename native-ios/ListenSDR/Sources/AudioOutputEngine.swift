@@ -51,7 +51,7 @@ final class AudioOutputEngine {
   private var muted = false
   private var scannerPlaybackMuted = false
   private var mixWithOtherAudioApps = false
-  private var speechLoudnessLevelingEnabled = false
+  private var speechLoudnessLevelingMode: SpeechLoudnessLevelingMode = .off
   private let speechLoudnessLeveler = SpeechLoudnessLeveler()
   private var lastInputSampleRateHz: Int?
   private var lastEnqueueAt = Date.distantPast
@@ -85,7 +85,7 @@ final class AudioOutputEngine {
       to: outputSampleRate
     )
     guard !resampledSamples.isEmpty else { return }
-    let playbackSamples = speechLoudnessLevelingEnabled
+    let playbackSamples = speechLoudnessLevelingMode != .off
       ? speechLoudnessLeveler.process(resampledSamples)
       : resampledSamples
     let bufferDurationSeconds = Double(playbackSamples.count) / outputSampleRate
@@ -235,10 +235,17 @@ final class AudioOutputEngine {
     }
   }
 
-  func setSpeechLoudnessLevelingEnabled(_ enabled: Bool) {
-    guard speechLoudnessLevelingEnabled != enabled else { return }
-    speechLoudnessLevelingEnabled = enabled
-    if !enabled {
+  func setSpeechLoudnessLeveling(
+    mode: SpeechLoudnessLevelingMode,
+    customProfile: SpeechLoudnessLevelingProfile
+  ) {
+    let resolvedProfile = mode == .custom
+      ? customProfile
+      : AudioOutputEngine.profile(for: mode)
+    let modeChanged = speechLoudnessLevelingMode != mode
+    speechLoudnessLevelingMode = mode
+    speechLoudnessLeveler.updateProfile(resolvedProfile)
+    if modeChanged && mode == .off {
       speechLoudnessLeveler.reset()
     }
   }
@@ -366,6 +373,19 @@ final class AudioOutputEngine {
       options.insert(.mixWithOthers)
     }
     return options
+  }
+
+  private static func profile(for mode: SpeechLoudnessLevelingMode) -> SpeechLoudnessLevelingProfile {
+    switch mode {
+    case .off, .gentle:
+      return .gentle
+    case .strong:
+      return .strong
+    case .veryStrong:
+      return .veryStrong
+    case .custom:
+      return .gentle
+    }
   }
 
   private func deactivateAudioSessionIfPossible() {

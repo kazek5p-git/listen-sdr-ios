@@ -457,7 +457,11 @@ struct RadioSessionSettings: Codable, Equatable {
   var accessibilitySelectionAnnouncementsEnabled: Bool
   var accessibilityConnectionSoundsEnabled: Bool
   var accessibilityRecordingSoundsEnabled: Bool
-  var accessibilitySpeechLoudnessLevelingEnabled: Bool
+  var accessibilitySpeechLoudnessLevelingMode: SpeechLoudnessLevelingMode
+  var accessibilitySpeechLoudnessCustomTargetRMS: Double
+  var accessibilitySpeechLoudnessCustomMaximumGain: Double
+  var accessibilitySpeechLoudnessCustomPeakLimit: Double
+  var connectionNetworkPolicy: ConnectionNetworkPolicy
   var showTutorialOnLaunchEnabled: Bool
   var rememberSquelchOnConnectEnabled: Bool
   var dxNightModeEnabled: Bool
@@ -473,12 +477,13 @@ struct RadioSessionSettings: Codable, Equatable {
   var fmdxCustomScanMetadataWindowSeconds: Double
   var audioSuggestionScope: AudioSuggestionScope
   var tuningGestureDirection: TuningGestureDirection
-  var fmdxTuneConfirmationWarningsEnabled: Bool
+  var tuneConfirmationWarningsEnabled: Bool
   var openReceiverAfterHistoryRestore: Bool
   var showRecentFrequencies: Bool
   var includeRecentFrequenciesFromOtherReceivers: Bool
   var radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility
   var autoConnectSelectedProfileOnLaunch: Bool
+  var autoConnectSelectedProfileAfterSelection: Bool
   var saveChannelScannerResultsEnabled: Bool
   var stopChannelScannerOnSignal: Bool
   var filterChannelScannerInterferenceEnabled: Bool
@@ -492,6 +497,16 @@ struct RadioSessionSettings: Codable, Equatable {
     set { voiceOverRDSAnnouncementMode = newValue ? .full : .off }
   }
 
+  var accessibilitySpeechLoudnessLevelingEnabled: Bool {
+    get { accessibilitySpeechLoudnessLevelingMode != .off }
+    set { accessibilitySpeechLoudnessLevelingMode = newValue ? .gentle : .off }
+  }
+
+  var fmdxTuneConfirmationWarningsEnabled: Bool {
+    get { tuneConfirmationWarningsEnabled }
+    set { tuneConfirmationWarningsEnabled = newValue }
+  }
+
   static let supportedTuneStepsHz: [Int] = [
     10, 50, 100, 500, 1_000, 5_000, 6_250, 8_330, 9_000, 10_000, 12_500, 25_000,
     50_000, 100_000, 200_000
@@ -501,7 +516,7 @@ struct RadioSessionSettings: Codable, Equatable {
     frequencyHz: 7_050_000,
     tuneStepHz: 100,
     preferredTuneStepHz: 100,
-    tuneStepPreferenceMode: .manual,
+    tuneStepPreferenceMode: .automatic,
     frequencyEntryCommitMode: .automatic,
     mode: .am,
     rfGain: 30,
@@ -542,7 +557,11 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilitySelectionAnnouncementsEnabled: false,
     accessibilityConnectionSoundsEnabled: false,
     accessibilityRecordingSoundsEnabled: true,
-    accessibilitySpeechLoudnessLevelingEnabled: false,
+    accessibilitySpeechLoudnessLevelingMode: .off,
+    accessibilitySpeechLoudnessCustomTargetRMS: 0.22,
+    accessibilitySpeechLoudnessCustomMaximumGain: 12.0,
+    accessibilitySpeechLoudnessCustomPeakLimit: 0.92,
+    connectionNetworkPolicy: .wifiAndCellular,
     showTutorialOnLaunchEnabled: true,
     rememberSquelchOnConnectEnabled: true,
     dxNightModeEnabled: false,
@@ -558,12 +577,13 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxCustomScanMetadataWindowSeconds: 0.90,
     audioSuggestionScope: .fmDxOnly,
     tuningGestureDirection: .natural,
-    fmdxTuneConfirmationWarningsEnabled: false,
+    tuneConfirmationWarningsEnabled: false,
     openReceiverAfterHistoryRestore: false,
     showRecentFrequencies: true,
     includeRecentFrequenciesFromOtherReceivers: false,
     radiosSearchFiltersVisibility: .alwaysVisible,
     autoConnectSelectedProfileOnLaunch: false,
+    autoConnectSelectedProfileAfterSelection: false,
     saveChannelScannerResultsEnabled: false,
     stopChannelScannerOnSignal: false,
     filterChannelScannerInterferenceEnabled: false,
@@ -620,6 +640,11 @@ struct RadioSessionSettings: Codable, Equatable {
     case accessibilityConnectionSoundsEnabled
     case accessibilityRecordingSoundsEnabled
     case accessibilitySpeechLoudnessLevelingEnabled
+    case accessibilitySpeechLoudnessLevelingMode
+    case accessibilitySpeechLoudnessCustomTargetRMS
+    case accessibilitySpeechLoudnessCustomMaximumGain
+    case accessibilitySpeechLoudnessCustomPeakLimit
+    case connectionNetworkPolicy
     case showTutorialOnLaunchEnabled
     case rememberSquelchOnConnectEnabled
     case dxNightModeEnabled
@@ -635,12 +660,14 @@ struct RadioSessionSettings: Codable, Equatable {
     case fmdxCustomScanMetadataWindowSeconds
     case audioSuggestionScope
     case tuningGestureDirection
+    case tuneConfirmationWarningsEnabled
     case fmdxTuneConfirmationWarningsEnabled
     case openReceiverAfterHistoryRestore
     case showRecentFrequencies
     case includeRecentFrequenciesFromOtherReceivers
     case radiosSearchFiltersVisibility
     case autoConnectSelectedProfileOnLaunch
+    case autoConnectSelectedProfileAfterSelection
     case saveChannelScannerResultsEnabled
     case stopChannelScannerOnSignal
     case filterChannelScannerInterferenceEnabled
@@ -654,7 +681,7 @@ struct RadioSessionSettings: Codable, Equatable {
     frequencyHz: Int,
     tuneStepHz: Int,
     preferredTuneStepHz: Int,
-    tuneStepPreferenceMode: TuneStepPreferenceMode = .manual,
+    tuneStepPreferenceMode: TuneStepPreferenceMode = .automatic,
     frequencyEntryCommitMode: FrequencyEntryCommitMode = .automatic,
     mode: DemodulationMode,
     rfGain: Double,
@@ -695,7 +722,11 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilitySelectionAnnouncementsEnabled: Bool = Self.default.accessibilitySelectionAnnouncementsEnabled,
     accessibilityConnectionSoundsEnabled: Bool = Self.default.accessibilityConnectionSoundsEnabled,
     accessibilityRecordingSoundsEnabled: Bool = Self.default.accessibilityRecordingSoundsEnabled,
-    accessibilitySpeechLoudnessLevelingEnabled: Bool = Self.default.accessibilitySpeechLoudnessLevelingEnabled,
+    accessibilitySpeechLoudnessLevelingMode: SpeechLoudnessLevelingMode = Self.default.accessibilitySpeechLoudnessLevelingMode,
+    accessibilitySpeechLoudnessCustomTargetRMS: Double = Self.default.accessibilitySpeechLoudnessCustomTargetRMS,
+    accessibilitySpeechLoudnessCustomMaximumGain: Double = Self.default.accessibilitySpeechLoudnessCustomMaximumGain,
+    accessibilitySpeechLoudnessCustomPeakLimit: Double = Self.default.accessibilitySpeechLoudnessCustomPeakLimit,
+    connectionNetworkPolicy: ConnectionNetworkPolicy = Self.default.connectionNetworkPolicy,
     showTutorialOnLaunchEnabled: Bool = Self.default.showTutorialOnLaunchEnabled,
     rememberSquelchOnConnectEnabled: Bool = Self.default.rememberSquelchOnConnectEnabled,
     dxNightModeEnabled: Bool,
@@ -711,12 +742,13 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxCustomScanMetadataWindowSeconds: Double = 0.90,
     audioSuggestionScope: AudioSuggestionScope,
     tuningGestureDirection: TuningGestureDirection,
-    fmdxTuneConfirmationWarningsEnabled: Bool = false,
+    tuneConfirmationWarningsEnabled: Bool = false,
     openReceiverAfterHistoryRestore: Bool,
     showRecentFrequencies: Bool = Self.default.showRecentFrequencies,
     includeRecentFrequenciesFromOtherReceivers: Bool = Self.default.includeRecentFrequenciesFromOtherReceivers,
     radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility = Self.default.radiosSearchFiltersVisibility,
     autoConnectSelectedProfileOnLaunch: Bool,
+    autoConnectSelectedProfileAfterSelection: Bool = Self.default.autoConnectSelectedProfileAfterSelection,
     saveChannelScannerResultsEnabled: Bool = Self.default.saveChannelScannerResultsEnabled,
     stopChannelScannerOnSignal: Bool = Self.default.stopChannelScannerOnSignal,
     filterChannelScannerInterferenceEnabled: Bool = Self.default.filterChannelScannerInterferenceEnabled,
@@ -791,7 +823,17 @@ struct RadioSessionSettings: Codable, Equatable {
     self.accessibilitySelectionAnnouncementsEnabled = resolvedSelectionAnnouncementMode != .off
     self.accessibilityConnectionSoundsEnabled = accessibilityConnectionSoundsEnabled
     self.accessibilityRecordingSoundsEnabled = accessibilityRecordingSoundsEnabled
-    self.accessibilitySpeechLoudnessLevelingEnabled = accessibilitySpeechLoudnessLevelingEnabled
+    self.accessibilitySpeechLoudnessLevelingMode = accessibilitySpeechLoudnessLevelingMode
+    self.accessibilitySpeechLoudnessCustomTargetRMS = Self.clampedSpeechLoudnessTargetRMS(
+      accessibilitySpeechLoudnessCustomTargetRMS
+    )
+    self.accessibilitySpeechLoudnessCustomMaximumGain = Self.clampedSpeechLoudnessMaximumGain(
+      accessibilitySpeechLoudnessCustomMaximumGain
+    )
+    self.accessibilitySpeechLoudnessCustomPeakLimit = Self.clampedSpeechLoudnessPeakLimit(
+      accessibilitySpeechLoudnessCustomPeakLimit
+    )
+    self.connectionNetworkPolicy = connectionNetworkPolicy
     self.showTutorialOnLaunchEnabled = showTutorialOnLaunchEnabled
     self.rememberSquelchOnConnectEnabled = rememberSquelchOnConnectEnabled
     self.dxNightModeEnabled = dxNightModeEnabled
@@ -810,12 +852,13 @@ struct RadioSessionSettings: Codable, Equatable {
     self.fmdxCustomScanMetadataWindowSeconds = Self.clampedFMDXCustomScanMetadataWindowSeconds(fmdxCustomScanMetadataWindowSeconds)
     self.audioSuggestionScope = audioSuggestionScope
     self.tuningGestureDirection = tuningGestureDirection
-    self.fmdxTuneConfirmationWarningsEnabled = fmdxTuneConfirmationWarningsEnabled
+    self.tuneConfirmationWarningsEnabled = tuneConfirmationWarningsEnabled
     self.openReceiverAfterHistoryRestore = openReceiverAfterHistoryRestore
     self.showRecentFrequencies = showRecentFrequencies
     self.includeRecentFrequenciesFromOtherReceivers = includeRecentFrequenciesFromOtherReceivers
     self.radiosSearchFiltersVisibility = radiosSearchFiltersVisibility
     self.autoConnectSelectedProfileOnLaunch = autoConnectSelectedProfileOnLaunch
+    self.autoConnectSelectedProfileAfterSelection = autoConnectSelectedProfileAfterSelection
     self.saveChannelScannerResultsEnabled = saveChannelScannerResultsEnabled
     self.stopChannelScannerOnSignal = stopChannelScannerOnSignal
     self.filterChannelScannerInterferenceEnabled = filterChannelScannerInterferenceEnabled
@@ -975,9 +1018,26 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilityRecordingSoundsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .accessibilityRecordingSoundsEnabled)
       ?? Self.default.accessibilityRecordingSoundsEnabled
-    accessibilitySpeechLoudnessLevelingEnabled =
+    let legacySpeechLoudnessEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .accessibilitySpeechLoudnessLevelingEnabled)
-      ?? Self.default.accessibilitySpeechLoudnessLevelingEnabled
+    accessibilitySpeechLoudnessLevelingMode =
+      try container.decodeIfPresent(SpeechLoudnessLevelingMode.self, forKey: .accessibilitySpeechLoudnessLevelingMode)
+      ?? (legacySpeechLoudnessEnabled == true ? .gentle : Self.default.accessibilitySpeechLoudnessLevelingMode)
+    accessibilitySpeechLoudnessCustomTargetRMS = Self.clampedSpeechLoudnessTargetRMS(
+      try container.decodeIfPresent(Double.self, forKey: .accessibilitySpeechLoudnessCustomTargetRMS)
+      ?? Self.default.accessibilitySpeechLoudnessCustomTargetRMS
+    )
+    accessibilitySpeechLoudnessCustomMaximumGain = Self.clampedSpeechLoudnessMaximumGain(
+      try container.decodeIfPresent(Double.self, forKey: .accessibilitySpeechLoudnessCustomMaximumGain)
+      ?? Self.default.accessibilitySpeechLoudnessCustomMaximumGain
+    )
+    accessibilitySpeechLoudnessCustomPeakLimit = Self.clampedSpeechLoudnessPeakLimit(
+      try container.decodeIfPresent(Double.self, forKey: .accessibilitySpeechLoudnessCustomPeakLimit)
+      ?? Self.default.accessibilitySpeechLoudnessCustomPeakLimit
+    )
+    connectionNetworkPolicy =
+      try container.decodeIfPresent(ConnectionNetworkPolicy.self, forKey: .connectionNetworkPolicy)
+      ?? Self.default.connectionNetworkPolicy
     showTutorialOnLaunchEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .showTutorialOnLaunchEnabled)
       ?? Self.default.showTutorialOnLaunchEnabled
@@ -1023,9 +1083,14 @@ struct RadioSessionSettings: Codable, Equatable {
       ?? Self.default.audioSuggestionScope
     tuningGestureDirection = try container.decodeIfPresent(TuningGestureDirection.self, forKey: .tuningGestureDirection)
       ?? Self.default.tuningGestureDirection
-    fmdxTuneConfirmationWarningsEnabled =
+    let decodedTuneConfirmationWarningsEnabled =
+      try container.decodeIfPresent(Bool.self, forKey: .tuneConfirmationWarningsEnabled)
+    let decodedLegacyFMDXTuneConfirmationWarningsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .fmdxTuneConfirmationWarningsEnabled)
-      ?? Self.default.fmdxTuneConfirmationWarningsEnabled
+    tuneConfirmationWarningsEnabled =
+      decodedTuneConfirmationWarningsEnabled
+      ?? decodedLegacyFMDXTuneConfirmationWarningsEnabled
+      ?? Self.default.tuneConfirmationWarningsEnabled
     openReceiverAfterHistoryRestore = try container.decodeIfPresent(Bool.self, forKey: .openReceiverAfterHistoryRestore)
       ?? Self.default.openReceiverAfterHistoryRestore
     showRecentFrequencies = try container.decodeIfPresent(Bool.self, forKey: .showRecentFrequencies)
@@ -1038,6 +1103,9 @@ struct RadioSessionSettings: Codable, Equatable {
       ?? Self.default.radiosSearchFiltersVisibility
     autoConnectSelectedProfileOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .autoConnectSelectedProfileOnLaunch)
       ?? Self.default.autoConnectSelectedProfileOnLaunch
+    autoConnectSelectedProfileAfterSelection =
+      try container.decodeIfPresent(Bool.self, forKey: .autoConnectSelectedProfileAfterSelection)
+      ?? Self.default.autoConnectSelectedProfileAfterSelection
     saveChannelScannerResultsEnabled = try container.decodeIfPresent(Bool.self, forKey: .saveChannelScannerResultsEnabled)
       ?? Self.default.saveChannelScannerResultsEnabled
     stopChannelScannerOnSignal = try container.decodeIfPresent(Bool.self, forKey: .stopChannelScannerOnSignal)
@@ -1107,7 +1175,11 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(accessibilitySelectionAnnouncementsEnabled, forKey: .accessibilitySelectionAnnouncementsEnabled)
     try container.encode(accessibilityConnectionSoundsEnabled, forKey: .accessibilityConnectionSoundsEnabled)
     try container.encode(accessibilityRecordingSoundsEnabled, forKey: .accessibilityRecordingSoundsEnabled)
-    try container.encode(accessibilitySpeechLoudnessLevelingEnabled, forKey: .accessibilitySpeechLoudnessLevelingEnabled)
+    try container.encode(accessibilitySpeechLoudnessLevelingMode, forKey: .accessibilitySpeechLoudnessLevelingMode)
+    try container.encode(accessibilitySpeechLoudnessCustomTargetRMS, forKey: .accessibilitySpeechLoudnessCustomTargetRMS)
+    try container.encode(accessibilitySpeechLoudnessCustomMaximumGain, forKey: .accessibilitySpeechLoudnessCustomMaximumGain)
+    try container.encode(accessibilitySpeechLoudnessCustomPeakLimit, forKey: .accessibilitySpeechLoudnessCustomPeakLimit)
+    try container.encode(connectionNetworkPolicy, forKey: .connectionNetworkPolicy)
     try container.encode(showTutorialOnLaunchEnabled, forKey: .showTutorialOnLaunchEnabled)
     try container.encode(rememberSquelchOnConnectEnabled, forKey: .rememberSquelchOnConnectEnabled)
     try container.encode(dxNightModeEnabled, forKey: .dxNightModeEnabled)
@@ -1123,7 +1195,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(fmdxCustomScanMetadataWindowSeconds, forKey: .fmdxCustomScanMetadataWindowSeconds)
     try container.encode(audioSuggestionScope, forKey: .audioSuggestionScope)
     try container.encode(tuningGestureDirection, forKey: .tuningGestureDirection)
-    try container.encode(fmdxTuneConfirmationWarningsEnabled, forKey: .fmdxTuneConfirmationWarningsEnabled)
+    try container.encode(tuneConfirmationWarningsEnabled, forKey: .tuneConfirmationWarningsEnabled)
     try container.encode(openReceiverAfterHistoryRestore, forKey: .openReceiverAfterHistoryRestore)
     try container.encode(showRecentFrequencies, forKey: .showRecentFrequencies)
     try container.encode(
@@ -1132,6 +1204,7 @@ struct RadioSessionSettings: Codable, Equatable {
     )
     try container.encode(radiosSearchFiltersVisibility, forKey: .radiosSearchFiltersVisibility)
     try container.encode(autoConnectSelectedProfileOnLaunch, forKey: .autoConnectSelectedProfileOnLaunch)
+    try container.encode(autoConnectSelectedProfileAfterSelection, forKey: .autoConnectSelectedProfileAfterSelection)
     try container.encode(saveChannelScannerResultsEnabled, forKey: .saveChannelScannerResultsEnabled)
     try container.encode(stopChannelScannerOnSignal, forKey: .stopChannelScannerOnSignal)
     try container.encode(filterChannelScannerInterferenceEnabled, forKey: .filterChannelScannerInterferenceEnabled)
@@ -1146,6 +1219,18 @@ struct RadioSessionSettings: Codable, Equatable {
       return value
     }
     return supportedTuneStepsHz.min(by: { abs($0 - value) < abs($1 - value) }) ?? Self.default.tuneStepHz
+  }
+
+  static func clampedSpeechLoudnessTargetRMS(_ value: Double) -> Double {
+    min(max(value, 0.14), 0.34)
+  }
+
+  static func clampedSpeechLoudnessMaximumGain(_ value: Double) -> Double {
+    min(max(value, 4.0), 20.0)
+  }
+
+  static func clampedSpeechLoudnessPeakLimit(_ value: Double) -> Double {
+    min(max(value, 0.80), 0.98)
   }
 
   static func clampedOpenWebRXSquelchLevel(_ value: Int) -> Int {

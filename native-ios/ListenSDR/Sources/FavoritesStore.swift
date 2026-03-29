@@ -129,6 +129,19 @@ final class FavoritesStore: ObservableObject {
     return favoriteReceivers.compactMap { byID[$0.id] }
   }
 
+  func restoreBackup(
+    favoriteReceivers restoredReceivers: [FavoriteReceiver],
+    favoriteStations restoredStations: [FavoriteStation]
+  ) {
+    favoriteReceivers = restoredReceivers
+    sortFavoriteReceivers()
+    persistReceivers()
+
+    favoriteStations = restoredStations
+    sortFavoriteStations()
+    persistStations()
+  }
+
   private func toggleReceiver(_ receiver: FavoriteReceiver) {
     if let index = favoriteReceivers.firstIndex(where: { $0.id == receiver.id }) {
       favoriteReceivers.remove(at: index)

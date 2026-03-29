@@ -16,19 +16,20 @@ struct SettingsView: View {
     NavigationStack {
       Form {
         startupSection
+        connectionSection
         backupRestoreSection
         tuningSection
         scannerSections
         dxSection
-        historySection
-        radiosSection
-        audioSection
-        accessibilitySection
-        diagnosticsSection
-        feedbackSection
-        quickActionsSection
-        helpSection
-        authorSection
+      historySection
+      radiosSection
+      audioSection
+      accessibilitySection
+      diagnosticsSection
+      feedbackSection
+      helpSection
+      authorSection
+      privacyAndFeedbackSection
       }
       .voiceOverStable()
       .scrollContentBackground(.hidden)
@@ -52,17 +53,29 @@ struct SettingsView: View {
         defaultFilename: settingsController.settingsBackupSuggestedFilename
       ) { result in
         switch result {
-        case .success:
-          activeAlert = FeedbackServerAlert(
-            title: L10n.text(
-              "settings.backup.export.success.title",
-              fallback: "Settings backup saved"
-            ),
-            message: L10n.text(
-              "settings.backup.export.success.body",
-              fallback: "The settings backup file was saved successfully."
+        case let .success(url):
+          do {
+            let data = try SettingsBackupDocument.readData(from: url)
+            _ = try RadioSessionSettingsBackupCodec.decodePayload(data)
+            activeAlert = FeedbackServerAlert(
+              title: L10n.text(
+                "settings.backup.export.success.title",
+                fallback: "Settings backup saved"
+              ),
+              message: L10n.text(
+                "settings.backup.export.success.body",
+                fallback: "The settings backup file was saved successfully."
+              )
             )
-          )
+          } catch {
+            activeAlert = FeedbackServerAlert(
+              title: L10n.text(
+                "settings.backup.export.failure.title",
+                fallback: "Unable to save settings backup"
+              ),
+              message: error.localizedDescription
+            )
+          }
         case let .failure(error):
           activeAlert = FeedbackServerAlert(
             title: L10n.text(
@@ -139,25 +152,60 @@ struct SettingsView: View {
         )
       )
       .accessibilityHint(L10n.text("settings.session.auto_connect_selected_on_launch.hint"))
+
+      Toggle(
+        L10n.text("settings.session.auto_connect_selected_after_selection"),
+        isOn: Binding(
+          get: { settingsController.state.autoConnectSelectedProfileAfterSelection },
+          set: { settingsController.setAutoConnectSelectedProfileAfterSelection($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.session.auto_connect_selected_after_selection.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.startup.section", fallback: "Startup"))
     }
     .appSectionStyle()
   }
 
+  private var connectionSection: some View {
+    Section {
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text("settings.connection.policy.title", fallback: "Allowed network"),
+          options: connectionSelectionOptions(),
+          selectedID: settingsController.state.connectionNetworkPolicy.rawValue
+        ) { value in
+          if let policy = ConnectionNetworkPolicy(rawValue: value) {
+            settingsController.setConnectionNetworkPolicy(policy)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.connection.policy.title", fallback: "Allowed network"),
+          value: settingsController.state.connectionNetworkPolicy.localizedTitle
+        )
+      }
+      .accessibilityHint(
+        L10n.text(
+          "settings.connection.policy.hint",
+          fallback: "Choose whether Listen SDR may connect only on Wi-Fi or also when mobile data is active. Streaming over mobile data can increase usage and charges may apply depending on your plan."
+        )
+      )
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.connection.section", fallback: "Connection"))
+    }
+    .appSectionStyle()
+  }
+
   private var backupRestoreSection: some View {
     Section {
-      Text(L10n.text("settings.backup_restore.local_point.title", fallback: "Local restore point"))
-        .font(.headline)
-
-      Text(
-        L10n.text(
+      settingsInfoBlock(
+        title: L10n.text("settings.backup_restore.local_point.title", fallback: "Local restore point"),
+        description: L10n.text(
           "settings.backup_restore.local_point.description",
           fallback: "Saves one temporary restore point on this device. Use it to return quickly to your earlier settings without creating a file."
         )
       )
-      .font(.footnote)
-      .foregroundStyle(.secondary)
 
       FocusRetainingButton {
         settingsController.saveCurrentSettingsSnapshot()
@@ -180,19 +228,79 @@ struct SettingsView: View {
       .font(.footnote)
       .foregroundStyle(.secondary)
 
-      Divider()
-
-      Text(L10n.text("settings.backup_restore.file.title", fallback: "Backup file"))
-        .font(.headline)
-
-      Text(
-        L10n.text(
+      settingsInfoBlock(
+        title: L10n.text("settings.backup_restore.file.title", fallback: "Backup file"),
+        description: L10n.text(
           "settings.backup_restore.file.description",
           fallback: "Creates or restores a settings backup file that you can keep, copy, or move to another device."
         )
       )
-      .font(.footnote)
-      .foregroundStyle(.secondary)
+
+      settingsInfoBlock(
+        title: L10n.text("settings.backup.scope.title", fallback: "Backup contents"),
+        description: L10n.text(
+          "settings.backup.scope.description",
+          fallback: "Choose which parts of the app should be included in the backup file."
+        )
+      )
+
+      Toggle(
+        L10n.text("settings.backup.scope.app_settings", fallback: "App settings"),
+        isOn: Binding(
+          get: { settingsController.state.backupIncludesAppSettings },
+          set: { settingsController.setBackupIncludesAppSettings($0) }
+        )
+      )
+
+      Toggle(
+        L10n.text("settings.backup.scope.saved_radios", fallback: "Saved radios"),
+        isOn: Binding(
+          get: { settingsController.state.backupIncludesProfiles },
+          set: { settingsController.setBackupIncludesProfiles($0) }
+        )
+      )
+
+      Toggle(
+        L10n.text("settings.backup.scope.saved_radio_passwords", fallback: "Saved radio passwords"),
+        isOn: Binding(
+          get: { settingsController.state.backupIncludesProfilePasswords },
+          set: { settingsController.setBackupIncludesProfilePasswords($0) }
+        )
+      )
+      .disabled(!settingsController.state.backupIncludesProfiles)
+      .accessibilityHint(
+        L10n.text(
+          "settings.backup.scope.saved_radio_passwords.hint",
+          fallback: "Available only when saved radios are included in the backup."
+        )
+      )
+
+      Toggle(
+        L10n.text("settings.backup.scope.favorites", fallback: "Favorites"),
+        isOn: Binding(
+          get: { settingsController.state.backupIncludesFavorites },
+          set: { settingsController.setBackupIncludesFavorites($0) }
+        )
+      )
+
+      Toggle(
+        L10n.text("settings.backup.scope.history", fallback: "Listening history"),
+        isOn: Binding(
+          get: { settingsController.state.backupIncludesHistory },
+          set: { settingsController.setBackupIncludesHistory($0) }
+        )
+      )
+
+      if !isAnyBackupScopeEnabled {
+        Text(
+          L10n.text(
+            "settings.backup.scope.none_selected",
+            fallback: "Choose at least one type of data before exporting a backup file."
+          )
+        )
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+      }
 
       FocusRetainingButton {
         do {
@@ -210,6 +318,7 @@ struct SettingsView: View {
       } label: {
         Text(L10n.text("settings.backup.export", fallback: "Export settings backup"))
       }
+      .disabled(!isAnyBackupScopeEnabled)
 
       FocusRetainingButton {
         isSettingsBackupImporterPresented = true
@@ -323,13 +432,13 @@ struct SettingsView: View {
       )
 
       Toggle(
-        L10n.text("settings.tuning.fmdx_tune_confirmation_warnings"),
+        L10n.text("settings.tuning.tune_confirmation_warnings"),
         isOn: Binding(
-          get: { settingsController.state.fmdxTuneConfirmationWarningsEnabled },
-          set: { settingsController.setFMDXTuneConfirmationWarningsEnabled($0) }
+          get: { settingsController.state.tuneConfirmationWarningsEnabled },
+          set: { settingsController.setTuneConfirmationWarningsEnabled($0) }
         )
       )
-      .accessibilityHint(L10n.text("settings.tuning.fmdx_tune_confirmation_warnings.hint"))
+      .accessibilityHint(L10n.text("settings.tuning.tune_confirmation_warnings.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.tuning.section"))
     }
@@ -805,22 +914,72 @@ struct SettingsView: View {
         settingsController.setFMDXAudioPacketHoldSeconds($0)
       }
 
-      Toggle(
-        L10n.text(
-          "settings.accessibility.speech_loudness_leveling",
-          fallback: "Speech loudness leveling"
-        ),
-        isOn: Binding(
-          get: { settingsController.state.accessibilitySpeechLoudnessLevelingEnabled },
-          set: { settingsController.setAccessibilitySpeechLoudnessLevelingEnabled($0) }
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text(
+            "settings.audio.speech_loudness_leveling",
+            fallback: "Speech loudness leveling"
+          ),
+          options: speechLoudnessSelectionOptions(),
+          selectedID: settingsController.state.accessibilitySpeechLoudnessLevelingMode.rawValue
+        ) { value in
+          if let mode = SpeechLoudnessLevelingMode(rawValue: value) {
+            settingsController.setSpeechLoudnessLevelingMode(mode)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text(
+            "settings.audio.speech_loudness_leveling",
+            fallback: "Speech loudness leveling"
+          ),
+          value: settingsController.state.accessibilitySpeechLoudnessLevelingMode.localizedTitle
         )
-      )
+      }
       .accessibilityHint(
         L10n.text(
-          "settings.accessibility.speech_loudness_leveling.hint",
+          "settings.audio.speech_loudness_leveling.hint",
           fallback: "Keeps KiwiSDR and OpenWebRX speech audio closer to one listening level. Recordings and FM-DX playback stay unchanged."
         )
       )
+
+      if settingsController.state.accessibilitySpeechLoudnessLevelingMode == .custom {
+        scannerSlider(
+          title: L10n.text("settings.audio.speech_loudness_target"),
+          value: settingsController.state.accessibilitySpeechLoudnessCustomTargetRMS,
+          range: 0.10...0.40,
+          step: 0.01,
+          valueFormat: "%.2f",
+          valueSuffix: "",
+          hintKey: "settings.audio.speech_loudness_target.hint"
+        ) {
+          settingsController.setSpeechLoudnessCustomTargetRMS($0)
+        }
+
+        scannerSlider(
+          title: L10n.text("settings.audio.speech_loudness_max_gain"),
+          value: settingsController.state.accessibilitySpeechLoudnessCustomMaximumGain,
+          range: 4.0...24.0,
+          step: 0.5,
+          valueFormat: "%.1f",
+          valueSuffix: "x",
+          hintKey: "settings.audio.speech_loudness_max_gain.hint"
+        ) {
+          settingsController.setSpeechLoudnessCustomMaximumGain($0)
+        }
+
+        scannerSlider(
+          title: L10n.text("settings.audio.speech_loudness_peak_limit"),
+          value: settingsController.state.accessibilitySpeechLoudnessCustomPeakLimit,
+          range: 0.70...0.99,
+          step: 0.01,
+          valueFormat: "%.2f",
+          valueSuffix: "",
+          hintKey: "settings.audio.speech_loudness_peak_limit.hint"
+        ) {
+          settingsController.setSpeechLoudnessCustomPeakLimit($0)
+        }
+      }
 
       LabeledContent(
         L10n.text(
@@ -892,16 +1051,9 @@ struct SettingsView: View {
       NavigationLink {
         DiagnosticsView()
       } label: {
-        Label(L10n.text("settings.diagnostics.open"), systemImage: "waveform.path.ecg")
+        Text(L10n.text("settings.diagnostics.open"))
       }
-    } header: {
-      AppSectionHeader(title: L10n.text("settings.diagnostics.section"))
-    }
-    .appSectionStyle()
-  }
 
-  private var quickActionsSection: some View {
-    Section {
       FocusRetainingButton {
         settingsController.reconnectSelectedProfile()
       } label: {
@@ -915,7 +1067,7 @@ struct SettingsView: View {
         Text(L10n.text("Reset DSP"))
       }
     } header: {
-      AppSectionHeader(title: L10n.text("Quick Actions"))
+      AppSectionHeader(title: L10n.text("settings.diagnostics.section"))
     }
     .appSectionStyle()
   }
@@ -925,23 +1077,22 @@ struct SettingsView: View {
       NavigationLink {
         ListenSDRFeedbackFormView(kind: .bug)
       } label: {
-        Label(L10n.text("settings.feedback.report_bug"), systemImage: "ant.circle")
+        Text(L10n.text("settings.feedback.report_bug"))
       }
 
       NavigationLink {
         ListenSDRFeedbackFormView(kind: .suggestion)
       } label: {
-        Label(L10n.text("settings.feedback.send_suggestion"), systemImage: "lightbulb")
+        Text(L10n.text("settings.feedback.send_suggestion"))
       }
 
       FocusRetainingButton {
         startFeedbackServerHealthCheck()
       } label: {
-        Label(
+        Text(
           isCheckingFeedbackServer
             ? L10n.text("settings.feedback.health_check.checking")
-            : L10n.text("settings.feedback.health_check"),
-          systemImage: "network"
+            : L10n.text("settings.feedback.health_check")
         )
       }
       .disabled(isCheckingFeedbackServer)
@@ -969,15 +1120,41 @@ struct SettingsView: View {
     .appSectionStyle()
   }
 
+  private var privacyAndFeedbackSection: some View {
+    Section {
+      settingsInfoBlock(
+        title: L10n.text(
+          "settings.privacy_feedback.privacy_title",
+          fallback: "Your data stays under your control"
+        ),
+        description: L10n.text(
+          "settings.privacy_feedback.privacy_body",
+          fallback: "Listen SDR does not send diagnostics, listening history, or receiver data without your action. When you choose to send a bug report or suggestion, only the information you review and confirm is sent."
+        )
+      )
+
+      settingsInfoBlock(
+        title: L10n.text(
+          "settings.privacy_feedback.feedback_title",
+          fallback: "Feedback helps improve the app"
+        ),
+        description: L10n.text(
+          "settings.privacy_feedback.feedback_body",
+          fallback: "Bug reports and suggestions help improve stability, accessibility, and receiver support. If something is wrong or missing, please use the feedback options above."
+        )
+      )
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.privacy_feedback.section", fallback: "Privacy and feedback"))
+    }
+    .appSectionStyle()
+  }
+
   private var helpSection: some View {
     Section {
       NavigationLink {
         AppTutorialView(isPresentedOnLaunch: false)
       } label: {
-        Label(
-          L10n.text("tutorial.navigation_title", fallback: "Tutorial"),
-          systemImage: "questionmark.circle"
-        )
+        Text(L10n.text("tutorial.navigation_title", fallback: "Tutorial"))
       }
 
       Toggle(
@@ -1000,6 +1177,18 @@ struct SettingsView: View {
       AppSectionHeader(title: L10n.text("settings.help.section", fallback: "Help"))
     }
     .appSectionStyle()
+  }
+
+  private func settingsInfoBlock(title: String, description: String) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(title)
+        .font(.headline)
+
+      Text(description)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+    }
+    .accessibilityElement(children: .combine)
   }
 
   private func audioSlider(
@@ -1076,19 +1265,40 @@ struct SettingsView: View {
     }
   }
 
+  private func speechLoudnessSelectionOptions() -> [SelectionListOption] {
+    SpeechLoudnessLevelingMode.allCases.map { mode in
+      SelectionListOption(
+        id: mode.rawValue,
+        title: mode.localizedTitle,
+        detail: mode.localizedDetail
+      )
+    }
+  }
+
+  private func connectionSelectionOptions() -> [SelectionListOption] {
+    ConnectionNetworkPolicy.allCases.map { policy in
+      SelectionListOption(
+        id: policy.rawValue,
+        title: policy.localizedTitle,
+        detail: policy.localizedDetail
+      )
+    }
+  }
+
   private func scannerSlider(
     title: String,
     value: Double,
     range: ClosedRange<Double>,
     step: Double,
     valueFormat: String = "%.1f",
+    valueSuffix: String = " s",
     hintKey: String? = nil,
     onChange: @escaping (Double) -> Void
   ) -> some View {
     VStack(alignment: .leading, spacing: 6) {
       LabeledContent(
         title,
-        value: "\(String(format: valueFormat, value)) s"
+        value: "\(String(format: valueFormat, value))\(valueSuffix)"
       )
       .accessibilityHidden(true)
 
@@ -1102,7 +1312,7 @@ struct SettingsView: View {
       )
       .accessibleControl(
         label: title,
-        value: "\(String(format: valueFormat, value)) s",
+        value: "\(String(format: valueFormat, value))\(valueSuffix)",
         hint: hintKey.map { L10n.text($0) }
       )
     }
@@ -1144,6 +1354,13 @@ struct SettingsView: View {
     settingsController.state.accessibilityInteractionSoundsEnabled
       || settingsController.state.accessibilityConnectionSoundsEnabled
       || settingsController.state.accessibilityRecordingSoundsEnabled
+  }
+
+  private var isAnyBackupScopeEnabled: Bool {
+    settingsController.state.backupIncludesAppSettings
+      || settingsController.state.backupIncludesProfiles
+      || settingsController.state.backupIncludesFavorites
+      || settingsController.state.backupIncludesHistory
   }
 
   private func startFeedbackServerHealthCheck() {

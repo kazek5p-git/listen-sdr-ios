@@ -28,6 +28,12 @@ private struct ChannelScannerSignalProbe {
   }
 }
 
+private struct PendingWidebandTuneConfirmation: Equatable {
+  let backend: SDRBackend
+  let frequencyHz: Int
+  let mode: DemodulationMode
+}
+
 enum FMDXFilterProfile: String, CaseIterable, Identifiable {
   case wide
   case balanced
@@ -178,6 +184,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var kiwiPassbandDebounceTask: Task<Void, Never>?
   private var kiwiNoiseDebounceTask: Task<Void, Never>?
   private var pendingFMDXTuneFrequencyHz: Int?
+  private var pendingWidebandTuneConfirmation: PendingWidebandTuneConfirmation?
+  private var widebandTuneConfirmationTask: Task<Void, Never>?
   private var isShowingFMDXTuneConfirmationWarning = false
   private var pendingFMDXAudioModeIsStereo: Bool?
   private var pendingFMDXAudioModeDeadline = Date.distantPast
@@ -300,8 +308,9 @@ final class RadioSessionViewModel: ObservableObject {
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
     SharedAudioOutput.engine.setMuted(settings.audioMuted)
     SharedAudioOutput.engine.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
-    SharedAudioOutput.engine.setSpeechLoudnessLevelingEnabled(
-      settings.accessibilitySpeechLoudnessLevelingEnabled
+    SharedAudioOutput.engine.setSpeechLoudnessLeveling(
+      mode: settings.accessibilitySpeechLoudnessLevelingMode,
+      customProfile: speechLoudnessCustomProfile(from: settings)
     )
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
@@ -475,6 +484,10 @@ final class RadioSessionViewModel: ObservableObject {
     }
 
     cancelAutomaticRecovery()
+
+    if enforceConnectionNetworkPolicyIfNeeded(reason: "connect_request", profile: profile) {
+      return
+    }
 
     Diagnostics.log(
       category: "Session",
@@ -1604,6 +1617,7 @@ final class RadioSessionViewModel: ObservableObject {
 
     guard activeBackend == .fmDxWebserver else {
       applyIfConnected()
+      scheduleWidebandTuneConfirmationIfNeeded()
       scheduleListeningHistoryCapture()
       scheduleRecentFrequencyCapture()
       return
@@ -1665,15 +1679,22 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
-  func setFMDXTuneConfirmationWarningsEnabled(_ enabled: Bool) {
-    guard settings.fmdxTuneConfirmationWarningsEnabled != enabled else { return }
-    settings.fmdxTuneConfirmationWarningsEnabled = enabled
-    if !enabled, isShowingFMDXTuneConfirmationWarning {
-      isShowingFMDXTuneConfirmationWarning = false
-      fmdxTuneWarningText = nil
+  func setTuneConfirmationWarningsEnabled(_ enabled: Bool) {
+    guard settings.tuneConfirmationWarningsEnabled != enabled else { return }
+    settings.tuneConfirmationWarningsEnabled = enabled
+    if !enabled {
+      clearPendingWidebandTuneConfirmation()
+      if isShowingFMDXTuneConfirmationWarning {
+        isShowingFMDXTuneConfirmationWarning = false
+        fmdxTuneWarningText = nil
+      }
     }
     persistSettings()
     playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setFMDXTuneConfirmationWarningsEnabled(_ enabled: Bool) {
+    setTuneConfirmationWarningsEnabled(enabled)
   }
 
   func setOpenReceiverAfterHistoryRestore(_ enabled: Bool) {
@@ -1706,6 +1727,23 @@ final class RadioSessionViewModel: ObservableObject {
     settings.autoConnectSelectedProfileOnLaunch = enabled
     persistSettings()
     playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setAutoConnectSelectedProfileAfterSelection(_ enabled: Bool) {
+    guard settings.autoConnectSelectedProfileAfterSelection != enabled else { return }
+    settings.autoConnectSelectedProfileAfterSelection = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
+  func setConnectionNetworkPolicy(_ policy: ConnectionNetworkPolicy) {
+    guard settings.connectionNetworkPolicy != policy else { return }
+    settings.connectionNetworkPolicy = policy
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: true)
+    if policy == .wifiOnly {
+      _ = enforceConnectionNetworkPolicyIfNeeded(reason: "settings_changed", profile: currentConnectedProfile)
+    }
   }
 
   func restoreCurrentSession(
@@ -1774,6 +1812,7 @@ final class RadioSessionViewModel: ObservableObject {
     _ = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     applyIfConnected()
+    scheduleWidebandTuneConfirmationIfNeeded()
     scheduleListeningHistoryCapture()
     scheduleRecentFrequencyCapture()
   }
@@ -2365,10 +2404,43 @@ final class RadioSessionViewModel: ObservableObject {
     playInteractionFeedbackIfEnabled(isOn: enabled)
   }
 
+  func setSpeechLoudnessLevelingMode(_ mode: SpeechLoudnessLevelingMode) {
+    guard settings.accessibilitySpeechLoudnessLevelingMode != mode else { return }
+    settings.accessibilitySpeechLoudnessLevelingMode = mode
+    applySpeechLoudnessLevelingSettings()
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: mode != .off)
+  }
+
+  func setSpeechLoudnessCustomTargetRMS(_ value: Double) {
+    let clamped = RadioSessionSettings.clampedSpeechLoudnessTargetRMS(value)
+    guard settings.accessibilitySpeechLoudnessCustomTargetRMS != clamped else { return }
+    settings.accessibilitySpeechLoudnessCustomTargetRMS = clamped
+    applySpeechLoudnessLevelingSettings()
+    persistSettings()
+  }
+
+  func setSpeechLoudnessCustomMaximumGain(_ value: Double) {
+    let clamped = RadioSessionSettings.clampedSpeechLoudnessMaximumGain(value)
+    guard settings.accessibilitySpeechLoudnessCustomMaximumGain != clamped else { return }
+    settings.accessibilitySpeechLoudnessCustomMaximumGain = clamped
+    applySpeechLoudnessLevelingSettings()
+    persistSettings()
+  }
+
+  func setSpeechLoudnessCustomPeakLimit(_ value: Double) {
+    let clamped = RadioSessionSettings.clampedSpeechLoudnessPeakLimit(value)
+    guard settings.accessibilitySpeechLoudnessCustomPeakLimit != clamped else { return }
+    settings.accessibilitySpeechLoudnessCustomPeakLimit = clamped
+    applySpeechLoudnessLevelingSettings()
+    persistSettings()
+  }
+
   func setAccessibilitySpeechLoudnessLevelingEnabled(_ enabled: Bool) {
-    guard settings.accessibilitySpeechLoudnessLevelingEnabled != enabled else { return }
-    settings.accessibilitySpeechLoudnessLevelingEnabled = enabled
-    SharedAudioOutput.engine.setSpeechLoudnessLevelingEnabled(enabled)
+    let mode: SpeechLoudnessLevelingMode = enabled ? .gentle : .off
+    guard settings.accessibilitySpeechLoudnessLevelingMode != mode else { return }
+    settings.accessibilitySpeechLoudnessLevelingMode = mode
+    applySpeechLoudnessLevelingSettings()
     persistSettings()
     playInteractionFeedbackIfEnabled(isOn: enabled)
   }
@@ -3006,7 +3078,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   private func showFMDXTuneConfirmationWarning(_ text: String) {
     isShowingFMDXTuneConfirmationWarning = true
-    guard settings.fmdxTuneConfirmationWarningsEnabled else {
+    guard settings.tuneConfirmationWarningsEnabled else {
       fmdxTuneWarningText = nil
       return
     }
@@ -3017,6 +3089,108 @@ final class RadioSessionViewModel: ObservableObject {
     guard isShowingFMDXTuneConfirmationWarning else { return }
     isShowingFMDXTuneConfirmationWarning = false
     fmdxTuneWarningText = nil
+  }
+
+  private func applySpeechLoudnessLevelingSettings() {
+    SharedAudioOutput.engine.setSpeechLoudnessLeveling(
+      mode: settings.accessibilitySpeechLoudnessLevelingMode,
+      customProfile: speechLoudnessCustomProfile(from: settings)
+    )
+  }
+
+  private func speechLoudnessCustomProfile(from settings: RadioSessionSettings) -> SpeechLoudnessLevelingProfile {
+    SpeechLoudnessLevelingProfile(
+      targetRMS: Float(settings.accessibilitySpeechLoudnessCustomTargetRMS),
+      peakLimit: Float(settings.accessibilitySpeechLoudnessCustomPeakLimit),
+      minimumGain: 0.20,
+      maximumGain: Float(settings.accessibilitySpeechLoudnessCustomMaximumGain),
+      gainIncreaseStep: 0.15,
+      gainDecreaseStep: 0.28
+    )
+  }
+
+  private func scheduleWidebandTuneConfirmationIfNeeded() {
+    guard settings.tuneConfirmationWarningsEnabled else {
+      clearPendingWidebandTuneConfirmation()
+      clearActiveFMDXTuneConfirmationWarning()
+      return
+    }
+    guard state == .connected else { return }
+    guard let backend = activeBackend, backend == .openWebRX || backend == .kiwiSDR else { return }
+
+    let pending = PendingWidebandTuneConfirmation(
+      backend: backend,
+      frequencyHz: settings.frequencyHz,
+      mode: settings.mode
+    )
+    pendingWidebandTuneConfirmation = pending
+    widebandTuneConfirmationTask?.cancel()
+    widebandTuneConfirmationTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 1_350_000_000)
+      await MainActor.run {
+        guard let self else { return }
+        guard self.pendingWidebandTuneConfirmation == pending else { return }
+        self.pendingWidebandTuneConfirmation = nil
+        let requestedText = self.tuneConfirmationSummary(
+          frequencyHz: pending.frequencyHz,
+          mode: pending.mode,
+          backend: pending.backend
+        )
+        self.showFMDXTuneConfirmationWarning(
+          L10n.text("settings.tuning.tune_confirmation_warning_timeout", requestedText)
+        )
+      }
+    }
+  }
+
+  private func confirmWidebandTuneIfNeeded(
+    backend: SDRBackend,
+    reportedFrequencyHz: Int,
+    reportedMode: DemodulationMode
+  ) {
+    guard let pending = pendingWidebandTuneConfirmation, pending.backend == backend else { return }
+    let modeMatches = pending.mode == reportedMode
+    let toleranceHz = max(50, min(settings.tuneStepHz / 2, 5_000))
+    let frequencyMatches = abs(pending.frequencyHz - reportedFrequencyHz) <= toleranceHz
+    if modeMatches && frequencyMatches {
+      pendingWidebandTuneConfirmation = nil
+      widebandTuneConfirmationTask?.cancel()
+      clearActiveFMDXTuneConfirmationWarning()
+      return
+    }
+
+    pendingWidebandTuneConfirmation = nil
+    widebandTuneConfirmationTask?.cancel()
+    let requestedText = tuneConfirmationSummary(
+      frequencyHz: pending.frequencyHz,
+      mode: pending.mode,
+      backend: backend
+    )
+    let actualText = tuneConfirmationSummary(
+      frequencyHz: reportedFrequencyHz,
+      mode: reportedMode,
+      backend: backend
+    )
+    showFMDXTuneConfirmationWarning(
+      L10n.text("settings.tuning.tune_confirmation_warning_mismatch", actualText, requestedText)
+    )
+  }
+
+  private func clearPendingWidebandTuneConfirmation() {
+    pendingWidebandTuneConfirmation = nil
+    widebandTuneConfirmationTask?.cancel()
+    widebandTuneConfirmationTask = nil
+  }
+
+  private func tuneConfirmationSummary(
+    frequencyHz: Int,
+    mode: DemodulationMode,
+    backend: SDRBackend
+  ) -> String {
+    let frequencyText = backend == .fmDxWebserver
+      ? FrequencyFormatter.fmDxMHzText(fromHz: frequencyHz)
+      : FrequencyFormatter.mhzText(fromHz: frequencyHz)
+    return "\(frequencyText) \(mode.rawValue.uppercased())"
   }
 
   private func makeClient(for profile: SDRConnectionProfile) -> any SDRBackendClient {
@@ -3137,8 +3311,9 @@ final class RadioSessionViewModel: ObservableObject {
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
     FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
     SharedAudioOutput.engine.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
-    SharedAudioOutput.engine.setSpeechLoudnessLevelingEnabled(
-      settings.accessibilitySpeechLoudnessLevelingEnabled
+    SharedAudioOutput.engine.setSpeechLoudnessLeveling(
+      mode: settings.accessibilitySpeechLoudnessLevelingMode,
+      customProfile: speechLoudnessCustomProfile(from: settings)
     )
     FMDXMP3AudioPlayer.shared.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
     applyFMDXAudioTuning()
@@ -3614,6 +3789,15 @@ final class RadioSessionViewModel: ObservableObject {
           try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
         }
         if Task.isCancelled { return }
+        let wasBlockedByPolicy = await MainActor.run {
+          self.enforceConnectionNetworkPolicyIfNeeded(
+            reason: "automatic_reconnect",
+            profile: profile
+          )
+        }
+        if wasBlockedByPolicy {
+          return
+        }
 
         do {
           let newClient = makeClient(for: profile)
@@ -3708,6 +3892,47 @@ final class RadioSessionViewModel: ObservableObject {
     sessionRecoveryTask = nil
   }
 
+  @discardableResult
+  private func enforceConnectionNetworkPolicyIfNeeded(
+    reason: String,
+    profile: SDRConnectionProfile?
+  ) -> Bool {
+    guard
+      let message = ConnectionNetworkPolicyMonitor.shared.blockedMessage(
+        for: settings.connectionNetworkPolicy
+      )
+    else {
+      return false
+    }
+
+    Diagnostics.log(
+      severity: .warning,
+      category: "Session",
+      message: "Connection blocked by network policy (\(reason))"
+    )
+    cancelAutomaticRecovery()
+    connectTask?.cancel()
+    connectTask = nil
+    cancelSessionTransientTasks(resetScannerState: true)
+    if let client {
+      Task { await client.disconnect() }
+    }
+    client = nil
+    connectedProfileID = nil
+    activeBackend = nil
+    activeProfileCacheKey = nil
+    currentConnectedProfile = nil
+    isScannerRunning = false
+    scannerStatusText = nil
+    resetRuntimeState(for: nil)
+    applySessionLifecyclePresentation(
+      SessionLifecyclePresentationCore.presentation(for: .connectionFailed),
+      profileName: profile?.name,
+      errorMessage: message
+    )
+    return true
+  }
+
   private func cancelSessionTransientTasks(resetScannerState: Bool) {
     statusMonitorTask?.cancel()
     statusMonitorTask = nil
@@ -3729,6 +3954,7 @@ final class RadioSessionViewModel: ObservableObject {
     deferredRestoreTask = nil
     initialTuningFallbackTask?.cancel()
     initialTuningFallbackTask = nil
+    clearPendingWidebandTuneConfirmation()
     pendingFMDXTuneFrequencyHz = nil
     clearPendingFMDXAudioModeState()
 
@@ -3978,6 +4204,11 @@ final class RadioSessionViewModel: ObservableObject {
       if completedInitialServerTuningSync {
         applyRememberedSquelchAfterInitialTuningSyncIfNeeded(for: .openWebRX)
       }
+      confirmWidebandTuneIfNeeded(
+        backend: .openWebRX,
+        reportedFrequencyHz: normalizedFrequencyHz,
+        reportedMode: result.state.mode
+      )
       scheduleListeningHistoryCapture()
 
     case .kiwiTuning(let frequencyHz, let mode, let bandName, let passband):
@@ -4014,6 +4245,11 @@ final class RadioSessionViewModel: ObservableObject {
       if completedInitialServerTuningSync {
         applyRememberedSquelchAfterInitialTuningSyncIfNeeded(for: .kiwiSDR)
       }
+      confirmWidebandTuneIfNeeded(
+        backend: .kiwiSDR,
+        reportedFrequencyHz: result.state.frequencyHz,
+        reportedMode: result.state.mode
+      )
       scheduleListeningHistoryCapture()
       if activeBackend == .kiwiSDR, state == .connected {
         sendKiwiWaterfallControl()
@@ -4878,6 +5114,7 @@ final class RadioSessionViewModel: ObservableObject {
     fmDxTuneDebounceTask?.cancel()
     fmDxTuneDebounceTask = nil
     clearFMDXTuneConfirmationState()
+    clearPendingWidebandTuneConfirmation()
     kiwiPassbandDebounceTask?.cancel()
     kiwiPassbandDebounceTask = nil
     kiwiNoiseDebounceTask?.cancel()
@@ -5184,9 +5421,7 @@ final class RadioSessionViewModel: ObservableObject {
     }
 
     let announcement = rdsAnnouncement(previous: previous, current: current)
-    let currentAnnouncement = currentRDSAnnouncement(current).flatMap { candidate in
-      candidate.text != lastPostedRDSAnnouncementText ? candidate : nil
-    }
+    let currentAnnouncement = currentRDSFallbackAnnouncement(current, now: now)
     let effectiveAnnouncement = announcement ?? pendingRDSAnnouncement.flatMap { candidate in
       matchesCurrentRDSAnnouncement(candidate, telemetry: current) ? candidate : nil
     } ?? currentAnnouncement
@@ -5255,43 +5490,71 @@ final class RadioSessionViewModel: ObservableObject {
     return nil
   }
 
-  private func currentRDSAnnouncement(
-    _ current: FMDXTelemetry
+  private func currentRDSFallbackAnnouncement(
+    _ current: FMDXTelemetry,
+    now: Date
   ) -> StableAnnouncementCandidate<RDSAnnouncementKind>? {
+    currentRDSAnnouncementCandidates(current).first { candidate in
+      shouldScheduleFallbackRDSAnnouncement(candidate, now: now)
+    }
+  }
+
+  private func currentRDSAnnouncementCandidates(
+    _ current: FMDXTelemetry
+  ) -> [StableAnnouncementCandidate<RDSAnnouncementKind>] {
     let mode = settings.voiceOverRDSAnnouncementMode
     let currentPS = normalizedRDSValue(current.ps)
     let currentStation = preferredRDSStationName(from: current)
+    var candidates: [StableAnnouncementCandidate<RDSAnnouncementKind>] = []
+
+    if mode == .full, let currentRT = stableRDSRadioText(from: current) {
+      candidates.append(
+        StableAnnouncementCandidate(
+          kind: .radioText,
+          text: L10n.text("accessibility.rds_announcement.rt", currentRT)
+        )
+      )
+    }
 
     if let currentStation {
-      return StableAnnouncementCandidate(
-        kind: .stationName,
-        text: L10n.text("accessibility.rds_announcement.station", currentStation)
-      )
-    }
-    if mode == .full, let currentPS, currentPS != currentStation {
-      return StableAnnouncementCandidate(
-        kind: .programService,
-        text: L10n.text("accessibility.rds_announcement.ps", currentPS)
+      candidates.append(
+        StableAnnouncementCandidate(
+          kind: .stationName,
+          text: L10n.text("accessibility.rds_announcement.station", currentStation)
+        )
       )
     }
 
-    guard mode == .full else { return nil }
+    guard mode == .full else { return candidates }
 
-    if let currentRT = stableRDSRadioText(from: current) {
-      return StableAnnouncementCandidate(
-        kind: .radioText,
-        text: L10n.text("accessibility.rds_announcement.rt", currentRT)
+    if let currentPS, currentPS != currentStation {
+      candidates.append(
+        StableAnnouncementCandidate(
+          kind: .programService,
+          text: L10n.text("accessibility.rds_announcement.ps", currentPS)
+        )
       )
     }
 
     if let currentPI = normalizedRDSValue(current.pi), currentPS == nil {
-      return StableAnnouncementCandidate(
-        kind: .pi,
-        text: L10n.text("accessibility.rds_announcement.pi", currentPI)
+      candidates.append(
+        StableAnnouncementCandidate(
+          kind: .pi,
+          text: L10n.text("accessibility.rds_announcement.pi", currentPI)
+        )
       )
     }
 
-    return nil
+    return candidates
+  }
+
+  private func shouldScheduleFallbackRDSAnnouncement(
+    _ candidate: StableAnnouncementCandidate<RDSAnnouncementKind>,
+    now: Date
+  ) -> Bool {
+    guard lastPostedRDSAnnouncementText == candidate.text else { return true }
+    return now.timeIntervalSince(lastPostedRDSAnnouncementAt)
+      >= duplicateRDSAnnouncementWindow(for: candidate.kind)
   }
 
   private func preferredRDSStationName(from telemetry: FMDXTelemetry?) -> String? {
