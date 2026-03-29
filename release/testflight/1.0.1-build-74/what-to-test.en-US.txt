@@ -1,0 +1,8 @@
+The main changes in this build clean up the settings sections related to app startup and settings backup/restore.
+
+Please focus on:
+- Settings: auto-connect to the selected receiver now lives in its own “Startup” section.
+- Settings: the new “Backup and restore” section clearly separates the local restore point from the settings backup file.
+- Settings: the local restore point description should clearly explain that it stays on the current device and does not create a file.
+- Settings: the backup file description should clearly explain that the file can be saved and moved to another device.
+- Accessibility and clarity: the option names and supporting text should now be easier to understand than before.

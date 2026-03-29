@@ -15,8 +15,8 @@ struct SettingsView: View {
   var body: some View {
     NavigationStack {
       Form {
-        sessionSection
-        backupSection
+        startupSection
+        backupRestoreSection
         tuningSection
         scannerSections
         dxSection
@@ -129,29 +129,8 @@ struct SettingsView: View {
     }
   }
 
-  private var sessionSection: some View {
+  private var startupSection: some View {
     Section {
-      FocusRetainingButton {
-        settingsController.saveCurrentSettingsSnapshot()
-      } label: {
-              Text(L10n.text("settings.session.save_snapshot", fallback: "Save quick restore point"))
-      }
-
-      FocusRetainingButton {
-        settingsController.restoreSavedSettingsSnapshot()
-      } label: {
-              Text(L10n.text("settings.session.restore_snapshot", fallback: "Restore quick restore point"))
-      }
-      .disabled(!settingsController.state.hasSavedSettingsSnapshot)
-
-      Text(
-        settingsController.state.hasSavedSettingsSnapshot
-          ? L10n.text("settings.session.has_snapshot")
-          : L10n.text("settings.session.no_snapshot")
-      )
-      .font(.footnote)
-      .foregroundStyle(.secondary)
-
       Toggle(
         L10n.text("settings.session.auto_connect_selected_on_launch"),
         isOn: Binding(
@@ -161,13 +140,60 @@ struct SettingsView: View {
       )
       .accessibilityHint(L10n.text("settings.session.auto_connect_selected_on_launch.hint"))
     } header: {
-      AppSectionHeader(title: L10n.text("settings.session.section"))
+      AppSectionHeader(title: L10n.text("settings.startup.section", fallback: "Startup"))
     }
     .appSectionStyle()
   }
 
-  private var backupSection: some View {
+  private var backupRestoreSection: some View {
     Section {
+      Text(L10n.text("settings.backup_restore.local_point.title", fallback: "Local restore point"))
+        .font(.headline)
+
+      Text(
+        L10n.text(
+          "settings.backup_restore.local_point.description",
+          fallback: "Saves one temporary restore point on this device. Use it to return quickly to your earlier settings without creating a file."
+        )
+      )
+      .font(.footnote)
+      .foregroundStyle(.secondary)
+
+      FocusRetainingButton {
+        settingsController.saveCurrentSettingsSnapshot()
+      } label: {
+        Text(L10n.text("settings.backup_restore.local_point.save", fallback: "Save local restore point"))
+      }
+
+      FocusRetainingButton {
+        settingsController.restoreSavedSettingsSnapshot()
+      } label: {
+        Text(L10n.text("settings.backup_restore.local_point.restore", fallback: "Restore local restore point"))
+      }
+      .disabled(!settingsController.state.hasSavedSettingsSnapshot)
+
+      Text(
+        settingsController.state.hasSavedSettingsSnapshot
+          ? L10n.text("settings.backup_restore.local_point.available", fallback: "A local restore point is available on this device.")
+          : L10n.text("settings.backup_restore.local_point.missing", fallback: "No local restore point saved on this device yet.")
+      )
+      .font(.footnote)
+      .foregroundStyle(.secondary)
+
+      Divider()
+
+      Text(L10n.text("settings.backup_restore.file.title", fallback: "Backup file"))
+        .font(.headline)
+
+      Text(
+        L10n.text(
+          "settings.backup_restore.file.description",
+          fallback: "Creates or restores a settings backup file that you can keep, copy, or move to another device."
+        )
+      )
+      .font(.footnote)
+      .foregroundStyle(.secondary)
+
       FocusRetainingButton {
         do {
           settingsBackupDocument = try settingsController.makeSettingsBackupDocument()
@@ -200,7 +226,7 @@ struct SettingsView: View {
       .font(.footnote)
       .foregroundStyle(.secondary)
     } header: {
-      AppSectionHeader(title: L10n.text("settings.backup.section", fallback: "Settings backup"))
+      AppSectionHeader(title: L10n.text("settings.backup_restore.section", fallback: "Backup and restore"))
     }
     .appSectionStyle()
   }

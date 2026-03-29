@@ -287,6 +287,16 @@
 "settings.session.restore_snapshot" = "Restore quick restore point";
 "settings.session.no_snapshot" = "No quick restore point saved yet.";
 "settings.session.has_snapshot" = "A quick restore point is available.";
+"settings.startup.section" = "Startup";
+"settings.backup_restore.section" = "Backup and restore";
+"settings.backup_restore.local_point.title" = "Local restore point";
+"settings.backup_restore.local_point.description" = "Saves one temporary restore point on this device. Use it to return quickly to your earlier settings without creating a file.";
+"settings.backup_restore.local_point.save" = "Save local restore point";
+"settings.backup_restore.local_point.restore" = "Restore local restore point";
+"settings.backup_restore.local_point.available" = "A local restore point is available on this device.";
+"settings.backup_restore.local_point.missing" = "No local restore point saved on this device yet.";
+"settings.backup_restore.file.title" = "Backup file";
+"settings.backup_restore.file.description" = "Creates or restores a settings backup file that you can keep, copy, or move to another device.";
 "settings.backup.section" = "Settings backup";
 "settings.backup.export" = "Export settings backup";
 "settings.backup.import" = "Import settings backup";

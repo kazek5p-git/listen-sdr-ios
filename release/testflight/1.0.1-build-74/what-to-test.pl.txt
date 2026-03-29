@@ -1,0 +1,8 @@
+Najważniejsze zmiany w tym buildzie porządkują sekcje ustawień związane z uruchamianiem aplikacji oraz kopią i przywracaniem ustawień.
+
+Proszę szczególnie sprawdzić:
+- Ustawienia: auto-połączenie z wybranym odbiornikiem jest teraz w osobnej sekcji „Start”.
+- Ustawienia: sekcja „Kopia i przywracanie” rozdziela lokalny punkt przywracania i plik kopii ustawień.
+- Ustawienia: opis lokalnego punktu przywracania powinien jasno wskazywać, że działa tylko na tym urządzeniu i nie tworzy pliku.
+- Ustawienia: opis pliku kopii ustawień powinien jasno wskazywać, że plik można zapisać i przenieść na inne urządzenie.
+- Dostępność i wygoda: nazwy oraz opisy tych opcji powinny być czytelniejsze i mniej mylące niż wcześniej.

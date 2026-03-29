@@ -439,6 +439,16 @@
 "settings.session.restore_snapshot" = "Przywróć punkt szybkiego przywracania";
 "settings.session.no_snapshot" = "Brak zapisanego punktu szybkiego przywracania.";
 "settings.session.has_snapshot" = "Masz zapisany punkt szybkiego przywracania.";
+"settings.startup.section" = "Start";
+"settings.backup_restore.section" = "Kopia i przywracanie";
+"settings.backup_restore.local_point.title" = "Lokalny punkt przywracania";
+"settings.backup_restore.local_point.description" = "Zapisuje jeden tymczasowy punkt przywracania na tym urządzeniu. Użyj go, aby szybko wrócić do wcześniejszych ustawień bez tworzenia pliku.";
+"settings.backup_restore.local_point.save" = "Zapisz lokalny punkt przywracania";
+"settings.backup_restore.local_point.restore" = "Przywróć lokalny punkt przywracania";
+"settings.backup_restore.local_point.available" = "Na tym urządzeniu jest zapisany lokalny punkt przywracania.";
+"settings.backup_restore.local_point.missing" = "Na tym urządzeniu nie ma jeszcze zapisanego lokalnego punktu przywracania.";
+"settings.backup_restore.file.title" = "Plik kopii ustawień";
+"settings.backup_restore.file.description" = "Tworzy albo przywraca plik kopii ustawień, który możesz zachować, skopiować lub przenieść na inne urządzenie.";
 "settings.backup.section" = "Kopia ustawień";
 "settings.backup.export" = "Eksportuj kopię ustawień";
 "settings.backup.import" = "Importuj kopię ustawień";
