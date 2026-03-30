@@ -14,6 +14,7 @@
 		1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE460852390C71A3267E19E /* DiagnosticsStore.swift */; };
 		213C87F333FB445D3D5612BB /* VoiceOverRotorControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F51D7953819B7CA4FF071D /* VoiceOverRotorControl.swift */; };
 		217D33FBBCC6215FD86050A3 /* UnavailableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */; };
+		23BBD07F1DA6AECBD4C4E948 /* AudioDecodersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0C0A8EA5CBE5FC76145AAB /* AudioDecodersTests.swift */; };
 		2787CD26843D7631A05BFEEB /* FMDXBandScannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */; };
 		288CC8F359232EA856E298B8 /* AudioPCMUtilitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */; };
 		2923CE16937A6A7AE87483FB /* AudioRecordingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93986B585C4FB7BCA27AF6F /* AudioRecordingStore.swift */; };
@@ -150,6 +151,7 @@
 		67898200E1DD7BF2FE5AC5A3 /* LiveAudioStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAudioStabilityTests.swift; sourceTree = "<group>"; };
 		6B1555E324C13738FC619AD1 /* FMDXCapabilitiesPolicyBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXCapabilitiesPolicyBridge.swift; sourceTree = "<group>"; };
 		715098CB8FB779868AF3E9DC /* SpeechLoudnessLevelingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechLoudnessLevelingMode.swift; sourceTree = "<group>"; };
+		7A0C0A8EA5CBE5FC76145AAB /* AudioDecodersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDecodersTests.swift; sourceTree = "<group>"; };
 		7A8D52E05033560ABC688416 /* SDRBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackend.swift; sourceTree = "<group>"; };
 		7D98E491501B5A7BA10E0AEA /* ReceiverLinkImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverLinkImport.swift; sourceTree = "<group>"; };
 		7E7702C07C09F90A04B6DA7A /* ListenSDRTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ListenSDRTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -340,6 +342,7 @@
 			isa = PBXGroup;
 			children = (
 				0099FA003BD98E52868FCF81 /* AppAccessibilityTests.swift */,
+				7A0C0A8EA5CBE5FC76145AAB /* AudioDecodersTests.swift */,
 				639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */,
 				B30168AE215D849558215B5A /* DemodulationModeTests.swift */,
 				F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */,
@@ -535,6 +538,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3E2755D3C3B1A94376FBDDD6 /* AppAccessibilityTests.swift in Sources */,
+				23BBD07F1DA6AECBD4C4E948 /* AudioDecodersTests.swift in Sources */,
 				288CC8F359232EA856E298B8 /* AudioPCMUtilitiesTests.swift in Sources */,
 				6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */,
 				2787CD26843D7631A05BFEEB /* FMDXBandScannerTests.swift in Sources */,
@@ -670,7 +674,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 78;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -765,7 +769,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 77;
+				CURRENT_PROJECT_VERSION = 78;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
