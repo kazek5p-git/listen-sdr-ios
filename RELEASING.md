@@ -22,6 +22,7 @@ This project is the public source of truth for Listen SDR releases.
     `scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -SkipWaitForProcessing`
   - phase 2 resume after App Store Connect processing:
     `scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -SkipRemoteBuild`
+- Standard TestFlight release notes should include both English and Polish content for each build, even when locale-specific files are present.
 - The signed remote build now uses the current local source snapshot, not a stale git clone on the Mac.
 - If the upload step succeeds but the wrapper stops while waiting for App Store Connect processing, resume with:
   `scripts\Run-ListenSDR-TestFlightEndToEnd.ps1 -SkipRemoteBuild`
