@@ -195,6 +195,60 @@ function New-RepoSnapshotArchive {
   }
 }
 
+function Invoke-SshWithRetry {
+  param(
+    [Parameter(Mandatory = $true)][string]$RemoteHost,
+    [Parameter(Mandatory = $true)][string]$RemoteCommand,
+    [Parameter(Mandatory = $true)][string]$Description,
+    [int]$MaxAttempts = 3,
+    [int]$InitialDelaySeconds = 5
+  )
+
+  $delaySeconds = $InitialDelaySeconds
+  for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    $result = & ssh $RemoteHost $RemoteCommand 2>&1
+    if ($LASTEXITCODE -eq 0) {
+      return $result
+    }
+
+    if ($attempt -ge $MaxAttempts) {
+      $result | Write-Host
+      throw "$Description failed after $MaxAttempts attempts."
+    }
+
+    Write-Warning "$Description failed on attempt $attempt/$MaxAttempts. Retrying in $delaySeconds seconds."
+    Start-Sleep -Seconds $delaySeconds
+    $delaySeconds *= 2
+  }
+}
+
+function Invoke-ScpWithRetry {
+  param(
+    [Parameter(Mandatory = $true)][string]$SourcePath,
+    [Parameter(Mandatory = $true)][string]$Destination,
+    [Parameter(Mandatory = $true)][string]$Description,
+    [int]$MaxAttempts = 3,
+    [int]$InitialDelaySeconds = 5
+  )
+
+  $delaySeconds = $InitialDelaySeconds
+  for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    $result = & scp $SourcePath $Destination 2>&1
+    if ($LASTEXITCODE -eq 0) {
+      return
+    }
+
+    if ($attempt -ge $MaxAttempts) {
+      $result | Write-Host
+      throw "$Description failed after $MaxAttempts attempts."
+    }
+
+    Write-Warning "$Description failed on attempt $attempt/$MaxAttempts. Retrying in $delaySeconds seconds."
+    Start-Sleep -Seconds $delaySeconds
+    $delaySeconds *= 2
+  }
+}
+
 Assert-LocalFile -Path $AscApiKeyPath -Label "ASC API key"
 
 if ([string]::IsNullOrWhiteSpace($AscKeyId) -or [string]::IsNullOrWhiteSpace($AscIssuerId)) {
@@ -230,8 +284,8 @@ if ($status.Count -gt 0) {
   throw "Repository has unrelated uncommitted changes. Commit or stash them before remote TestFlight build."
 }
 
-$remoteHome = (ssh $RemoteHost 'printf %s "$HOME"').Trim()
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($remoteHome)) {
+$remoteHome = (Invoke-SshWithRetry -RemoteHost $RemoteHost -RemoteCommand 'printf %s "$HOME"' -Description "Remote home lookup").Trim()
+if ([string]::IsNullOrWhiteSpace($remoteHome)) {
   throw "Unable to resolve remote home directory."
 }
 
@@ -266,17 +320,11 @@ $snapshot = New-RepoSnapshotArchive -RepositoryPath $resolvedRepoRoot -SnapshotP
 
 Write-Host ""
 Write-Host "==> Prepare remote directories"
-ssh $RemoteHost "mkdir -p $remoteCiDir"
-if ($LASTEXITCODE -ne 0) {
-  throw "Unable to prepare remote directories."
-}
+Invoke-SshWithRetry -RemoteHost $RemoteHost -RemoteCommand "mkdir -p $remoteCiDir" -Description "Remote directory preparation" | Out-Null
 
 Write-Host ""
 Write-Host "==> Upload App Store Connect API key to remote Mac"
-scp $AscApiKeyPath "${RemoteHost}:$remoteKeyPath" | Out-Null
-if ($LASTEXITCODE -ne 0) {
-  throw "Unable to upload ASC API key."
-}
+Invoke-ScpWithRetry -SourcePath $AscApiKeyPath -Destination "${RemoteHost}:$remoteKeyPath" -Description "ASC API key upload"
 
 Write-Host ""
 Write-Host "==> Ensure App Store provisioning profile for $BundleId"
@@ -294,17 +342,11 @@ $profileInfo = $profileJson | ConvertFrom-Json
 
 Write-Host ""
 Write-Host "==> Upload App Store provisioning profile to remote Mac"
-scp $profileInfo.profilePath "${RemoteHost}:$remoteProfilePath" | Out-Null
-if ($LASTEXITCODE -ne 0) {
-  throw "Unable to upload provisioning profile."
-}
+Invoke-ScpWithRetry -SourcePath $profileInfo.profilePath -Destination "${RemoteHost}:$remoteProfilePath" -Description "Provisioning profile upload"
 
 Write-Host ""
 Write-Host "==> Upload local source snapshot to remote Mac"
-scp $snapshot.ArchivePath "${RemoteHost}:$remoteArchivePath" | Out-Null
-if ($LASTEXITCODE -ne 0) {
-  throw "Unable to upload source snapshot."
-}
+Invoke-ScpWithRetry -SourcePath $snapshot.ArchivePath -Destination "${RemoteHost}:$remoteArchivePath" -Description "Source snapshot upload"
 
 $remoteDistributionP12PathExpanded = if ($RemoteDistributionP12Path -eq "~") {
   '$HOME'
@@ -616,10 +658,7 @@ $tempDir = Join-Path $env:TEMP "listen-sdr-remote-runner"
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 $localRunnerPath = Join-Path $tempDir "run-testflight.sh"
 Write-UnixTextFile -Path $localRunnerPath -Content $remoteScript
-scp $localRunnerPath "${RemoteHost}:$remoteRunnerPath" | Out-Null
-if ($LASTEXITCODE -ne 0) {
-  throw "Unable to upload remote runner script."
-}
+Invoke-ScpWithRetry -SourcePath $localRunnerPath -Destination "${RemoteHost}:$remoteRunnerPath" -Description "Remote runner upload"
 
 Write-Host ""
 Write-Host "==> Build on remote Mac"
