@@ -42,6 +42,11 @@ struct ProfileEditorView: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .accessibilityLabel(L10n.text("Host"))
+            .accessibilityHint(
+              L10n.text(
+                "You can paste a full receiver address here. Listen SDR will extract the host, port, path, and secure connection setting when you save."
+              )
+            )
 
           TextField(L10n.text("Port"), value: $draft.port, format: .number)
             .keyboardType(.numberPad)
@@ -54,6 +59,14 @@ struct ProfileEditorView: View {
 
           Toggle(L10n.text("Use TLS"), isOn: profileTLSBinding)
             .accessibilityHint(L10n.text("Enable secure HTTPS or WSS transport"))
+
+          Text(
+            L10n.text(
+              "You can paste a full receiver address here. Listen SDR will extract the host, port, path, and secure connection setting when you save."
+            )
+          )
+          .font(.footnote)
+          .foregroundStyle(.secondary)
         }
         .appSectionStyle()
 
@@ -108,11 +121,7 @@ struct ProfileEditorView: View {
   }
 
   private var normalizedDraft: SDRConnectionProfile {
-    var profile = draft
-    profile.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-    profile.host = draft.host.trimmingCharacters(in: .whitespacesAndNewlines)
-    profile.path = draft.path.trimmingCharacters(in: .whitespacesAndNewlines)
-    return profile
+    ReceiverLinkImportDetector.normalizedManualProfile(draft)
   }
 
   private var profileBackendBinding: Binding<SDRBackend> {

@@ -1,0 +1,8 @@
+This build improves receiver onboarding, VoiceOver actions, and tutorial behavior.
+
+Please focus on:
+- Adding or editing a receiver: you can now paste a full receiver address and Listen SDR should extract the host, port, path, and secure connection setting automatically.
+- Receiver Directory: a normal activation should select the receiver and move you to the Receiver tab, while the VoiceOver action can select and connect immediately.
+- FM-DX presets: they now start collapsed by default, with a setting to keep them expanded if you prefer.
+- Tutorial: there is now a new section about what you can listen to, and the automatic tutorial should appear only during the first 5 app launches unless you disable it earlier.
+- VoiceOver: please check overall navigation comfort, custom actions, and rotor behavior around receiver content.

@@ -546,6 +546,7 @@ struct FocusRetainingButton<Label: View>: View {
 struct AppAccessibilityRotorHost: View {
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @State private var currentRDSRotorIndex = -1
 
   var body: some View {
     let backend = profileStore.selectedProfile?.backend
@@ -556,6 +557,7 @@ struct AppAccessibilityRotorHost: View {
       frequencyRotorName: L10n.text("receiver.voiceover_rotor.frequency"),
       tuneStepRotorName: L10n.text("receiver.voiceover_rotor.tune_step"),
       bookmarkRotorName: bookmarkRotorTitle(for: backend),
+      rdsRotorName: rdsRotorTitle(for: backend),
       onTuneIncrement: {
         guard let backend else { return }
         radioSession.tune(byStepCount: frequencyAdjustmentStepCount(forIncrement: true))
@@ -581,6 +583,14 @@ struct AppAccessibilityRotorHost: View {
       onBookmarkDecrement: {
         guard let backend else { return }
         cycleBookmarkRotor(by: -1, backend: backend)
+      },
+      onRdsIncrement: {
+        guard let backend else { return }
+        cycleRDSRotor(by: 1, backend: backend)
+      },
+      onRdsDecrement: {
+        guard let backend else { return }
+        cycleRDSRotor(by: -1, backend: backend)
       }
     )
     .frame(width: 0, height: 0)
@@ -631,6 +641,15 @@ struct AppAccessibilityRotorHost: View {
     return L10n.text(
       "receiver.voiceover_rotor.bookmarks",
       fallback: "Bookmarks and presets"
+    )
+  }
+
+  private func rdsRotorTitle(for backend: SDRBackend?) -> String? {
+    guard backend == .fmDxWebserver else { return nil }
+    guard !radioSession.currentRDSRotorItems().isEmpty else { return nil }
+    return L10n.text(
+      "receiver.voiceover_rotor.rds",
+      fallback: "RDS"
     )
   }
 
@@ -700,6 +719,29 @@ struct AppAccessibilityRotorHost: View {
       frequencyHz: bookmark.frequencyHz,
       backend: backend
     )
+  }
+
+  private func cycleRDSRotor(by offset: Int, backend: SDRBackend) {
+    guard backend == .fmDxWebserver else { return }
+    let items = radioSession.currentRDSRotorItems()
+    guard !items.isEmpty else { return }
+
+    let currentIndex: Int
+    if items.indices.contains(currentRDSRotorIndex) {
+      currentIndex = currentRDSRotorIndex
+    } else {
+      if offset > 0 {
+        currentIndex = -1
+      } else {
+        currentIndex = items.count
+      }
+    }
+
+    let nextIndex = min(max(currentIndex + offset, 0), items.count - 1)
+    guard nextIndex != currentIndex else { return }
+
+    currentRDSRotorIndex = nextIndex
+    AppAccessibilityAnnouncementCenter.post(items[nextIndex])
   }
 }
 

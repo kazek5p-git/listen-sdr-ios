@@ -760,6 +760,15 @@ struct SettingsView: View {
         )
       }
       .accessibilityHint(L10n.text("settings.radios.search_filters.hint"))
+
+      Toggle(
+        L10n.text("settings.radios.keep_station_presets_expanded"),
+        isOn: Binding(
+          get: { settingsController.state.keepStationPresetsExpanded },
+          set: { settingsController.setKeepStationPresetsExpanded($0) }
+        )
+      )
+      .accessibilityHint(L10n.text("settings.radios.keep_station_presets_expanded.hint"))
     } header: {
       AppSectionHeader(title: L10n.text("settings.radios.section"))
     }

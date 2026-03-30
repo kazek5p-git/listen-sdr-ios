@@ -10,6 +10,7 @@ struct AppTutorialView: View {
     List {
       introSection
       quickStartSection
+      whatYouCanListenSection
       receiverSection
       bookmarksSection
       accessibilitySection
@@ -69,6 +70,15 @@ struct AppTutorialView: View {
       titleFallback: "Receiver tab",
       bodyKey: "tutorial.receiver.body",
       bodyFallback: "Use the frequency control, tune-step control, and backend sections to listen and fine-tune the receiver."
+    )
+  }
+
+  private var whatYouCanListenSection: some View {
+    tutorialSection(
+      titleKey: "What you can listen to",
+      titleFallback: "What you can listen to",
+      bodyKey: "The exact stations depend on the receiver. Public receivers often let you hear FM radio, amateur radio repeaters, CW, shortwave activity, utility stations, and time signals.",
+      bodyFallback: "The exact stations depend on the receiver. Public receivers often let you hear FM radio, amateur radio repeaters, CW, shortwave activity, utility stations, and time signals."
     )
   }
 

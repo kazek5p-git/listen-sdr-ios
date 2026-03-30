@@ -148,6 +148,41 @@ enum ReceiverLinkImportDetector {
     return adjusted
   }
 
+  static func normalizedManualProfile(_ profile: SDRConnectionProfile) -> SDRConnectionProfile {
+    var normalized = profile
+    normalized.name = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+    normalized.host = profile.host.trimmingCharacters(in: .whitespacesAndNewlines)
+    normalized.path = profile.path.trimmingCharacters(in: .whitespacesAndNewlines)
+    normalized.username = profile.username.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    let rawAddress = normalized.host
+    guard !rawAddress.isEmpty, let parsedURL = try? normalizedURL(from: rawAddress) else {
+      return normalized
+    }
+
+    let hasExplicitScheme = rawAddress.contains("://")
+    let hasExplicitPath = rawAddress.contains("/") || rawAddress.contains("?") || rawAddress.contains("#")
+    let hasExplicitPort = parsedURL.port != nil
+
+    if let parsedHost = parsedURL.host(), !parsedHost.isEmpty {
+      normalized.host = parsedHost
+    }
+
+    if hasExplicitScheme, let scheme = parsedURL.scheme?.lowercased() {
+      normalized.applyTLSChange(scheme == "https")
+    }
+
+    if hasExplicitPort, let parsedPort = parsedURL.port {
+      normalized.port = parsedPort
+    }
+
+    if hasExplicitPath {
+      normalized.path = normalizedProfilePath(for: normalized.backend, rawPath: parsedURL.path)
+    }
+
+    return normalized
+  }
+
   private static func normalizeInspectableURL(_ url: URL) -> URL {
     guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
       return url

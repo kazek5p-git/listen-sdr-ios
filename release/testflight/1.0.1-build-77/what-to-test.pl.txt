@@ -1,0 +1,8 @@
+Ten build poprawia dodawanie odbiorników, działania VoiceOver i zachowanie samouczka.
+
+Proszę szczególnie sprawdzić:
+- Dodawanie i edycję radia: można teraz wkleić pełny adres odbiornika, a Listen SDR powinien sam wyodrębnić host, port, ścieżkę i ustawienie bezpiecznego połączenia.
+- Katalog odbiorników: zwykłe otwarcie odbiornika powinno go wybrać i przenieść do zakładki Odbiornik, a akcja VoiceOver może od razu wybrać i połączyć.
+- Presety FM-DX: są teraz domyślnie zwinięte, z opcją pozostawienia ich rozwiniętych w ustawieniach.
+- Samouczek: doszła nowa sekcja o tym, czego można słuchać, a automatyczne otwieranie samouczka powinno pojawiać się tylko podczas pierwszych 5 uruchomień aplikacji, chyba że użytkownik wyłączy to wcześniej.
+- VoiceOver: sprawdź proszę ogólną wygodę nawigacji, akcje dostępności i zachowanie rotora wokół treści odbiornika.

@@ -2313,6 +2313,19 @@ final class RadioSessionViewModel: ObservableObject {
     persistSettings()
   }
 
+  func currentRDSRotorItems() -> [String] {
+    guard activeBackend == .fmDxWebserver else { return [] }
+    guard let telemetry = fmdxTelemetry else { return [] }
+    return currentRDSAnnouncementCandidates(telemetry).map(\.text)
+  }
+
+  func setKeepStationPresetsExpanded(_ enabled: Bool) {
+    guard settings.keepStationPresetsExpanded != enabled else { return }
+    settings.keepStationPresetsExpanded = enabled
+    persistSettings()
+    playInteractionFeedbackIfEnabled(isOn: enabled)
+  }
+
   func setMagicTapAction(_ action: MagicTapAction) {
     guard settings.magicTapAction != action else { return }
     settings.magicTapAction = action
@@ -2607,6 +2620,14 @@ final class RadioSessionViewModel: ObservableObject {
     settings.audioSuggestionScope = scope
     persistSettings()
     refreshFMDXAudioAnalysis(forceLog: false)
+  }
+
+  func consumeStartupTutorialAutoPresentationIfNeeded() -> Bool {
+    guard settings.showTutorialOnLaunchEnabled else { return false }
+    guard settings.tutorialAutoShowRemainingCount > 0 else { return false }
+    settings.tutorialAutoShowRemainingCount -= 1
+    persistSettings()
+    return true
   }
 
   func saveCurrentSettingsSnapshot() {

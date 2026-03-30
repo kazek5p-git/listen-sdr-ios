@@ -276,6 +276,9 @@ struct ReceiverDirectoryView: View {
     ) {
       toggleFavoriteReceiver(entry, isFavorite: isFavorite)
     }
+    .accessibilityAction(named: Text(L10n.text("directory.receiver.connect_now"))) {
+      selectAndConnectReceiverDirectoryEntry(candidateProfile)
+    }
     .accessibilityAction(named: Text(L10n.text("directory.receiver.open_website"))) {
       openReceiverWebsite(for: entry)
     }
@@ -530,6 +533,16 @@ struct ReceiverDirectoryView: View {
       if radioSession.state != .connected || radioSession.connectedProfileID != storedProfile.id {
         radioSession.connect(to: storedProfile)
       }
+    }
+    navigationState.selectedTab = .receiver
+    dismiss()
+  }
+
+  private func selectAndConnectReceiverDirectoryEntry(_ profile: SDRConnectionProfile) {
+    let storedProfile = profileStore.upsertImportedProfile(profile)
+    profileStore.updateSelection(storedProfile.id)
+    if radioSession.state != .connected || radioSession.connectedProfileID != storedProfile.id {
+      radioSession.connect(to: storedProfile)
     }
     navigationState.selectedTab = .receiver
     dismiss()

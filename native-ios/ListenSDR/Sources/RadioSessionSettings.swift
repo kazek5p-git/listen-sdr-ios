@@ -463,6 +463,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var accessibilitySpeechLoudnessCustomPeakLimit: Double
   var connectionNetworkPolicy: ConnectionNetworkPolicy
   var showTutorialOnLaunchEnabled: Bool
+  var tutorialAutoShowRemainingCount: Int
   var rememberSquelchOnConnectEnabled: Bool
   var dxNightModeEnabled: Bool
   var autoFilterProfileEnabled: Bool
@@ -482,6 +483,7 @@ struct RadioSessionSettings: Codable, Equatable {
   var showRecentFrequencies: Bool
   var includeRecentFrequenciesFromOtherReceivers: Bool
   var radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility
+  var keepStationPresetsExpanded: Bool
   var autoConnectSelectedProfileOnLaunch: Bool
   var autoConnectSelectedProfileAfterSelection: Bool
   var saveChannelScannerResultsEnabled: Bool
@@ -511,6 +513,10 @@ struct RadioSessionSettings: Codable, Equatable {
     10, 50, 100, 500, 1_000, 5_000, 6_250, 8_330, 9_000, 10_000, 12_500, 25_000,
     50_000, 100_000, 200_000
   ]
+
+  static func clampedTutorialAutoShowRemainingCount(_ value: Int) -> Int {
+    min(max(value, 0), 5)
+  }
 
   static let `default` = RadioSessionSettings(
     frequencyHz: 7_050_000,
@@ -563,6 +569,7 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilitySpeechLoudnessCustomPeakLimit: 0.92,
     connectionNetworkPolicy: .wifiAndCellular,
     showTutorialOnLaunchEnabled: true,
+    tutorialAutoShowRemainingCount: 5,
     rememberSquelchOnConnectEnabled: true,
     dxNightModeEnabled: false,
     autoFilterProfileEnabled: false,
@@ -582,6 +589,7 @@ struct RadioSessionSettings: Codable, Equatable {
     showRecentFrequencies: true,
     includeRecentFrequenciesFromOtherReceivers: false,
     radiosSearchFiltersVisibility: .alwaysVisible,
+    keepStationPresetsExpanded: false,
     autoConnectSelectedProfileOnLaunch: false,
     autoConnectSelectedProfileAfterSelection: false,
     saveChannelScannerResultsEnabled: false,
@@ -646,6 +654,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case accessibilitySpeechLoudnessCustomPeakLimit
     case connectionNetworkPolicy
     case showTutorialOnLaunchEnabled
+    case tutorialAutoShowRemainingCount
     case rememberSquelchOnConnectEnabled
     case dxNightModeEnabled
     case autoFilterProfileEnabled
@@ -666,6 +675,7 @@ struct RadioSessionSettings: Codable, Equatable {
     case showRecentFrequencies
     case includeRecentFrequenciesFromOtherReceivers
     case radiosSearchFiltersVisibility
+    case keepStationPresetsExpanded
     case autoConnectSelectedProfileOnLaunch
     case autoConnectSelectedProfileAfterSelection
     case saveChannelScannerResultsEnabled
@@ -728,6 +738,7 @@ struct RadioSessionSettings: Codable, Equatable {
     accessibilitySpeechLoudnessCustomPeakLimit: Double = Self.default.accessibilitySpeechLoudnessCustomPeakLimit,
     connectionNetworkPolicy: ConnectionNetworkPolicy = Self.default.connectionNetworkPolicy,
     showTutorialOnLaunchEnabled: Bool = Self.default.showTutorialOnLaunchEnabled,
+    tutorialAutoShowRemainingCount: Int = Self.default.tutorialAutoShowRemainingCount,
     rememberSquelchOnConnectEnabled: Bool = Self.default.rememberSquelchOnConnectEnabled,
     dxNightModeEnabled: Bool,
     autoFilterProfileEnabled: Bool,
@@ -747,6 +758,7 @@ struct RadioSessionSettings: Codable, Equatable {
     showRecentFrequencies: Bool = Self.default.showRecentFrequencies,
     includeRecentFrequenciesFromOtherReceivers: Bool = Self.default.includeRecentFrequenciesFromOtherReceivers,
     radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility = Self.default.radiosSearchFiltersVisibility,
+    keepStationPresetsExpanded: Bool = Self.default.keepStationPresetsExpanded,
     autoConnectSelectedProfileOnLaunch: Bool,
     autoConnectSelectedProfileAfterSelection: Bool = Self.default.autoConnectSelectedProfileAfterSelection,
     saveChannelScannerResultsEnabled: Bool = Self.default.saveChannelScannerResultsEnabled,
@@ -835,6 +847,9 @@ struct RadioSessionSettings: Codable, Equatable {
     )
     self.connectionNetworkPolicy = connectionNetworkPolicy
     self.showTutorialOnLaunchEnabled = showTutorialOnLaunchEnabled
+    self.tutorialAutoShowRemainingCount = Self.clampedTutorialAutoShowRemainingCount(
+      tutorialAutoShowRemainingCount
+    )
     self.rememberSquelchOnConnectEnabled = rememberSquelchOnConnectEnabled
     self.dxNightModeEnabled = dxNightModeEnabled
     self.autoFilterProfileEnabled = autoFilterProfileEnabled
@@ -857,6 +872,7 @@ struct RadioSessionSettings: Codable, Equatable {
     self.showRecentFrequencies = showRecentFrequencies
     self.includeRecentFrequenciesFromOtherReceivers = includeRecentFrequenciesFromOtherReceivers
     self.radiosSearchFiltersVisibility = radiosSearchFiltersVisibility
+    self.keepStationPresetsExpanded = keepStationPresetsExpanded
     self.autoConnectSelectedProfileOnLaunch = autoConnectSelectedProfileOnLaunch
     self.autoConnectSelectedProfileAfterSelection = autoConnectSelectedProfileAfterSelection
     self.saveChannelScannerResultsEnabled = saveChannelScannerResultsEnabled
@@ -1041,6 +1057,10 @@ struct RadioSessionSettings: Codable, Equatable {
     showTutorialOnLaunchEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .showTutorialOnLaunchEnabled)
       ?? Self.default.showTutorialOnLaunchEnabled
+    tutorialAutoShowRemainingCount = Self.clampedTutorialAutoShowRemainingCount(
+      try container.decodeIfPresent(Int.self, forKey: .tutorialAutoShowRemainingCount)
+        ?? Self.default.tutorialAutoShowRemainingCount
+    )
     rememberSquelchOnConnectEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .rememberSquelchOnConnectEnabled)
       ?? Self.default.rememberSquelchOnConnectEnabled
@@ -1101,6 +1121,9 @@ struct RadioSessionSettings: Codable, Equatable {
     radiosSearchFiltersVisibility =
       try container.decodeIfPresent(RadiosSearchFiltersVisibility.self, forKey: .radiosSearchFiltersVisibility)
       ?? Self.default.radiosSearchFiltersVisibility
+    keepStationPresetsExpanded =
+      try container.decodeIfPresent(Bool.self, forKey: .keepStationPresetsExpanded)
+      ?? Self.default.keepStationPresetsExpanded
     autoConnectSelectedProfileOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .autoConnectSelectedProfileOnLaunch)
       ?? Self.default.autoConnectSelectedProfileOnLaunch
     autoConnectSelectedProfileAfterSelection =
@@ -1181,6 +1204,7 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(accessibilitySpeechLoudnessCustomPeakLimit, forKey: .accessibilitySpeechLoudnessCustomPeakLimit)
     try container.encode(connectionNetworkPolicy, forKey: .connectionNetworkPolicy)
     try container.encode(showTutorialOnLaunchEnabled, forKey: .showTutorialOnLaunchEnabled)
+    try container.encode(tutorialAutoShowRemainingCount, forKey: .tutorialAutoShowRemainingCount)
     try container.encode(rememberSquelchOnConnectEnabled, forKey: .rememberSquelchOnConnectEnabled)
     try container.encode(dxNightModeEnabled, forKey: .dxNightModeEnabled)
     try container.encode(autoFilterProfileEnabled, forKey: .autoFilterProfileEnabled)
@@ -1203,6 +1227,7 @@ struct RadioSessionSettings: Codable, Equatable {
       forKey: .includeRecentFrequenciesFromOtherReceivers
     )
     try container.encode(radiosSearchFiltersVisibility, forKey: .radiosSearchFiltersVisibility)
+    try container.encode(keepStationPresetsExpanded, forKey: .keepStationPresetsExpanded)
     try container.encode(autoConnectSelectedProfileOnLaunch, forKey: .autoConnectSelectedProfileOnLaunch)
     try container.encode(autoConnectSelectedProfileAfterSelection, forKey: .autoConnectSelectedProfileAfterSelection)
     try container.encode(saveChannelScannerResultsEnabled, forKey: .saveChannelScannerResultsEnabled)

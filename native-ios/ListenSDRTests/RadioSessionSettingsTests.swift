@@ -574,14 +574,17 @@ final class RadioSessionSettingsTests: XCTestCase {
 
   func testShowTutorialOnLaunchDefaultsToEnabledAndRoundTrip() throws {
     XCTAssertTrue(RadioSessionSettings.default.showTutorialOnLaunchEnabled)
+    XCTAssertEqual(RadioSessionSettings.default.tutorialAutoShowRemainingCount, 5)
 
     var settings = RadioSessionSettings.default
     settings.showTutorialOnLaunchEnabled = false
+    settings.tutorialAutoShowRemainingCount = 3
 
     let encoded = try JSONEncoder().encode(settings)
     let decoded = try JSONDecoder().decode(RadioSessionSettings.self, from: encoded)
 
     XCTAssertFalse(decoded.showTutorialOnLaunchEnabled)
+    XCTAssertEqual(decoded.tutorialAutoShowRemainingCount, 3)
   }
 
   func testAccessibilityConnectionSoundsDefaultToDisabledAndRoundTrip() throws {

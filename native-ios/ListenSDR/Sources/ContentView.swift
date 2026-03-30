@@ -99,7 +99,7 @@ struct ContentView: View {
     guard settingsController.isBound else { return }
 
     hasEvaluatedStartupTutorial = true
-    isStartupTutorialPresented = settingsController.state.showTutorialOnLaunchEnabled
+    isStartupTutorialPresented = settingsController.consumeStartupTutorialAutoPresentationIfNeeded()
   }
 }
 

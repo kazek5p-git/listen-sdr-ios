@@ -321,10 +321,15 @@ struct ReceiverView: View {
     .onAppear {
       resetInlineFrequencyInput()
       syncFMDXBandScannerStepSelection()
+      isFMDXStationListExpanded = radioSession.settings.keepStationPresetsExpanded
     }
     .onChange(of: profile.backend) { _ in
       resetInlineFrequencyInput()
       syncFMDXBandScannerStepSelection()
+      isFMDXStationListExpanded = radioSession.settings.keepStationPresetsExpanded
+    }
+    .onChange(of: radioSession.settings.keepStationPresetsExpanded) { value in
+      isFMDXStationListExpanded = value
     }
     .onChange(of: selectedFMDXBandScanRange) { _ in
       syncFMDXBandScannerStepSelection()

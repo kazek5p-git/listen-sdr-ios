@@ -77,6 +77,49 @@ final class ReceiverLinkImportTests: XCTestCase {
     XCTAssertEqual(adjusted.path, "/")
   }
 
+  func testNormalizedManualProfileExtractsComponentsFromFullAddress() {
+    let original = SDRConnectionProfile(
+      name: "  Kiwi  ",
+      backend: .openWebRX,
+      host: "https://radio.example:8078/ws/?foo=bar",
+      port: 8073,
+      useTLS: false,
+      path: "",
+      username: " user ",
+      password: "secret"
+    )
+
+    let normalized = ReceiverLinkImportDetector.normalizedManualProfile(original)
+
+    XCTAssertEqual(normalized.name, "Kiwi")
+    XCTAssertEqual(normalized.host, "radio.example")
+    XCTAssertEqual(normalized.port, 8078)
+    XCTAssertTrue(normalized.useTLS)
+    XCTAssertEqual(normalized.path, "/")
+    XCTAssertEqual(normalized.username, "user")
+    XCTAssertEqual(normalized.password, "secret")
+  }
+
+  func testNormalizedManualProfileKeepsTlsForBareHostInput() {
+    let original = SDRConnectionProfile(
+      name: "Receiver",
+      backend: .kiwiSDR,
+      host: "radio.example",
+      port: 8073,
+      useTLS: true,
+      path: "/",
+      username: "",
+      password: ""
+    )
+
+    let normalized = ReceiverLinkImportDetector.normalizedManualProfile(original)
+
+    XCTAssertEqual(normalized.host, "radio.example")
+    XCTAssertEqual(normalized.port, 8073)
+    XCTAssertTrue(normalized.useTLS)
+    XCTAssertEqual(normalized.path, "/")
+  }
+
   func testProfileTLSChangeMovesFMDXDefaultPortToHTTPS() {
     var profile = SDRConnectionProfile(
       name: "FM-DX",

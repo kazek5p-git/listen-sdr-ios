@@ -41,6 +41,7 @@ struct SettingsViewState: Equatable {
   var showRecentFrequencies: Bool
   var includeRecentFrequenciesFromOtherReceivers: Bool
   var radiosSearchFiltersVisibility: RadiosSearchFiltersVisibility
+  var keepStationPresetsExpanded: Bool
   var autoConnectSelectedProfileOnLaunch: Bool
   var autoConnectSelectedProfileAfterSelection: Bool
   var connectionNetworkPolicy: ConnectionNetworkPolicy
@@ -100,6 +101,7 @@ struct SettingsViewState: Equatable {
     showRecentFrequencies: RadioSessionSettings.default.showRecentFrequencies,
     includeRecentFrequenciesFromOtherReceivers: RadioSessionSettings.default.includeRecentFrequenciesFromOtherReceivers,
     radiosSearchFiltersVisibility: RadioSessionSettings.default.radiosSearchFiltersVisibility,
+    keepStationPresetsExpanded: RadioSessionSettings.default.keepStationPresetsExpanded,
     autoConnectSelectedProfileOnLaunch: false,
     autoConnectSelectedProfileAfterSelection: false,
     connectionNetworkPolicy: RadioSessionSettings.default.connectionNetworkPolicy,
@@ -427,6 +429,12 @@ final class SettingsViewController: ObservableObject {
     refreshState(force: true)
   }
 
+  func consumeStartupTutorialAutoPresentationIfNeeded() -> Bool {
+    let shouldPresent = radioSession?.consumeStartupTutorialAutoPresentationIfNeeded() ?? false
+    refreshState(force: true)
+    return shouldPresent
+  }
+
   func setRememberSquelchOnConnectEnabled(_ isEnabled: Bool) {
     radioSession?.setRememberSquelchOnConnectEnabled(isEnabled)
     refreshState(force: true)
@@ -449,6 +457,11 @@ final class SettingsViewController: ObservableObject {
 
   func setRadiosSearchFiltersVisibility(_ visibility: RadiosSearchFiltersVisibility) {
     radioSession?.setRadiosSearchFiltersVisibility(visibility)
+    refreshState(force: true)
+  }
+
+  func setKeepStationPresetsExpanded(_ isEnabled: Bool) {
+    radioSession?.setKeepStationPresetsExpanded(isEnabled)
     refreshState(force: true)
   }
 
@@ -642,6 +655,7 @@ final class SettingsViewController: ObservableObject {
       showRecentFrequencies: radioSession.settings.showRecentFrequencies,
       includeRecentFrequenciesFromOtherReceivers: radioSession.settings.includeRecentFrequenciesFromOtherReceivers,
       radiosSearchFiltersVisibility: radioSession.settings.radiosSearchFiltersVisibility,
+      keepStationPresetsExpanded: radioSession.settings.keepStationPresetsExpanded,
       autoConnectSelectedProfileOnLaunch: radioSession.settings.autoConnectSelectedProfileOnLaunch,
       autoConnectSelectedProfileAfterSelection: radioSession.settings.autoConnectSelectedProfileAfterSelection,
       connectionNetworkPolicy: radioSession.settings.connectionNetworkPolicy,
