@@ -6,6 +6,7 @@ public enum FMDXQuickBand: String, Codable, CaseIterable, Identifiable, Sendable
   case sw
   case oirt
   case fm
+  case noaa
 
   public var id: String { rawValue }
 
@@ -13,7 +14,7 @@ public enum FMDXQuickBand: String, Codable, CaseIterable, Identifiable, Sendable
     switch self {
     case .lw, .mw, .sw:
       return .am
-    case .oirt, .fm:
+    case .oirt, .fm, .noaa:
       return .fm
     }
   }
@@ -30,6 +31,8 @@ public enum FMDXQuickBand: String, Codable, CaseIterable, Identifiable, Sendable
       return 65_900_000...73_999_000
     case .fm:
       return 64_000_000...110_000_000
+    case .noaa:
+      return 162_400_000...162_550_000
     }
   }
 
@@ -45,6 +48,8 @@ public enum FMDXQuickBand: String, Codable, CaseIterable, Identifiable, Sendable
       return 70_300_000
     case .fm:
       return 87_500_000
+    case .noaa:
+      return 162_400_000
     }
   }
 
@@ -55,6 +60,7 @@ public enum FMDXQuickBand: String, Codable, CaseIterable, Identifiable, Sendable
 
 public struct FMDXBandMemory: Codable, Equatable, Sendable {
   public var lastBroadcastFMFrequencyHz: Int
+  public var lastNOAAFrequencyHz: Int
   public var lastOIRTFrequencyHz: Int
   public var lastLWFrequencyHz: Int
   public var lastMWFrequencyHz: Int
@@ -64,6 +70,7 @@ public struct FMDXBandMemory: Codable, Equatable, Sendable {
 
   public init(
     lastBroadcastFMFrequencyHz: Int = FMDXQuickBand.fm.defaultFrequencyHz,
+    lastNOAAFrequencyHz: Int = FMDXQuickBand.noaa.defaultFrequencyHz,
     lastOIRTFrequencyHz: Int = FMDXQuickBand.oirt.defaultFrequencyHz,
     lastLWFrequencyHz: Int = FMDXQuickBand.lw.defaultFrequencyHz,
     lastMWFrequencyHz: Int = FMDXQuickBand.mw.defaultFrequencyHz,
@@ -72,6 +79,7 @@ public struct FMDXBandMemory: Codable, Equatable, Sendable {
     lastSelectedAMQuickBand: FMDXQuickBand = .mw
   ) {
     self.lastBroadcastFMFrequencyHz = lastBroadcastFMFrequencyHz
+    self.lastNOAAFrequencyHz = lastNOAAFrequencyHz
     self.lastOIRTFrequencyHz = lastOIRTFrequencyHz
     self.lastLWFrequencyHz = lastLWFrequencyHz
     self.lastMWFrequencyHz = lastMWFrequencyHz
@@ -79,10 +87,35 @@ public struct FMDXBandMemory: Codable, Equatable, Sendable {
     self.lastSelectedFMQuickBand = lastSelectedFMQuickBand
     self.lastSelectedAMQuickBand = lastSelectedAMQuickBand
   }
+
+  private enum CodingKeys: String, CodingKey {
+    case lastBroadcastFMFrequencyHz
+    case lastNOAAFrequencyHz
+    case lastOIRTFrequencyHz
+    case lastLWFrequencyHz
+    case lastMWFrequencyHz
+    case lastSWFrequencyHz
+    case lastSelectedFMQuickBand
+    case lastSelectedAMQuickBand
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(
+      lastBroadcastFMFrequencyHz: try container.decodeIfPresent(Int.self, forKey: .lastBroadcastFMFrequencyHz) ?? FMDXQuickBand.fm.defaultFrequencyHz,
+      lastNOAAFrequencyHz: try container.decodeIfPresent(Int.self, forKey: .lastNOAAFrequencyHz) ?? FMDXQuickBand.noaa.defaultFrequencyHz,
+      lastOIRTFrequencyHz: try container.decodeIfPresent(Int.self, forKey: .lastOIRTFrequencyHz) ?? FMDXQuickBand.oirt.defaultFrequencyHz,
+      lastLWFrequencyHz: try container.decodeIfPresent(Int.self, forKey: .lastLWFrequencyHz) ?? FMDXQuickBand.lw.defaultFrequencyHz,
+      lastMWFrequencyHz: try container.decodeIfPresent(Int.self, forKey: .lastMWFrequencyHz) ?? FMDXQuickBand.mw.defaultFrequencyHz,
+      lastSWFrequencyHz: try container.decodeIfPresent(Int.self, forKey: .lastSWFrequencyHz) ?? FMDXQuickBand.sw.defaultFrequencyHz,
+      lastSelectedFMQuickBand: try container.decodeIfPresent(FMDXQuickBand.self, forKey: .lastSelectedFMQuickBand) ?? .fm,
+      lastSelectedAMQuickBand: try container.decodeIfPresent(FMDXQuickBand.self, forKey: .lastSelectedAMQuickBand) ?? .mw
+    )
+  }
 }
 
 public enum FMDXSessionCore {
-  public static let overallFrequencyRangeHz = 100_000...110_000_000
+  public static let overallFrequencyRangeHz = 100_000...162_550_000
 
   public static func quickBand(for frequencyHz: Int, mode: DemodulationMode) -> FMDXQuickBand {
     if mode == .am {
@@ -97,6 +130,9 @@ public enum FMDXSessionCore {
 
     if FMDXQuickBand.oirt.rangeHz.contains(frequencyHz) {
       return .oirt
+    }
+    if FMDXQuickBand.noaa.rangeHz.contains(frequencyHz) {
+      return .noaa
     }
     return .fm
   }
@@ -140,6 +176,8 @@ public enum FMDXSessionCore {
       preferred = memory.lastOIRTFrequencyHz
     case .fm:
       preferred = memory.lastBroadcastFMFrequencyHz
+    case .noaa:
+      preferred = memory.lastNOAAFrequencyHz
     }
 
     return band.rangeHz.contains(preferred) ? preferred : band.defaultFrequencyHz
@@ -182,6 +220,8 @@ public enum FMDXSessionCore {
       updated.lastOIRTFrequencyHz = frequencyHz
     case .fm:
       updated.lastBroadcastFMFrequencyHz = frequencyHz
+    case .noaa:
+      updated.lastNOAAFrequencyHz = frequencyHz
     }
 
     return notedSelectedQuickBand(band, memory: updated)

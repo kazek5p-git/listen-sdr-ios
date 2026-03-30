@@ -274,7 +274,7 @@ struct ReceiverView: View {
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
-  private let fmDxOverallFrequencyRangeHz: ClosedRange<Int> = 100_000...110_000_000
+  private let fmDxOverallFrequencyRangeHz: ClosedRange<Int> = 100_000...162_550_000
 
   var body: some View {
     NavigationStack {

@@ -342,6 +342,7 @@ struct FMDXSessionCoreFixtureSet: Decodable {
 
   struct Memory: Decodable {
     let lastBroadcastFMFrequencyHz: Int
+    let lastNOAAFrequencyHz: Int?
     let lastOIRTFrequencyHz: Int
     let lastLWFrequencyHz: Int
     let lastMWFrequencyHz: Int
@@ -980,6 +981,7 @@ extension FMDXBandMemory {
   init(fixture: FMDXSessionCoreFixtureSet.Memory) throws {
     self.init(
       lastBroadcastFMFrequencyHz: fixture.lastBroadcastFMFrequencyHz,
+      lastNOAAFrequencyHz: fixture.lastNOAAFrequencyHz ?? FMDXQuickBand.noaa.defaultFrequencyHz,
       lastOIRTFrequencyHz: fixture.lastOIRTFrequencyHz,
       lastLWFrequencyHz: fixture.lastLWFrequencyHz,
       lastMWFrequencyHz: fixture.lastMWFrequencyHz,

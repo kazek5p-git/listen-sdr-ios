@@ -1,0 +1,21 @@
+Polski
+
+Ten build poprawia pierwszy kontakt z dodawaniem odbiornika, dodaje obsługę pasma pogodowego NOAA w FM-DX i naprawia obsługę dźwięku dla KiwiSDR oraz OpenWebRX.
+
+Proszę szczególnie sprawdzić:
+- Radia: jest teraz wyraźniejszy flow Dodaj odbiornik z trzema ścieżkami: katalog odbiorników, wklejenie linku odbiornika albo ręczne wpisanie danych.
+- Pusty stan i samouczek: ekran pierwszego odbiornika i samouczek lepiej pokazują, jak szybciej dojść do pierwszego udanego połączenia.
+- Pierwsze udane połączenie: pojawia się jednorazowa podpowiedź o Magic Tap, ulubionych i szybkim wracaniu do katalogu.
+- KiwiSDR i OpenWebRX: sprawdź proszę odbiorniki, które wcześniej łączyły się bez dźwięku albo z niespójnym audio, i potwierdź, że dźwięk startuje poprawnie.
+- FM-DX NOAA weather: sprawdź proszę nowy zakres NOAA, szybkie strojenie i zachowanie skanera w tym przepływie.
+
+English
+
+This build improves first-time receiver setup, adds NOAA weather support for FM-DX, and fixes audio handling for KiwiSDR and OpenWebRX.
+
+Please focus on:
+- Radios: there is now a clearer Add receiver flow with three paths: receiver directory, paste receiver link, or manual entry.
+- Empty state and tutorial: the first receiver screen and tutorial now explain how to get to the first successful connection faster.
+- First successful connection: there is now a one-time tip about Magic Tap, favorites, and returning to the directory.
+- KiwiSDR and OpenWebRX: please check receivers that previously connected without sound or with inconsistent audio levels and verify that audio starts reliably.
+- FM-DX NOAA weather: please check the new NOAA range, quick tuning, and scanner behavior inside the FM-DX flow.

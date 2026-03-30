@@ -1016,19 +1016,17 @@ actor KiwiSDRClient: SDRBackendClient {
     latestRSSI = (0.1 * Double(smeter)) - 127.0
     emitKiwiTelemetry(force: false)
 
-    if isStereo {
-      return
-    }
-
     let audioBytes = Data(body.dropFirst(7))
     guard !audioBytes.isEmpty else { return }
 
-    let pcm: [Int16]
+    let decodedPCM: [Int16]
     if isCompressed {
-      pcm = adpcmDecoder.decode(audioBytes)
+      decodedPCM = adpcmDecoder.decode(audioBytes)
     } else {
-      pcm = decodeInt16PCM(audioBytes, littleEndian: isLittleEndian)
+      decodedPCM = decodeInt16PCM(audioBytes, littleEndian: isLittleEndian)
     }
+
+    let pcm = isStereo ? downmixInterleavedStereoPCM(decodedPCM) : decodedPCM
 
     let floats = int16ToFloatPCM(pcm)
     guard !floats.isEmpty else { return }
@@ -1039,12 +1037,13 @@ actor KiwiSDRClient: SDRBackendClient {
       let rms = sqrt(floats.reduce(0) { $0 + ($1 * $1) } / Float(max(floats.count, 1)))
       log(
         String(
-          format: "Audio frame #%d received (flags=0x%02X, rate=%d Hz, rms=%.4f, compressed=%d)",
+          format: "Audio frame #%d received (flags=0x%02X, rate=%d Hz, rms=%.4f, compressed=%d, stereo=%d)",
           receivedAudioFrameCount,
           Int(flags),
           sampleRateHz,
           rms,
-          isCompressed ? 1 : 0
+          isCompressed ? 1 : 0,
+          isStereo ? 1 : 0
         )
       )
     }
@@ -1058,6 +1057,10 @@ actor KiwiSDRClient: SDRBackendClient {
   private func logMissingAudioIfNeeded() {
     guard sndSocket != nil else { return }
     guard receivedAudioFrameCount == 0 else { return }
+    pendingStatusUpdate = NSLocalizedString(
+      "Connected, but Kiwi is not sending audio.",
+      comment: "Status shown when KiwiSDR is connected but audio frames are missing"
+    )
     log("Connected, but no Kiwi audio frames were received within 6 seconds.", severity: .warning)
   }
 
@@ -1778,6 +1781,10 @@ actor OpenWebRXClient: SDRBackendClient {
   private func logMissingAudioIfNeeded() {
     guard socket != nil else { return }
     guard receivedAudioFrameCount == 0 else { return }
+    pendingStatusUpdate = NSLocalizedString(
+      "Connected, but OpenWebRX is not sending audio.",
+      comment: "Status shown when OpenWebRX is connected but audio frames are missing"
+    )
     log("Connected, but no OpenWebRX audio frames were received within 6 seconds.", severity: .warning)
   }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
+  @AppStorage("ListenSDR.hasShownFirstConnectionTips.v1") private var hasShownFirstConnectionTips = false
   @EnvironmentObject private var accessibilityState: AppAccessibilityState
   @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
@@ -11,6 +12,7 @@ struct ContentView: View {
   @State private var hasAttemptedStartupAutoConnect = false
   @State private var hasEvaluatedStartupTutorial = false
   @State private var isStartupTutorialPresented = false
+  @State private var isFirstConnectionTipsPresented = false
 
   var body: some View {
     TabView(selection: $navigationState.selectedTab) {
@@ -47,6 +49,19 @@ struct ContentView: View {
       }
       .presentationDragIndicator(.visible)
     }
+    .alert(
+      L10n.text("connection.first_success.title", fallback: "Receiver connected"),
+      isPresented: $isFirstConnectionTipsPresented
+    ) {
+      Button(L10n.text("connection.first_success.dismiss", fallback: "Continue listening")) {}
+    } message: {
+      Text(
+        L10n.text(
+          "connection.first_success.body",
+          fallback: "Use Magic Tap for your quick action, keep favorite receivers close at hand, and return to Directory whenever you want to try another receiver."
+        )
+      )
+    }
     .onAppear {
       accessibilityState.selectedTab = navigationState.selectedTab
       radioSession.updateRuntimePolicy(
@@ -70,6 +85,12 @@ struct ContentView: View {
       )
       attemptStartupAutoConnectIfNeeded()
       attemptStartupTutorialPresentationIfNeeded()
+    }
+    .onChange(of: radioSession.state) { state in
+      guard state == .connected else { return }
+      guard !hasShownFirstConnectionTips else { return }
+      hasShownFirstConnectionTips = true
+      isFirstConnectionTipsPresented = true
     }
     .onChange(of: settingsController.isBound) { _ in
       attemptStartupTutorialPresentationIfNeeded()

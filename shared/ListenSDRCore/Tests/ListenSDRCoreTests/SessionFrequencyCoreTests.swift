@@ -41,4 +41,19 @@ final class SessionFrequencyCoreTests: XCTestCase {
       )
     }
   }
+
+  func testFmdxFmRangeIncludesNoaaWeatherChannels() {
+    XCTAssertEqual(
+      SessionFrequencyCore.fmdxFrequencyRange(for: .fm),
+      64_000_000...162_550_000
+    )
+    XCTAssertEqual(
+      SessionFrequencyCore.normalizedFrequencyHz(
+        162_475_500,
+        backend: .fmDxWebserver,
+        mode: .fm
+      ),
+      162_476_000
+    )
+  }
 }

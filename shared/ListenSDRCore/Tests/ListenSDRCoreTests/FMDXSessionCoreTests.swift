@@ -100,4 +100,18 @@ final class FMDXSessionCoreTests: XCTestCase {
       )
     }
   }
+
+  func testNoaaQuickBandHasExpectedDefaultsAndMemory() {
+    XCTAssertEqual(FMDXSessionCore.quickBand(for: 162_475_000, mode: .fm), .noaa)
+    XCTAssertEqual(FMDXSessionCore.preferredFrequency(for: .noaa, memory: FMDXBandMemory()), 162_400_000)
+
+    let remembered = FMDXSessionCore.rememberedFrequency(
+      162_550_000,
+      mode: .fm,
+      memory: FMDXBandMemory()
+    )
+
+    XCTAssertEqual(remembered.lastNOAAFrequencyHz, 162_550_000)
+    XCTAssertEqual(remembered.lastSelectedFMQuickBand, .noaa)
+  }
 }

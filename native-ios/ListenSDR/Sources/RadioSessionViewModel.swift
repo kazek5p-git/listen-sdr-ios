@@ -167,7 +167,7 @@ final class RadioSessionViewModel: ObservableObject {
   private let fmDxAMMinFrequencyHz = 100_000
   private let fmDxAMMaxFrequencyHz = 29_600_000
   private let fmDxFMMinFrequencyHz = 64_000_000
-  private let fmDxFMMaxFrequencyHz = 110_000_000
+  private let fmDxFMMaxFrequencyHz = 162_550_000
   private let kiwiDefaultFrequencyHz = 7_050_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
   private let openWebRXFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
@@ -349,7 +349,7 @@ final class RadioSessionViewModel: ObservableObject {
     if settings.mode == .am, fmdxSupportsAM {
       return [.lw, .mw, .sw]
     }
-    return [.oirt, .fm]
+    return [.oirt, .fm, .noaa]
   }
 
   var currentFMDXQuickBand: FMDXQuickBand {

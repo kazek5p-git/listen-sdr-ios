@@ -52,4 +52,20 @@ final class BandTuningCoreTests: XCTestCase {
       )
     }
   }
+
+  func testFmdxNoaaBandUsesWeatherChannelTuneProfile() {
+    let profile = BandTuningProfiles.resolve(
+      for: BandTuningContext(
+        backend: .fmDxWebserver,
+        frequencyHz: 162_475_000,
+        mode: .fm,
+        bandName: nil,
+        bandTags: []
+      )
+    )
+
+    XCTAssertEqual(profile.id, "fmdx-noaa")
+    XCTAssertEqual(profile.stepOptionsHz, [5_000, 10_000, 12_500, 25_000])
+    XCTAssertEqual(profile.defaultStepHz, 25_000)
+  }
 }

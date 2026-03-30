@@ -15,11 +15,18 @@
       "expectedFrequencyHz": 70124000
     },
     {
-      "label": "fmdx fm clamps above upper band edge",
+      "label": "fmdx fm stays inside extended weather-capable range",
       "backend": "fmDxWebserver",
       "mode": "fm",
       "inputFrequencyHz": 110500499,
-      "expectedFrequencyHz": 110000000
+      "expectedFrequencyHz": 110500000
+    },
+    {
+      "label": "fmdx fm clamps above extended upper band edge",
+      "backend": "fmDxWebserver",
+      "mode": "fm",
+      "inputFrequencyHz": 162600499,
+      "expectedFrequencyHz": 162550000
     },
     {
       "label": "kiwi clamps below lower edge",
@@ -52,13 +59,22 @@
   ],
   "tunedFrequencyCases": [
     {
-      "label": "fmdx tuned frequency clamps at upper edge",
+      "label": "fmdx tuned frequency can move above broadcast band",
       "backend": "fmDxWebserver",
       "mode": "fm",
       "currentFrequencyHz": 109950000,
       "tuneStepHz": 100000,
       "stepCount": 1,
-      "expectedFrequencyHz": 110000000
+      "expectedFrequencyHz": 110050000
+    },
+    {
+      "label": "fmdx tuned frequency clamps at extended upper edge",
+      "backend": "fmDxWebserver",
+      "mode": "fm",
+      "currentFrequencyHz": 162500000,
+      "tuneStepHz": 100000,
+      "stepCount": 1,
+      "expectedFrequencyHz": 162550000
     },
     {
       "label": "fmdx tuned frequency rounds after applying delta",

@@ -172,6 +172,25 @@ func decodeInt16PCM(_ data: Data, littleEndian: Bool) -> [Int16] {
   return output
 }
 
+func downmixInterleavedStereoPCM(_ data: [Int16]) -> [Int16] {
+  guard data.count >= 2 else { return data }
+
+  let frameCount = data.count / 2
+  guard frameCount > 0 else { return [] }
+
+  var output: [Int16] = []
+  output.reserveCapacity(frameCount)
+
+  for frameIndex in 0..<frameCount {
+    let baseIndex = frameIndex * 2
+    let left = Int(data[baseIndex])
+    let right = Int(data[baseIndex + 1])
+    output.append(Int16((left + right) / 2))
+  }
+
+  return output
+}
+
 func int16ToFloatPCM(_ data: [Int16]) -> [Float] {
   data.map { sample in
     (Float(sample) + 0.5) / 32768.0

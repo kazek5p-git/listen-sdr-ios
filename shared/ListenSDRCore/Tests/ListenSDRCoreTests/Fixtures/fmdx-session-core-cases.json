@@ -29,6 +29,12 @@
       "frequencyHz": 87500000,
       "mode": "fm",
       "expectedQuickBand": "fm"
+    },
+    {
+      "label": "fm weather channel resolves noaa",
+      "frequencyHz": 162475000,
+      "mode": "fm",
+      "expectedQuickBand": "noaa"
     }
   ],
   "inferredModeCases": [
@@ -51,6 +57,11 @@
       "label": "broadcast fm infers fm",
       "frequencyHz": 101900000,
       "expectedMode": "fm"
+    },
+    {
+      "label": "noaa weather channel infers fm",
+      "frequencyHz": 162475000,
+      "expectedMode": "fm"
     }
   ],
   "preferredFrequencyCases": [
@@ -60,6 +71,7 @@
       "band": null,
       "memory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -76,6 +88,7 @@
       "band": null,
       "memory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 1233000,
@@ -92,6 +105,7 @@
       "band": "oirt",
       "memory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 80000000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -108,6 +122,7 @@
       "band": null,
       "memory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70200000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -117,6 +132,23 @@
       },
       "expectedQuickBand": "oirt",
       "expectedFrequencyHz": 70200000
+    },
+    {
+      "label": "fm preferred frequency follows selected noaa band",
+      "mode": "fm",
+      "band": null,
+      "memory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162425000,
+        "lastOIRTFrequencyHz": 70200000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "noaa",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedQuickBand": "noaa",
+      "expectedFrequencyHz": 162425000
     }
   ],
   "rememberCases": [
@@ -126,6 +158,7 @@
       "mode": "am",
       "initialMemory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -135,6 +168,7 @@
       },
       "expectedMemory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 1530000,
@@ -149,6 +183,7 @@
       "mode": "fm",
       "initialMemory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -158,6 +193,7 @@
       },
       "expectedMemory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70100000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -172,6 +208,7 @@
       "mode": "fm",
       "initialMemory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -181,11 +218,37 @@
       },
       "expectedMemory": {
         "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
         "lastSWFrequencyHz": 7050000,
         "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      }
+    },
+    {
+      "label": "remembering noaa fm updates weather memory and selection",
+      "frequencyHz": 162475000,
+      "mode": "fm",
+      "initialMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162400000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedMemory": {
+        "lastBroadcastFMFrequencyHz": 97500000,
+        "lastNOAAFrequencyHz": 162475000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "noaa",
         "lastSelectedAMQuickBand": "mw"
       }
     }
@@ -196,6 +259,7 @@
       "frequencyHz": 7100000,
       "initialMemory": {
         "lastBroadcastFMFrequencyHz": 87500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -205,6 +269,7 @@
       },
       "expectedMemory": {
         "lastBroadcastFMFrequencyHz": 87500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -218,6 +283,7 @@
       "frequencyHz": 101900000,
       "initialMemory": {
         "lastBroadcastFMFrequencyHz": 87500000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
@@ -227,11 +293,36 @@
       },
       "expectedMemory": {
         "lastBroadcastFMFrequencyHz": 101900000,
+        "lastNOAAFrequencyHz": 162400000,
         "lastOIRTFrequencyHz": 70300000,
         "lastLWFrequencyHz": 225000,
         "lastMWFrequencyHz": 999000,
         "lastSWFrequencyHz": 7050000,
         "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      }
+    },
+    {
+      "label": "seeding from noaa frequency initializes weather memory",
+      "frequencyHz": 162500000,
+      "initialMemory": {
+        "lastBroadcastFMFrequencyHz": 87500000,
+        "lastNOAAFrequencyHz": 162400000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "fm",
+        "lastSelectedAMQuickBand": "mw"
+      },
+      "expectedMemory": {
+        "lastBroadcastFMFrequencyHz": 87500000,
+        "lastNOAAFrequencyHz": 162500000,
+        "lastOIRTFrequencyHz": 70300000,
+        "lastLWFrequencyHz": 225000,
+        "lastMWFrequencyHz": 999000,
+        "lastSWFrequencyHz": 7050000,
+        "lastSelectedFMQuickBand": "noaa",
         "lastSelectedAMQuickBand": "mw"
       }
     }
@@ -248,9 +339,14 @@
       "expectedFrequencyHz": 100000
     },
     {
-      "label": "reported frequency clamps above upper edge",
+      "label": "reported frequency within extended fm range is preserved",
       "inputMHz": 111.4004,
-      "expectedFrequencyHz": 110000000
+      "expectedFrequencyHz": 111400000
+    },
+    {
+      "label": "reported frequency clamps above extended upper edge",
+      "inputMHz": 163.4004,
+      "expectedFrequencyHz": 162550000
     }
   ]
 }

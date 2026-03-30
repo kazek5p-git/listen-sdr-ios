@@ -3,12 +3,12 @@
     {
       "label": "am ranges hidden when unsupported",
       "supportsAM": false,
-      "expectedPresets": ["lowerUKF", "upperUKF", "fullUKF"]
+      "expectedPresets": ["lowerUKF", "upperUKF", "fullUKF", "noaa"]
     },
     {
       "label": "all named ranges shown when am supported",
       "supportsAM": true,
-      "expectedPresets": ["lowerUKF", "upperUKF", "fullUKF", "sw", "mw", "lw"]
+      "expectedPresets": ["lowerUKF", "upperUKF", "fullUKF", "noaa", "sw", "mw", "lw"]
     }
   ],
   "definitionCases": [
@@ -49,6 +49,19 @@
         "defaultStepHz": 100000,
         "metadataProfileBand": "fm",
         "mergeSpacingProfileBand": "fm"
+      }
+    },
+    {
+      "label": "noaa definition matches weather channel span",
+      "preset": "noaa",
+      "expected": {
+        "mode": "fm",
+        "rangeLowerHz": 162400000,
+        "rangeUpperHz": 162550000,
+        "stepOptionsHz": [5000, 10000, 12500, 25000],
+        "defaultStepHz": 25000,
+        "metadataProfileBand": "noaa",
+        "mergeSpacingProfileBand": "noaa"
       }
     },
     {
@@ -225,6 +238,23 @@
         "metadataWindowSeconds": 0.60,
         "minimumMetadataWindowSeconds": 0.0,
         "metadataPollSeconds": 0.12
+      }
+    },
+    {
+      "label": "quick noaa uses weather-channel timing without metadata window",
+      "mode": "quickNewSignals",
+      "band": "noaa",
+      "settleSeconds": 0.16,
+      "metadataWindowSeconds": 0.90,
+      "expected": {
+        "tuneAttemptCount": 1,
+        "settleSeconds": 0.12,
+        "minimumDeadlineSeconds": 0.28,
+        "confirmationGraceSeconds": 0.22,
+        "minimumPostLockSettleSeconds": 0.05,
+        "metadataWindowSeconds": 0.0,
+        "minimumMetadataWindowSeconds": 0.0,
+        "metadataPollSeconds": 0.10
       }
     }
   ],

@@ -127,4 +127,15 @@ final class FMDXScannerCoreTests: XCTestCase {
       XCTAssertEqual(newResults.map(\.frequencyHz), entry.expectedNewResultFrequenciesHz, entry.label)
     }
   }
+
+  func testNoaaPresetIsAvailableAndUsesWeatherChannelSteps() {
+    XCTAssertTrue(FMDXBandScanRangePreset.availableCases(supportsAM: false).contains(.noaa))
+
+    let definition = FMDXBandScanRangePreset.noaa.definition
+    XCTAssertEqual(definition.mode, .fm)
+    XCTAssertEqual(definition.rangeHz, 162_400_000...162_550_000)
+    XCTAssertEqual(definition.stepOptionsHz, [5_000, 10_000, 12_500, 25_000])
+    XCTAssertEqual(definition.defaultStepHz, 25_000)
+    XCTAssertEqual(definition.metadataProfileBand, .noaa)
+  }
 }

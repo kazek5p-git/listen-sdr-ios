@@ -49,6 +49,7 @@ public enum FMDXBandScanRangePreset: String, Codable, CaseIterable, Identifiable
   case lowerUKF
   case upperUKF
   case fullUKF
+  case noaa
   case lw
   case mw
   case sw
@@ -56,7 +57,7 @@ public enum FMDXBandScanRangePreset: String, Codable, CaseIterable, Identifiable
   public var id: String { rawValue }
 
   public static func availableCases(supportsAM: Bool) -> [FMDXBandScanRangePreset] {
-    var presets: [FMDXBandScanRangePreset] = [.lowerUKF, .upperUKF, .fullUKF]
+    var presets: [FMDXBandScanRangePreset] = [.lowerUKF, .upperUKF, .fullUKF, .noaa]
     if supportsAM {
       presets.append(contentsOf: [.sw, .mw, .lw])
     }
@@ -91,6 +92,15 @@ public enum FMDXBandScanRangePreset: String, Codable, CaseIterable, Identifiable
         defaultStepHz: 100_000,
         metadataProfileBand: .fm,
         mergeSpacingProfileBand: .fm
+      )
+    case .noaa:
+      return FMDXBandScanRangeDefinition(
+        mode: .fm,
+        rangeHz: FMDXQuickBand.noaa.rangeHz,
+        stepOptionsHz: [5_000, 10_000, 12_500, 25_000],
+        defaultStepHz: 25_000,
+        metadataProfileBand: .noaa,
+        mergeSpacingProfileBand: .noaa
       )
     case .lw:
       return FMDXBandScanRangeDefinition(
@@ -287,6 +297,8 @@ extension FMDXQuickBand {
       return [10_000, 25_000, 30_000, 50_000, 100_000]
     case .fm:
       return [25_000, 50_000, 100_000, 200_000]
+    case .noaa:
+      return [5_000, 10_000, 12_500, 25_000]
     }
   }
 
@@ -300,6 +312,8 @@ extension FMDXQuickBand {
       return 50_000
     case .fm:
       return 100_000
+    case .noaa:
+      return 25_000
     }
   }
 
@@ -311,6 +325,8 @@ extension FMDXQuickBand {
       return max(stepHz * 2, 10_000)
     case .oirt, .fm:
       return max(stepHz * 3, 150_000)
+    case .noaa:
+      return max(stepHz * 2, 25_000)
     }
   }
 
@@ -324,6 +340,8 @@ extension FMDXQuickBand {
       return 0.22
     case .fm:
       return 0.24
+    case .noaa:
+      return 0.20
     }
   }
 
@@ -333,6 +351,8 @@ extension FMDXQuickBand {
       return 0.10
     case .oirt, .fm:
       return 0.14
+    case .noaa:
+      return 0.12
     }
   }
 
@@ -344,6 +364,8 @@ extension FMDXQuickBand {
       return 0.28
     case .oirt, .fm:
       return 0.32
+    case .noaa:
+      return 0.28
     }
   }
 
@@ -357,6 +379,8 @@ extension FMDXQuickBand {
       return 0.24
     case .fm:
       return 0.26
+    case .noaa:
+      return 0.22
     }
   }
 
@@ -366,6 +390,8 @@ extension FMDXQuickBand {
       return 0.05
     case .oirt, .fm:
       return 0.06
+    case .noaa:
+      return 0.05
     }
   }
 
@@ -377,6 +403,8 @@ extension FMDXQuickBand {
       return 0.07
     case .oirt, .fm:
       return 0.09
+    case .noaa:
+      return 0.08
     }
   }
 
@@ -388,6 +416,8 @@ extension FMDXQuickBand {
       return 0.20
     case .oirt, .fm:
       return 0.22
+    case .noaa:
+      return 0.20
     }
   }
 
@@ -401,6 +431,8 @@ extension FMDXQuickBand {
       return 0.12
     case .fm:
       return 0.14
+    case .noaa:
+      return 0.12
     }
   }
 
@@ -410,6 +442,8 @@ extension FMDXQuickBand {
       return 0.03
     case .oirt, .fm:
       return 0.04
+    case .noaa:
+      return 0.03
     }
   }
 
@@ -423,6 +457,8 @@ extension FMDXQuickBand {
       return 0.20
     case .fm:
       return 0.22
+    case .noaa:
+      return 0.18
     }
   }
 
@@ -432,6 +468,8 @@ extension FMDXQuickBand {
       return 0.0
     case .oirt, .fm:
       return 0.20
+    case .noaa:
+      return 0.0
     }
   }
 
@@ -441,6 +479,8 @@ extension FMDXQuickBand {
       return 0.0
     case .oirt, .fm:
       return 1.05
+    case .noaa:
+      return 0.0
     }
   }
 
@@ -450,6 +490,8 @@ extension FMDXQuickBand {
       return 0.0
     case .oirt, .fm:
       return 0.25
+    case .noaa:
+      return 0.0
     }
   }
 
@@ -460,6 +502,8 @@ extension FMDXQuickBand {
     case .sw:
       return 0.15
     case .oirt, .fm:
+      return 0.10
+    case .noaa:
       return 0.10
     }
   }
@@ -472,6 +516,8 @@ extension FMDXQuickBand {
       return 2_500
     case .oirt, .fm:
       return 50_000
+    case .noaa:
+      return 12_500
     }
   }
 }

@@ -5,14 +5,14 @@ final class FMDXBandScannerTests: XCTestCase {
   func testAvailablePresetsHideAMRangesWhenUnsupported() {
     XCTAssertEqual(
       FMDXBandScanRangePreset.availableCases(supportsAM: false),
-      [.lowerUKF, .upperUKF, .fullUKF]
+      [.lowerUKF, .upperUKF, .fullUKF, .noaa]
     )
   }
 
   func testAvailablePresetsExposeAllNamedRangesWhenAMIsSupported() {
     XCTAssertEqual(
       FMDXBandScanRangePreset.availableCases(supportsAM: true),
-      [.lowerUKF, .upperUKF, .fullUKF, .sw, .mw, .lw]
+      [.lowerUKF, .upperUKF, .fullUKF, .noaa, .sw, .mw, .lw]
     )
   }
 

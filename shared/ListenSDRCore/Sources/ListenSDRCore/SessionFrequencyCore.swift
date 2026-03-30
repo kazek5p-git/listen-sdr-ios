@@ -7,7 +7,7 @@ public enum SessionFrequencyCore {
     case .am:
       return 100_000...29_600_000
     default:
-      return 64_000_000...110_000_000
+      return 64_000_000...162_550_000
     }
   }
 

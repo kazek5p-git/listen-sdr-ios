@@ -79,6 +79,14 @@ public enum BandTuningProfiles {
       )
     }
 
+    if FMDXQuickBand.noaa.rangeHz.contains(frequencyHz) {
+      return BandTuningProfile(
+        id: "fmdx-noaa",
+        stepOptionsHz: [5_000, 10_000, 12_500, 25_000],
+        defaultStepHz: 25_000
+      )
+    }
+
     if context.mode == .am {
       return BandTuningProfile(
         id: "fmdx-am-wide",

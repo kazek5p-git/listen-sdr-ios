@@ -9,6 +9,7 @@ struct AppTutorialView: View {
   var body: some View {
     List {
       introSection
+      firstReceiverSection
       quickStartSection
       whatYouCanListenSection
       receiverSection
@@ -60,7 +61,16 @@ struct AppTutorialView: View {
       titleKey: "tutorial.quick_start.title",
       titleFallback: "Quick start",
       bodyKey: "tutorial.quick_start.body",
-      bodyFallback: "Open Radios, choose a saved receiver or import a link, then connect from Receiver."
+      bodyFallback: "After adding a receiver, select it from Radios and continue listening from Receiver. Imported links connect right away."
+    )
+  }
+
+  private var firstReceiverSection: some View {
+    tutorialSection(
+      titleKey: "tutorial.first_receiver.title",
+      titleFallback: "Add your first receiver",
+      bodyKey: "tutorial.first_receiver.body",
+      bodyFallback: "Open Radios and start with the directory, paste a full receiver link, or enter the receiver details manually."
     )
   }
 

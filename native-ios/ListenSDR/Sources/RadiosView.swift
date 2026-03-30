@@ -157,6 +157,7 @@ struct RadiosView: View {
   @State private var isRecentReceiversExpanded = false
   @State private var isRecentListeningExpanded = false
   @State private var isImportLinkPresented = false
+  @State private var isAddReceiverOptionsPresented = false
 
   var body: some View {
     NavigationStack {
@@ -164,11 +165,7 @@ struct RadiosView: View {
         if profileStore.profiles.isEmpty
           && historyStore.recentReceivers.isEmpty
           && historyStore.recentListening.isEmpty {
-          UnavailableContentView(
-            title: L10n.text("No Radios Yet"),
-            systemImage: "dot.radiowaves.left.and.right",
-            description: L10n.text("Add a KiwiSDR, OpenWebRX or FM-DX receiver profile.")
-          )
+          firstReceiverEmptyState
         } else {
           List {
             let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -386,21 +383,9 @@ struct RadiosView: View {
 
         ToolbarItem(placement: .navigationBarTrailing) {
           Button {
-            isImportLinkPresented = true
+            isAddReceiverOptionsPresented = true
           } label: {
-            Label(L10n.text("Import from link"), systemImage: "link.badge.plus")
-          }
-        }
-
-        ToolbarItem(placement: .navigationBarTrailing) {
-          Button {
-            editorContext = ProfileEditorContext(
-              title: L10n.text("New Radio"),
-              profile: SDRConnectionProfile.empty(),
-              isNew: true
-            )
-          } label: {
-            Label(L10n.text("New Radio"), systemImage: "plus")
+            Label(L10n.text("radios.add_receiver", fallback: "Add receiver"), systemImage: "plus")
           }
         }
       }
@@ -419,6 +404,7 @@ struct RadiosView: View {
             profileStore.upsert(profile)
             if context.isNew {
               profileStore.updateSelection(profile.id)
+              navigationState.selectedTab = .receiver
             }
             editorContext = nil
           },
@@ -427,7 +413,111 @@ struct RadiosView: View {
           }
         )
       }
+      .confirmationDialog(
+        L10n.text("radios.add_receiver", fallback: "Add receiver"),
+        isPresented: $isAddReceiverOptionsPresented,
+        titleVisibility: .visible
+      ) {
+        Button(L10n.text("radios.add_receiver.directory", fallback: "Search receiver directory")) {
+          isDirectoryPresented = true
+        }
+        Button(L10n.text("radios.add_receiver.import", fallback: "Paste receiver link")) {
+          isImportLinkPresented = true
+        }
+        Button(L10n.text("radios.add_receiver.manual", fallback: "Enter details manually")) {
+          openNewRadioEditor()
+        }
+        Button(L10n.text("Close"), role: .cancel) {}
+      } message: {
+        Text(
+          L10n.text(
+            "radios.add_receiver.message",
+            fallback: "Choose how you want to add the next receiver."
+          )
+        )
+      }
     }
+  }
+
+  private var firstReceiverEmptyState: some View {
+    ScrollView {
+      VStack(spacing: 16) {
+        Image(systemName: "dot.radiowaves.left.and.right")
+          .font(.system(size: 42, weight: .regular))
+          .foregroundStyle(AppTheme.tint)
+          .accessibilityHidden(true)
+
+        Text(L10n.text("radios.first_receiver.title", fallback: "Add your first receiver"))
+          .font(.title3.weight(.semibold))
+
+        Text(
+          L10n.text(
+            "radios.first_receiver.body",
+            fallback: "Start by opening the directory, pasting a full receiver link, or entering the receiver details manually."
+          )
+        )
+        .multilineTextAlignment(.center)
+        .foregroundStyle(.secondary)
+
+        VStack(spacing: 12) {
+          firstReceiverActionButton(
+            title: L10n.text("radios.add_receiver.directory", fallback: "Search receiver directory"),
+            detail: L10n.text(
+              "radios.add_receiver.directory.detail",
+              fallback: "Search the public receiver directory and save a receiver from the results."
+            ),
+            action: { isDirectoryPresented = true }
+          )
+          firstReceiverActionButton(
+            title: L10n.text("radios.add_receiver.import", fallback: "Paste receiver link"),
+            detail: L10n.text(
+              "radios.add_receiver.import.detail",
+              fallback: "Paste a full KiwiSDR, OpenWebRX, or FM-DX receiver address and let Listen SDR fill in the details."
+            ),
+            action: { isImportLinkPresented = true }
+          )
+          firstReceiverActionButton(
+            title: L10n.text("radios.add_receiver.manual", fallback: "Enter details manually"),
+            detail: L10n.text(
+              "radios.add_receiver.manual.detail",
+              fallback: "Fill in the host, port, path, and login details yourself."
+            ),
+            action: openNewRadioEditor
+          )
+        }
+      }
+      .frame(maxWidth: .infinity)
+      .padding(24)
+    }
+    .voiceOverStable()
+  }
+
+  private func firstReceiverActionButton(
+    title: String,
+    detail: String,
+    action: @escaping () -> Void
+  ) -> some View {
+    FocusRetainingButton(action) {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(title)
+          .font(.headline)
+          .frame(maxWidth: .infinity, alignment: .leading)
+        Text(detail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .appCardContainer()
+    }
+    .buttonStyle(.plain)
+  }
+
+  private func openNewRadioEditor() {
+    editorContext = ProfileEditorContext(
+      title: L10n.text("New Radio"),
+      profile: SDRConnectionProfile.empty(),
+      isNew: true
+    )
   }
 
   @ViewBuilder
