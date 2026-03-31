@@ -6,6 +6,7 @@ struct ProfileEditorView: View {
   let onCancel: () -> Void
 
   @State private var draft: SDRConnectionProfile
+  @State private var showPassword = false
 
   init(
     title: String,
@@ -77,17 +78,10 @@ struct ProfileEditorView: View {
               .autocorrectionDisabled()
           }
 
-          SecureField(L10n.text("Password"), text: $draft.password)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .accessibilityHint(
-              draft.backend == .fmDxWebserver
-                ? L10n.text(
-                  "For FM-DX Webserver enter the tune or admin password. Username is not used.",
-                  fallback: "For FM-DX Webserver enter the tune or admin password. Username is not used."
-                )
-                : ""
-            )
+          passwordField
+
+          Toggle(L10n.text("Show password"), isOn: $showPassword)
+            .accessibilityHint(L10n.text("Toggle password visibility"))
 
           if draft.backend == .fmDxWebserver {
             Text(
@@ -147,5 +141,29 @@ struct ProfileEditorView: View {
     !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
       !draft.host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
       (1...65535).contains(draft.port)
+  }
+
+  @ViewBuilder
+  private var passwordField: some View {
+    if showPassword {
+      TextField(L10n.text("Password"), text: $draft.password)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .accessibilityHint(passwordHint)
+    } else {
+      SecureField(L10n.text("Password"), text: $draft.password)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .accessibilityHint(passwordHint)
+    }
+  }
+
+  private var passwordHint: String {
+    draft.backend == .fmDxWebserver
+      ? L10n.text(
+        "For FM-DX Webserver enter the tune or admin password. Username is not used.",
+        fallback: "For FM-DX Webserver enter the tune or admin password. Username is not used."
+      )
+      : ""
   }
 }

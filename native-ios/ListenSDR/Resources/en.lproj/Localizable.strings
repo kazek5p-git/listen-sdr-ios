@@ -543,6 +543,7 @@
 "directory.country_sort.alphabetical" = "Alphabetical";
 "directory.country_sort.receiver_count" = "Receiver count";
 "directory.filters.favorites_only" = "Favorites only";
+"directory.filters.selection_hint" = "Double tap to choose a value from the list.";
 "directory.filter.status.all" = "All";
 "directory.filter.status.online" = "Online";
 "directory.filter.status.available_only" = "Available only";
@@ -924,3 +925,5 @@
 "android.sync.connection_state_hint" = "Double tap to change connection state";
 "android.sync.live" = "Live";
 "android.sync.passband_range" = "%d to %d Hz";
+"Show password" = "Show password";
+"Toggle password visibility" = "Toggle password visibility";

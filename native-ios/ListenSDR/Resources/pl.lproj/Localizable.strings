@@ -696,6 +696,7 @@
 "directory.country_sort.alphabetical" = "Alfabetycznie";
 "directory.country_sort.receiver_count" = "Liczba odbiorników";
 "directory.filters.favorites_only" = "Tylko ulubione";
+"directory.filters.selection_hint" = "Stuknij dwukrotnie, aby wybrać wartość z listy.";
 "directory.filter.status.all" = "Wszystkie";
 "directory.filter.status.online" = "Online";
 "directory.filter.status.available_only" = "Tylko dostępne";
@@ -1079,3 +1080,5 @@
 "android.sync.connection_state_hint" = "Stuknij dwukrotnie, aby zmienić stan połączenia";
 "android.sync.live" = "Na żywo";
 "android.sync.passband_range" = "%d do %d Hz";
+"Show password" = "Pokaż hasło";
+"Toggle password visibility" = "Przełącz widoczność hasła";

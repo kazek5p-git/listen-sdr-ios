@@ -301,18 +301,21 @@ struct ReceiverView: View {
     return Form {
       connectionCardRow(for: profile)
       tuningSection(for: profile)
-      favoritesSection(for: profile)
-      recentFrequenciesSection(for: profile)
-      openWebRXControlsSection(for: profile)
-      kiwiControlsSection(for: profile)
-      fmDxControlsSection(for: profile)
-      fmDxServerPresetsSection(for: profile)
-      fmDxBandScannerSection(for: profile)
-      if profile.backend != .fmDxWebserver {
+      if profile.backend == .fmDxWebserver {
+        fmDxLiveSection(for: profile)
+        fmDxControlsSection(for: profile)
+        favoritesSection(for: profile)
+        fmDxServerPresetsSection(for: profile)
+        recentFrequenciesSection(for: profile)
+        fmDxBandScannerSection(for: profile)
+      } else {
+        favoritesSection(for: profile)
+        recentFrequenciesSection(for: profile)
+        openWebRXControlsSection(for: profile)
+        kiwiControlsSection(for: profile)
         scannerSection(for: profile, scannerChannels: scannerChannels)
+        kiwiLiveSection(for: profile)
       }
-      fmDxLiveSection(for: profile)
-      kiwiLiveSection(for: profile)
       audioSection(for: profile)
     }
     .voiceOverStable()
@@ -832,11 +835,24 @@ struct ReceiverView: View {
   private func fmDxControlsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
       Section {
-        fmDxPrimaryToggleRow()
-        fmDxAGCToggleRow()
+        VStack(alignment: .leading, spacing: 10) {
+          fmDxInsetPanel {
+            VStack(alignment: .leading, spacing: 10) {
+              fmDxPrimaryToggleRow()
+              fmDxAGCToggleRow()
+            }
+          }
 
-        fmDxAntennaPicker()
-        fmDxBandwidthPicker()
+          fmDxInsetPanel {
+            VStack(alignment: .leading, spacing: 2) {
+              fmDxAntennaPicker()
+              fmDxBandwidthPicker()
+            }
+          }
+        }
+        .appCardContainer(
+          padding: EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+        )
       } header: {
         AppSectionHeader(title: L10n.text("fmdx.controls"))
       }
@@ -1891,71 +1907,129 @@ struct ReceiverView: View {
   private func fmDxLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
       Section {
-        fmDxSignalMetricsRow(telemetry: telemetry)
-        if let users = telemetry.users {
-          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
-        }
-        if let pi = telemetry.pi, !pi.isEmpty {
-          LabeledContent("PI", value: pi)
-        }
-        if let ps = telemetry.ps, !ps.isEmpty {
-          LabeledContent("PS", value: ps)
-        }
-        if let rt0 = telemetry.rt0, !rt0.isEmpty {
-          Text(L10n.text("fmdx.rt0", rt0))
-            .font(.footnote)
-        }
-        if let rt1 = telemetry.rt1, !rt1.isEmpty {
-          Text(L10n.text("fmdx.rt1", rt1))
-            .font(.footnote)
-        }
-        if let countryName = telemetry.countryName, !countryName.isEmpty {
-          LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
-        }
+        VStack(alignment: .leading, spacing: 10) {
+          fmDxSignalMetricsRow(telemetry: telemetry)
 
-        NavigationLink {
-          FMDXRDSDetailsView(
-            telemetry: telemetry,
-            showRdsErrorCounters: Binding(
-              get: { radioSession.settings.showRdsErrorCounters },
-              set: { radioSession.setShowRdsErrorCounters($0) }
-            )
-          )
-        } label: {
-          Label(L10n.text("fmdx.live.more_details"), systemImage: "text.badge.plus")
-        }
-
-        if !telemetry.afMHz.isEmpty {
-          FocusRetainingButton {
-            isFMDXAFExpanded.toggle()
-          } label: {
-            Label(
-              L10n.text(
-                isFMDXAFExpanded
-                  ? "fmdx.af_list.collapse"
-                  : "fmdx.af_list.expand"
-              ),
-              systemImage: isFMDXAFExpanded ? "chevron.up" : "chevron.down"
-            )
-          }
-
-          if isFMDXAFExpanded {
-            let limitedAFCount = min(telemetry.afMHz.count, 16)
-            ForEach(0..<limitedAFCount, id: \.self) { index in
-              let afMHz = telemetry.afMHz[index]
-              let afHz = frequencyHz(fromMHz: afMHz)
-              FocusRetainingButton {
-                radioSession.setFrequencyHz(afHz)
-              } label: {
-                HStack {
-                  Text(String(format: "%.1f MHz", afMHz))
-                  Spacer()
+          if fmDxHasSummaryFields(telemetry: telemetry) {
+            fmDxInsetPanel {
+              VStack(alignment: .leading, spacing: 8) {
+                if let ps = telemetry.ps, !ps.isEmpty {
+                  LabeledContent("PS", value: ps)
+                }
+                if let pi = telemetry.pi, !pi.isEmpty {
+                  LabeledContent("PI", value: pi)
+                }
+                if let pty = telemetry.pty {
+                  LabeledContent("PTY", value: fmDxPTYDisplayText(pty: pty, rbds: telemetry.rbds))
+                }
+                if let countryName = telemetry.countryName, !countryName.isEmpty {
+                  LabeledContent(L10n.text("fmdx.field.country"), value: countryName)
                 }
               }
-              .buttonStyle(.plain)
             }
           }
+
+          if fmDxHasRadioText(telemetry: telemetry) {
+            fmDxInsetPanel {
+              VStack(alignment: .leading, spacing: 8) {
+                if let rt0 = telemetry.rt0, !rt0.isEmpty {
+                  Text(L10n.text("fmdx.rt0", rt0))
+                    .font(.footnote)
+                }
+                if let rt1 = telemetry.rt1, !rt1.isEmpty {
+                  Text(L10n.text("fmdx.rt1", rt1))
+                    .font(.footnote)
+                }
+              }
+            }
+          }
+
+          if !telemetry.afMHz.isEmpty {
+            fmDxInsetPanel {
+              VStack(alignment: .leading, spacing: 8) {
+                FocusRetainingButton {
+                  isFMDXAFExpanded.toggle()
+                } label: {
+                  Label(
+                    L10n.text(
+                      isFMDXAFExpanded
+                        ? "fmdx.af_list.collapse"
+                        : "fmdx.af_list.expand"
+                    ),
+                    systemImage: isFMDXAFExpanded ? "chevron.up" : "chevron.down"
+                  )
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                  HStack(spacing: 8) {
+                    ForEach(Array(telemetry.afMHz.prefix(8)), id: \.self) { afMHz in
+                      let afHz = frequencyHz(fromMHz: afMHz)
+                      FocusRetainingButton {
+                        radioSession.setFrequencyHz(afHz)
+                        AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+                          String(format: "%.1f MHz", afMHz),
+                          frequencyHz: afHz,
+                          backend: .fmDxWebserver
+                        )
+                      } label: {
+                        Text(String(format: "%.1f MHz", afMHz))
+                          .font(.footnote.weight(.semibold))
+                          .padding(.horizontal, 12)
+                          .padding(.vertical, 10)
+                          .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                              .fill(AppTheme.chipFill)
+                          )
+                          .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                              .stroke(AppTheme.cardStroke, lineWidth: 1)
+                          )
+                      }
+                      .buttonStyle(.plain)
+                    }
+                  }
+                }
+
+                if isFMDXAFExpanded {
+                  let limitedAFCount = min(telemetry.afMHz.count, 16)
+                  ForEach(0..<limitedAFCount, id: \.self) { index in
+                    let afMHz = telemetry.afMHz[index]
+                    let afHz = frequencyHz(fromMHz: afMHz)
+                    FocusRetainingButton {
+                      radioSession.setFrequencyHz(afHz)
+                      AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+                        String(format: "%.1f MHz", afMHz),
+                        frequencyHz: afHz,
+                        backend: .fmDxWebserver
+                      )
+                    } label: {
+                      HStack {
+                        Text(String(format: "%.1f MHz", afMHz))
+                        Spacer()
+                      }
+                    }
+                    .buttonStyle(.plain)
+                  }
+                }
+              }
+            }
+          }
+
+          NavigationLink {
+            FMDXRDSDetailsView(
+              telemetry: telemetry,
+              showRdsErrorCounters: Binding(
+                get: { radioSession.settings.showRdsErrorCounters },
+                set: { radioSession.setShowRdsErrorCounters($0) }
+              )
+            )
+          } label: {
+            Label(L10n.text("fmdx.live.more_details"), systemImage: "text.badge.plus")
+          }
         }
+        .appCardContainer(
+          padding: EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+        )
       } header: {
         AppSectionHeader(title: L10n.text("fmdx.live.section"))
       }
@@ -2079,7 +2153,7 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func fmDxSignalMetricsRow(telemetry: FMDXTelemetry) -> some View {
-    if telemetry.signal != nil || telemetry.signalTop != nil {
+    if telemetry.signal != nil || telemetry.signalTop != nil || telemetry.users != nil {
       HStack(spacing: 8) {
         if let signal = telemetry.signal {
           metricCard(
@@ -2093,8 +2167,44 @@ struct ReceiverView: View {
             value: String(format: "%.1f dBf", signalTop)
           )
         }
+        if let users = telemetry.users {
+          metricCard(
+            title: L10n.text("fmdx.field.users"),
+            value: "\(users)"
+          )
+        }
       }
     }
+  }
+
+  private func fmDxInsetPanel<Content: View>(
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      content()
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    .background(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(AppTheme.chipFill)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(AppTheme.cardStroke, lineWidth: 1)
+    )
+  }
+
+  private func fmDxHasSummaryFields(telemetry: FMDXTelemetry) -> Bool {
+    (telemetry.ps?.isEmpty == false)
+      || (telemetry.pi?.isEmpty == false)
+      || telemetry.pty != nil
+      || (telemetry.countryName?.isEmpty == false)
+  }
+
+  private func fmDxHasRadioText(telemetry: FMDXTelemetry) -> Bool {
+    (telemetry.rt0?.isEmpty == false) || (telemetry.rt1?.isEmpty == false)
   }
 
   @ViewBuilder

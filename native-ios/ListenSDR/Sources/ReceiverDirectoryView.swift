@@ -10,12 +10,15 @@ struct ReceiverDirectoryView: View {
   @StateObject private var viewModel = ReceiverDirectoryViewModel()
 
   var body: some View {
+    let countryOptions = viewModel.availableCountryOptions
+    let filteredEntries = viewModel.filteredEntries(favoriteReceiverIDs: favoritesStore.favoriteReceiverIDs)
+
     NavigationStack {
       List {
         backendSection
-        filtersSection
+        filtersSection(countryOptions: countryOptions)
         statusSection
-        receiversSection
+        receiversSection(filteredEntries: filteredEntries)
       }
       .voiceOverStable()
       .listStyle(.insetGrouped)
@@ -81,15 +84,15 @@ struct ReceiverDirectoryView: View {
     .appSectionStyle()
   }
 
-  private var filtersSection: some View {
+  private func filtersSection(countryOptions: [ReceiverDirectoryCountryOption]) -> some View {
     Section {
-      statusFilterCard
-      entrySortCard
-      if !viewModel.availableCountries.isEmpty {
-        if viewModel.shouldShowCountrySortControl {
-          countrySortCard
+      statusFilterSelectionLink
+      entrySortSelectionLink
+      if !countryOptions.isEmpty {
+        if shouldShowCountrySortControl(countryOptions: countryOptions) {
+          countrySortSelectionLink
         }
-        countryFilterCard
+        countryFilterSelectionLink(countryOptions: countryOptions)
       }
       Toggle(
         L10n.text("directory.filters.favorites_only"),
@@ -140,10 +143,8 @@ struct ReceiverDirectoryView: View {
     .appSectionStyle()
   }
 
-  private var receiversSection: some View {
-    let filteredEntries = viewModel.filteredEntries(favoriteReceiverIDs: favoritesStore.favoriteReceiverIDs)
-
-    return Section {
+  private func receiversSection(filteredEntries: [ReceiverDirectoryEntry]) -> some View {
+    Section {
       if filteredEntries.isEmpty {
         if viewModel.isLoading {
           ProgressView(L10n.text("Refreshing directory..."))
@@ -355,72 +356,141 @@ struct ReceiverDirectoryView: View {
     ReceiverDirectoryCountrySortOption.allCases
   }
 
-  private var statusFilterCard: some View {
-    let currentIndex = statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }) ?? 0
-
-    return CyclingOptionCard(
-      title: L10n.text("directory.filters.status"),
-      selectedTitle: viewModel.statusFilter.displayName,
-      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: statusFilterOptions.count),
-      canDecrement: canCycle(currentIndex: currentIndex, totalCount: statusFilterOptions.count, offset: -1),
-      canIncrement: canCycle(currentIndex: currentIndex, totalCount: statusFilterOptions.count, offset: 1),
-      accessibilityHint: L10n.text("directory.filters.cycler_hint")
-    ) {
-      cycleStatusFilter(by: -1)
-    } incrementAction: {
-      cycleStatusFilter(by: 1)
+  private var statusFilterSelectionLink: some View {
+    NavigationLink {
+      SelectionListView(
+        title: L10n.text("directory.filters.status"),
+        options: statusFilterOptions.map {
+          SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+        },
+        selectedID: viewModel.statusFilter.rawValue
+      ) { value in
+        if let filter = ReceiverDirectoryStatusFilter(rawValue: value) {
+          viewModel.statusFilter = filter
+        }
+      }
+    } label: {
+      LabeledContent(
+        L10n.text("directory.filters.status"),
+        value: viewModel.statusFilter.displayName
+      )
+    }
+    .accessibilityHint(L10n.text("directory.filters.selection_hint"))
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        adjustStatusFilter(by: 1)
+      case .decrement:
+        adjustStatusFilter(by: -1)
+      @unknown default:
+        break
+      }
     }
   }
 
-  private var entrySortCard: some View {
-    let currentIndex = sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }) ?? 0
-
-    return CyclingOptionCard(
-      title: L10n.text("directory.filters.sort"),
-      selectedTitle: viewModel.sortOption.displayName,
-      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: sortOptions.count),
-      canDecrement: canCycle(currentIndex: currentIndex, totalCount: sortOptions.count, offset: -1),
-      canIncrement: canCycle(currentIndex: currentIndex, totalCount: sortOptions.count, offset: 1),
-      accessibilityHint: L10n.text("directory.filters.cycler_hint")
-    ) {
-      cycleSortOption(by: -1)
-    } incrementAction: {
-      cycleSortOption(by: 1)
+  private var entrySortSelectionLink: some View {
+    NavigationLink {
+      SelectionListView(
+        title: L10n.text("directory.filters.sort"),
+        options: sortOptions.map {
+          SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+        },
+        selectedID: viewModel.sortOption.rawValue
+      ) { value in
+        if let option = ReceiverDirectorySortOption(rawValue: value) {
+          viewModel.sortOption = option
+        }
+      }
+    } label: {
+      LabeledContent(
+        L10n.text("directory.filters.sort"),
+        value: viewModel.sortOption.displayName
+      )
+    }
+    .accessibilityHint(L10n.text("directory.filters.selection_hint"))
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        adjustSortOption(by: 1)
+      case .decrement:
+        adjustSortOption(by: -1)
+      @unknown default:
+        break
+      }
     }
   }
 
-  private var countrySortCard: some View {
-    let currentIndex = countrySortOptions.firstIndex(where: { $0.rawValue == viewModel.countrySortOption.rawValue }) ?? 0
-
-    return CyclingOptionCard(
-      title: L10n.text("directory.filters.country_sort"),
-      selectedTitle: viewModel.countrySortOption.displayName,
-      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: countrySortOptions.count),
-      canDecrement: canCycle(currentIndex: currentIndex, totalCount: countrySortOptions.count, offset: -1),
-      canIncrement: canCycle(currentIndex: currentIndex, totalCount: countrySortOptions.count, offset: 1),
-      accessibilityHint: L10n.text("directory.filters.cycler_hint")
-    ) {
-      cycleCountrySort(by: -1)
-    } incrementAction: {
-      cycleCountrySort(by: 1)
+  private var countrySortSelectionLink: some View {
+    NavigationLink {
+      SelectionListView(
+        title: L10n.text("directory.filters.country_sort"),
+        options: countrySortOptions.map {
+          SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
+        },
+        selectedID: viewModel.countrySortOption.rawValue
+      ) { value in
+        if let option = ReceiverDirectoryCountrySortOption(rawValue: value) {
+          viewModel.countrySortOption = option
+        }
+      }
+    } label: {
+      LabeledContent(
+        L10n.text("directory.filters.country_sort"),
+        value: viewModel.countrySortOption.displayName
+      )
+    }
+    .accessibilityHint(L10n.text("directory.filters.selection_hint"))
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        adjustCountrySort(by: 1)
+      case .decrement:
+        adjustCountrySort(by: -1)
+      @unknown default:
+        break
+      }
     }
   }
 
-  private var countryFilterCard: some View {
-    let currentIndex = countryOptions.firstIndex(of: viewModel.selectedCountry) ?? 0
-
-    return CyclingOptionCard(
-      title: L10n.text("directory.filters.country"),
-      selectedTitle: selectedCountryTitle,
-      detail: optionPositionDetail(currentIndex: currentIndex, totalCount: countryOptions.count),
-      canDecrement: canCycle(currentIndex: currentIndex, totalCount: countryOptions.count, offset: -1),
-      canIncrement: canCycle(currentIndex: currentIndex, totalCount: countryOptions.count, offset: 1),
-      accessibilityHint: L10n.text("directory.filters.cycler_hint")
-    ) {
-      cycleCountry(by: -1)
-    } incrementAction: {
-      cycleCountry(by: 1)
+  private func countryFilterSelectionLink(countryOptions: [ReceiverDirectoryCountryOption]) -> some View {
+    NavigationLink {
+      SelectionListView(
+        title: L10n.text("directory.filters.country"),
+        options: countrySelectionListOptions(countryOptions: countryOptions),
+        selectedID: viewModel.selectedCountry
+      ) { value in
+        viewModel.selectedCountry = value
+      }
+    } label: {
+      LabeledContent(
+        L10n.text("directory.filters.country"),
+        value: selectedCountryTitle(countryOptions: countryOptions)
+      )
     }
+    .accessibilityHint(L10n.text("directory.filters.selection_hint"))
+    .accessibilityAdjustableAction { direction in
+      switch direction {
+      case .increment:
+        adjustCountry(by: 1, countryOptions: countryOptions)
+      case .decrement:
+        adjustCountry(by: -1, countryOptions: countryOptions)
+      @unknown default:
+        break
+      }
+    }
+  }
+
+  private func countrySelectionListOptions(
+    countryOptions: [ReceiverDirectoryCountryOption]
+  ) -> [SelectionListOption] {
+    [SelectionListOption(id: "", title: L10n.text("directory.filter.country.all"), detail: nil)]
+      + countryOptions.map { country in
+          SelectionListOption(
+            id: country.countryLabel,
+            title: "\(country.countryLabel) (\(country.receiverCount))",
+            detail: nil
+          )
+      }
   }
 
   private var statusSummaryView: some View {
@@ -460,65 +530,90 @@ struct ReceiverDirectoryView: View {
     }
   }
 
-  private var countryOptions: [String] {
-    [""] + viewModel.availableCountries
+  private func shouldShowCountrySortControl(
+    countryOptions: [ReceiverDirectoryCountryOption]
+  ) -> Bool {
+    viewModel.selectedBackend == .fmDxWebserver && countryOptions.count > 1
   }
 
-  private var selectedCountryTitle: String {
-    viewModel.selectedCountry.isEmpty
-      ? L10n.text("directory.filter.country.all")
-      : viewModel.countryDisplayTitle(for: viewModel.selectedCountry)
-  }
-
-  private func optionPositionDetail(currentIndex: Int, totalCount: Int) -> String? {
-    guard totalCount > 1 else { return nil }
-    return L10n.text("directory.filters.option_position", currentIndex + 1, totalCount)
-  }
-
-  private func canCycle(currentIndex: Int, totalCount: Int, offset: Int) -> Bool {
-    guard totalCount > 1 else { return false }
-    let nextIndex = currentIndex + offset
-    return (0..<totalCount).contains(nextIndex)
-  }
-
-  private func cycleStatusFilter(by offset: Int) {
-    guard
-      let currentIndex = statusFilterOptions.firstIndex(where: { $0.rawValue == viewModel.statusFilter.rawValue }),
-      canCycle(currentIndex: currentIndex, totalCount: statusFilterOptions.count, offset: offset)
-    else {
-      return
+  private func selectedCountryTitle(
+    countryOptions: [ReceiverDirectoryCountryOption]
+  ) -> String {
+    guard !viewModel.selectedCountry.isEmpty else {
+      return L10n.text("directory.filter.country.all")
     }
-    viewModel.statusFilter = statusFilterOptions[currentIndex + offset]
+
+    if let option = countryOptions.first(where: { $0.countryLabel == viewModel.selectedCountry }) {
+      return "\(option.countryLabel) (\(option.receiverCount))"
+    }
+
+    return viewModel.selectedCountry
   }
 
-  private func cycleSortOption(by offset: Int) {
-    guard
-      let currentIndex = sortOptions.firstIndex(where: { $0.rawValue == viewModel.sortOption.rawValue }),
-      canCycle(currentIndex: currentIndex, totalCount: sortOptions.count, offset: offset)
-    else {
-      return
-    }
-    viewModel.sortOption = sortOptions[currentIndex + offset]
+  private func adjustStatusFilter(by offset: Int) {
+    adjustSelection(
+      options: statusFilterOptions.map(\.rawValue),
+      selectedID: viewModel.statusFilter.rawValue,
+      offset: offset,
+      update: { value in
+        if let filter = ReceiverDirectoryStatusFilter(rawValue: value) {
+          viewModel.statusFilter = filter
+        }
+      }
+    )
   }
 
-  private func cycleCountry(by offset: Int) {
-    guard
-      let currentIndex = countryOptions.firstIndex(of: viewModel.selectedCountry),
-      canCycle(currentIndex: currentIndex, totalCount: countryOptions.count, offset: offset)
-    else {
-      return
-    }
-    viewModel.selectedCountry = countryOptions[currentIndex + offset]
+  private func adjustSortOption(by offset: Int) {
+    adjustSelection(
+      options: sortOptions.map(\.rawValue),
+      selectedID: viewModel.sortOption.rawValue,
+      offset: offset,
+      update: { value in
+        if let option = ReceiverDirectorySortOption(rawValue: value) {
+          viewModel.sortOption = option
+        }
+      }
+    )
   }
 
-  private func cycleCountrySort(by offset: Int) {
-    guard
-      let currentIndex = countrySortOptions.firstIndex(where: { $0.rawValue == viewModel.countrySortOption.rawValue }),
-      canCycle(currentIndex: currentIndex, totalCount: countrySortOptions.count, offset: offset)
-    else {
-      return
-    }
-    viewModel.countrySortOption = countrySortOptions[currentIndex + offset]
+  private func adjustCountrySort(by offset: Int) {
+    adjustSelection(
+      options: countrySortOptions.map(\.rawValue),
+      selectedID: viewModel.countrySortOption.rawValue,
+      offset: offset,
+      update: { value in
+        if let option = ReceiverDirectoryCountrySortOption(rawValue: value) {
+          viewModel.countrySortOption = option
+        }
+      }
+    )
+  }
+
+  private func adjustCountry(
+    by offset: Int,
+    countryOptions: [ReceiverDirectoryCountryOption]
+  ) {
+    adjustSelection(
+      options: [""] + countryOptions.map(\.countryLabel),
+      selectedID: viewModel.selectedCountry,
+      offset: offset,
+      update: { value in
+        viewModel.selectedCountry = value
+      }
+    )
+  }
+
+  private func adjustSelection(
+    options: [String],
+    selectedID: String,
+    offset: Int = 1,
+    update: (String) -> Void
+  ) {
+    guard !options.isEmpty else { return }
+    let currentIndex = options.firstIndex(of: selectedID) ?? 0
+    let nextIndex = min(max(currentIndex + offset, 0), options.count - 1)
+    guard nextIndex != currentIndex else { return }
+    update(options[nextIndex])
   }
 
   private func openReceiverWebsite(for entry: ReceiverDirectoryEntry) {

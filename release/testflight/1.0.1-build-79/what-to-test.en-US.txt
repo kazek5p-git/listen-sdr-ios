@@ -1,0 +1,6 @@
+This build improves the iPhone FM-DX workflow and a few profile-editing details.
+
+- FM-DX receiver layout is reorganized so tuning is followed by live RDS and AF, then quick FM-DX controls, favorites, presets, recent frequencies, and scanning.
+- FM-DX live information is grouped more clearly into signal metrics, core RDS details, radiotext, AF, and full details.
+- Add/Edit Receiver now includes a Show password toggle.
+- Receiver directory filters are smoother to navigate and keep quick value changes available through VoiceOver.

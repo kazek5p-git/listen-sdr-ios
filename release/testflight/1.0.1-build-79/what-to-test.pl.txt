@@ -1,0 +1,6 @@
+Ten build poprawia układ FM-DX na iPhonie i kilka szczegółów edycji profilu.
+
+- Ekran odbiornika FM-DX ma nową kolejność sekcji: po strojeniu są od razu RDS i AF, potem szybkie kontrolki FM-DX, ulubione, presety, ostatnie częstotliwości i skanowanie.
+- Informacje FM-DX na żywo są pogrupowane czytelniej: metryki sygnału, najważniejsze dane RDS, radiotext, AF i pełne szczegóły.
+- W dodawaniu i edycji odbiornika jest przełącznik Pokaż hasło.
+- Filtry katalogu odbiorników działają płynniej i nadal pozwalają szybko zmieniać wartości przez VoiceOver.
