@@ -1,0 +1,7 @@
+This build fixes the latest FM-DX receiver layout regressions.
+
+- the Connect or Disconnect button is accessible to VoiceOver again after moving it into the receiver header
+- Users information now appears directly under More RDS details on the main receiver screen
+- the receiver header layout stays aligned with the Android version
+
+If VoiceOver still skips important controls or the FM-DX layout feels illogical, please send feedback from the app.

@@ -455,6 +455,7 @@ struct ReceiverView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.85)
         }
+        .accessibilityElement(children: .combine)
 
         Spacer(minLength: 8)
 
@@ -489,13 +490,6 @@ struct ReceiverView: View {
           .font(.footnote)
       }
     }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(profile.name)
-    .accessibilityValue(
-      [profile.backend.displayName, radioSession.statusText, profile.endpointDescription]
-        .joined(separator: ", ")
-    )
-    .accessibilityHint(L10n.text("receiver.current.summary.hint"))
   }
 
   private func tuningSection(for profile: SDRConnectionProfile) -> some View {
@@ -1990,6 +1984,10 @@ struct ReceiverView: View {
             )
           } label: {
             Label(L10n.text("fmdx.live.more_details"), systemImage: "text.badge.plus")
+          }
+
+          if let users = telemetry.users {
+            LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
           }
         }
         .appCardContainer(
@@ -4203,9 +4201,6 @@ private struct FMDXRDSDetailsView: View {
             Text(L10n.text("fmdx.rt1_errors", errors))
               .font(.footnote)
           }
-        }
-        if let users = telemetry.users {
-          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
         }
       }
       .appSectionStyle()

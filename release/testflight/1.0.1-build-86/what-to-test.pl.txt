@@ -1,0 +1,7 @@
+Ten build naprawia ostatnie regresje układu ekranu odbiornika FM-DX.
+
+- przycisk Połącz lub Rozłącz znowu jest widoczny dla VoiceOver po przeniesieniu go do nagłówka odbiornika
+- informacja Users jest teraz bezpośrednio pod opcją Więcej szczegółów RDS na głównym ekranie odbiornika
+- układ nagłówka odbiornika pozostaje spójny z wersją Android
+
+Jeśli VoiceOver nadal pomija jakieś ważne kontrolki albo układ FM-DX jest nielogiczny, wyślij feedback z aplikacji.
