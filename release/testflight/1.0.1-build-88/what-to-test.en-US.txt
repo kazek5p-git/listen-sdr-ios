@@ -1,0 +1,7 @@
+This build cleans up the FM-DX control layout and makes the receiver screen easier to scan.
+
+- the FM-DX band switch now sits at the end of the shared manipulator row with audio mode, EQ, IMS, and AGC
+- the old separate band picker is removed from the tuning section so the same option is no longer duplicated
+- the FM-DX Live header is now shown as Signal quality
+
+Please check the FM-DX controls layout, especially whether the shared manipulator row feels visually cleaner while still working correctly with VoiceOver.

@@ -1,0 +1,7 @@
+Ten build porządkuje manipulatory FM-DX i poprawia czytelność ekranu odbiornika.
+
+- przełącznik pasma FM-DX jest teraz na końcu wspólnego rzędu manipulatorów razem z trybem audio, EQ, IMS i AGC
+- stary osobny wybór pasma z sekcji strojenia zniknął, więc ekran nie dubluje już tej samej opcji
+- nagłówek FM-DX Live został zmieniony na Jakość sygnału
+
+Sprawdź proszę układ kontrolek FM-DX, szczególnie czy wspólny rząd manipulatorów jest wygodny wzrokowo i nadal poprawnie działa z VoiceOver.

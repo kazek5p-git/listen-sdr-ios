@@ -353,7 +353,7 @@
 "kiwi.waterfall.min_db" = "Minimum wodospadu";
 "kiwi.waterfall.max_db" = "Maksimum wodospadu";
 
-"fmdx.live.section" = "FM-DX na żywo";
+"fmdx.live.section" = "Jakość sygnału";
 "fmdx.field.frequency" = "Częstotliwość";
 "fmdx.field.signal" = "Sygnał";
 "fmdx.field.signal_peak" = "Szczyt sygnału";

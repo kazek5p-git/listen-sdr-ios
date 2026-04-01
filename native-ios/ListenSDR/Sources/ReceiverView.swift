@@ -514,9 +514,7 @@ struct ReceiverView: View {
           .frame(width: 156)
       }
 
-      if profile.backend == .fmDxWebserver {
-        fmdxBandSelectionControl()
-      } else {
+      if profile.backend != .fmDxWebserver {
         selectionNavigationLink(
           title: "Mode",
           value: currentModeSelectionValue(for: profile.backend),
@@ -818,10 +816,10 @@ struct ReceiverView: View {
       Section {
         VStack(alignment: .leading, spacing: 10) {
           fmDxInsetPanel {
-            VStack(alignment: .leading, spacing: 10) {
+            ScrollView(.horizontal, showsIndicators: false) {
               fmDxPrimaryToggleRow()
-              fmDxAGCToggleRow()
             }
+            .accessibilityElement(children: .contain)
           }
 
           fmDxInsetPanel {
@@ -868,16 +866,8 @@ struct ReceiverView: View {
           radioSession.setIMSEnabled(!radioSession.settings.imsEnabled)
         }
       }
-    }
-    .accessibilityElement(children: .contain)
-  }
 
-  @ViewBuilder
-  private func fmDxAGCToggleRow() -> some View {
-    let controlsEnabled = radioSession.state == .connected
-
-    if radioSession.fmdxSupportsAGCControl {
-      HStack(spacing: 8) {
+      if radioSession.fmdxSupportsAGCControl {
         fmdxToggleChip(
           title: "AGC",
           accessibilityTitle: "AGC",
@@ -886,10 +876,11 @@ struct ReceiverView: View {
         ) {
           radioSession.setAGCEnabled(!radioSession.settings.agcEnabled)
         }
-        Spacer(minLength: 0)
       }
-      .accessibilityElement(children: .contain)
+
+      fmdxBandSelectionChip(isEnabled: controlsEnabled)
     }
+    .accessibilityElement(children: .contain)
   }
 
   @ViewBuilder
@@ -2444,6 +2435,43 @@ struct ReceiverView: View {
         )
       }
     }
+  }
+
+  private func fmdxBandSelectionChip(isEnabled: Bool) -> some View {
+    NavigationLink {
+      SelectionListView(
+        title: L10n.text("fmdx.band"),
+        options: availableModes(for: .fmDxWebserver).map {
+          SelectionListOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
+        },
+        selectedID: currentModeSelectionID(for: .fmDxWebserver)
+      ) { value in
+        guard let mode = modeFromSelectionID(value) else { return }
+        radioSession.setMode(mode)
+        if mode == .am, radioSession.settings.mode != .am {
+          AppAccessibilityAnnouncementCenter.post(
+            L10n.text("fmdx.band.am_not_supported")
+          )
+        }
+      }
+    } label: {
+      fmdxToggleChipLabel(title: currentModeSelectionValue(for: .fmDxWebserver))
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(Color.primary)
+    .background(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(AppTheme.chipFill)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(AppTheme.cardStroke, lineWidth: 1)
+    )
+    .disabled(!isEnabled)
+    .opacity(isEnabled ? 1 : 0.5)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("fmdx.band"))
+    .accessibilityValue(currentModeSelectionValue(for: .fmDxWebserver))
   }
 
   @ViewBuilder

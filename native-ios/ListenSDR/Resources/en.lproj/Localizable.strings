@@ -201,7 +201,7 @@
 "kiwi.waterfall.min_db" = "Waterfall minimum";
 "kiwi.waterfall.max_db" = "Waterfall maximum";
 
-"fmdx.live.section" = "FM-DX Live";
+"fmdx.live.section" = "Signal quality";
 "fmdx.field.frequency" = "Frequency";
 "fmdx.field.signal" = "Signal";
 "fmdx.field.signal_peak" = "Signal peak";
