@@ -283,6 +283,9 @@ final class AudioOutputEngine {
       try session.setActive(true, options: [])
       sessionConfigured = true
       lastStartError = nil
+      log(
+        "Shared audio session configured: force=\(force) mix_with_others=\(mixWithOtherAudioApps) preferred_sample_rate_hz=\(Int(outputSampleRate.rounded())) actual_sample_rate_hz=\(Int(session.sampleRate.rounded())) io_buffer_ms=\(Int((session.ioBufferDuration * 1000).rounded())) route=\(describeRoute(session.currentRoute))"
+      )
     } catch {
       do {
         let fallbackOptions: AVAudioSession.CategoryOptions = mixWithOtherAudioApps ? [.mixWithOthers] : []
@@ -290,6 +293,10 @@ final class AudioOutputEngine {
         try session.setActive(true, options: [])
         sessionConfigured = true
         lastStartError = nil
+        log(
+          "Shared audio session configured with fallback options: force=\(force) mix_with_others=\(mixWithOtherAudioApps) actual_sample_rate_hz=\(Int(session.sampleRate.rounded())) route=\(describeRoute(session.currentRoute))",
+          severity: .warning
+        )
       } catch {
         sessionConfigured = false
         lastStartError = error.localizedDescription
@@ -392,6 +399,7 @@ final class AudioOutputEngine {
     do {
       try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
       sessionConfigured = false
+      log("Shared audio session deactivated.")
     } catch {
       log("Shared audio session deactivation failed: \(error.localizedDescription)", severity: .warning)
     }
@@ -418,6 +426,18 @@ final class AudioOutputEngine {
       ) { [weak self] notification in
         Task { @MainActor in
           self?.handleAudioRouteChange(notification)
+        }
+      }
+    )
+    notificationTokens.append(
+      center.addObserver(
+        forName: AVAudioSession.mediaServicesWereLostNotification,
+        object: nil,
+        queue: .main
+      ) { [weak self] _ in
+        Task { @MainActor in
+          self?.sessionConfigured = false
+          self?.log("Shared audio media services were lost.", severity: .warning)
         }
       }
     )
@@ -458,11 +478,16 @@ final class AudioOutputEngine {
 
   private func handleAudioRouteChange(_ notification: Notification) {
     sessionConfigured = false
+    let currentRoute = describeRoute(AVAudioSession.sharedInstance().currentRoute)
+    let previousRoute = (notification.userInfo?[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription)
+      .map(describeRoute) ?? "unknown"
     if let reasonValue = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
       let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) {
-      log("Shared audio route changed (\(reason.rawValue)).")
+      log(
+        "Shared audio route changed: reason=\(describeRouteChangeReason(reason)) previous=\(previousRoute) current=\(currentRoute)"
+      )
     } else {
-      log("Shared audio route changed.")
+      log("Shared audio route changed: previous=\(previousRoute) current=\(currentRoute)")
     }
   }
 
@@ -477,7 +502,10 @@ final class AudioOutputEngine {
     shouldResumeAfterInterruption = playerNode.isPlaying || engine.isRunning || queuedBuffers > 0
     clearPlaybackStateForInterruption()
     sessionConfigured = false
-    log("Shared audio session interrupted. Audio paused for system interruption.", severity: .warning)
+    log(
+      "Shared audio session interrupted. queued_buffers=\(queuedBuffers) engine_running=\(engine.isRunning) route=\(describeRoute(AVAudioSession.sharedInstance().currentRoute))",
+      severity: .warning
+    )
   }
 
   private func endAudioSessionInterruption(shouldResume: Bool) {
@@ -487,13 +515,17 @@ final class AudioOutputEngine {
     sessionConfigured = false
 
     guard shouldRearm else {
-      log("Shared audio session interruption ended.")
+      log(
+        "Shared audio session interruption ended without resume. route=\(describeRoute(AVAudioSession.sharedInstance().currentRoute))"
+      )
       return
     }
 
     configureAudioSessionIfNeeded(force: true)
     ensureGraphConfigured()
-    log("Shared audio session interruption ended. Audio will resume when stream data arrives.")
+    log(
+      "Shared audio session interruption ended. should_resume=\(shouldResume) route=\(describeRoute(AVAudioSession.sharedInstance().currentRoute)). Audio will resume when stream data arrives."
+    )
   }
 
   private func clearPlaybackStateForInterruption() {
@@ -595,6 +627,35 @@ final class AudioOutputEngine {
     playerNode.stop()
     needsBufferedPlaybackStart = true
     log("Shared audio queue drained; waiting for buffered resume.", severity: .warning)
+  }
+
+  private func describeRoute(_ route: AVAudioSessionRouteDescription) -> String {
+    let outputs = route.outputs.map { "\($0.portType.rawValue)=\($0.portName)" }.joined(separator: ",")
+    let inputs = route.inputs.map { "\($0.portType.rawValue)=\($0.portName)" }.joined(separator: ",")
+    return "outputs=[\(outputs.isEmpty ? "none" : outputs)] inputs=[\(inputs.isEmpty ? "none" : inputs)]"
+  }
+
+  private func describeRouteChangeReason(_ reason: AVAudioSession.RouteChangeReason) -> String {
+    switch reason {
+    case .unknown:
+      return "unknown"
+    case .newDeviceAvailable:
+      return "new_device_available"
+    case .oldDeviceUnavailable:
+      return "old_device_unavailable"
+    case .categoryChange:
+      return "category_change"
+    case .override:
+      return "override"
+    case .wakeFromSleep:
+      return "wake_from_sleep"
+    case .noSuitableRouteForCategory:
+      return "no_suitable_route"
+    case .routeConfigurationChange:
+      return "route_configuration_change"
+    @unknown default:
+      return "unknown_future"
+    }
   }
 }
 

@@ -1,0 +1,9 @@
+Ten build rozszerza logi diagnostyczne na iPhonie.
+
+- aplikacja zapisuje teraz przejścia między active, inactive i background
+- logowane są wejście do tła i powrót na pierwszy plan
+- backend zapisuje zmiany runtime policy
+- AVAudioSession zapisuje interruption i route change
+- FM-DX zapisuje dokładniejszy kontekst audio przy blokadzie ekranu, zmianie wyjścia audio i wznowieniu
+
+Jeśli problem z audio nadal wystąpi, wyślij nowy eksport diagnostyki z aplikacji.

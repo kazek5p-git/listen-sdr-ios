@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
@@ -13,6 +14,7 @@ struct ContentView: View {
   @State private var hasEvaluatedStartupTutorial = false
   @State private var isStartupTutorialPresented = false
   @State private var isFirstConnectionTipsPresented = false
+  @State private var lastLoggedScenePhase: ScenePhase?
 
   var body: some View {
     TabView(selection: $navigationState.selectedTab) {
@@ -63,6 +65,7 @@ struct ContentView: View {
       )
     }
     .onAppear {
+      logScenePhaseTransition(to: scenePhase)
       accessibilityState.selectedTab = navigationState.selectedTab
       radioSession.updateRuntimePolicy(
         isForegroundActive: scenePhase == .active,
@@ -79,6 +82,7 @@ struct ContentView: View {
       )
     }
     .onChange(of: scenePhase) { phase in
+      logScenePhaseTransition(to: phase)
       radioSession.updateRuntimePolicy(
         isForegroundActive: phase == .active,
         selectedTab: navigationState.selectedTab
@@ -94,6 +98,18 @@ struct ContentView: View {
     }
     .onChange(of: settingsController.isBound) { _ in
       attemptStartupTutorialPresentationIfNeeded()
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+      logApplicationLifecycleEvent("UIApplication will resign active")
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+      logApplicationLifecycleEvent("UIApplication did enter background")
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+      logApplicationLifecycleEvent("UIApplication will enter foreground")
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+      logApplicationLifecycleEvent("UIApplication did become active")
     }
   }
 
@@ -121,6 +137,23 @@ struct ContentView: View {
 
     hasEvaluatedStartupTutorial = true
     isStartupTutorialPresented = settingsController.consumeStartupTutorialAutoPresentationIfNeeded()
+  }
+
+  private func logScenePhaseTransition(to phase: ScenePhase) {
+    let previousPhase = lastLoggedScenePhase?.diagnosticsLabel ?? "unknown"
+    let nextPhase = phase.diagnosticsLabel
+    lastLoggedScenePhase = phase
+    Diagnostics.log(
+      category: "App Lifecycle",
+      message: "Scene phase changed: \(previousPhase) -> \(nextPhase) tab=\(navigationState.selectedTab.diagnosticsLabel) connection_state=\(String(describing: radioSession.state)) backend=\(radioSession.currentTuningBackend?.displayName ?? "none")"
+    )
+  }
+
+  private func logApplicationLifecycleEvent(_ event: String) {
+    Diagnostics.log(
+      category: "App Lifecycle",
+      message: "\(event) tab=\(navigationState.selectedTab.diagnosticsLabel) connection_state=\(String(describing: radioSession.state)) backend=\(radioSession.currentTuningBackend?.displayName ?? "none")"
+    )
   }
 }
 
@@ -160,5 +193,33 @@ private struct ShortcutCommandHost: View {
       recordingStore: recordingStore,
       historyStore: historyStore
     )
+  }
+}
+
+private extension ScenePhase {
+  var diagnosticsLabel: String {
+    switch self {
+    case .active:
+      return "active"
+    case .inactive:
+      return "inactive"
+    case .background:
+      return "background"
+    @unknown default:
+      return "unknown"
+    }
+  }
+}
+
+private extension AppTab {
+  var diagnosticsLabel: String {
+    switch self {
+    case .receiver:
+      return "receiver"
+    case .radios:
+      return "radios"
+    case .settings:
+      return "settings"
+    }
   }
 }

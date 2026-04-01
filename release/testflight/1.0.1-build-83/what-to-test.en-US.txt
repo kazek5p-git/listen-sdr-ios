@@ -1,0 +1,9 @@
+This build expands diagnostics logging on iPhone.
+
+- the app now records transitions between active, inactive, and background
+- entering background and returning to foreground are logged
+- backend runtime policy changes are logged
+- AVAudioSession interruption and route-change events are logged
+- FM-DX now records richer audio context around screen lock, audio route changes, and resume
+
+If the audio problem still happens, please send a fresh diagnostics export from the app.

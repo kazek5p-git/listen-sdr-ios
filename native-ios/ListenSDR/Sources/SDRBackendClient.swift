@@ -78,6 +78,17 @@ enum BackendRuntimePolicy: Equatable {
   case passive
   case background
 
+  var diagnosticsLabel: String {
+    switch self {
+    case .interactive:
+      return "interactive"
+    case .passive:
+      return "passive"
+    case .background:
+      return "background"
+    }
+  }
+
   var allowsVisualTelemetry: Bool {
     self == .interactive
   }
@@ -461,11 +472,14 @@ actor KiwiSDRClient: SDRBackendClient {
 
   func setRuntimePolicy(_ policy: BackendRuntimePolicy) async {
     guard runtimePolicy != policy else { return }
+    let previousPolicy = runtimePolicy
     runtimePolicy = policy
+    log("Runtime policy changed: \(previousPolicy.diagnosticsLabel) -> \(policy.diagnosticsLabel)")
 
     guard let activeProfile else { return }
     if policy.allowsVisualTelemetry {
       guard wfSocket == nil else { return }
+      log("Restoring Kiwi waterfall stream for runtime policy \(policy.diagnosticsLabel).")
       do {
         try await openWaterfallStream(profile: activeProfile, basePath: activeBasePath)
         if let lastAppliedSettings {
@@ -475,6 +489,7 @@ actor KiwiSDRClient: SDRBackendClient {
         log("Unable to restore Kiwi waterfall stream: \(error.localizedDescription)", severity: .warning)
       }
     } else {
+      log("Closing Kiwi waterfall stream for runtime policy \(policy.diagnosticsLabel).")
       closeWaterfallStream(clearTelemetry: true)
     }
   }
@@ -2529,11 +2544,18 @@ final class FMDXMP3AudioPlayer {
         try session.setPreferredSampleRate(requestedSampleRate)
       }
       try session.setActive(true, options: [])
+      log(
+        "FM-DX audio session configured: requested_sample_rate_hz=\(requestedSampleRate.map { Int($0.rounded()) }?.description ?? "none") actual_sample_rate_hz=\(Int(session.sampleRate.rounded())) io_buffer_ms=\(Int((session.ioBufferDuration * 1000).rounded())) route=\(describeRoute(session.currentRoute))"
+      )
     } catch {
       do {
         let fallbackOptions: AVAudioSession.CategoryOptions = mixWithOtherAudioApps ? [.mixWithOthers] : []
         try session.setCategory(.playback, mode: .default, options: fallbackOptions)
         try session.setActive(true, options: [])
+        log(
+          "FM-DX audio session configured with fallback options: actual_sample_rate_hz=\(Int(session.sampleRate.rounded())) route=\(describeRoute(session.currentRoute))",
+          severity: .warning
+        )
       } catch {
         log("Audio session setup failed: \(error.localizedDescription)", severity: .warning)
       }
@@ -2892,6 +2914,7 @@ final class FMDXMP3AudioPlayer {
   private func deactivateAudioSessionIfPossible() {
     do {
       try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+      log("FM-DX audio session deactivated.")
     } catch {
       log("Audio session deactivation failed: \(error.localizedDescription)", severity: .warning)
     }
@@ -2905,8 +2928,71 @@ final class FMDXMP3AudioPlayer {
     )
   }
 
+  private func describeRoute(_ route: AVAudioSessionRouteDescription) -> String {
+    let outputs = route.outputs.map { "\($0.portType.rawValue)=\($0.portName)" }.joined(separator: ",")
+    let inputs = route.inputs.map { "\($0.portType.rawValue)=\($0.portName)" }.joined(separator: ",")
+    return "outputs=[\(outputs.isEmpty ? "none" : outputs)] inputs=[\(inputs.isEmpty ? "none" : inputs)]"
+  }
+
+  private func describeRouteChangeReason(_ reason: AVAudioSession.RouteChangeReason) -> String {
+    switch reason {
+    case .unknown:
+      return "unknown"
+    case .newDeviceAvailable:
+      return "new_device_available"
+    case .oldDeviceUnavailable:
+      return "old_device_unavailable"
+    case .categoryChange:
+      return "category_change"
+    case .override:
+      return "override"
+    case .wakeFromSleep:
+      return "wake_from_sleep"
+    case .noSuitableRouteForCategory:
+      return "no_suitable_route"
+    case .routeConfigurationChange:
+      return "route_configuration_change"
+    @unknown default:
+      return "unknown_future"
+    }
+  }
+
   private func installSessionObservers() {
     let center = NotificationCenter.default
+    notificationTokens.append(
+      center.addObserver(
+        forName: AVAudioSession.routeChangeNotification,
+        object: nil,
+        queue: nil
+      ) { [weak self] notification in
+        self?.workerQueue.async {
+          self?.handleAudioRouteChangeLocked(notification)
+        }
+      }
+    )
+    notificationTokens.append(
+      center.addObserver(
+        forName: AVAudioSession.mediaServicesWereLostNotification,
+        object: nil,
+        queue: nil
+      ) { [weak self] _ in
+        self?.workerQueue.async {
+          self?.log("FM-DX audio media services were lost.", severity: .warning)
+        }
+      }
+    )
+    notificationTokens.append(
+      center.addObserver(
+        forName: AVAudioSession.mediaServicesWereResetNotification,
+        object: nil,
+        queue: nil
+      ) { [weak self] _ in
+        self?.workerQueue.async {
+          self?.parserNeedsDiscontinuity = true
+          self?.log("FM-DX audio media services were reset.", severity: .warning)
+        }
+      }
+    )
     notificationTokens.append(
       center.addObserver(
         forName: AVAudioSession.interruptionNotification,
@@ -2940,6 +3026,20 @@ final class FMDXMP3AudioPlayer {
     }
   }
 
+  private func handleAudioRouteChangeLocked(_ notification: Notification) {
+    let currentRoute = describeRoute(AVAudioSession.sharedInstance().currentRoute)
+    let previousRoute = (notification.userInfo?[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription)
+      .map(describeRoute) ?? "unknown"
+    if let reasonValue = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+      let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) {
+      log(
+        "FM-DX audio route changed: reason=\(describeRouteChangeReason(reason)) previous=\(previousRoute) current=\(currentRoute)"
+      )
+    } else {
+      log("FM-DX audio route changed: previous=\(previousRoute) current=\(currentRoute)")
+    }
+  }
+
   private func beginAudioSessionInterruptionLocked() {
     guard !isAudioSessionInterrupted else { return }
 
@@ -2947,7 +3047,10 @@ final class FMDXMP3AudioPlayer {
     shouldResumeAfterInterruption = queueStarted || pendingQueuedBuffers > 0 || activePacketCount > 0
     parserNeedsDiscontinuity = true
     clearOutputStateForInterruptionLocked()
-    log("FM-DX audio session interrupted. Audio paused for system interruption.", severity: .warning)
+    log(
+      "FM-DX audio session interrupted. queue_started=\(queueStarted) pending_buffers=\(pendingQueuedBuffers) active_packets=\(activePacketCount) route=\(describeRoute(AVAudioSession.sharedInstance().currentRoute))",
+      severity: .warning
+    )
   }
 
   private func endAudioSessionInterruptionLocked(shouldResume: Bool) {
@@ -2958,7 +3061,7 @@ final class FMDXMP3AudioPlayer {
     lastAudioRenderAt = Date()
 
     guard shouldRearm else {
-      log("FM-DX audio session interruption ended.")
+      log("FM-DX audio session interruption ended without resume. route=\(describeRoute(AVAudioSession.sharedInstance().currentRoute))")
       return
     }
 
@@ -2966,7 +3069,9 @@ final class FMDXMP3AudioPlayer {
       configureAudioSessionIfNeeded(sampleRate: streamDescription.mSampleRate)
       ensureAudioQueueLocked(for: streamDescription, fileStreamID: fileStreamID)
     }
-    log("FM-DX audio session interruption ended. Audio will resume when stream data arrives.")
+    log(
+      "FM-DX audio session interruption ended. should_resume=\(shouldResume) route=\(describeRoute(AVAudioSession.sharedInstance().currentRoute)). Audio will resume when stream data arrives."
+    )
   }
 
   private func clearOutputStateForInterruptionLocked() {
@@ -3290,9 +3395,16 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   func setRuntimePolicy(_ policy: BackendRuntimePolicy) async {
     guard runtimePolicy != policy else { return }
+    let previousPolicy = runtimePolicy
     runtimePolicy = policy
+    log("Runtime policy changed: \(previousPolicy.diagnosticsLabel) -> \(policy.diagnosticsLabel)")
 
-    guard policy.allowsVisualTelemetry, let activeProfile else { return }
+    guard let activeProfile else { return }
+    guard policy.allowsVisualTelemetry else {
+      log("FM-DX switched to \(policy.diagnosticsLabel) runtime policy. Station list refresh deferred.")
+      return
+    }
+    log("FM-DX switched to \(policy.diagnosticsLabel) runtime policy. Refreshing station list if needed.")
     await refreshStationListIfNeeded(profile: activeProfile)
   }
 

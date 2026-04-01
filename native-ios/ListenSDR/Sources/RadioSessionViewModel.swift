@@ -325,6 +325,7 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func updateRuntimePolicy(isForegroundActive: Bool, selectedTab: AppTab) {
+    let previousPolicy = runtimePolicy
     let newPolicy = BackendRuntimePolicy(
       BackendRuntimePolicyCore.policy(
         isForegroundActive: isForegroundActive,
@@ -334,6 +335,10 @@ final class RadioSessionViewModel: ObservableObject {
 
     guard runtimePolicy != newPolicy else { return }
     runtimePolicy = newPolicy
+    Diagnostics.log(
+      category: "Session",
+      message: "Runtime policy changed: \(previousPolicy.diagnosticsLabel) -> \(newPolicy.diagnosticsLabel) foreground_active=\(isForegroundActive) selected_tab=\(diagnosticsLabel(for: selectedTab)) backend=\(activeBackend?.displayName ?? "none")"
+    )
     applyRuntimePolicyToConnectedClient()
   }
 
@@ -4108,8 +4113,23 @@ final class RadioSessionViewModel: ObservableObject {
   private func applyRuntimePolicyToConnectedClient() {
     guard let client else { return }
     let runtimePolicy = runtimePolicy
+    Diagnostics.log(
+      category: "Session",
+      message: "Applying runtime policy \(runtimePolicy.diagnosticsLabel) to \(client.backend.displayName) profile=\(currentConnectedProfile?.name ?? "unknown")"
+    )
     Task {
       await client.setRuntimePolicy(runtimePolicy)
+    }
+  }
+
+  private func diagnosticsLabel(for tab: AppTab) -> String {
+    switch tab {
+    case .receiver:
+      return "receiver"
+    case .radios:
+      return "radios"
+    case .settings:
+      return "settings"
     }
   }
 
