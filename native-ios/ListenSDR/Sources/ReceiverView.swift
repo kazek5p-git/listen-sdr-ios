@@ -432,10 +432,7 @@ struct ReceiverView: View {
   }
 
   private func connectionCard(for profile: SDRConnectionProfile) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      receiverSummaryContent(for: profile)
-      connectionActionRow(for: profile)
-    }
+    receiverSummaryContent(for: profile)
     .appCardContainer(
       padding: EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
     )
@@ -451,23 +448,33 @@ struct ReceiverView: View {
           Text(profile.backend.displayName)
             .font(.footnote.weight(.semibold))
             .foregroundStyle(receiverAccentColor(for: profile.backend))
+
+          Text(profile.endpointDescription)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
         }
 
         Spacer(minLength: 8)
 
-        Text(radioSession.statusText)
-          .font(.footnote.weight(.semibold))
-          .padding(.horizontal, 10)
-          .padding(.vertical, 6)
-          .background(receiverStatusBackground, in: Capsule())
-          .foregroundStyle(receiverStatusForeground)
-      }
+        VStack(alignment: .trailing, spacing: 8) {
+          Text(radioSession.statusText)
+            .font(.footnote.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(receiverStatusBackground, in: Capsule())
+            .foregroundStyle(receiverStatusForeground)
 
-      Text(profile.endpointDescription)
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.85)
+          FocusRetainingButton({
+            handleConnectionButtonTap(for: profile)
+          }) {
+            Text(connectionButtonTitle(for: profile))
+          }
+          .buttonStyle(.borderedProminent)
+          .accessibilityHint(L10n.text("Double tap to change connection state"))
+        }
+      }
 
       if let backendStatus = radioSession.backendStatusText, !backendStatus.isEmpty {
         Text(backendStatus)
@@ -489,31 +496,6 @@ struct ReceiverView: View {
         .joined(separator: ", ")
     )
     .accessibilityHint(L10n.text("receiver.current.summary.hint"))
-  }
-
-  @ViewBuilder
-  private func connectionActionRow(for profile: SDRConnectionProfile) -> some View {
-    HStack(spacing: 8) {
-      FocusRetainingButton({
-        handleConnectionButtonTap(for: profile)
-      }) {
-        Text(connectionButtonTitle(for: profile))
-          .frame(maxWidth: .infinity)
-      }
-      .buttonStyle(.borderedProminent)
-      .accessibilityHint(L10n.text("Double tap to change connection state"))
-
-      if radioSession.state == .failed {
-        FocusRetainingButton {
-          radioSession.reconnect(to: profile)
-        } label: {
-          Text(L10n.text("Reconnect"))
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityHint(L10n.text("Try connecting to this receiver again"))
-      }
-    }
   }
 
   private func tuningSection(for profile: SDRConnectionProfile) -> some View {
@@ -2136,7 +2118,7 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func fmDxSignalMetricsRow(telemetry: FMDXTelemetry) -> some View {
-    if telemetry.signal != nil || telemetry.signalTop != nil || telemetry.users != nil {
+    if telemetry.signal != nil || telemetry.signalTop != nil {
       HStack(spacing: 8) {
         if let signal = telemetry.signal {
           metricCard(
@@ -2148,12 +2130,6 @@ struct ReceiverView: View {
           metricCard(
             title: L10n.text("fmdx.field.signal_peak"),
             value: String(format: "%.1f dBf", signalTop)
-          )
-        }
-        if let users = telemetry.users {
-          metricCard(
-            title: L10n.text("fmdx.field.users"),
-            value: "\(users)"
           )
         }
       }
@@ -4227,6 +4203,9 @@ private struct FMDXRDSDetailsView: View {
             Text(L10n.text("fmdx.rt1_errors", errors))
               .font(.footnote)
           }
+        }
+        if let users = telemetry.users {
+          LabeledContent(L10n.text("fmdx.field.users"), value: "\(users)")
         }
       }
       .appSectionStyle()

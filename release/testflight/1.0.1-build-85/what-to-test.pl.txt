@@ -1,0 +1,6 @@
+Ten build porządkuje wizualnie ekran odbiornika.
+
+- przycisk Połącz lub Rozłącz jest teraz po prawej stronie bloku z nazwą i adresem odbiornika
+- informacja Users została przeniesiona z górnych metryk FM-DX na dół More RDS details
+
+Jeśli układ nadal wygląda niespójnie albo coś przeszkadza w codziennym użyciu, wyślij feedback z aplikacji.

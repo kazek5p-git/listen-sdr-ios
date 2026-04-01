@@ -1,0 +1,6 @@
+This build refines the receiver screen layout.
+
+- the Connect or Disconnect action now sits on the right side of the receiver header next to the receiver name and address
+- Users info was moved out of the top FM-DX live metrics and down to the bottom of More RDS details
+
+If the layout still feels inconsistent or gets in the way of daily use, please send feedback from the app.
