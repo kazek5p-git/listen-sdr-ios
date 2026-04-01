@@ -1,0 +1,5 @@
+This build improves diagnostics retention and cleans up the empty Radios history screen.
+
+- diagnostics now keep the previous app session after restart, so exports and bug reports can include the session that crashed
+- diagnostics export and feedback now include both current-session and previous-session logs when available
+- the empty Radios history screen now shows a simple history message instead of first-receiver action cards

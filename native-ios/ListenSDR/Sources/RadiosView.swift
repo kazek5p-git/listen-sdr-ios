@@ -165,7 +165,7 @@ struct RadiosView: View {
         if profileStore.profiles.isEmpty
           && historyStore.recentReceivers.isEmpty
           && historyStore.recentListening.isEmpty {
-          firstReceiverEmptyState
+          initialHistoryEmptyState
         } else {
           List {
             let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -439,52 +439,25 @@ struct RadiosView: View {
     }
   }
 
-  private var firstReceiverEmptyState: some View {
+  private var initialHistoryEmptyState: some View {
     ScrollView {
       VStack(spacing: 16) {
-        Image(systemName: "dot.radiowaves.left.and.right")
+        Image(systemName: "clock.arrow.circlepath")
           .font(.system(size: 42, weight: .regular))
           .foregroundStyle(AppTheme.tint)
           .accessibilityHidden(true)
 
-        Text(L10n.text("radios.first_receiver.title", fallback: "Add your first receiver"))
+        Text(L10n.text("history.empty_initial.title", fallback: "No history yet"))
           .font(.title3.weight(.semibold))
 
         Text(
           L10n.text(
-            "radios.first_receiver.body",
-            fallback: "Start by opening the directory, pasting a full receiver link, or entering the receiver details manually."
+            "history.empty_initial.body",
+            fallback: "There are no history items to display yet. Use Add receiver to add your first saved receiver."
           )
         )
         .multilineTextAlignment(.center)
         .foregroundStyle(.secondary)
-
-        VStack(spacing: 12) {
-          firstReceiverActionButton(
-            title: L10n.text("radios.add_receiver.directory", fallback: "Search receiver directory"),
-            detail: L10n.text(
-              "radios.add_receiver.directory.detail",
-              fallback: "Search the public receiver directory and save a receiver from the results."
-            ),
-            action: { isDirectoryPresented = true }
-          )
-          firstReceiverActionButton(
-            title: L10n.text("radios.add_receiver.import", fallback: "Paste receiver link"),
-            detail: L10n.text(
-              "radios.add_receiver.import.detail",
-              fallback: "Paste a full KiwiSDR, OpenWebRX, or FM-DX receiver address and let Listen SDR fill in the details."
-            ),
-            action: { isImportLinkPresented = true }
-          )
-          firstReceiverActionButton(
-            title: L10n.text("radios.add_receiver.manual", fallback: "Enter details manually"),
-            detail: L10n.text(
-              "radios.add_receiver.manual.detail",
-              fallback: "Fill in the host, port, path, and login details yourself."
-            ),
-            action: openNewRadioEditor
-          )
-        }
       }
       .frame(maxWidth: .infinity)
       .padding(24)

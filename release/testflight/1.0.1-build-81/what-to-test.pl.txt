@@ -1,0 +1,5 @@
+Ten build poprawia retencję diagnostyki i porządkuje pusty ekran historii w zakładce Radia.
+
+- diagnostyka zachowuje teraz poprzednią sesję aplikacji po restarcie, więc eksport i zgłoszenia błędów mogą zawierać sesję, która się wywaliła
+- eksport diagnostyki i feedback zawierają teraz bieżącą oraz poprzednią sesję logów, jeśli są dostępne
+- pusty ekran historii w zakładce Radia pokazuje teraz prosty komunikat zamiast kart prowadzących do dodawania pierwszego odbiornika

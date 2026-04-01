@@ -81,6 +81,17 @@ def get_listview_items(listview):
     return items
 
 
+def find_item_index_by_text(listview, target_text):
+    for index in range(listview.item_count()):
+        try:
+            text = listview.get_item(index).text()
+        except Exception:  # noqa: BLE001
+            continue
+        if text == target_text:
+            return index
+    return None
+
+
 def select_telegram_report_timeline(main, chat_name):
     sessions, timelines, _ = get_children(main)
 
@@ -167,10 +178,12 @@ def extract_attachment_name(item_text):
 def copy_attachment_if_present(documents_dir, output_root, file_name):
     if not file_name:
         return []
+    target_path = output_root / file_name
+    if target_path.exists():
+        return []
     source_path = documents_dir / file_name
     if not source_path.exists():
         return []
-    target_path = output_root / file_name
     source_stat = source_path.stat()
     if target_path.exists():
         target_stat = target_path.stat()
@@ -191,7 +204,14 @@ def download_attachment_for_item(app, main, listview, item_index, item_text, doc
 
     before = list_matching_attachments(documents_dir)
 
-    listview.select(item_index)
+    current_index = find_item_index_by_text(listview, item_text)
+    if current_index is None:
+        _, _, listview = get_children(main)
+        current_index = find_item_index_by_text(listview, item_text)
+    if current_index is None:
+        raise RuntimeError(f"Unable to find TweeseCake item for attachment: {attachment_name or item_text}")
+
+    listview.select(current_index)
     time.sleep(0.2)
     main.set_focus()
     time.sleep(0.1)

@@ -119,7 +119,7 @@ struct DiagnosticsView: View {
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
 
         FocusRetainingButton {
-          UIPasteboard.general.string = diagnostics.exportText()
+          UIPasteboard.general.string = diagnostics.exportCombinedText()
           showingCopyConfirmation = true
           Diagnostics.log(category: "Diagnostics", message: "Diagnostics copied to clipboard")
         } label: {
@@ -127,7 +127,7 @@ struct DiagnosticsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .appCardContainer(padding: EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
         }
-        .disabled(diagnostics.entries.isEmpty)
+        .disabled(diagnostics.entries.isEmpty && diagnostics.exportPreviousSessionText() == nil)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
@@ -347,7 +347,7 @@ struct DiagnosticsView: View {
           diagnostics.clear()
           Diagnostics.log(category: "Diagnostics", message: "Diagnostics log cleared")
         }
-        .disabled(diagnostics.entries.isEmpty)
+        .disabled(diagnostics.entries.isEmpty && diagnostics.exportPreviousSessionText() == nil)
       }
     }
     .alert("Copied", isPresented: $showingCopyConfirmation) {

@@ -46,11 +46,15 @@ enum DiagnosticsExportBuilder {
     let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
     let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
     let generatedAt = ISO8601DateFormatter().string(from: Date())
+    let previousSessionLogs = diagnostics.exportPreviousSessionText()
+    let previousAudioExcerpt = diagnostics.exportPreviousSessionAudioExcerpt()
 
     var lines: [String] = []
     lines.append("Listen SDR diagnostics export")
     lines.append("Generated: \(generatedAt)")
     lines.append("Version: \(version) (\(build))")
+    lines.append("Diagnostics entries: \(diagnostics.entries.count)")
+    lines.append("Previous diagnostics session available: \(previousSessionLogs?.isEmpty == false)")
     lines.append("")
 
     lines.append("[Session]")
@@ -143,8 +147,13 @@ enum DiagnosticsExportBuilder {
     }
     if let audioExcerpt = diagnostics.exportAudioExcerpt(), !audioExcerpt.isEmpty {
       lines.append("")
-      lines.append("[Audio log tail]")
+      lines.append("[Current session audio log tail]")
       lines.append(audioExcerpt)
+    }
+    if let previousAudioExcerpt, !previousAudioExcerpt.isEmpty {
+      lines.append("")
+      lines.append("[Previous session audio log tail]")
+      lines.append(previousAudioExcerpt)
     }
     lines.append("")
 
@@ -239,8 +248,13 @@ enum DiagnosticsExportBuilder {
     }
     lines.append("")
 
-    lines.append("[Logs]")
+    lines.append("[Current session logs]")
     lines.append(diagnostics.exportText())
+    if let previousSessionLogs, !previousSessionLogs.isEmpty {
+      lines.append("")
+      lines.append("[Previous session logs]")
+      lines.append(previousSessionLogs)
+    }
     return lines.joined(separator: "\n")
   }
 

@@ -740,6 +740,8 @@
 "history.filter.backend" = "Typ odbiornika";
 "history.filter.backend.all" = "Wszystkie typy odbiorników";
 "history.empty_filtered" = "Brak elementów historii dla bieżącego filtra.";
+"history.empty_initial.title" = "Nie ma jeszcze historii";
+"history.empty_initial.body" = "Nie ma jeszcze żadnych elementów historii do wyświetlenia. Aby dodać pierwszy zapisany odbiornik, użyj opcji Dodaj odbiornik.";
 
 "radios.search.section" = "Wyszukiwanie";
 "radios.search.scope" = "Zakres wyszukiwania";

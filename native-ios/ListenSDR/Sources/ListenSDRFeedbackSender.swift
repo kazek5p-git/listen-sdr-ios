@@ -118,7 +118,7 @@ struct ListenSDRFeedbackContext {
         secondsSinceLastEnqueue: audioOutputSnapshot.secondsSinceLastEnqueue,
         lastStartError: audioOutputSnapshot.lastStartError
       ),
-      audioLogExcerpt: diagnostics.exportAudioExcerpt(),
+      audioLogExcerpt: diagnostics.exportCombinedAudioExcerpt(),
       receiver: receiver
     )
   }

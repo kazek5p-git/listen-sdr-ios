@@ -587,6 +587,8 @@
 "history.filter.backend" = "Receiver type";
 "history.filter.backend.all" = "All receiver types";
 "history.empty_filtered" = "No history items match the current filter.";
+"history.empty_initial.title" = "No history yet";
+"history.empty_initial.body" = "There are no history items to display yet. Use Add receiver to add your first saved receiver.";
 
 "radios.search.section" = "Search";
 "radios.search.scope" = "Search scope";

@@ -46,6 +46,28 @@ function ConvertFrom-JsonCompat {
   return ConvertTo-HashtableCompat -InputObject $parsed
 }
 
+function ConvertFrom-MixedJsonOutput {
+  param([Parameter(Mandatory = $true)][string]$RawText)
+
+  $trimmed = $RawText.Trim()
+  if ([string]::IsNullOrWhiteSpace($trimmed)) {
+    throw "No output to parse."
+  }
+
+  try {
+    return ConvertFrom-JsonCompat -JsonText $trimmed
+  } catch {
+    $firstBrace = $trimmed.IndexOf("{")
+    $lastBrace = $trimmed.LastIndexOf("}")
+    if ($firstBrace -ge 0 -and $lastBrace -gt $firstBrace) {
+      $candidate = $trimmed.Substring($firstBrace, $lastBrace - $firstBrace + 1)
+      return ConvertFrom-JsonCompat -JsonText $candidate
+    }
+
+    throw ("Unable to locate JSON object in output: " + $trimmed)
+  }
+}
+
 function Get-ReportPreview {
   param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -131,7 +153,7 @@ try {
   $botRaw = & $botScript -Json -OutputRoot $OutputRoot 2>&1 | Out-String
   $botRaw = $botRaw.Trim()
   if (-not [string]::IsNullOrWhiteSpace($botRaw)) {
-    $summary.bot = ConvertFrom-JsonCompat -JsonText $botRaw
+    $summary.bot = ConvertFrom-MixedJsonOutput -RawText $botRaw
   } else {
     $summary.bot = [ordered]@{
       ok = $false
@@ -157,7 +179,7 @@ try {
 
   $tweeseCakeRaw = $tweeseCakeRaw.Trim()
   if (-not [string]::IsNullOrWhiteSpace($tweeseCakeRaw)) {
-    $summary.tweeseCake = ConvertFrom-JsonCompat -JsonText $tweeseCakeRaw
+    $summary.tweeseCake = ConvertFrom-MixedJsonOutput -RawText $tweeseCakeRaw
   } else {
     $summary.tweeseCake = [ordered]@{
       ok = $false
