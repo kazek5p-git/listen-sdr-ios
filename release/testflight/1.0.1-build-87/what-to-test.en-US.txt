@@ -1,0 +1,7 @@
+This build cleans up the tuning layout on the receiver screen.
+
+- frequency tuning and tuning step now sit in a single row on iPhone as well
+- the tuning step control now has a clearer gear-style visual accent
+- this changes layout and appearance only; VoiceOver behavior stays the same
+
+If the tuning layout still feels inconsistent or gets in the way of daily use, please send feedback from the app.

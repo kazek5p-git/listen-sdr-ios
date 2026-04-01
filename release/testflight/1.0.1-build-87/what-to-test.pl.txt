@@ -1,0 +1,7 @@
+Ten build porządkuje układ strojenia na ekranie odbiornika.
+
+- strojenie częstotliwości i krok strojenia są teraz w jednym rzędzie także na iPhonie
+- krok strojenia dostał wyraźniejszy wizualnie akcent z ikoną zębatki
+- nie zmienia to działania VoiceOver, tylko układ i wygląd
+
+Jeśli układ strojenia nadal wygląda niespójnie albo przeszkadza w codziennym użyciu, wyślij feedback z aplikacji.

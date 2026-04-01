@@ -506,8 +506,13 @@ struct ReceiverView: View {
   private func tuningCard(for profile: SDRConnectionProfile) -> some View {
     VStack(alignment: .leading, spacing: 8) {
       frequencyInputSection(for: profile.backend)
-      frequencyTuningControl(for: profile.backend)
-      tuneStepControl(for: profile.backend)
+      HStack(alignment: .top, spacing: 12) {
+        frequencyTuningControl(for: profile.backend)
+          .frame(maxWidth: .infinity)
+
+        tuneStepControl(for: profile.backend)
+          .frame(width: 156)
+      }
 
       if profile.backend == .fmDxWebserver {
         fmdxBandSelectionControl()
@@ -2365,10 +2370,18 @@ struct ReceiverView: View {
       .buttonStyle(.bordered)
       .accessibilityHidden(true)
 
-      Text(stepLabel)
-        .font(.title3.monospacedDigit().weight(.semibold))
-        .frame(maxWidth: .infinity)
-        .accessibilityHidden(true)
+      VStack(spacing: 4) {
+        Image(systemName: "gearshape.fill")
+          .font(.footnote.weight(.semibold))
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+
+        Text(stepLabel)
+          .font(.headline.monospacedDigit().weight(.semibold))
+          .frame(maxWidth: .infinity)
+          .accessibilityHidden(true)
+      }
+      .frame(maxWidth: .infinity)
 
       Button {
         changeTuneStep(by: 1, backend: backend)
