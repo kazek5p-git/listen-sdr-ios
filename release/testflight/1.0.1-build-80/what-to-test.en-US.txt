@@ -1,0 +1,6 @@
+This build improves receiver type and backend selection.
+
+- manual add and edit receiver now use a native stepper-style receiver type control
+- receiver directory now uses the same control for backend source selection
+- VoiceOver should change these values more reliably with swipe up and down gestures
+- the FM-DX AF section was also fixed so expand and collapse now match the button label

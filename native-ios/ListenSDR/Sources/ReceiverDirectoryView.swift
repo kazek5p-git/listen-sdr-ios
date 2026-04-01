@@ -71,15 +71,18 @@ struct ReceiverDirectoryView: View {
 
   private var backendSection: some View {
     Section {
-      Picker(L10n.text("Backend source"), selection: $viewModel.selectedBackend) {
-        ForEach(viewModel.supportedBackends) { backend in
-          Text(backend.displayName).tag(backend)
-        }
+      CyclingOptionCard(
+        title: L10n.text("Backend source"),
+        selectedTitle: viewModel.selectedBackend.displayName,
+        detail: nil,
+        canDecrement: viewModel.supportedBackends.count > 1,
+        canIncrement: viewModel.supportedBackends.count > 1,
+        accessibilityHint: L10n.text("directory.filters.selection_hint")
+      ) {
+        adjustBackend(by: -1)
+      } incrementAction: {
+        adjustBackend(by: 1)
       }
-      .pickerStyle(.segmented)
-      .accessibilityLabel(L10n.text("Receiver backend list"))
-    } header: {
-      AppSectionHeader(title: L10n.text("Backend"))
     }
     .appSectionStyle()
   }
@@ -354,6 +357,20 @@ struct ReceiverDirectoryView: View {
 
   private var countrySortOptions: [ReceiverDirectoryCountrySortOption] {
     ReceiverDirectoryCountrySortOption.allCases
+  }
+
+  private func adjustBackend(by offset: Int) {
+    let backends = viewModel.supportedBackends
+    guard !backends.isEmpty else { return }
+    let currentIndex = backends.firstIndex(of: viewModel.selectedBackend) ?? 0
+    let nextIndex = (currentIndex + offset + backends.count) % backends.count
+    applyBackendSelection(backends[nextIndex])
+  }
+
+  private func applyBackendSelection(_ backend: SDRBackend) {
+    guard backend != viewModel.selectedBackend else { return }
+    viewModel.selectedBackend = backend
+    AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(backend.displayName)
   }
 
   private var statusFilterSelectionLink: some View {

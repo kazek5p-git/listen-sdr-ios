@@ -28,13 +28,18 @@ struct ProfileEditorView: View {
             .accessibilityLabel(L10n.text("Profile name"))
             .accessibilityHint(L10n.text("Name shown in your radio list"))
 
-          Picker(L10n.text("Backend"), selection: profileBackendBinding) {
-            ForEach(SDRBackend.allCases) { backend in
-              Text(backend.displayName).tag(backend)
-            }
+          CyclingOptionCard(
+            title: L10n.text("Receiver type"),
+            selectedTitle: draft.backend.displayName,
+            detail: nil,
+            canDecrement: SDRBackend.allCases.count > 1,
+            canIncrement: SDRBackend.allCases.count > 1,
+            accessibilityHint: L10n.text("directory.filters.selection_hint")
+          ) {
+            adjustBackend(by: -1)
+          } incrementAction: {
+            adjustBackend(by: 1)
           }
-          .pickerStyle(.segmented)
-          .accessibilityLabel(L10n.text("Receiver backend"))
         }
         .appSectionStyle()
 
@@ -125,6 +130,20 @@ struct ProfileEditorView: View {
         draft.applyBackendChange(newBackend)
       }
     )
+  }
+
+  private func adjustBackend(by offset: Int) {
+    let backends = SDRBackend.allCases
+    guard !backends.isEmpty else { return }
+    let currentIndex = backends.firstIndex(of: draft.backend) ?? 0
+    let nextIndex = (currentIndex + offset + backends.count) % backends.count
+    applyBackendSelection(backends[nextIndex])
+  }
+
+  private func applyBackendSelection(_ backend: SDRBackend) {
+    guard backend != draft.backend else { return }
+    draft.applyBackendChange(backend)
+    AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(backend.displayName)
   }
 
   private var profileTLSBinding: Binding<Bool> {

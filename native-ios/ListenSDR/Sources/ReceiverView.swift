@@ -1960,55 +1960,35 @@ struct ReceiverView: View {
                   )
                 }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                  HStack(spacing: 8) {
-                    ForEach(Array(telemetry.afMHz.prefix(8)), id: \.self) { afMHz in
-                      let afHz = frequencyHz(fromMHz: afMHz)
-                      FocusRetainingButton {
-                        radioSession.setFrequencyHz(afHz)
-                        AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
-                          String(format: "%.1f MHz", afMHz),
-                          frequencyHz: afHz,
-                          backend: .fmDxWebserver
-                        )
-                      } label: {
-                        Text(String(format: "%.1f MHz", afMHz))
-                          .font(.footnote.weight(.semibold))
-                          .padding(.horizontal, 12)
-                          .padding(.vertical, 10)
-                          .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                              .fill(AppTheme.chipFill)
-                          )
-                          .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                              .stroke(AppTheme.cardStroke, lineWidth: 1)
-                          )
-                      }
-                      .buttonStyle(.plain)
-                    }
-                  }
-                }
-
                 if isFMDXAFExpanded {
-                  let limitedAFCount = min(telemetry.afMHz.count, 16)
-                  ForEach(0..<limitedAFCount, id: \.self) { index in
-                    let afMHz = telemetry.afMHz[index]
-                    let afHz = frequencyHz(fromMHz: afMHz)
-                    FocusRetainingButton {
-                      radioSession.setFrequencyHz(afHz)
-                      AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
-                        String(format: "%.1f MHz", afMHz),
-                        frequencyHz: afHz,
-                        backend: .fmDxWebserver
-                      )
-                    } label: {
-                      HStack {
-                        Text(String(format: "%.1f MHz", afMHz))
-                        Spacer()
+                  ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                      ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
+                        let afHz = frequencyHz(fromMHz: afMHz)
+                        FocusRetainingButton {
+                          radioSession.setFrequencyHz(afHz)
+                          AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
+                            String(format: "%.1f MHz", afMHz),
+                            frequencyHz: afHz,
+                            backend: .fmDxWebserver
+                          )
+                        } label: {
+                          Text(String(format: "%.1f MHz", afMHz))
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(
+                              RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(AppTheme.chipFill)
+                            )
+                            .overlay(
+                              RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(AppTheme.cardStroke, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
                       }
                     }
-                    .buttonStyle(.plain)
                   }
                 }
               }

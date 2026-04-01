@@ -1,0 +1,6 @@
+Nowy build porządkuje wybór typu odbiornika i backendu.
+
+- ręczne dodawanie i edycja odbiornika używa teraz natywnej kontrolki przełączania typu odbiornika
+- katalog odbiorników używa takiej samej kontrolki dla źródła backendu
+- VoiceOver powinien wygodniej zmieniać te wartości gestami góra i dół
+- poprawiona została też sekcja AF w FM-DX, tak aby rozwijanie i zwijanie działało zgodnie z nazwą przycisku
