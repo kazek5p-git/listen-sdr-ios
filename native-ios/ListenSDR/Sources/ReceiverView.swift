@@ -1913,6 +1913,9 @@ struct ReceiverView: View {
           if fmDxHasSummaryFields(telemetry: telemetry) {
             fmDxInsetPanel {
               VStack(alignment: .leading, spacing: 8) {
+                Text("RDS")
+                  .font(.footnote.weight(.semibold))
+                  .accessibilityAddTraits(.isHeader)
                 if let ps = telemetry.ps, !ps.isEmpty {
                   LabeledContent("PS", value: ps)
                 }

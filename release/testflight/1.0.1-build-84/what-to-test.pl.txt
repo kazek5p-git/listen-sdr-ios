@@ -1,0 +1,7 @@
+Ten build porządkuje sekcję RDS i uspokaja automatyczne odczyty VoiceOver.
+
+- sekcja RDS w FM-DX ma teraz własny nagłówek
+- VoiceOver czeka dłużej na stabilne dane RDS przed odczytem
+- automatyczne komunikaty RDS są rzadsze, więc nie powinny już czytać zbyt wcześnie ani zbyt często
+
+Jeśli nadal pojawią się błędne lub zbyt szybkie odczyty RDS, wyślij nowy eksport diagnostyki z aplikacji.

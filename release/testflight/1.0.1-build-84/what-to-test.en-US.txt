@@ -1,0 +1,7 @@
+This build tidies the RDS section and makes automatic VoiceOver RDS announcements calmer.
+
+- the FM-DX RDS section now has its own heading
+- VoiceOver now waits longer for stable RDS data before speaking
+- automatic RDS announcements are less frequent, so they should no longer speak too early or too often
+
+If RDS announcements still sound wrong or too eager, please send a fresh diagnostics export from the app.

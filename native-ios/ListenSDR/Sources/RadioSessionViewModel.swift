@@ -209,25 +209,25 @@ final class RadioSessionViewModel: ObservableObject {
     stabilityInterval: { kind in
       switch kind {
       case .stationName:
-        return 0.30
+        return 0.85
       case .programService:
-        return 0.36
+        return 0.95
       case .radioText:
-        return 0.65
+        return 1.40
       case .pi:
-        return 0.40
+        return 1.00
       }
     },
     minimumInterval: { kind in
       switch kind {
       case .stationName:
-        return 0.9
+        return 2.9
       case .programService:
-        return 1.15
+        return 3.15
       case .radioText:
-        return 1.7
+        return 3.7
       case .pi:
-        return 1.3
+        return 3.3
       }
     }
   )
@@ -5762,13 +5762,13 @@ final class RadioSessionViewModel: ObservableObject {
   private func duplicateRDSAnnouncementWindow(for kind: RDSAnnouncementKind) -> TimeInterval {
     switch kind {
     case .stationName:
-      return 3.8
+      return 5.8
     case .programService:
-      return 4.2
+      return 6.2
     case .radioText:
-      return 6.0
+      return 8.0
     case .pi:
-      return 4.8
+      return 6.8
     }
   }
 
