@@ -98,6 +98,10 @@ public enum FrequencyInputParser {
       return 1
     }
 
+    if context == .shortwave, (1...99_999).contains(integerValue) {
+      return 1_000
+    }
+
     if let preferredRangeHz,
       let rangedUnit = inferredUnit(forIntegerValue: integerValue, preferredRangeHz: preferredRangeHz) {
       return rangedUnit

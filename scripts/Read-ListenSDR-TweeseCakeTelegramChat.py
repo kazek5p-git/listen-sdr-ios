@@ -92,6 +92,20 @@ def find_item_index_by_text(listview, target_text):
     return None
 
 
+def find_item_index_by_attachment_name(listview, attachment_name):
+    if not attachment_name:
+        return None
+    for index in reversed(range(listview.item_count())):
+        try:
+            text = listview.get_item(index).text()
+        except Exception:  # noqa: BLE001
+            continue
+        current_attachment = extract_attachment_name(text)
+        if current_attachment and current_attachment.lower() == attachment_name.lower():
+            return index
+    return None
+
+
 def select_telegram_report_timeline(main, chat_name):
     sessions, timelines, _ = get_children(main)
 
@@ -122,6 +136,10 @@ def select_telegram_report_timeline(main, chat_name):
 
     _, _, listview = get_children(main)
     return listview
+
+
+def reacquire_history_list(main, chat_name):
+    return select_telegram_report_timeline(main, chat_name)
 
 
 def find_save_dialog(app):
@@ -196,7 +214,28 @@ def copy_attachment_if_present(documents_dir, output_root, file_name):
     return [str(target_path)]
 
 
-def download_attachment_for_item(app, main, listview, item_index, item_text, documents_dir, output_root):
+def resolve_live_item_index(main, listview, chat_name, item_text, attachment_name):
+    current_index = find_item_index_by_text(listview, item_text)
+    if current_index is not None:
+        return current_index, listview
+
+    current_index = find_item_index_by_attachment_name(listview, attachment_name)
+    if current_index is not None:
+        return current_index, listview
+
+    listview = reacquire_history_list(main, chat_name)
+    current_index = find_item_index_by_text(listview, item_text)
+    if current_index is not None:
+        return current_index, listview
+
+    current_index = find_item_index_by_attachment_name(listview, attachment_name)
+    if current_index is not None:
+        return current_index, listview
+
+    raise RuntimeError(f"Unable to find TweeseCake item for attachment: {attachment_name or item_text}")
+
+
+def download_attachment_for_item(app, main, listview, chat_name, item_index, item_text, documents_dir, output_root):
     attachment_name = extract_attachment_name(item_text)
     copied_paths = copy_attachment_if_present(documents_dir, output_root, attachment_name)
     if copied_paths:
@@ -204,12 +243,13 @@ def download_attachment_for_item(app, main, listview, item_index, item_text, doc
 
     before = list_matching_attachments(documents_dir)
 
-    current_index = find_item_index_by_text(listview, item_text)
-    if current_index is None:
-        _, _, listview = get_children(main)
-        current_index = find_item_index_by_text(listview, item_text)
-    if current_index is None:
-        raise RuntimeError(f"Unable to find TweeseCake item for attachment: {attachment_name or item_text}")
+    current_index, listview = resolve_live_item_index(
+        main,
+        listview,
+        chat_name,
+        item_text,
+        attachment_name,
+    )
 
     listview.select(current_index)
     time.sleep(0.2)
@@ -279,6 +319,7 @@ def main():
                     app,
                     main_window,
                     history_list,
+                    chat_name,
                     item["index"],
                     text,
                     documents_dir,

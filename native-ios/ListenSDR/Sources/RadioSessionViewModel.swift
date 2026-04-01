@@ -674,7 +674,7 @@ final class RadioSessionViewModel: ObservableObject {
     if let mode = bookmark.modulation {
       setMode(mode)
     }
-    setFrequencyHz(bookmark.frequencyHz)
+    setFrequencyHz(bookmark.frequencyHz, source: "bookmark", stationTitle: bookmark.name)
   }
 
   func restoreLastOpenWebRXBookmark() {
@@ -684,7 +684,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   func tuneToBand(_ band: SDRBandPlanEntry, using suggestion: SDRBandFrequency? = nil) {
     let targetHz = suggestion?.frequencyHz ?? band.centerFrequencyHz
-    setFrequencyHz(targetHz)
+    setFrequencyHz(targetHz, source: "band_plan", stationTitle: band.name)
 
     if let suggestionMode = DemodulationMode.fromOpenWebRX(suggestion?.name.lowercased()) {
       setMode(suggestionMode)
@@ -1196,7 +1196,7 @@ final class RadioSessionViewModel: ObservableObject {
   ) {
     guard state == .connected, activeBackend == .fmDxWebserver else { return }
     setMode(mode)
-    setFrequencyHz(frequencyHz)
+    setFrequencyHz(frequencyHz, source: "scanner_restore")
   }
 
   private func prepareFMDXBandScannerTune(
@@ -1582,26 +1582,39 @@ final class RadioSessionViewModel: ObservableObject {
     return FrequencyFormatter.fmDxMHzText(fromHz: sample.frequencyHz)
   }
 
-  func setFrequencyHz(_ value: Int) {
+  func setFrequencyHz(_ value: Int, source: String = "direct", stationTitle: String? = nil) {
     if isWaitingForInitialServerTuningSync() {
       updateBackendStatusText(L10n.text("session.status.sync_tuning"))
       return
     }
 
+    let backend = activeBackend
+    let normalizedFrequencyHz: Int
     if activeBackend == .fmDxWebserver {
-      settings.frequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
+      normalizedFrequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
         value,
         backend: .fmDxWebserver,
         mode: settings.mode
       )
+      settings.frequencyHz = normalizedFrequencyHz
       rememberFMDXFrequency(settings.frequencyHz, mode: settings.mode)
     } else {
-      settings.frequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
+      normalizedFrequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
         value,
-        backend: activeBackend,
+        backend: backend,
         mode: settings.mode
       )
+      settings.frequencyHz = normalizedFrequencyHz
     }
+    logTuneRequest(
+      source: source,
+      backend: backend,
+      requestedFrequencyHz: value,
+      normalizedFrequencyHz: normalizedFrequencyHz,
+      requestedMode: settings.mode,
+      normalizedMode: settings.mode,
+      stationTitle: stationTitle
+    )
     let tuneStepChanged = syncTuneStepToCurrentBandIfNeeded()
     persistSettings()
     if tuneStepChanged, activeBackend == .openWebRX {
@@ -1625,6 +1638,24 @@ final class RadioSessionViewModel: ObservableObject {
     queueFMDXFrequencySend(settings.frequencyHz)
     scheduleListeningHistoryCapture()
     scheduleRecentFrequencyCapture()
+  }
+
+  private func logTuneRequest(
+    source: String,
+    backend: SDRBackend?,
+    requestedFrequencyHz: Int,
+    normalizedFrequencyHz: Int,
+    requestedMode: DemodulationMode,
+    normalizedMode: DemodulationMode,
+    stationTitle: String? = nil
+  ) {
+    let backendLabel = backend?.rawValue ?? "unknown"
+    let stationFragment = stationTitle.map { " station=\($0)" } ?? ""
+    Diagnostics.log(
+      severity: .info,
+      category: "Tuning",
+      message: "Tune requested: source=\(source) backend=\(backendLabel) requested=\(requestedFrequencyHz) normalized=\(normalizedFrequencyHz) requested_mode=\(requestedMode.rawValue) normalized_mode=\(normalizedMode.rawValue)\(stationFragment)"
+    )
   }
 
   func setTuneStepHz(_ value: Int) {
@@ -1766,7 +1797,8 @@ final class RadioSessionViewModel: ObservableObject {
         tuneStepHz: settings.tuneStepHz,
         backend: activeBackend,
         mode: settings.mode
-      )
+      ),
+      source: "stepper"
     )
   }
 
@@ -3053,6 +3085,11 @@ final class RadioSessionViewModel: ObservableObject {
 
   private func scheduleFMDXTuneConfirmation(for frequencyHz: Int) {
     fmDxTuneConfirmTask?.cancel()
+    Diagnostics.log(
+      severity: .info,
+      category: "FMDX",
+      message: "Waiting for FM-DX tune confirmation: expected_frequency=\(frequencyHz) expected_mode=\(settings.mode.rawValue) timeout_ms=1700"
+    )
     fmDxTuneConfirmTask = Task { [weak self] in
       try? await Task.sleep(nanoseconds: 1_700_000_000)
       if Task.isCancelled { return }
@@ -3074,6 +3111,12 @@ final class RadioSessionViewModel: ObservableObject {
             )
             self.showFMDXTuneConfirmationWarning(
               L10n.text("fmdx.tune_warning_mismatch", requestedText, actualText)
+            )
+          } else {
+            Diagnostics.log(
+              severity: .info,
+              category: "FMDX",
+              message: "FM-DX tune confirmed: expected_frequency=\(frequencyHz) reported_frequency=\(actualHz) mode=\(self.settings.mode.rawValue)"
             )
           }
         } else {
@@ -3145,6 +3188,11 @@ final class RadioSessionViewModel: ObservableObject {
       mode: settings.mode
     )
     pendingWidebandTuneConfirmation = pending
+    Diagnostics.log(
+      severity: .info,
+      category: "Tuning",
+      message: "Waiting for tune confirmation: backend=\(backend.rawValue) expected_frequency=\(pending.frequencyHz) expected_mode=\(pending.mode.rawValue) timeout_ms=1350"
+    )
     widebandTuneConfirmationTask?.cancel()
     widebandTuneConfirmationTask = Task { [weak self] in
       try? await Task.sleep(nanoseconds: 1_350_000_000)
@@ -3152,6 +3200,11 @@ final class RadioSessionViewModel: ObservableObject {
         guard let self else { return }
         guard self.pendingWidebandTuneConfirmation == pending else { return }
         self.pendingWidebandTuneConfirmation = nil
+        Diagnostics.log(
+          severity: .warning,
+          category: "Tuning",
+          message: "Tune confirmation timed out: backend=\(pending.backend.rawValue) expected_frequency=\(pending.frequencyHz) expected_mode=\(pending.mode.rawValue) timeout_ms=1350"
+        )
         let requestedText = self.tuneConfirmationSummary(
           frequencyHz: pending.frequencyHz,
           mode: pending.mode,
@@ -3177,11 +3230,21 @@ final class RadioSessionViewModel: ObservableObject {
       pendingWidebandTuneConfirmation = nil
       widebandTuneConfirmationTask?.cancel()
       clearActiveFMDXTuneConfirmationWarning()
+      Diagnostics.log(
+        severity: .info,
+        category: "Tuning",
+        message: "Tune confirmed: backend=\(backend.rawValue) expected_frequency=\(pending.frequencyHz) expected_mode=\(pending.mode.rawValue) reported_frequency=\(reportedFrequencyHz) reported_mode=\(reportedMode.rawValue) tolerance_hz=\(toleranceHz)"
+      )
       return
     }
 
     pendingWidebandTuneConfirmation = nil
     widebandTuneConfirmationTask?.cancel()
+    Diagnostics.log(
+      severity: .warning,
+      category: "Tuning",
+      message: "Tune mismatch: backend=\(backend.rawValue) expected_frequency=\(pending.frequencyHz) expected_mode=\(pending.mode.rawValue) reported_frequency=\(reportedFrequencyHz) reported_mode=\(reportedMode.rawValue) tolerance_hz=\(toleranceHz)"
+    )
     let requestedText = tuneConfirmationSummary(
       frequencyHz: pending.frequencyHz,
       mode: pending.mode,

@@ -12,6 +12,15 @@ final class FrequencyInputParserTests: XCTestCase {
     XCTAssertEqual(value, 7_050_000)
   }
 
+  func testKeepsShortwaveIntegersInKilohertzEvenWhenPreferredRangeAllowsHigherUnits() {
+    let value = FrequencyInputParser.parseHz(
+      from: "1584",
+      context: .shortwave,
+      preferredRangeHz: 10_000...32_000_000
+    )
+    XCTAssertEqual(value, 1_584_000)
+  }
+
   func testParsesBandAwareUHFValueWithMultipleSeparators() {
     let value = FrequencyInputParser.parseHz(
       from: "446.156.25",

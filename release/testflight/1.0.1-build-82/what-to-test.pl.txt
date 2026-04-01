@@ -1,0 +1,6 @@
+Ten build poprawia strojenie KiwiSDR i dodaje dokładniejsze logi diagnostyczne.
+
+- wpisanie częstotliwości shortwave typu `1584` jest teraz interpretowane poprawnie jako `1584 kHz`, zamiast błędnego wyższego zakresu
+- pole częstotliwości dla KiwiSDR nie pokazuje już mylącego numerycznego placeholdera przy starcie
+- diagnostyka zapisuje teraz dokładniejsze logi żądań strojenia i potwierdzeń strojenia
+- FM-DX zapisuje teraz też dokładniejszy kontekst audio, w tym pierwsze pakiety audio i powody restartów połączenia

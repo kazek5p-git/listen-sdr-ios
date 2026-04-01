@@ -3027,10 +3027,8 @@ struct ReceiverView: View {
     guard let backend else {
       return L10n.text("frequency_input.placeholder_generic")
     }
-    if backend == .fmDxWebserver {
-      return L10n.text("frequency_input.placeholder_compact")
-    }
-    return frequencyInputProfile(for: backend).placeholder
+    _ = backend
+    return L10n.text("frequency_input.placeholder_compact")
   }
 
   private func frequencyRange(for backend: SDRBackend) -> ClosedRange<Int> {

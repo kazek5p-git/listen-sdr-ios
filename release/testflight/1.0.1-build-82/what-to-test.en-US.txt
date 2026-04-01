@@ -1,0 +1,6 @@
+This build improves KiwiSDR tuning and adds more detailed diagnostics.
+
+- shortwave frequency input like `1584` is now interpreted correctly as `1584 kHz` instead of a higher incorrect range
+- the KiwiSDR frequency field no longer shows a misleading numeric placeholder on startup
+- diagnostics now capture more detailed tune-request and tune-confirmation logs
+- FM-DX now records richer audio context, including first audio packets and connection restart reasons

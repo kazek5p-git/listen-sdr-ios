@@ -3053,6 +3053,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private var lastAppliedSettings: RadioSessionSettings?
   private var lastCapabilities: FMDXCapabilities = .empty
   private var lastAudioPacketAt = Date.distantPast
+  private var hasLoggedFirstAudioPacket = false
   private var supportsPingEndpoint: Bool?
   private var consecutivePingFailures = 0
   private var lastRealtimeStatusAt = Date.distantPast
@@ -3393,6 +3394,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     let task = URLSession.shared.webSocketTask(with: audioRequest)
     audioSocket = task
     task.resume()
+    hasLoggedFirstAudioPacket = false
 
     audioReceiveTask = Task { [task] in
       await self.receiveAudioLoop(task: task)
@@ -3458,6 +3460,10 @@ actor FMDXWebserverClient: SDRBackendClient {
         switch message {
         case .data(let data):
           lastAudioPacketAt = Date()
+          if !hasLoggedFirstAudioPacket {
+            hasLoggedFirstAudioPacket = true
+            log("FM-DX first audio packet received (\(data.count) bytes)")
+          }
           FMDXMP3AudioPlayer.shared.append(data)
           AudioRecordingController.shared.consumeMP3(data: data)
         case .string(let text):
@@ -3709,6 +3715,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func restartTextConnection(reason: String) {
     guard activeProfile != nil else { return }
+    log(reason, severity: .warning)
     pendingStatusUpdate = reason
     receiveTask?.cancel()
     receiveTask = nil
@@ -3719,11 +3726,13 @@ actor FMDXWebserverClient: SDRBackendClient {
 
   private func restartAudioConnection(reason: String) {
     guard activeProfile != nil else { return }
+    log(reason, severity: .warning)
     pendingStatusUpdate = reason
     audioReceiveTask?.cancel()
     audioReceiveTask = nil
     audioSocket?.cancel(with: .goingAway, reason: nil)
     audioSocket = nil
+    hasLoggedFirstAudioPacket = false
     FMDXMP3AudioPlayer.shared.stop()
     scheduleAudioReconnect()
   }
