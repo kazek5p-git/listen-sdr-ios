@@ -268,6 +268,7 @@ struct ReceiverView: View {
   @State private var isFMDXStationListExpanded = false
   @State private var isFMDXBandScannerExpanded = false
   @State private var isFMDXAFExpanded = false
+  @State private var isShowingFMDXBandSelection = false
   @State private var isShowingFMDXAntennaSelection = false
   @State private var selectedFMDXBandScanRange: FMDXBandScanRangePreset = .upperUKF
   @State private var selectedFMDXBandScanMode: FMDXBandScanMode = .standard
@@ -343,6 +344,18 @@ struct ReceiverView: View {
     }
     .onChange(of: radioSession.settings.saveFMDXScannerResultsEnabled) { _ in
       syncFMDXBandScannerStepSelection()
+    }
+    .sheet(isPresented: $isShowingFMDXBandSelection) {
+      NavigationStack {
+        fmdxBandSelectionSheet()
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(L10n.text("Cancel")) {
+                isShowingFMDXBandSelection = false
+              }
+            }
+          }
+      }
     }
     .sheet(isPresented: $isShowingFMDXAntennaSelection) {
       NavigationStack {
@@ -2586,33 +2599,25 @@ struct ReceiverView: View {
       }
     ) { value in
       guard let mode = modeFromSelectionID(value) else { return }
+      let previousMode = radioSession.settings.mode
       radioSession.setMode(mode)
-      if mode == .am, radioSession.settings.mode != .am {
+      if mode == .am, previousMode != .am, radioSession.settings.mode != .am {
         AppAccessibilityAnnouncementCenter.post(
           L10n.text("fmdx.band.am_not_supported")
+        )
+      } else {
+        AppAccessibilityAnnouncementCenter.post(
+          L10n.text("fmdx.band.changed", mode.displayName)
         )
       }
     }
   }
 
   private func fmdxBandSelectionChip(isEnabled: Bool) -> some View {
-    NavigationLink {
-      SelectionListView(
-        title: L10n.text("fmdx.band"),
-        options: availableModes(for: .fmDxWebserver).map {
-          SelectionListOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
-        },
-        selectedID: currentModeSelectionID(for: .fmDxWebserver)
-      ) { value in
-        guard let mode = modeFromSelectionID(value) else { return }
-        radioSession.setMode(mode)
-        if mode == .am, radioSession.settings.mode != .am {
-          AppAccessibilityAnnouncementCenter.post(
-            L10n.text("fmdx.band.am_not_supported")
-          )
-        }
-      }
-    } label: {
+    FocusRetainingButton({
+      guard isEnabled else { return }
+      isShowingFMDXBandSelection = true
+    }, retainsAccessibilityFocus: false) {
       fmdxToggleChipLabel(title: currentModeSelectionValue(for: .fmDxWebserver))
     }
     .buttonStyle(.plain)
@@ -2630,6 +2635,32 @@ struct ReceiverView: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(L10n.text("fmdx.band"))
     .accessibilityValue(currentModeSelectionValue(for: .fmDxWebserver))
+    .accessibilityHint(L10n.text("common.open_selection_list.hint"))
+  }
+
+  @ViewBuilder
+  private func fmdxBandSelectionSheet() -> some View {
+    SelectionListView(
+      title: L10n.text("fmdx.band"),
+      options: availableModes(for: .fmDxWebserver).map {
+        SelectionListOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
+      },
+      selectedID: currentModeSelectionID(for: .fmDxWebserver)
+    ) { value in
+      guard let mode = modeFromSelectionID(value) else { return }
+      let previousMode = radioSession.settings.mode
+      radioSession.setMode(mode)
+      if mode == .am, previousMode != .am, radioSession.settings.mode != .am {
+        AppAccessibilityAnnouncementCenter.post(
+          L10n.text("fmdx.band.am_not_supported")
+        )
+      } else {
+        AppAccessibilityAnnouncementCenter.post(
+          L10n.text("fmdx.band.changed", mode.displayName)
+        )
+      }
+      isShowingFMDXBandSelection = false
+    }
   }
 
   @ViewBuilder

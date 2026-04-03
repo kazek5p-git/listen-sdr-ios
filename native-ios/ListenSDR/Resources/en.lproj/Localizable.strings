@@ -110,6 +110,7 @@
 "fmdx.bandwidth" = "Bandwidth";
 "fmdx.bandwidth.changed" = "Bandwidth: %@";
 "fmdx.band" = "Band";
+"fmdx.band.changed" = "Band: %@";
 "fmdx.band.fm" = "FM";
 "fmdx.band.am" = "AM";
 "fmdx.subband" = "Sub-band";
