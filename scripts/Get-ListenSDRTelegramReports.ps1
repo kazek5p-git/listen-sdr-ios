@@ -59,6 +59,22 @@ function Get-SecretFilePath {
   return Join-Path $baseDir ("telegram-reports-" + $Name + ".txt")
 }
 
+function Write-JsonErrorAndExit {
+  param([Parameter(Mandatory = $true)][string]$Message)
+
+  if ($Json) {
+    $payload = [ordered]@{
+      ok = $false
+      error = $Message
+      outputRoot = $OutputRoot
+    }
+    $payload | ConvertTo-Json -Depth 5
+    exit 0
+  }
+
+  throw $Message
+}
+
 function Read-SecretValue {
   param([Parameter(Mandatory = $true)][string]$Name)
 
@@ -72,14 +88,90 @@ function Read-SecretValue {
     return $null
   }
 
-  $secureValue = ConvertTo-SecureString -String $encrypted
-  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureValue)
+  $trimmed = $encrypted.Trim()
+
   try {
-    return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-  } finally {
-    if ($bstr -ne [IntPtr]::Zero) {
-      [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    $secureValue = ConvertTo-SecureString -String $trimmed
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureValue)
+    try {
+      return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    } finally {
+      if ($bstr -ne [IntPtr]::Zero) {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+      }
     }
+  } catch {
+    if ($trimmed -notmatch '^[0-9a-fA-F]+$') {
+      return $trimmed
+    }
+
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) {
+      throw
+    }
+
+    $pythonScript = @"
+from pathlib import Path
+import binascii
+import sys
+import win32crypt
+
+raw = Path(sys.argv[1]).read_text(encoding='utf-8').strip()
+data = binascii.unhexlify(raw)
+plain = win32crypt.CryptUnprotectData(data, None, None, None, 0)[1]
+sys.stdout.write(plain.decode('utf-16-le'))
+"@
+
+    $decoded = & python -c $pythonScript $secretPath 2>$null
+    if ($LASTEXITCODE -ne 0) {
+      throw
+    }
+
+    return ($decoded | Out-String).Trim()
+  }
+}
+
+function Get-ChatIdSecretValue {
+  $chatIdSecretPath = Get-SecretFilePath -Name "chat-id"
+  if (-not (Test-Path $chatIdSecretPath)) {
+    return $null
+  }
+
+  try {
+    return Read-SecretValue -Name "chat-id"
+  } catch {
+    return $null
+  }
+}
+
+function Get-BotTokenSecretValue {
+  $botTokenSecretPath = Get-SecretFilePath -Name "bot-token"
+  if (-not (Test-Path $botTokenSecretPath)) {
+    return $null
+  }
+
+  try {
+    return Read-SecretValue -Name "bot-token"
+  } catch {
+    return $null
+  }
+}
+
+function Ensure-BotCredentials {
+  if ([string]::IsNullOrWhiteSpace($ChatId)) {
+    $script:ChatId = Get-ChatIdSecretValue
+  }
+
+  if ([string]::IsNullOrWhiteSpace($BotToken)) {
+    $script:BotToken = Get-BotTokenSecretValue
+  }
+
+  if ([string]::IsNullOrWhiteSpace($BotToken)) {
+    Write-JsonErrorAndExit -Message "Brak tokenu bota Telegram. Ustaw LISTEN_SDR_BOT_TOKEN albo zapisz go skryptem Set-ListenSDRTelegramReportsSecret.ps1 -SecretName bot-token."
+  }
+
+  if ([string]::IsNullOrWhiteSpace($ChatId) -and [string]::IsNullOrWhiteSpace($ChatTitle)) {
+    Write-JsonErrorAndExit -Message "Brak chat-id raportów Telegram i brak ChatTitle. Ustaw LISTEN_SDR_TELEGRAM_REPORTS_CHAT_ID albo zapisz go skryptem Set-ListenSDRTelegramReportsSecret.ps1 -SecretName chat-id."
   }
 }
 
@@ -308,17 +400,7 @@ function Get-AttachmentDescriptor {
   return $null
 }
 
-if ([string]::IsNullOrWhiteSpace($BotToken)) {
-  $BotToken = Read-SecretValue -Name "bot-token"
-}
-
-if ([string]::IsNullOrWhiteSpace($ChatId)) {
-  $ChatId = Read-SecretValue -Name "chat-id"
-}
-
-if ([string]::IsNullOrWhiteSpace($BotToken)) {
-  throw "Brak tokenu bota Telegram. Ustaw LISTEN_SDR_BOT_TOKEN albo zapisz go skryptem Set-ListenSDRTelegramReportsSecret.ps1 -SecretName bot-token."
-}
+Ensure-BotCredentials
 
 $webhookInfo = Invoke-TelegramGet -Token $BotToken -Method "getWebhookInfo"
 if (-not [string]::IsNullOrWhiteSpace($webhookInfo.url)) {

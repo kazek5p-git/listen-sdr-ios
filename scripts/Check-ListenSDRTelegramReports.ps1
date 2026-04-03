@@ -218,6 +218,9 @@ if ($summary.tweeseCake) {
   if ($summary.tweeseCake.downloadedFiles) {
     Write-Host ("TweeseCake załączniki: {0}" -f @($summary.tweeseCake.downloadedFiles).Count)
   }
+  if ($summary.tweeseCake.pendingAttachments) {
+    Write-Host ("TweeseCake oczekujące załączniki: {0}" -f @($summary.tweeseCake.pendingAttachments).Count)
+  }
   if ($summary.tweeseCake.error) {
     Write-Host ("TweeseCake błąd: {0}" -f $summary.tweeseCake.error)
   }
@@ -249,5 +252,18 @@ if ($newFiles.Count -gt 0) {
     if ($preview.Body) {
       Write-Host ("  {0}" -f $preview.Body)
     }
+  }
+}
+
+$pendingAttachments = @()
+if ($summary.tweeseCake -and $summary.tweeseCake.pendingAttachments) {
+  $pendingAttachments = @($summary.tweeseCake.pendingAttachments)
+}
+
+if ($pendingAttachments.Count -gt 0) {
+  Write-Host ""
+  Write-Host "Wykryte zgłoszenia bez lokalnego załącznika:"
+  foreach ($attachmentName in $pendingAttachments) {
+    Write-Host ("- {0}" -f $attachmentName)
   }
 }
