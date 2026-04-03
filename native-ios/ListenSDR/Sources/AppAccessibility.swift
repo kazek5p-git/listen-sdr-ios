@@ -6,6 +6,8 @@ import UIKit
 enum ReceiverAccessibilityFocus: Hashable {
   case frequencyControl
   case tuneStepControl
+  case fmdxAntennaControl
+  case fmdxBandwidthControl
 }
 
 @MainActor

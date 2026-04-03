@@ -428,6 +428,20 @@ final class RadioSessionViewModel: ObservableObject {
     )
   }
 
+  var displayedFMDXCapabilities: FMDXCapabilities {
+    if Self.hasMeaningfulFMDXCapabilities(fmdxCapabilities) {
+      return fmdxCapabilities
+    }
+
+    guard let activeProfileCacheKey,
+      let cachedCapabilities = receiverDataCache.cachedData(for: activeProfileCacheKey)?.fmdxCapabilities
+    else {
+      return fmdxCapabilities
+    }
+
+    return Self.hasMeaningfulFMDXCapabilities(cachedCapabilities) ? cachedCapabilities : fmdxCapabilities
+  }
+
   var audioDiagnosticsSnapshot: AudioSessionDiagnosticsSnapshot {
     let connectedDurationSeconds = connectedSince == .distantPast
       ? nil
@@ -1977,7 +1991,21 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setFMDXBandwidth(_ option: FMDXControlOption) {
-    guard activeBackend == .fmDxWebserver else { return }
+    let availableOptionsDescription = describeFMDXControlOptions(fmdxCapabilities.bandwidths)
+    guard activeBackend == .fmDxWebserver else {
+      Diagnostics.log(
+        category: "FMDX",
+        message:
+          "Ignored bandwidth request outside FM-DX backend: active_backend=\(activeBackend?.rawValue ?? "nil") requested_id=\(option.id) requested_label=\(option.label)"
+      )
+      return
+    }
+
+    Diagnostics.log(
+      category: "FMDX",
+      message:
+        "Sending bandwidth request: selected_before=\(selectedFMDXBandwidthID ?? "nil") requested_id=\(option.id) requested_label=\(option.label) requested_legacy=\(option.legacyValue ?? "nil") available=[\(availableOptionsDescription)]"
+    )
     selectedFMDXBandwidthID = option.id
     sendFMDXControl(.setFMDXBandwidth(value: option.id, legacyValue: option.legacyValue))
   }
@@ -4378,6 +4406,13 @@ final class RadioSessionViewModel: ObservableObject {
         capabilities: .init(capabilities)
       )
       if let resolvedBandwidthID = capabilitySync.resolvedBandwidthID {
+        if selectedFMDXBandwidthID != resolvedBandwidthID {
+          Diagnostics.log(
+            category: "FMDX",
+            message:
+              "Capability sync resolved bandwidth selection: previous_id=\(selectedFMDXBandwidthID ?? "nil") resolved_id=\(resolvedBandwidthID)"
+          )
+        }
         selectedFMDXBandwidthID = resolvedBandwidthID
       }
       if capabilitySync.forcedFMBandFallback {
@@ -4424,6 +4459,13 @@ final class RadioSessionViewModel: ObservableObject {
         selectedFMDXAntennaID = antennaID
       }
       if let bandwidthID = telemetrySync.resolvedBandwidthID {
+        if selectedFMDXBandwidthID != bandwidthID {
+          Diagnostics.log(
+            category: "FMDX",
+            message:
+              "Telemetry resolved bandwidth selection: previous_id=\(selectedFMDXBandwidthID ?? "nil") resolved_id=\(bandwidthID)"
+          )
+        }
         selectedFMDXBandwidthID = bandwidthID
       }
       reconcilePendingFMDXAudioModeState(with: telemetry)
@@ -4952,6 +4994,29 @@ final class RadioSessionViewModel: ObservableObject {
       supportsAGCControl: state.capabilities.supportsAGCControl
     )
     hasFMDXCapabilitySnapshot = state.hasConfirmedSnapshot
+
+    Diagnostics.log(
+      category: "FMDX",
+      message:
+        "Applied capability state: confirmed_snapshot=\(state.hasConfirmedSnapshot) antennas=[\(describeFMDXControlOptions(fmdxCapabilities.antennas))] bandwidths=[\(describeFMDXControlOptions(fmdxCapabilities.bandwidths))] selected_bandwidth_id=\(selectedFMDXBandwidthID ?? "nil") supports_am=\(fmdxCapabilities.supportsAM) supports_filter_controls=\(fmdxCapabilities.supportsFilterControls) supports_agc_control=\(fmdxCapabilities.supportsAGCControl)"
+    )
+  }
+
+  private func describeFMDXControlOptions(_ options: [FMDXControlOption]) -> String {
+    options
+      .map { option in
+        let legacy = option.legacyValue.map { "[legacy=\($0)]" } ?? ""
+        return "\(option.id)=\(option.label)\(legacy)"
+      }
+      .joined(separator: ", ")
+  }
+
+  private static func hasMeaningfulFMDXCapabilities(_ capabilities: FMDXCapabilities) -> Bool {
+    !capabilities.antennas.isEmpty
+      || !capabilities.bandwidths.isEmpty
+      || capabilities.supportsAM
+      || capabilities.supportsFilterControls
+      || capabilities.supportsAGCControl
   }
 
   private func coreFMDXCapabilities(_ capabilities: FMDXCapabilities) -> FMDXCapabilitiesPolicyCore.Capabilities {

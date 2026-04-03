@@ -106,7 +106,9 @@
 "fmdx.stereo_state.stereo" = "Stereo";
 "fmdx.stereo_state.mono" = "Mono";
 "fmdx.antenna" = "Antenna";
+"fmdx.antenna.changed" = "Antenna: %@";
 "fmdx.bandwidth" = "Bandwidth";
+"fmdx.bandwidth.changed" = "Bandwidth: %@";
 "fmdx.band" = "Band";
 "fmdx.band.fm" = "FM";
 "fmdx.band.am" = "AM";

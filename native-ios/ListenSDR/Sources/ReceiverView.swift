@@ -816,17 +816,7 @@ struct ReceiverView: View {
       Section {
         VStack(alignment: .leading, spacing: 10) {
           fmDxInsetPanel {
-            ScrollView(.horizontal, showsIndicators: false) {
-              fmDxPrimaryToggleRow()
-            }
-            .accessibilityElement(children: .contain)
-          }
-
-          fmDxInsetPanel {
-            VStack(alignment: .leading, spacing: 2) {
-              fmDxAntennaPicker()
-              fmDxBandwidthPicker()
-            }
+            fmDxPrimaryToggleRow()
           }
         }
         .appCardContainer(
@@ -843,13 +833,16 @@ struct ReceiverView: View {
   private func fmDxPrimaryToggleRow() -> some View {
     let showsFilterControls = radioSession.fmdxSupportsFilterControls
     let controlsEnabled = radioSession.state == .connected
+    let displayedCapabilities = radioSession.displayedFMDXCapabilities
+    let hasAntennaOptions = !displayedCapabilities.antennas.isEmpty
+    let hasBandwidthOptions = hasVisibleFMDXBandwidthControl()
 
-    HStack(spacing: 8) {
+    HStack(spacing: 4) {
       fmDxAudioModeChip(isEnabled: controlsEnabled)
 
       if showsFilterControls {
         fmdxToggleChip(
-          title: L10n.text("fmdx.eq_filter"),
+          title: "EQ",
           accessibilityTitle: L10n.text("fmdx.eq_filter"),
           isOn: radioSession.settings.noiseReductionEnabled,
           isEnabled: controlsEnabled
@@ -858,7 +851,7 @@ struct ReceiverView: View {
         }
 
         fmdxToggleChip(
-          title: L10n.text("fmdx.ims_filter"),
+          title: "iMS+",
           accessibilityTitle: L10n.text("fmdx.ims_filter"),
           isOn: radioSession.settings.imsEnabled,
           isEnabled: controlsEnabled
@@ -879,8 +872,16 @@ struct ReceiverView: View {
       }
 
       fmdxBandSelectionChip(isEnabled: controlsEnabled)
+
+      if hasAntennaOptions {
+        fmdxAntennaChip(isEnabled: controlsEnabled)
+      }
+
+      if hasBandwidthOptions {
+        fmdxBandwidthChip(isEnabled: controlsEnabled)
+      }
     }
-    .accessibilityElement(children: .contain)
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   @ViewBuilder
@@ -1690,9 +1691,7 @@ struct ReceiverView: View {
 
   private func fmDxAudioModeChip(isEnabled: Bool) -> some View {
     let mode = radioSession.effectiveFMDXAudioMode
-    let modeText = mode.isStereo
-      ? L10n.text("fmdx.stereo_state.stereo")
-      : L10n.text("fmdx.stereo_state.mono")
+    let modeText = mode.isStereo ? "ST" : "MO"
     let accessibilityValue = mode.isStereo
       ? L10n.text("fmdx.audio_mode.accessibility.stereo")
       : L10n.text("fmdx.audio_mode.accessibility.mono")
@@ -1713,14 +1712,15 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func fmDxAntennaPicker() -> some View {
-    if !radioSession.fmdxCapabilities.antennas.isEmpty {
+    let displayedCapabilities = radioSession.displayedFMDXCapabilities
+    if !displayedCapabilities.antennas.isEmpty {
       selectionNavigationLink(
         title: L10n.text("fmdx.antenna"),
         value: currentFMDXAntennaName(),
         selectedID: radioSession.selectedFMDXAntennaID
-          ?? radioSession.fmdxCapabilities.antennas.first?.id
+          ?? displayedCapabilities.antennas.first?.id
           ?? "",
-        options: radioSession.fmdxCapabilities.antennas.map {
+        options: displayedCapabilities.antennas.map {
           SelectionListOption(id: $0.id, title: $0.label, detail: nil)
         },
         disabled: radioSession.state != .connected
@@ -1734,19 +1734,20 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func fmDxBandwidthPicker() -> some View {
-    if !radioSession.fmdxCapabilities.bandwidths.isEmpty {
+    let displayedCapabilities = radioSession.displayedFMDXCapabilities
+    if !displayedCapabilities.bandwidths.isEmpty {
       selectionNavigationLink(
         title: L10n.text("fmdx.bandwidth"),
         value: currentFMDXBandwidthName(),
         selectedID: radioSession.selectedFMDXBandwidthID
-          ?? radioSession.fmdxCapabilities.bandwidths.first?.id
+          ?? displayedCapabilities.bandwidths.first?.id
           ?? "",
-        options: radioSession.fmdxCapabilities.bandwidths.map {
+        options: displayedCapabilities.bandwidths.map {
           SelectionListOption(id: $0.id, title: $0.label, detail: nil)
         },
         disabled: radioSession.state != .connected
       ) { value in
-        guard let option = radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == value }) else { return }
+        guard let option = displayedCapabilities.bandwidths.first(where: { $0.id == value }) else { return }
         radioSession.setFMDXBandwidth(option)
       }
     }
@@ -1879,7 +1880,7 @@ struct ReceiverView: View {
   private func fmDxLiveSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver, let telemetry = radioSession.fmdxTelemetry {
       Section {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
           fmDxSignalMetricsRow(telemetry: telemetry)
 
           if fmDxHasSummaryFields(telemetry: telemetry) {
@@ -1921,7 +1922,7 @@ struct ReceiverView: View {
 
           if !telemetry.afMHz.isEmpty {
             fmDxInsetPanel {
-              VStack(alignment: .leading, spacing: 8) {
+              VStack(alignment: .leading, spacing: 6) {
                 FocusRetainingButton {
                   isFMDXAFExpanded.toggle()
                 } label: {
@@ -1950,8 +1951,8 @@ struct ReceiverView: View {
                         } label: {
                           Text(String(format: "%.1f MHz", afMHz))
                             .font(.footnote.weight(.semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
                             .background(
                               RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(AppTheme.chipFill)
@@ -1987,7 +1988,7 @@ struct ReceiverView: View {
           }
         }
         .appCardContainer(
-          padding: EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+          padding: EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10)
         )
       } header: {
         AppSectionHeader(title: L10n.text("fmdx.live.section"))
@@ -2113,7 +2114,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxSignalMetricsRow(telemetry: FMDXTelemetry) -> some View {
     if telemetry.signal != nil || telemetry.signalTop != nil {
-      HStack(spacing: 8) {
+      HStack(spacing: 6) {
         if let signal = telemetry.signal {
           metricCard(
             title: L10n.text("fmdx.field.signal"),
@@ -2133,12 +2134,12 @@ struct ReceiverView: View {
   private func fmDxInsetPanel<Content: View>(
     @ViewBuilder content: () -> Content
   ) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(alignment: .leading, spacing: 5) {
       content()
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.horizontal, 12)
-    .padding(.vertical, 10)
+    .padding(.horizontal, 8)
+    .padding(.vertical, 6)
     .background(
       RoundedRectangle(cornerRadius: 12, style: .continuous)
         .fill(AppTheme.chipFill)
@@ -2350,11 +2351,133 @@ struct ReceiverView: View {
 
   private func tuneStepControl(for backend: SDRBackend) -> some View {
     let stepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
-    return HStack(spacing: 12) {
-      Button {
+    return compactAdjustableControl(
+      label: L10n.text("receiver.tune_step.label"),
+      value: stepLabel,
+      centerIconSystemName: "gearshape.fill",
+      focusTarget: .tuneStepControl,
+      onDecrement: {
+        changeTuneStep(by: -1, backend: backend)
+      },
+      onIncrement: {
+        changeTuneStep(by: 1, backend: backend)
+      },
+      onTapDecrement: {
         changeTuneStep(by: -1, backend: backend)
         focusTuneStepControl()
-      } label: {
+      },
+      onTapIncrement: {
+        changeTuneStep(by: 1, backend: backend)
+        focusTuneStepControl()
+      }
+    )
+  }
+
+  private func fmdxBandwidthChip(isEnabled: Bool) -> some View {
+    let bandwidthValue = currentFMDXBandwidthName()
+    return NativeAdjustableChipControl(
+      accessibilityLabel: L10n.text("fmdx.bandwidth"),
+      accessibilityValue: bandwidthValue,
+      visibleTitle: "BW",
+      visibleValue: compactFMDXBandwidthName(),
+      isEnabled: isEnabled,
+      onDecrement: {
+        guard isEnabled else { return }
+        changeFMDXBandwidth(by: -1, source: "voiceover_adjust_decrement")
+      },
+      onIncrement: {
+        guard isEnabled else { return }
+        changeFMDXBandwidth(by: 1, source: "voiceover_adjust_increment")
+      },
+      onTapDecrement: {
+        guard isEnabled else { return }
+        changeFMDXBandwidth(by: -1, source: "button_minus")
+        focusFMDXBandwidthControl()
+      },
+      onTapIncrement: {
+        guard isEnabled else { return }
+        changeFMDXBandwidth(by: 1, source: "button_plus")
+        focusFMDXBandwidthControl()
+      }
+    )
+    .frame(width: 124)
+  }
+
+  private func fmdxAntennaChip(isEnabled: Bool) -> some View {
+    let antennaValue = currentFMDXAntennaName()
+    return NativeAdjustableChipControl(
+      accessibilityLabel: L10n.text("fmdx.antenna"),
+      accessibilityValue: antennaValue,
+      visibleTitle: "ANT",
+      visibleValue: antennaValue,
+      isEnabled: isEnabled,
+      onDecrement: {
+        guard isEnabled else { return }
+        changeFMDXAntenna(by: -1, source: "voiceover_adjust_decrement")
+      },
+      onIncrement: {
+        guard isEnabled else { return }
+        changeFMDXAntenna(by: 1, source: "voiceover_adjust_increment")
+      },
+      onTapDecrement: {
+        guard isEnabled else { return }
+        changeFMDXAntenna(by: -1, source: "button_minus")
+        focusFMDXAntennaControl()
+      },
+      onTapIncrement: {
+        guard isEnabled else { return }
+        changeFMDXAntenna(by: 1, source: "button_plus")
+        focusFMDXAntennaControl()
+      }
+    )
+    .frame(width: 112)
+  }
+
+  private func compactFMDXBandwidthName() -> String {
+    let value = currentFMDXBandwidthName()
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    if value.caseInsensitiveCompare("Auto") == .orderedSame {
+      return "Auto"
+    }
+
+    if let match = value.range(of: #"^\s*(\d+)\s*KHz\s*$"#, options: .regularExpression) {
+      let digits = String(value[match]).components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+      if !digits.isEmpty {
+        return "\(digits)k"
+      }
+    }
+
+    return value
+  }
+
+  private func hasVisibleFMDXBandwidthControl() -> Bool {
+    if !effectiveFMDXBandwidthOptions().isEmpty {
+      return true
+    }
+
+    if let telemetryBandwidth = radioSession.fmdxTelemetry?.bandwidth?
+      .trimmingCharacters(in: .whitespacesAndNewlines),
+      !telemetryBandwidth.isEmpty {
+      return true
+    }
+
+    return radioSession.selectedFMDXBandwidthID != nil
+  }
+
+  private func compactAdjustableControl(
+    label: String,
+    value: String,
+    accessibilityValueText: String? = nil,
+    centerIconSystemName: String?,
+    focusTarget: ReceiverAccessibilityFocus,
+    onDecrement: @escaping () -> Void,
+    onIncrement: @escaping () -> Void,
+    onTapDecrement: @escaping () -> Void,
+    onTapIncrement: @escaping () -> Void
+  ) -> some View {
+    HStack(spacing: 12) {
+      Button(action: onTapDecrement) {
         Image(systemName: "minus")
           .frame(maxWidth: .infinity, minHeight: 44)
       }
@@ -2362,22 +2485,21 @@ struct ReceiverView: View {
       .accessibilityHidden(true)
 
       VStack(spacing: 4) {
-        Image(systemName: "gearshape.fill")
-          .font(.footnote.weight(.semibold))
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
+        if let centerIconSystemName, !centerIconSystemName.isEmpty {
+          Image(systemName: centerIconSystemName)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+        }
 
-        Text(stepLabel)
+        Text(value)
           .font(.headline.monospacedDigit().weight(.semibold))
           .frame(maxWidth: .infinity)
           .accessibilityHidden(true)
       }
       .frame(maxWidth: .infinity)
 
-      Button {
-        changeTuneStep(by: 1, backend: backend)
-        focusTuneStepControl()
-      } label: {
+      Button(action: onTapIncrement) {
         Image(systemName: "plus")
           .frame(maxWidth: .infinity, minHeight: 44)
       }
@@ -2395,15 +2517,15 @@ struct ReceiverView: View {
     }
     .contentShape(Rectangle())
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(L10n.text("receiver.tune_step.label"))
-    .accessibilityValue(stepLabel)
-    .accessibilityFocused($accessibilityFocus, equals: .tuneStepControl)
+    .accessibilityLabel(label)
+    .accessibilityValue(accessibilityValueText ?? value)
+    .accessibilityFocused($accessibilityFocus, equals: focusTarget)
     .accessibilityAdjustableAction { direction in
       switch direction {
       case .increment:
-        changeTuneStep(by: 1, backend: backend)
+        onIncrement()
       case .decrement:
-        changeTuneStep(by: -1, backend: backend)
+        onDecrement()
       @unknown default:
         break
       }
@@ -2411,9 +2533,9 @@ struct ReceiverView: View {
     .accessibilityScrollAction { edge in
       switch edge {
       case .leading, .top:
-        changeTuneStep(by: -1, backend: backend)
+        onDecrement()
       case .trailing, .bottom:
-        changeTuneStep(by: 1, backend: backend)
+        onIncrement()
       }
     }
   }
@@ -2555,6 +2677,94 @@ struct ReceiverView: View {
     let stepText = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
     AppAccessibilityAnnouncementCenter.post(
       L10n.text("receiver.tune_step.changed", stepText)
+    )
+  }
+
+  private func changeFMDXBandwidth(by offset: Int, source: String) {
+    let options = effectiveFMDXBandwidthOptions()
+    let currentID = currentFMDXBandwidthSelectionID(from: options) ?? options.first?.id
+    let optionsDescription = options
+      .map { "\($0.id)=\($0.label)" + ($0.legacyValue.map { "[legacy=\($0)]" } ?? "") }
+      .joined(separator: ", ")
+
+    Diagnostics.log(
+      category: "FMDX UI",
+      message:
+        "Bandwidth change requested: source=\(source) offset=\(offset) current_id=\(currentID ?? "nil") options_count=\(options.count) options=[\(optionsDescription)]"
+    )
+
+    guard !options.isEmpty else {
+      Diagnostics.log(
+        category: "FMDX UI",
+        message: "Bandwidth change ignored: source=\(source) no options available"
+      )
+      return
+    }
+
+    let currentIndex = options.firstIndex(where: { $0.id == currentID }) ?? 0
+    let nextIndex = (currentIndex + (offset % options.count) + options.count) % options.count
+    let nextOption = options[nextIndex]
+    guard nextOption.id != currentID else {
+      Diagnostics.log(
+        category: "FMDX UI",
+        message:
+          "Bandwidth change ignored: source=\(source) next option matches current option id=\(nextOption.id) label=\(nextOption.label)"
+      )
+      return
+    }
+
+    Diagnostics.log(
+      category: "FMDX UI",
+      message:
+        "Bandwidth change resolved: source=\(source) current_index=\(currentIndex) next_index=\(nextIndex) next_id=\(nextOption.id) next_label=\(nextOption.label)"
+    )
+    radioSession.setFMDXBandwidth(nextOption)
+    AppAccessibilityAnnouncementCenter.post(
+      L10n.text("fmdx.bandwidth.changed", nextOption.label)
+    )
+  }
+
+  private func changeFMDXAntenna(by offset: Int, source: String) {
+    let options = radioSession.displayedFMDXCapabilities.antennas
+    let currentID = radioSession.selectedFMDXAntennaID ?? options.first?.id
+    let optionsDescription = options
+      .map { "\($0.id)=\($0.label)" }
+      .joined(separator: ", ")
+
+    Diagnostics.log(
+      category: "FMDX UI",
+      message:
+        "Antenna change requested: source=\(source) offset=\(offset) current_id=\(currentID ?? "nil") options_count=\(options.count) options=[\(optionsDescription)]"
+    )
+
+    guard !options.isEmpty else {
+      Diagnostics.log(
+        category: "FMDX UI",
+        message: "Antenna change ignored: source=\(source) no options available"
+      )
+      return
+    }
+
+    let currentIndex = options.firstIndex(where: { $0.id == currentID }) ?? 0
+    let nextIndex = (currentIndex + (offset % options.count) + options.count) % options.count
+    let nextOption = options[nextIndex]
+    guard nextOption.id != currentID else {
+      Diagnostics.log(
+        category: "FMDX UI",
+        message:
+          "Antenna change ignored: source=\(source) next option matches current option id=\(nextOption.id) label=\(nextOption.label)"
+      )
+      return
+    }
+
+    Diagnostics.log(
+      category: "FMDX UI",
+      message:
+        "Antenna change resolved: source=\(source) current_index=\(currentIndex) next_index=\(nextIndex) next_id=\(nextOption.id) next_label=\(nextOption.label)"
+    )
+    radioSession.setFMDXAntenna(nextOption.id)
+    AppAccessibilityAnnouncementCenter.post(
+      L10n.text("fmdx.antenna.changed", nextOption.label)
     )
   }
 
@@ -2712,6 +2922,18 @@ struct ReceiverView: View {
     }
   }
 
+  private func focusFMDXBandwidthControl() {
+    Task { @MainActor in
+      accessibilityFocus = .fmdxBandwidthControl
+    }
+  }
+
+  private func focusFMDXAntennaControl() {
+    Task { @MainActor in
+      accessibilityFocus = .fmdxAntennaControl
+    }
+  }
+
   private func fmdxToggleChip(
     title: String,
     accessibilityTitle: String,
@@ -2751,11 +2973,13 @@ struct ReceiverView: View {
 
   private func fmdxToggleChipLabel(title: String) -> some View {
     Text(title)
-      .font(.footnote.weight(.semibold))
+      .font(.caption.weight(.semibold))
       .multilineTextAlignment(.center)
-      .lineLimit(2)
+      .lineLimit(1)
       .minimumScaleFactor(0.7)
-      .frame(maxWidth: .infinity, minHeight: 44)
+      .padding(.horizontal, 10)
+      .frame(minHeight: 34)
+      .fixedSize(horizontal: true, vertical: false)
   }
 
   private struct FMDXToggleAccessibilityModifier: ViewModifier {
@@ -2786,7 +3010,7 @@ struct ReceiverView: View {
   }
 
   private func metricCard(title: String, value: String) -> some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: 4) {
       Text(title)
         .font(.footnote)
         .foregroundStyle(.secondary)
@@ -2795,8 +3019,8 @@ struct ReceiverView: View {
         .foregroundStyle(.primary)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.horizontal, 12)
-    .padding(.vertical, 10)
+    .padding(.horizontal, 8)
+    .padding(.vertical, 6)
     .background(
       RoundedRectangle(cornerRadius: 12, style: .continuous)
         .fill(AppTheme.chipFill)
@@ -2808,6 +3032,54 @@ struct ReceiverView: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(title)
     .accessibilityValue(value)
+  }
+
+  @ViewBuilder
+  private func fmDxCompactSelectionNavigationLink(
+    title: String,
+    value: String,
+    selectedID: String,
+    options: [SelectionListOption],
+    disabled: Bool = false,
+    onSelect: @escaping (String) -> Void
+  ) -> some View {
+    if disabled {
+      HStack(spacing: 8) {
+        Text(title)
+          .font(.footnote)
+        Spacer(minLength: 8)
+        Text(value)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(title)
+      .accessibilityValue(value)
+      .foregroundStyle(.secondary)
+      .padding(.vertical, 2)
+    } else {
+      NavigationLink {
+        SelectionListView(
+          title: title,
+          options: options,
+          selectedID: selectedID,
+          onSelect: onSelect
+        )
+      } label: {
+        HStack(spacing: 8) {
+          Text(title)
+            .font(.footnote)
+          Spacer(minLength: 8)
+          Text(value)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+      }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(title)
+      .accessibilityValue(value)
+    }
   }
 
   @ViewBuilder
@@ -3111,20 +3383,72 @@ struct ReceiverView: View {
   }
 
   private func currentFMDXAntennaName() -> String {
+    let displayedCapabilities = radioSession.displayedFMDXCapabilities
     let selectedID = radioSession.selectedFMDXAntennaID
-      ?? radioSession.fmdxCapabilities.antennas.first?.id
-    return radioSession.fmdxCapabilities.antennas.first(where: { $0.id == selectedID })?.label
-      ?? radioSession.fmdxCapabilities.antennas.first?.label
+      ?? displayedCapabilities.antennas.first?.id
+    return displayedCapabilities.antennas.first(where: { $0.id == selectedID })?.label
+      ?? displayedCapabilities.antennas.first?.label
       ?? ""
   }
 
   private func currentFMDXBandwidthName() -> String {
-    let selectedID = radioSession.selectedFMDXBandwidthID
-      ?? radioSession.fmdxCapabilities.bandwidths.first?.id
-    return radioSession.fmdxCapabilities.bandwidths.first(where: { $0.id == selectedID })?.label
-      ?? radioSession.fmdxCapabilities.bandwidths.first?.label
+    let options = effectiveFMDXBandwidthOptions()
+    let selectedID = currentFMDXBandwidthSelectionID(from: options)
+    return options.first(where: { $0.id == selectedID || $0.legacyValue == selectedID })?.label
+      ?? options.first?.label
+      ?? radioSession.fmdxTelemetry?.bandwidth?.trimmingCharacters(in: .whitespacesAndNewlines)
       ?? ""
   }
+
+  private func currentFMDXBandwidthSelectionID(from options: [FMDXControlOption]) -> String? {
+    if let selectedID = radioSession.selectedFMDXBandwidthID, !selectedID.isEmpty {
+      return selectedID
+    }
+
+    if let telemetryBandwidth = radioSession.fmdxTelemetry?.bandwidth?
+      .trimmingCharacters(in: .whitespacesAndNewlines),
+      !telemetryBandwidth.isEmpty {
+      if let resolved = options.first(where: { $0.id == telemetryBandwidth || $0.legacyValue == telemetryBandwidth })?.id {
+        return resolved
+      }
+      return telemetryBandwidth
+    }
+
+    return nil
+  }
+
+  private func effectiveFMDXBandwidthOptions() -> [FMDXControlOption] {
+    let displayed = radioSession.displayedFMDXCapabilities.bandwidths
+    if !displayed.isEmpty {
+      return displayed
+    }
+
+    let telemetryBandwidth = radioSession.fmdxTelemetry?.bandwidth?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let hasBandwidthSignal = (telemetryBandwidth?.isEmpty == false)
+      || (radioSession.selectedFMDXBandwidthID?.isEmpty == false)
+
+    return hasBandwidthSignal ? Self.defaultFMDXBandwidthOptions : []
+  }
+
+  private static let defaultFMDXBandwidthOptions: [FMDXControlOption] = [
+    .init(id: "0", label: "Auto", legacyValue: nil),
+    .init(id: "56000", label: "56 KHz", legacyValue: nil),
+    .init(id: "64000", label: "64 KHz", legacyValue: nil),
+    .init(id: "72000", label: "72 KHz", legacyValue: nil),
+    .init(id: "84000", label: "84 KHz", legacyValue: nil),
+    .init(id: "97000", label: "97 KHz", legacyValue: nil),
+    .init(id: "114000", label: "114 KHz", legacyValue: nil),
+    .init(id: "133000", label: "133 KHz", legacyValue: nil),
+    .init(id: "151000", label: "151 KHz", legacyValue: nil),
+    .init(id: "184000", label: "184 KHz", legacyValue: nil),
+    .init(id: "200000", label: "200 KHz", legacyValue: nil),
+    .init(id: "217000", label: "217 KHz", legacyValue: nil),
+    .init(id: "236000", label: "236 KHz", legacyValue: nil),
+    .init(id: "254000", label: "254 KHz", legacyValue: nil),
+    .init(id: "287000", label: "287 KHz", legacyValue: nil),
+    .init(id: "311000", label: "311 KHz", legacyValue: nil),
+  ]
 
   private func currentFMDXBandScanRangeValue() -> String {
     selectedFMDXBandScanRange.localizedTitle
