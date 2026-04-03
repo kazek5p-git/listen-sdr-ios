@@ -268,6 +268,7 @@ struct ReceiverView: View {
   @State private var isFMDXStationListExpanded = false
   @State private var isFMDXBandScannerExpanded = false
   @State private var isFMDXAFExpanded = false
+  @State private var activeKiwiSelectionSheet: KiwiSelectionSheet?
   @State private var isShowingFMDXBandSelection = false
   @State private var isShowingFMDXAntennaSelection = false
   @State private var selectedFMDXBandScanRange: FMDXBandScanRangePreset = .upperUKF
@@ -344,6 +345,18 @@ struct ReceiverView: View {
     }
     .onChange(of: radioSession.settings.saveFMDXScannerResultsEnabled) { _ in
       syncFMDXBandScannerStepSelection()
+    }
+    .sheet(item: $activeKiwiSelectionSheet) { selection in
+      NavigationStack {
+        kiwiSelectionSheet(selection)
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(L10n.text("Cancel")) {
+                activeKiwiSelectionSheet = nil
+              }
+            }
+          }
+      }
     }
     .sheet(isPresented: $isShowingFMDXBandSelection) {
       NavigationStack {
@@ -540,7 +553,13 @@ struct ReceiverView: View {
           .frame(width: 156)
       }
 
-      if profile.backend != .fmDxWebserver {
+      if profile.backend == .kiwiSDR {
+        kiwiSelectionRow(
+          title: "Mode",
+          value: currentModeSelectionValue(for: .kiwiSDR),
+          selection: .mode
+        )
+      } else if profile.backend != .fmDxWebserver {
         selectionNavigationLink(
           title: "Mode",
           value: currentModeSelectionValue(for: profile.backend),
@@ -1187,28 +1206,11 @@ struct ReceiverView: View {
       let isIQMode = currentMode == .iq
 
       Section {
-        selectionNavigationLink(
+        kiwiSelectionRow(
           title: L10n.text("kiwi.signal_preset"),
           value: currentKiwiSignalPreset().localizedTitle,
-          selectedID: currentKiwiSignalPreset().rawValue,
-          options: KiwiSignalPreset.selectableCases.map {
-            SelectionListOption(
-              id: $0.rawValue,
-              title: $0.localizedTitle,
-              detail: $0.localizedDetail
-            )
-          }
-        ) { value in
-          guard let preset = KiwiSignalPreset(rawValue: value),
-            let values = preset.values
-          else {
-            return
-          }
-          radioSession.applyKiwiSignalPreset(
-            agcEnabled: values.agcEnabled,
-            rfGain: values.rfGain
-          )
-        }
+          selection: .signalPreset
+        )
 
         Toggle(
           L10n.text("kiwi.agc"),
@@ -1333,18 +1335,11 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func kiwiNoiseBlankerRows(isIQMode: Bool) -> some View {
-    selectionNavigationLink(
+    kiwiSelectionRow(
       title: L10n.text("kiwi.noise_blanker"),
       value: radioSession.settings.kiwiNoiseBlankerAlgorithm.localizedTitle,
-      selectedID: "\(radioSession.settings.kiwiNoiseBlankerAlgorithm.rawValue)",
-      options: KiwiNoiseBlankerAlgorithm.allCases.map {
-        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-      }
-    ) { value in
-      if let rawValue = Int(value), let algorithm = KiwiNoiseBlankerAlgorithm(rawValue: rawValue) {
-        radioSession.setKiwiNoiseBlankerAlgorithm(algorithm)
-      }
-    }
+      selection: .noiseBlanker
+    )
 
     if isIQMode, radioSession.settings.kiwiNoiseBlankerAlgorithm == .wild {
       Text(L10n.text("kiwi.noise_blanker.iq_warning"))
@@ -1431,18 +1426,11 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func kiwiNoiseFilterRows(isIQMode: Bool) -> some View {
-    selectionNavigationLink(
+    kiwiSelectionRow(
       title: L10n.text("kiwi.noise_filter"),
       value: radioSession.settings.kiwiNoiseFilterAlgorithm.localizedTitle,
-      selectedID: "\(radioSession.settings.kiwiNoiseFilterAlgorithm.rawValue)",
-      options: KiwiNoiseFilterAlgorithm.allCases.map {
-        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-      }
-    ) { value in
-      if let rawValue = Int(value), let algorithm = KiwiNoiseFilterAlgorithm(rawValue: rawValue) {
-        radioSession.setKiwiNoiseFilterAlgorithm(algorithm)
-      }
-    }
+      selection: .noiseFilter
+    )
 
     if isIQMode {
       Text(L10n.text("kiwi.noise_filter.iq_warning"))
@@ -1516,72 +1504,32 @@ struct ReceiverView: View {
 
   @ViewBuilder
   private func kiwiWaterfallRows() -> some View {
-    selectionNavigationLink(
+    kiwiSelectionRow(
       title: L10n.text("kiwi.waterfall.speed"),
       value: KiwiWaterfallRate(rawValue: radioSession.settings.kiwiWaterfallSpeed)?.localizedTitle
         ?? KiwiWaterfallRate.slow.localizedTitle,
-      selectedID: "\(radioSession.settings.kiwiWaterfallSpeed)",
-      options: KiwiWaterfallRate.allCases.map {
-        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-      }
-    ) { value in
-      if let speed = Int(value) {
-        radioSession.setKiwiWaterfallSpeed(speed)
-      }
-    }
+      selection: .waterfallSpeed
+    )
 
-    selectionNavigationLink(
+    kiwiSelectionRow(
       title: L10n.text("kiwi.waterfall.preset"),
       value: currentKiwiWaterfallPreset().localizedTitle,
-      selectedID: currentKiwiWaterfallPreset().rawValue,
-      options: KiwiWaterfallPreset.selectableCases.map {
-        SelectionListOption(
-          id: $0.rawValue,
-          title: $0.localizedTitle,
-          detail: $0.localizedDetail
-        )
-      }
-    ) { value in
-      guard let preset = KiwiWaterfallPreset(rawValue: value),
-        let values = preset.values
-      else {
-        return
-      }
-      radioSession.applyKiwiWaterfallSettings(
-        speed: values.speed,
-        zoom: values.zoom,
-        minDB: values.minDB,
-        maxDB: values.maxDB
-      )
-    }
+      selection: .waterfallPreset
+    )
 
-    selectionNavigationLink(
+    kiwiSelectionRow(
       title: L10n.text("kiwi.waterfall.window_function"),
       value: KiwiWaterfallWindowFunction(rawValue: radioSession.settings.kiwiWaterfallWindowFunction)?.localizedTitle
         ?? KiwiWaterfallWindowFunction.blackmanHarris.localizedTitle,
-      selectedID: "\(radioSession.settings.kiwiWaterfallWindowFunction)",
-      options: KiwiWaterfallWindowFunction.allCases.map {
-        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-      }
-    ) { value in
-      if let rawValue = Int(value) {
-        radioSession.setKiwiWaterfallWindowFunction(rawValue)
-      }
-    }
+      selection: .waterfallWindowFunction
+    )
 
-    selectionNavigationLink(
+    kiwiSelectionRow(
       title: L10n.text("kiwi.waterfall.interpolation"),
       value: KiwiWaterfallInterpolation(rawValue: radioSession.settings.kiwiWaterfallInterpolation)?.localizedTitle
         ?? KiwiWaterfallInterpolation.dropSamples.localizedTitle,
-      selectedID: "\(radioSession.settings.kiwiWaterfallInterpolation)",
-      options: KiwiWaterfallInterpolation.allCases.map {
-        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
-      }
-    ) { value in
-      if let rawValue = Int(value) {
-        radioSession.setKiwiWaterfallInterpolation(rawValue)
-      }
-    }
+      selection: .waterfallInterpolation
+    )
 
     Toggle(
       L10n.text("kiwi.waterfall.cic_compensation"),
@@ -2661,6 +2609,176 @@ struct ReceiverView: View {
       }
       isShowingFMDXBandSelection = false
     }
+  }
+
+  @ViewBuilder
+  private func kiwiSelectionRow(
+    title: String,
+    value: String,
+    selection: KiwiSelectionSheet,
+    disabled: Bool = false
+  ) -> some View {
+    if disabled {
+      LabeledContent(title, value: value)
+        .foregroundStyle(.secondary)
+    } else {
+      FocusRetainingButton({
+        activeKiwiSelectionSheet = selection
+      }, retainsAccessibilityFocus: false) {
+        HStack(spacing: 12) {
+          LabeledContent(title, value: value)
+          Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityHint(L10n.text("common.open_selection_list.hint"))
+    }
+  }
+
+  @ViewBuilder
+  private func kiwiSelectionSheet(_ selection: KiwiSelectionSheet) -> some View {
+    SelectionListView(
+      title: kiwiSelectionTitle(for: selection),
+      options: kiwiSelectionOptions(for: selection),
+      selectedID: kiwiSelectionSelectedID(for: selection)
+    ) { value in
+      applyKiwiSelection(value, for: selection)
+      activeKiwiSelectionSheet = nil
+    }
+  }
+
+  private func kiwiSelectionTitle(for selection: KiwiSelectionSheet) -> String {
+    switch selection {
+    case .mode:
+      return "Mode"
+    case .signalPreset:
+      return L10n.text("kiwi.signal_preset")
+    case .noiseBlanker:
+      return L10n.text("kiwi.noise_blanker")
+    case .noiseFilter:
+      return L10n.text("kiwi.noise_filter")
+    case .waterfallSpeed:
+      return L10n.text("kiwi.waterfall.speed")
+    case .waterfallPreset:
+      return L10n.text("kiwi.waterfall.preset")
+    case .waterfallWindowFunction:
+      return L10n.text("kiwi.waterfall.window_function")
+    case .waterfallInterpolation:
+      return L10n.text("kiwi.waterfall.interpolation")
+    }
+  }
+
+  private func kiwiSelectionOptions(for selection: KiwiSelectionSheet) -> [SelectionListOption] {
+    switch selection {
+    case .mode:
+      return availableModes(for: .kiwiSDR).map {
+        SelectionListOption(id: modeSelectionID(for: $0), title: $0.displayName, detail: nil)
+      }
+    case .signalPreset:
+      return KiwiSignalPreset.selectableCases.map {
+        SelectionListOption(id: $0.rawValue, title: $0.localizedTitle, detail: $0.localizedDetail)
+      }
+    case .noiseBlanker:
+      return KiwiNoiseBlankerAlgorithm.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    case .noiseFilter:
+      return KiwiNoiseFilterAlgorithm.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    case .waterfallSpeed:
+      return KiwiWaterfallRate.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    case .waterfallPreset:
+      return KiwiWaterfallPreset.selectableCases.map {
+        SelectionListOption(id: $0.rawValue, title: $0.localizedTitle, detail: $0.localizedDetail)
+      }
+    case .waterfallWindowFunction:
+      return KiwiWaterfallWindowFunction.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    case .waterfallInterpolation:
+      return KiwiWaterfallInterpolation.allCases.map {
+        SelectionListOption(id: "\($0.rawValue)", title: $0.localizedTitle, detail: nil)
+      }
+    }
+  }
+
+  private func kiwiSelectionSelectedID(for selection: KiwiSelectionSheet) -> String {
+    switch selection {
+    case .mode:
+      return currentModeSelectionID(for: .kiwiSDR)
+    case .signalPreset:
+      return currentKiwiSignalPreset().rawValue
+    case .noiseBlanker:
+      return "\(radioSession.settings.kiwiNoiseBlankerAlgorithm.rawValue)"
+    case .noiseFilter:
+      return "\(radioSession.settings.kiwiNoiseFilterAlgorithm.rawValue)"
+    case .waterfallSpeed:
+      return "\(radioSession.settings.kiwiWaterfallSpeed)"
+    case .waterfallPreset:
+      return currentKiwiWaterfallPreset().rawValue
+    case .waterfallWindowFunction:
+      return "\(radioSession.settings.kiwiWaterfallWindowFunction)"
+    case .waterfallInterpolation:
+      return "\(radioSession.settings.kiwiWaterfallInterpolation)"
+    }
+  }
+
+  private func applyKiwiSelection(_ value: String, for selection: KiwiSelectionSheet) {
+    switch selection {
+    case .mode:
+      guard let mode = modeFromSelectionID(value) else { return }
+      radioSession.setMode(mode)
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: mode.displayName)
+    case .signalPreset:
+      guard let preset = KiwiSignalPreset(rawValue: value), let values = preset.values else { return }
+      radioSession.applyKiwiSignalPreset(
+        agcEnabled: values.agcEnabled,
+        rfGain: values.rfGain
+      )
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: preset.localizedTitle)
+    case .noiseBlanker:
+      guard let rawValue = Int(value), let algorithm = KiwiNoiseBlankerAlgorithm(rawValue: rawValue) else { return }
+      radioSession.setKiwiNoiseBlankerAlgorithm(algorithm)
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: algorithm.localizedTitle)
+    case .noiseFilter:
+      guard let rawValue = Int(value), let algorithm = KiwiNoiseFilterAlgorithm(rawValue: rawValue) else { return }
+      radioSession.setKiwiNoiseFilterAlgorithm(algorithm)
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: algorithm.localizedTitle)
+    case .waterfallSpeed:
+      guard let speed = Int(value), let option = KiwiWaterfallRate(rawValue: speed) else { return }
+      radioSession.setKiwiWaterfallSpeed(speed)
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: option.localizedTitle)
+    case .waterfallPreset:
+      guard let preset = KiwiWaterfallPreset(rawValue: value), let values = preset.values else { return }
+      radioSession.applyKiwiWaterfallSettings(
+        speed: values.speed,
+        zoom: values.zoom,
+        minDB: values.minDB,
+        maxDB: values.maxDB
+      )
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: preset.localizedTitle)
+    case .waterfallWindowFunction:
+      guard let rawValue = Int(value), let option = KiwiWaterfallWindowFunction(rawValue: rawValue) else { return }
+      radioSession.setKiwiWaterfallWindowFunction(rawValue)
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: option.localizedTitle)
+    case .waterfallInterpolation:
+      guard let rawValue = Int(value), let option = KiwiWaterfallInterpolation(rawValue: rawValue) else { return }
+      radioSession.setKiwiWaterfallInterpolation(rawValue)
+      postKiwiSelectionAnnouncement(title: kiwiSelectionTitle(for: selection), value: option.localizedTitle)
+    }
+  }
+
+  private func postKiwiSelectionAnnouncement(title: String, value: String) {
+    let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedValue.isEmpty else { return }
+    AppAccessibilityAnnouncementCenter.post("\(title): \(trimmedValue)")
   }
 
   @ViewBuilder
@@ -4048,6 +4166,19 @@ private struct KiwiPassbandEditorView: View {
     .accessibilityLabel(title)
     .accessibilityValue(valueText)
   }
+}
+
+private enum KiwiSelectionSheet: String, Identifiable {
+  case mode
+  case signalPreset
+  case noiseBlanker
+  case noiseFilter
+  case waterfallSpeed
+  case waterfallPreset
+  case waterfallWindowFunction
+  case waterfallInterpolation
+
+  var id: String { rawValue }
 }
 
 struct SelectionListOption: Identifiable, Hashable {
