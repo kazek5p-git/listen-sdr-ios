@@ -268,6 +268,7 @@ struct ReceiverView: View {
   @State private var isFMDXStationListExpanded = false
   @State private var isFMDXBandScannerExpanded = false
   @State private var isFMDXAFExpanded = false
+  @State private var isShowingFMDXAntennaSelection = false
   @State private var selectedFMDXBandScanRange: FMDXBandScanRangePreset = .upperUKF
   @State private var selectedFMDXBandScanMode: FMDXBandScanMode = .standard
   @State private var selectedFMDXBandScanStepHz = FMDXBandScanRangePreset.upperUKF.definition.defaultStepHz
@@ -342,6 +343,18 @@ struct ReceiverView: View {
     }
     .onChange(of: radioSession.settings.saveFMDXScannerResultsEnabled) { _ in
       syncFMDXBandScannerStepSelection()
+    }
+    .sheet(isPresented: $isShowingFMDXAntennaSelection) {
+      NavigationStack {
+        fmdxAntennaSelectionSheet()
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(L10n.text("Cancel")) {
+                isShowingFMDXAntennaSelection = false
+              }
+            }
+          }
+      }
     }
   }
 
@@ -2404,33 +2417,56 @@ struct ReceiverView: View {
   }
 
   private func fmdxAntennaChip(isEnabled: Bool) -> some View {
-    let antennaValue = currentFMDXAntennaName()
-    return NativeAdjustableChipControl(
-      accessibilityLabel: L10n.text("fmdx.antenna"),
-      accessibilityValue: antennaValue,
-      visibleTitle: "ANT",
-      visibleValue: antennaValue,
-      isEnabled: isEnabled,
-      onDecrement: {
-        guard isEnabled else { return }
-        changeFMDXAntenna(by: -1, source: "voiceover_adjust_decrement")
-      },
-      onIncrement: {
-        guard isEnabled else { return }
-        changeFMDXAntenna(by: 1, source: "voiceover_adjust_increment")
-      },
-      onTapDecrement: {
-        guard isEnabled else { return }
-        changeFMDXAntenna(by: -1, source: "button_minus")
-        focusFMDXAntennaControl()
-      },
-      onTapIncrement: {
-        guard isEnabled else { return }
-        changeFMDXAntenna(by: 1, source: "button_plus")
-        focusFMDXAntennaControl()
-      }
+    let displayedCapabilities = radioSession.displayedFMDXCapabilities
+    let hasOptions = !displayedCapabilities.antennas.isEmpty
+
+    return FocusRetainingButton({
+      guard isEnabled, hasOptions else { return }
+      isShowingFMDXAntennaSelection = true
+    }, retainsAccessibilityFocus: false) {
+      fmdxToggleChipLabel(title: currentFMDXAntennaName())
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(Color.primary)
+    .background(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(AppTheme.chipFill)
     )
-    .frame(width: 112)
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(AppTheme.cardStroke, lineWidth: 1)
+    )
+    .disabled(!isEnabled || !hasOptions)
+    .opacity((isEnabled && hasOptions) ? 1 : 0.5)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("fmdx.antenna"))
+    .accessibilityValue(currentFMDXAntennaName())
+    .accessibilityHint(L10n.text("common.open_selection_list.hint"))
+  }
+
+  @ViewBuilder
+  private func fmdxAntennaSelectionSheet() -> some View {
+    let options = radioSession.displayedFMDXCapabilities.antennas
+    let selectedID = radioSession.selectedFMDXAntennaID
+      ?? options.first?.id
+      ?? ""
+
+    SelectionListView(
+      title: L10n.text("fmdx.antenna"),
+      options: options.map {
+        SelectionListOption(id: $0.id, title: $0.label, detail: nil)
+      },
+      selectedID: selectedID
+    ) { value in
+      guard !value.isEmpty else { return }
+      radioSession.setFMDXAntenna(value)
+      if let selected = options.first(where: { $0.id == value }) {
+        AppAccessibilityAnnouncementCenter.post(
+          L10n.text("fmdx.antenna.changed", selected.label)
+        )
+      }
+      isShowingFMDXAntennaSelection = false
+    }
   }
 
   private func compactFMDXBandwidthName() -> String {
@@ -2724,50 +2760,6 @@ struct ReceiverView: View {
     )
   }
 
-  private func changeFMDXAntenna(by offset: Int, source: String) {
-    let options = radioSession.displayedFMDXCapabilities.antennas
-    let currentID = radioSession.selectedFMDXAntennaID ?? options.first?.id
-    let optionsDescription = options
-      .map { "\($0.id)=\($0.label)" }
-      .joined(separator: ", ")
-
-    Diagnostics.log(
-      category: "FMDX UI",
-      message:
-        "Antenna change requested: source=\(source) offset=\(offset) current_id=\(currentID ?? "nil") options_count=\(options.count) options=[\(optionsDescription)]"
-    )
-
-    guard !options.isEmpty else {
-      Diagnostics.log(
-        category: "FMDX UI",
-        message: "Antenna change ignored: source=\(source) no options available"
-      )
-      return
-    }
-
-    let currentIndex = options.firstIndex(where: { $0.id == currentID }) ?? 0
-    let nextIndex = (currentIndex + (offset % options.count) + options.count) % options.count
-    let nextOption = options[nextIndex]
-    guard nextOption.id != currentID else {
-      Diagnostics.log(
-        category: "FMDX UI",
-        message:
-          "Antenna change ignored: source=\(source) next option matches current option id=\(nextOption.id) label=\(nextOption.label)"
-      )
-      return
-    }
-
-    Diagnostics.log(
-      category: "FMDX UI",
-      message:
-        "Antenna change resolved: source=\(source) current_index=\(currentIndex) next_index=\(nextIndex) next_id=\(nextOption.id) next_label=\(nextOption.label)"
-    )
-    radioSession.setFMDXAntenna(nextOption.id)
-    AppAccessibilityAnnouncementCenter.post(
-      L10n.text("fmdx.antenna.changed", nextOption.label)
-    )
-  }
-
   private func frequencyTuningControl(for backend: SDRBackend) -> some View {
     let frequencyValue = frequencyText(fromHz: radioSession.settings.frequencyHz, backend: backend)
     let tuneStepLabel = FrequencyFormatter.tuneStepText(fromHz: radioSession.settings.tuneStepHz)
@@ -2925,12 +2917,6 @@ struct ReceiverView: View {
   private func focusFMDXBandwidthControl() {
     Task { @MainActor in
       accessibilityFocus = .fmdxBandwidthControl
-    }
-  }
-
-  private func focusFMDXAntennaControl() {
-    Task { @MainActor in
-      accessibilityFocus = .fmdxAntennaControl
     }
   }
 
