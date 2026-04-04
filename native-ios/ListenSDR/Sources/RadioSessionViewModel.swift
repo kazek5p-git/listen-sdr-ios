@@ -254,6 +254,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var connectedSince = Date.distantPast
   private var automaticReconnectAttempts = 0
   private var automaticReconnectSuccesses = 0
+  private var kiwiBusyReconnectPenaltyLevel = 0
+  private var lastKiwiBusyDisconnectAt = Date.distantPast
   private var sharedAudioSampleCount = 0
   private var sharedAudioPeakQueuedBuffers = 0
   private var sharedAudioPeakEnqueueGapSeconds: TimeInterval = 0
@@ -535,8 +537,8 @@ final class RadioSessionViewModel: ObservableObject {
         }
 
         let newClient = makeClient(for: profile)
-        try await newClient.connect(profile: profile)
         await newClient.setRuntimePolicy(runtimePolicySnapshot)
+        try await newClient.connect(profile: profile)
 
         if Task.isCancelled {
           return
@@ -3788,7 +3790,33 @@ final class RadioSessionViewModel: ObservableObject {
           return
         }
 
+        let backendError = await client.consumeServerError()
+        var latestBackendStatus: String?
+        while let backendStatus = await client.consumeStatusUpdate() {
+          latestBackendStatus = backendStatus
+        }
+
         let isAlive = await client.isConnected()
+        if let busyMessage = kiwiBusyRecoveryMessage(
+          serverError: backendError,
+          backendStatus: latestBackendStatus
+        ), !isAlive || backendError != nil {
+          Diagnostics.log(
+            severity: .warning,
+            category: "Session",
+            message: "Kiwi server busy on \(profile.name); scheduling slow reconnect: \(busyMessage)"
+          )
+          await MainActor.run {
+            guard self.connectedProfileID == profile.id else { return }
+            self.beginAutomaticRecovery(
+              for: profile,
+              from: client,
+              cause: .serverBusy(message: busyMessage, penaltyLevel: 0)
+            )
+          }
+          return
+        }
+
         if !isAlive {
           Diagnostics.log(
             severity: .warning,
@@ -3802,7 +3830,7 @@ final class RadioSessionViewModel: ObservableObject {
           return
         }
 
-        if let backendError = await client.consumeServerError() {
+        if let backendError {
           await client.disconnect()
           Diagnostics.log(
             severity: .error,
@@ -3830,10 +3858,6 @@ final class RadioSessionViewModel: ObservableObject {
           return
         }
 
-        var latestBackendStatus: String?
-        while let backendStatus = await client.consumeStatusUpdate() {
-          latestBackendStatus = backendStatus
-        }
         if let latestBackendStatus {
           await MainActor.run {
             guard self.connectedProfileID == profile.id else { return }
@@ -3871,7 +3895,8 @@ final class RadioSessionViewModel: ObservableObject {
 
   private func beginAutomaticRecovery(
     for profile: SDRConnectionProfile,
-    from client: any SDRBackendClient
+    from client: any SDRBackendClient,
+    cause: AutomaticRecoveryCause = .generic
   ) {
     guard sessionRecoveryTask == nil else { return }
     let restoringFrequencyHz = settings.frequencyHz
@@ -3886,6 +3911,11 @@ final class RadioSessionViewModel: ObservableObject {
       SessionLifecyclePresentationCore.presentation(for: .reconnectingRequested),
       profileName: profile.name
     )
+    let effectiveCause = normalizedAutomaticRecoveryCause(cause)
+    if let reconnectStatusMessage = effectiveCause.reconnectStatusMessage {
+      updateBackendStatusText(reconnectStatusMessage)
+      lastError = reconnectStatusMessage
+    }
 
     sessionRecoveryTask = Task {
       defer { self.sessionRecoveryTask = nil }
@@ -3897,10 +3927,17 @@ final class RadioSessionViewModel: ObservableObject {
 
       while !Task.isCancelled {
         attempt += 1
-        let delaySeconds = AutomaticReconnectCore.delaySeconds(forAttemptNumber: attempt)
+        let delaySeconds = automaticReconnectDelaySeconds(
+          forAttemptNumber: attempt,
+          cause: effectiveCause
+        )
         await MainActor.run {
           self.automaticReconnectAttempts += 1
         }
+        Diagnostics.log(
+          category: "Session",
+          message: "Reconnect attempt \(attempt) scheduled for \(profile.name) after \(String(format: "%.1f", delaySeconds)) s [\(effectiveCause.diagnosticsLabel)]"
+        )
 
         if delaySeconds > 0 {
           try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
@@ -3918,8 +3955,8 @@ final class RadioSessionViewModel: ObservableObject {
 
         do {
           let newClient = makeClient(for: profile)
-          try await newClient.connect(profile: profile)
           await newClient.setRuntimePolicy(self.runtimePolicy)
+          try await newClient.connect(profile: profile)
           if Task.isCancelled {
             await newClient.disconnect()
             return
@@ -3972,8 +4009,9 @@ final class RadioSessionViewModel: ObservableObject {
             message: "Reconnect attempt \(attempt) failed for \(profile.name): \(error.localizedDescription)"
           )
 
-          if !AutomaticReconnectCore.shouldContinueRetrying(
-            elapsedSeconds: Date().timeIntervalSince(startedAt)
+          if !shouldContinueAutomaticRecovery(
+            elapsedSeconds: Date().timeIntervalSince(startedAt),
+            cause: effectiveCause
           ) {
             break
           }
@@ -4007,6 +4045,96 @@ final class RadioSessionViewModel: ObservableObject {
   private func cancelAutomaticRecovery() {
     sessionRecoveryTask?.cancel()
     sessionRecoveryTask = nil
+  }
+
+  private enum AutomaticRecoveryCause {
+    case generic
+    case serverBusy(message: String, penaltyLevel: Int)
+
+    var diagnosticsLabel: String {
+      switch self {
+      case .generic:
+        return "generic"
+      case .serverBusy(_, let penaltyLevel):
+        return "server_busy#\(penaltyLevel)"
+      }
+    }
+
+    var reconnectStatusMessage: String? {
+      switch self {
+      case .generic:
+        return nil
+      case .serverBusy(let message, _):
+        return message
+      }
+    }
+  }
+
+  private func kiwiBusyRecoveryMessage(
+    serverError: String?,
+    backendStatus: String?
+  ) -> String? {
+    [serverError, backendStatus]
+      .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .first { message in
+        let normalized = message.lowercased()
+        return normalized.contains("currently busy")
+          || normalized.contains("all client slots are used")
+          || normalized.contains("too busy")
+      }
+  }
+
+  private func automaticReconnectDelaySeconds(
+    forAttemptNumber attemptNumber: Int,
+    cause: AutomaticRecoveryCause
+  ) -> TimeInterval {
+    switch cause {
+    case .generic:
+      return AutomaticReconnectCore.delaySeconds(forAttemptNumber: attemptNumber)
+    case .serverBusy(_, let penaltyLevel):
+      return value(
+        at: attemptNumber + max(0, penaltyLevel - 1),
+        from: [8.0, 12.0, 18.0, 25.0, 35.0]
+      )
+    }
+  }
+
+  private func shouldContinueAutomaticRecovery(
+    elapsedSeconds: TimeInterval,
+    cause: AutomaticRecoveryCause
+  ) -> Bool {
+    switch cause {
+    case .generic:
+      return AutomaticReconnectCore.shouldContinueRetrying(elapsedSeconds: elapsedSeconds)
+    case .serverBusy:
+      return elapsedSeconds < 180
+    }
+  }
+
+  private func normalizedAutomaticRecoveryCause(
+    _ cause: AutomaticRecoveryCause
+  ) -> AutomaticRecoveryCause {
+    switch cause {
+    case .generic:
+      return .generic
+    case .serverBusy(let message, _):
+      let now = Date()
+      if now.timeIntervalSince(lastKiwiBusyDisconnectAt) > 90 {
+        kiwiBusyReconnectPenaltyLevel = 0
+      }
+      kiwiBusyReconnectPenaltyLevel = min(kiwiBusyReconnectPenaltyLevel + 1, 5)
+      lastKiwiBusyDisconnectAt = now
+      return .serverBusy(message: message, penaltyLevel: kiwiBusyReconnectPenaltyLevel)
+    }
+  }
+
+  private func value(
+    at attemptNumber: Int,
+    from schedule: [TimeInterval]
+  ) -> TimeInterval {
+    let normalizedAttempt = max(1, attemptNumber)
+    let index = min(normalizedAttempt - 1, schedule.count - 1)
+    return schedule[index]
   }
 
   @discardableResult

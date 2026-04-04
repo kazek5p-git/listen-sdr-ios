@@ -288,6 +288,27 @@ private func kiwiAuthenticationErrorDescription(code: String) -> String {
   }
 }
 
+private actor KiwiWaterfallAvailabilityStore {
+  static let shared = KiwiWaterfallAvailabilityStore()
+
+  private let defaults = UserDefaults.standard
+  private let defaultsKey = "ListenSDR.kiwiBlockedWaterfallEndpoints.v1"
+  private var blockedEndpointReasons: [String: String]
+
+  init() {
+    blockedEndpointReasons = defaults.dictionary(forKey: defaultsKey) as? [String: String] ?? [:]
+  }
+
+  func blockedReason(for endpointKey: String) -> String? {
+    blockedEndpointReasons[endpointKey]
+  }
+
+  func rememberBlocked(endpointKey: String, reason: String) {
+    blockedEndpointReasons[endpointKey] = reason
+    defaults.set(blockedEndpointReasons, forKey: defaultsKey)
+  }
+}
+
 private func demodulationModeFromKiwi(_ rawValue: String?) -> DemodulationMode? {
   DemodulationMode.fromKiwi(rawValue)
 }
@@ -334,6 +355,12 @@ actor KiwiSDRClient: SDRBackendClient {
   private var activeBasePath = "/"
   private var lastAppliedSettings: RadioSessionSettings?
   private var runtimePolicy: BackendRuntimePolicy = .interactive
+  private var kiwiEndpointKey: String?
+  private var firstAudioFrameAt: Date?
+  private var pendingWaterfallActivationTask: Task<Void, Never>?
+
+  private let kiwiStableAudioFrameThreshold = 3
+  private let kiwiStableAudioWaterfallDelaySeconds: TimeInterval = 2.5
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -347,6 +374,9 @@ actor KiwiSDRClient: SDRBackendClient {
       profile: profile,
       path: "\(basePath)\(Int(Date().timeIntervalSince1970))/SND"
     )
+    let endpointKey = makeKiwiEndpointKey(for: sndURL, basePath: basePath)
+    kiwiEndpointKey = endpointKey
+    let blockedWaterfallReason = await KiwiWaterfallAvailabilityStore.shared.blockedReason(for: endpointKey)
     log("Connecting audio stream: \(sndURL.absoluteString)")
     var soundRequest = URLRequest(url: sndURL)
     soundRequest.applyListenSDRNetworkIdentity()
@@ -369,12 +399,12 @@ actor KiwiSDRClient: SDRBackendClient {
     try await sendSND("SET compression=0")
     try await sendSND("SET keepalive")
 
-    if runtimePolicy.allowsVisualTelemetry {
-      do {
-        try await openWaterfallStream(profile: profile, basePath: basePath)
-      } catch {
-        log("Waterfall stream unavailable: \(error.localizedDescription)", severity: .warning)
-      }
+    if runtimePolicy.allowsVisualTelemetry, blockedWaterfallReason == nil {
+      log(
+        "Deferring Kiwi waterfall stream until audio is stable (\(kiwiStableAudioFrameThreshold)+ frames, \(String(format: "%.1f", kiwiStableAudioWaterfallDelaySeconds)) s)."
+      )
+    } else if let blockedWaterfallReason {
+      log("Skipping Kiwi waterfall stream for \(endpointKey): \(blockedWaterfallReason)", severity: .warning)
     }
 
     log("Connection initialized")
@@ -388,6 +418,8 @@ actor KiwiSDRClient: SDRBackendClient {
     sndKeepAliveTask = nil
     audioWatchdogTask?.cancel()
     audioWatchdogTask = nil
+    pendingWaterfallActivationTask?.cancel()
+    pendingWaterfallActivationTask = nil
 
     sndSocket?.cancel(with: .normalClosure, reason: nil)
     sndSocket = nil
@@ -410,6 +442,7 @@ actor KiwiSDRClient: SDRBackendClient {
     kiwiBandwidthHz = nil
     kiwiZoomMax = nil
     receivedAudioFrameCount = 0
+    firstAudioFrameAt = nil
     lastReportedTunedFrequencyHz = nil
     lastReportedTunedMode = nil
     lastReportedBandName = nil
@@ -417,6 +450,7 @@ actor KiwiSDRClient: SDRBackendClient {
     activeProfile = nil
     activeBasePath = "/"
     lastAppliedSettings = nil
+    kiwiEndpointKey = nil
 
     await MainActor.run {
       SharedAudioOutput.engine.stop()
@@ -479,16 +513,11 @@ actor KiwiSDRClient: SDRBackendClient {
     guard let activeProfile else { return }
     if policy.allowsVisualTelemetry {
       guard wfSocket == nil else { return }
-      log("Restoring Kiwi waterfall stream for runtime policy \(policy.diagnosticsLabel).")
-      do {
-        try await openWaterfallStream(profile: activeProfile, basePath: activeBasePath)
-        if let lastAppliedSettings {
-          try? await applyKiwiWaterfallSettings(lastAppliedSettings)
-        }
-      } catch {
-        log("Unable to restore Kiwi waterfall stream: \(error.localizedDescription)", severity: .warning)
-      }
+      if await blockedWaterfallReason() != nil { return }
+      await scheduleWaterfallActivationIfNeeded(reason: "runtime policy \(policy.diagnosticsLabel)")
     } else {
+      pendingWaterfallActivationTask?.cancel()
+      pendingWaterfallActivationTask = nil
       log("Closing Kiwi waterfall stream for runtime policy \(policy.diagnosticsLabel).")
       closeWaterfallStream(clearTelemetry: true)
     }
@@ -507,6 +536,8 @@ actor KiwiSDRClient: SDRBackendClient {
       let interpolation,
       let cicCompensation
     ):
+      guard wfSocket != nil else { return }
+      if await blockedWaterfallReason() != nil { return }
       let safeSpeed = RadioSessionSettings.normalizedKiwiWaterfallSpeed(speed)
       let safeZoom = RadioSessionSettings.clampedKiwiWaterfallZoom(zoom)
       let safeMinDB = RadioSessionSettings.clampedKiwiWaterfallMinDB(minDB)
@@ -851,7 +882,7 @@ actor KiwiSDRClient: SDRBackendClient {
 
   private func handleInboundText(_ text: String, stream: StreamKind) async {
     if text.contains("badp=") || text.contains("too_busy=") || text.contains("down=") {
-      lastServerMessage = text
+      await handleKiwiMessage(text, stream: stream)
       return
     }
 
@@ -970,7 +1001,9 @@ actor KiwiSDRClient: SDRBackendClient {
           lastServerMessage = message
           log(message, severity: .error)
         } else {
-          pendingStatusUpdate = message
+          if shouldDisableWaterfall(for: message) {
+            await disableWaterfallForCurrentEndpoint(reason: message)
+          }
           log("Waterfall stream authentication failed: \(message)", severity: .warning)
         }
 
@@ -979,7 +1012,7 @@ actor KiwiSDRClient: SDRBackendClient {
         if stream == .sound {
           lastServerMessage = message
         } else {
-          pendingStatusUpdate = message
+          await disableWaterfallForCurrentEndpoint(reason: message)
         }
         log(message, severity: .warning)
 
@@ -1046,6 +1079,9 @@ actor KiwiSDRClient: SDRBackendClient {
     let floats = int16ToFloatPCM(pcm)
     guard !floats.isEmpty else { return }
     receivedAudioFrameCount += 1
+    if receivedAudioFrameCount == 1 {
+      firstAudioFrameAt = Date()
+    }
     audioWatchdogTask?.cancel()
     audioWatchdogTask = nil
     if receivedAudioFrameCount <= 3 {
@@ -1061,6 +1097,9 @@ actor KiwiSDRClient: SDRBackendClient {
           isStereo ? 1 : 0
         )
       )
+    }
+    if runtimePolicy.allowsVisualTelemetry, wfSocket == nil {
+      await scheduleWaterfallActivationIfNeeded(reason: "audio stabilized")
     }
 
     let sampleRate = Double(sampleRateHz)
@@ -1286,7 +1325,9 @@ actor KiwiSDRClient: SDRBackendClient {
   private func handleReceiveFailure(_ error: Error, stream: StreamKind) {
     switch stream {
     case .sound:
-      lastServerMessage = error.localizedDescription
+      if lastServerMessage == nil || lastServerMessage?.isEmpty == true {
+        lastServerMessage = error.localizedDescription
+      }
       sndKeepAliveTask?.cancel()
       sndKeepAliveTask = nil
       sndReceiveTask = nil
@@ -1298,6 +1339,98 @@ actor KiwiSDRClient: SDRBackendClient {
       wfReceiveTask = nil
       wfSocket = nil
       log("Waterfall stream failed: \(error.localizedDescription)", severity: .warning)
+    }
+  }
+
+  private func makeKiwiEndpointKey(for url: URL, basePath: String) -> String {
+    let scheme = url.scheme?.lowercased() ?? "ws"
+    let host = url.host?.lowercased() ?? "unknown"
+    let defaultPort = scheme == "wss" ? 443 : 80
+    let port = url.port ?? defaultPort
+    let normalizedBasePath = pathWithTrailingSlash(basePath).lowercased()
+    return "\(scheme)://\(host):\(port)\(normalizedBasePath)"
+  }
+
+  private func shouldDisableWaterfall(for message: String) -> Bool {
+    message == "Multiple connections from the same IP are not allowed."
+      || message == "KiwiSDR is currently busy (all client slots are used)."
+  }
+
+  private func blockedWaterfallReason() async -> String? {
+    guard let kiwiEndpointKey else { return nil }
+    return await KiwiWaterfallAvailabilityStore.shared.blockedReason(for: kiwiEndpointKey)
+  }
+
+  private func disableWaterfallForCurrentEndpoint(reason: String) async {
+    guard let kiwiEndpointKey else { return }
+    pendingWaterfallActivationTask?.cancel()
+    pendingWaterfallActivationTask = nil
+    let existingReason = await KiwiWaterfallAvailabilityStore.shared.blockedReason(for: kiwiEndpointKey)
+    if existingReason == reason {
+      closeWaterfallStream(clearTelemetry: true)
+      return
+    }
+    await KiwiWaterfallAvailabilityStore.shared.rememberBlocked(endpointKey: kiwiEndpointKey, reason: reason)
+    log("Disabling Kiwi waterfall for current endpoint: \(reason)", severity: .warning)
+    closeWaterfallStream(clearTelemetry: true)
+  }
+
+  private func scheduleWaterfallActivationIfNeeded(reason: String) async {
+    guard runtimePolicy.allowsVisualTelemetry else { return }
+    guard wfSocket == nil else { return }
+    guard pendingWaterfallActivationTask == nil else { return }
+    guard let activeProfile else { return }
+    guard receivedAudioFrameCount >= kiwiStableAudioFrameThreshold else { return }
+    if await blockedWaterfallReason() != nil { return }
+
+    let delaySeconds: TimeInterval
+    if let firstAudioFrameAt {
+      let elapsed = Date().timeIntervalSince(firstAudioFrameAt)
+      delaySeconds = max(0, kiwiStableAudioWaterfallDelaySeconds - elapsed)
+    } else {
+      delaySeconds = kiwiStableAudioWaterfallDelaySeconds
+    }
+
+    log(
+      "Scheduling Kiwi waterfall stream after stable audio: reason=\(reason), frames=\(receivedAudioFrameCount), delay=\(String(format: "%.1f", delaySeconds)) s"
+    )
+
+    let profileID = activeProfile.id
+    let profile = activeProfile
+    let basePath = activeBasePath
+    pendingWaterfallActivationTask = Task { [self] in
+      if delaySeconds > 0 {
+        try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+      }
+      await activateWaterfallIfEligible(profileID: profileID, profile: profile, basePath: basePath, reason: reason)
+    }
+  }
+
+  private func activateWaterfallIfEligible(
+    profileID: UUID,
+    profile: SDRConnectionProfile,
+    basePath: String,
+    reason: String
+  ) async {
+    defer {
+      pendingWaterfallActivationTask = nil
+    }
+
+    guard !Task.isCancelled else { return }
+    guard runtimePolicy.allowsVisualTelemetry else { return }
+    guard wfSocket == nil else { return }
+    guard activeProfile?.id == profileID else { return }
+    guard receivedAudioFrameCount >= kiwiStableAudioFrameThreshold else { return }
+    if await blockedWaterfallReason() != nil { return }
+
+    do {
+      log("Opening Kiwi waterfall stream after stable audio: \(reason)")
+      try await openWaterfallStream(profile: profile, basePath: basePath)
+      if let lastAppliedSettings {
+        try? await applyKiwiWaterfallSettings(lastAppliedSettings)
+      }
+    } catch {
+      log("Unable to open Kiwi waterfall stream after stable audio: \(error.localizedDescription)", severity: .warning)
     }
   }
 
