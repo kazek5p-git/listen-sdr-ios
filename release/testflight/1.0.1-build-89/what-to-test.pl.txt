@@ -1,0 +1,8 @@
+Ten build poprawia dostępność FM-DX i stabilność KiwiSDR na iPhonie.
+
+- szerokość pasma FM-DX działa już poprawnie z VoiceOver jako regulator
+- wybór anteny i pasma w FM-DX lepiej potwierdza wybraną wartość
+- selektory KiwiSDR dają teraz czytelne potwierdzenia w stylu „Nazwa: wartość”
+- Kiwi otwiera waterfall dopiero po ustabilizowaniu audio i wolniej ponawia połączenie, gdy serwer zgłasza zajęte sloty
+
+Sprawdź proszę FM-DX na serwerze z regulacją szerokości pasma i anten oraz KiwiSDR zarówno na normalnym serwerze, jak i na proxy, które potrafi zgłaszać zajętość slotów.

@@ -1,0 +1,8 @@
+This build improves FM-DX accessibility and KiwiSDR stability on iPhone.
+
+- FM-DX bandwidth now works correctly with VoiceOver as an adjustable control
+- FM-DX antenna and band selection now confirms the chosen value more reliably
+- KiwiSDR selection dialogs now use clearer `Title: Value` confirmations
+- Kiwi opens the waterfall only after audio is stable and retries more slowly when the server reports busy client slots
+
+Please test FM-DX on a server that exposes bandwidth and antenna switching, and test KiwiSDR on both normal servers and proxies that can report busy slots.
