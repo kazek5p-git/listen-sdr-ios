@@ -14,7 +14,9 @@ public enum FMDXCapabilitiesMergeCore {
       bandwidths: primary.bandwidths.isEmpty ? fallback.bandwidths : primary.bandwidths,
       supportsAM: primary.supportsAM || fallback.supportsAM,
       supportsFilterControls: primary.supportsFilterControls || fallback.supportsFilterControls,
-      supportsAGCControl: primary.supportsAGCControl || fallback.supportsAGCControl
+      supportsAGCControl: primary.supportsAGCControl || fallback.supportsAGCControl,
+      requiresTunePassword: primary.requiresTunePassword || fallback.requiresTunePassword,
+      lockedToAdmin: primary.lockedToAdmin || fallback.lockedToAdmin
     )
   }
 }

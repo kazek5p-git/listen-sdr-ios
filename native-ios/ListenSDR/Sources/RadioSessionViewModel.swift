@@ -444,6 +444,20 @@ final class RadioSessionViewModel: ObservableObject {
     return Self.hasMeaningfulFMDXCapabilities(cachedCapabilities) ? cachedCapabilities : fmdxCapabilities
   }
 
+  var isFMDXTunePasswordLocked: Bool {
+    (activeBackend == .fmDxWebserver || currentConnectedProfile?.backend == .fmDxWebserver)
+      && displayedFMDXCapabilities.requiresTunePassword
+  }
+
+  var isFMDXAdminLocked: Bool {
+    (activeBackend == .fmDxWebserver || currentConnectedProfile?.backend == .fmDxWebserver)
+      && displayedFMDXCapabilities.lockedToAdmin
+  }
+
+  var isFMDXRemoteControlLocked: Bool {
+    isFMDXAdminLocked || isFMDXTunePasswordLocked
+  }
+
   var audioDiagnosticsSnapshot: AudioSessionDiagnosticsSnapshot {
     let connectedDurationSeconds = connectedSince == .distantPast
       ? nil
@@ -946,6 +960,7 @@ final class RadioSessionViewModel: ObservableObject {
     scanMode: FMDXBandScanMode = .standard
   ) {
     guard state == .connected, activeBackend == .fmDxWebserver else { return }
+    guard !blockLockedFMDXControlAction("start_band_scanner") else { return }
 
     let definition = rangePreset.definition
     guard !(definition.mode == .am) || fmdxSupportsAM else {
@@ -1610,6 +1625,13 @@ final class RadioSessionViewModel: ObservableObject {
     }
 
     let backend = activeBackend
+    if backend == .fmDxWebserver || currentConnectedProfile?.backend == .fmDxWebserver {
+      guard !blockLockedFMDXControlAction(
+        "set_frequency",
+        details: ["requestedFrequencyHz": value, "source": source]
+      )
+      else { return }
+    }
     let normalizedFrequencyHz: Int
     if activeBackend == .fmDxWebserver {
       normalizedFrequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
@@ -1825,6 +1847,11 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setMode(_ mode: DemodulationMode) {
     if activeBackend == .fmDxWebserver {
+      guard !blockLockedFMDXControlAction(
+        "set_mode",
+        details: ["requestedMode": mode.rawValue]
+      )
+      else { return }
       let amUnsupportedWarning = L10n.text("fmdx.band.am_not_supported")
       let previousMode = settings.mode
       let previousFrequencyHz = settings.frequencyHz
@@ -1938,6 +1965,9 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setAGCEnabled(_ enabled: Bool) {
+    guard !(activeBackend == .fmDxWebserver || currentConnectedProfile?.backend == .fmDxWebserver)
+      || !blockLockedFMDXControlAction("set_agc", details: ["requested": enabled])
+    else { return }
     guard settings.agcEnabled != enabled else { return }
     settings.agcEnabled = enabled
     persistSettings()
@@ -1951,6 +1981,9 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setNoiseReductionEnabled(_ enabled: Bool) {
+    guard !(activeBackend == .fmDxWebserver || currentConnectedProfile?.backend == .fmDxWebserver)
+      || !blockLockedFMDXControlAction("set_eq", details: ["requested": enabled])
+    else { return }
     guard settings.noiseReductionEnabled != enabled else { return }
     settings.noiseReductionEnabled = enabled
     markAutoFilterManuallyOverridden()
@@ -1965,6 +1998,9 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setIMSEnabled(_ enabled: Bool) {
+    guard !(activeBackend == .fmDxWebserver || currentConnectedProfile?.backend == .fmDxWebserver)
+      || !blockLockedFMDXControlAction("set_ims", details: ["requested": enabled])
+    else { return }
     guard settings.imsEnabled != enabled else { return }
     settings.imsEnabled = enabled
     markAutoFilterManuallyOverridden()
@@ -1980,6 +2016,8 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setFMDXAudioMode(_ mode: FMDXAudioMode) {
     guard activeBackend == .fmDxWebserver else { return }
+    guard !blockLockedFMDXControlAction("set_audio_mode", details: ["requested": mode.rawValue])
+    else { return }
     pendingFMDXAudioModeIsStereo = mode.isStereo
     pendingFMDXAudioModeDeadline = Date().addingTimeInterval(2.5)
     sendFMDXControl(.setFMDXForcedStereo(mode.isStereo))
@@ -1988,6 +2026,7 @@ final class RadioSessionViewModel: ObservableObject {
 
   func setFMDXAntenna(_ id: String) {
     guard activeBackend == .fmDxWebserver else { return }
+    guard !blockLockedFMDXControlAction("set_antenna", details: ["requestedID": id]) else { return }
     selectedFMDXAntennaID = id
     sendFMDXControl(.setFMDXAntenna(id))
   }
@@ -2002,6 +2041,11 @@ final class RadioSessionViewModel: ObservableObject {
       )
       return
     }
+    guard !blockLockedFMDXControlAction(
+      "set_bandwidth",
+      details: ["requestedID": option.id, "requestedLabel": option.label]
+    )
+    else { return }
 
     Diagnostics.log(
       category: "FMDX",
@@ -5119,14 +5163,16 @@ final class RadioSessionViewModel: ObservableObject {
       },
       supportsAM: state.capabilities.supportsAM,
       supportsFilterControls: state.capabilities.supportsFilterControls,
-      supportsAGCControl: state.capabilities.supportsAGCControl
+      supportsAGCControl: state.capabilities.supportsAGCControl,
+      requiresTunePassword: state.capabilities.requiresTunePassword,
+      lockedToAdmin: state.capabilities.lockedToAdmin
     )
     hasFMDXCapabilitySnapshot = state.hasConfirmedSnapshot
 
     Diagnostics.log(
       category: "FMDX",
       message:
-        "Applied capability state: confirmed_snapshot=\(state.hasConfirmedSnapshot) antennas=[\(describeFMDXControlOptions(fmdxCapabilities.antennas))] bandwidths=[\(describeFMDXControlOptions(fmdxCapabilities.bandwidths))] selected_bandwidth_id=\(selectedFMDXBandwidthID ?? "nil") supports_am=\(fmdxCapabilities.supportsAM) supports_filter_controls=\(fmdxCapabilities.supportsFilterControls) supports_agc_control=\(fmdxCapabilities.supportsAGCControl)"
+        "Applied capability state: confirmed_snapshot=\(state.hasConfirmedSnapshot) antennas=[\(describeFMDXControlOptions(fmdxCapabilities.antennas))] bandwidths=[\(describeFMDXControlOptions(fmdxCapabilities.bandwidths))] selected_bandwidth_id=\(selectedFMDXBandwidthID ?? "nil") supports_am=\(fmdxCapabilities.supportsAM) supports_filter_controls=\(fmdxCapabilities.supportsFilterControls) supports_agc_control=\(fmdxCapabilities.supportsAGCControl) requires_tune_password=\(fmdxCapabilities.requiresTunePassword) locked_to_admin=\(fmdxCapabilities.lockedToAdmin)"
     )
   }
 
@@ -5145,6 +5191,8 @@ final class RadioSessionViewModel: ObservableObject {
       || capabilities.supportsAM
       || capabilities.supportsFilterControls
       || capabilities.supportsAGCControl
+      || capabilities.requiresTunePassword
+      || capabilities.lockedToAdmin
   }
 
   private func coreFMDXCapabilities(_ capabilities: FMDXCapabilities) -> FMDXCapabilitiesPolicyCore.Capabilities {
@@ -5165,8 +5213,30 @@ final class RadioSessionViewModel: ObservableObject {
       },
       supportsAM: capabilities.supportsAM,
       supportsFilterControls: capabilities.supportsFilterControls,
-      supportsAGCControl: capabilities.supportsAGCControl
+      supportsAGCControl: capabilities.supportsAGCControl,
+      requiresTunePassword: capabilities.requiresTunePassword,
+      lockedToAdmin: capabilities.lockedToAdmin
     )
+  }
+
+  @discardableResult
+  private func blockLockedFMDXControlAction(
+    _ action: String,
+    details: [String: CustomStringConvertible] = [:]
+  ) -> Bool {
+    guard isFMDXRemoteControlLocked else { return false }
+    let lockReason = isFMDXAdminLocked ? "admin_lock" : "tune_password"
+    let detailFragment = details
+      .sorted { $0.key < $1.key }
+      .map { "\($0.key)=\($0.value)" }
+      .joined(separator: " ")
+    let suffix = detailFragment.isEmpty ? "" : " \(detailFragment)"
+    Diagnostics.log(
+      severity: .warning,
+      category: "FMDX",
+      message: "Blocked FM-DX control action for locked receiver: action=\(action) lock_reason=\(lockReason)\(suffix)"
+    )
+    return true
   }
 
   private func rememberOpenWebRXBookmark(_ bookmark: SDRServerBookmark) {

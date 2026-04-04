@@ -932,3 +932,5 @@
 "android.sync.passband_range" = "%d to %d Hz";
 "Show password" = "Show password";
 "Toggle password visibility" = "Toggle password visibility";
+"fmdx.locked.title" = "Receiver locked";
+"fmdx.locked.body" = "This FM-DX server requires a tune password. Without it, remote tuning and control changes are unavailable.";

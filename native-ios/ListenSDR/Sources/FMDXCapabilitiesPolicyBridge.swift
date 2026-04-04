@@ -33,7 +33,9 @@ extension ListenSDRCore.FMDXCapabilitiesPolicyCore.Capabilities {
       bandwidths: capabilities.bandwidths.map(ListenSDRCore.FMDXCapabilitiesPolicyCore.ControlOption.init),
       supportsAM: capabilities.supportsAM,
       supportsFilterControls: capabilities.supportsFilterControls,
-      supportsAGCControl: capabilities.supportsAGCControl
+      supportsAGCControl: capabilities.supportsAGCControl,
+      requiresTunePassword: capabilities.requiresTunePassword,
+      lockedToAdmin: capabilities.lockedToAdmin
     )
   }
 }
@@ -45,7 +47,9 @@ extension FMDXCapabilities {
       bandwidths: capabilities.bandwidths.map(FMDXControlOption.init),
       supportsAM: capabilities.supportsAM,
       supportsFilterControls: capabilities.supportsFilterControls,
-      supportsAGCControl: capabilities.supportsAGCControl
+      supportsAGCControl: capabilities.supportsAGCControl,
+      requiresTunePassword: capabilities.requiresTunePassword,
+      lockedToAdmin: capabilities.lockedToAdmin
     )
   }
 }

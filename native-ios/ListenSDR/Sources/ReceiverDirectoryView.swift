@@ -237,7 +237,7 @@ struct ReceiverDirectoryView: View {
     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     .swipeActions(edge: .leading, allowsFullSwipe: false) {
       Button {
-        favoritesStore.toggleReceiver(entry)
+        toggleFavoriteReceiver(entry, isFavorite: isFavorite)
       } label: {
         Label(
           isFavorite ? L10n.text("favorites.receiver.remove") : L10n.text("favorites.receiver.add"),
@@ -271,20 +271,8 @@ struct ReceiverDirectoryView: View {
     .accessibilityAction {
       selectReceiverDirectoryEntry(candidateProfile)
     }
-    .accessibilityAction(
-      named: Text(
-        isFavorite
-          ? L10n.text("favorites.receiver.remove")
-          : L10n.text("favorites.receiver.add")
-      )
-    ) {
-      toggleFavoriteReceiver(entry, isFavorite: isFavorite)
-    }
     .accessibilityAction(named: Text(L10n.text("directory.receiver.connect_now"))) {
       selectAndConnectReceiverDirectoryEntry(candidateProfile)
-    }
-    .accessibilityAction(named: Text(L10n.text("directory.receiver.open_website"))) {
-      openReceiverWebsite(for: entry)
     }
     .accessibilityRemoveTraits(.isSelected)
   }
@@ -370,7 +358,10 @@ struct ReceiverDirectoryView: View {
   private func applyBackendSelection(_ backend: SDRBackend) {
     guard backend != viewModel.selectedBackend else { return }
     viewModel.selectedBackend = backend
-    AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(backend.displayName)
+    announceDirectorySelection(
+      title: L10n.text("Backend source"),
+      value: backend.displayName
+    )
   }
 
   private var statusFilterSelectionLink: some View {
@@ -384,6 +375,10 @@ struct ReceiverDirectoryView: View {
       ) { value in
         if let filter = ReceiverDirectoryStatusFilter(rawValue: value) {
           viewModel.statusFilter = filter
+          announceDirectorySelection(
+            title: L10n.text("directory.filters.status"),
+            value: filter.displayName
+          )
         }
       }
     } label: {
@@ -392,6 +387,9 @@ struct ReceiverDirectoryView: View {
         value: viewModel.statusFilter.displayName
       )
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("directory.filters.status"))
+    .accessibilityValue(viewModel.statusFilter.displayName)
     .accessibilityHint(L10n.text("directory.filters.selection_hint"))
     .accessibilityAdjustableAction { direction in
       switch direction {
@@ -416,6 +414,10 @@ struct ReceiverDirectoryView: View {
       ) { value in
         if let option = ReceiverDirectorySortOption(rawValue: value) {
           viewModel.sortOption = option
+          announceDirectorySelection(
+            title: L10n.text("directory.filters.sort"),
+            value: option.displayName
+          )
         }
       }
     } label: {
@@ -424,6 +426,9 @@ struct ReceiverDirectoryView: View {
         value: viewModel.sortOption.displayName
       )
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("directory.filters.sort"))
+    .accessibilityValue(viewModel.sortOption.displayName)
     .accessibilityHint(L10n.text("directory.filters.selection_hint"))
     .accessibilityAdjustableAction { direction in
       switch direction {
@@ -448,6 +453,10 @@ struct ReceiverDirectoryView: View {
       ) { value in
         if let option = ReceiverDirectoryCountrySortOption(rawValue: value) {
           viewModel.countrySortOption = option
+          announceDirectorySelection(
+            title: L10n.text("directory.filters.country_sort"),
+            value: option.displayName
+          )
         }
       }
     } label: {
@@ -456,6 +465,9 @@ struct ReceiverDirectoryView: View {
         value: viewModel.countrySortOption.displayName
       )
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("directory.filters.country_sort"))
+    .accessibilityValue(viewModel.countrySortOption.displayName)
     .accessibilityHint(L10n.text("directory.filters.selection_hint"))
     .accessibilityAdjustableAction { direction in
       switch direction {
@@ -477,6 +489,11 @@ struct ReceiverDirectoryView: View {
         selectedID: viewModel.selectedCountry
       ) { value in
         viewModel.selectedCountry = value
+        announceDirectorySelection(
+          title: L10n.text("directory.filters.country"),
+          value: selectedCountryTitle(countryOptions: countryOptions),
+          includeTitle: false
+        )
       }
     } label: {
       LabeledContent(
@@ -484,6 +501,9 @@ struct ReceiverDirectoryView: View {
         value: selectedCountryTitle(countryOptions: countryOptions)
       )
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(L10n.text("directory.filters.country"))
+    .accessibilityValue(selectedCountryTitle(countryOptions: countryOptions))
     .accessibilityHint(L10n.text("directory.filters.selection_hint"))
     .accessibilityAdjustableAction { direction in
       switch direction {
@@ -575,6 +595,10 @@ struct ReceiverDirectoryView: View {
       update: { value in
         if let filter = ReceiverDirectoryStatusFilter(rawValue: value) {
           viewModel.statusFilter = filter
+          announceDirectorySelection(
+            title: L10n.text("directory.filters.status"),
+            value: filter.displayName
+          )
         }
       }
     )
@@ -588,6 +612,10 @@ struct ReceiverDirectoryView: View {
       update: { value in
         if let option = ReceiverDirectorySortOption(rawValue: value) {
           viewModel.sortOption = option
+          announceDirectorySelection(
+            title: L10n.text("directory.filters.sort"),
+            value: option.displayName
+          )
         }
       }
     )
@@ -601,6 +629,10 @@ struct ReceiverDirectoryView: View {
       update: { value in
         if let option = ReceiverDirectoryCountrySortOption(rawValue: value) {
           viewModel.countrySortOption = option
+          announceDirectorySelection(
+            title: L10n.text("directory.filters.country_sort"),
+            value: option.displayName
+          )
         }
       }
     )
@@ -616,8 +648,25 @@ struct ReceiverDirectoryView: View {
       offset: offset,
       update: { value in
         viewModel.selectedCountry = value
+        announceDirectorySelection(
+          title: L10n.text("directory.filters.country"),
+          value: selectedCountryTitle(countryOptions: countryOptions),
+          includeTitle: false
+        )
       }
     )
+  }
+
+  private func announceDirectorySelection(
+    title: String,
+    value: String,
+    includeTitle: Bool = true
+  ) {
+    if includeTitle {
+      AppAccessibilityAnnouncementCenter.post("\(title): \(value)")
+    } else {
+      AppAccessibilityAnnouncementCenter.post(value)
+    }
   }
 
   private func adjustSelection(

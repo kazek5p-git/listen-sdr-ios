@@ -1,0 +1,9 @@
+This build improves FM-DX protection handling and cleans up accessibility in the receiver directory.
+
+- FM-DX now distinguishes between tune-password lock and administrator lock
+- entering the correct `tune` password clears the tune lock, while the correct `admin` password also clears the admin lock
+- the lock banner near connection status now explains why FM-DX controls are unavailable
+- VoiceOver now reads clean values in receiver directory filters without extra decorative icons
+- duplicate VoiceOver rotor actions were removed from station result rows
+
+Please test FM-DX on `https://kazpar.pl/tuner/` with no password, with `chcestroic`, and with `chcerzadzic`, and also verify VoiceOver filters and actions in the receiver directory.

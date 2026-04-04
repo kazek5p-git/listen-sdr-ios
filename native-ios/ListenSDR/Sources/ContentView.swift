@@ -119,8 +119,14 @@ struct ContentView: View {
 
     hasAttemptedStartupAutoConnect = true
 
-    guard radioSession.settings.autoConnectSelectedProfileOnLaunch else { return }
-    guard let selectedProfile = profileStore.selectedProfile else { return }
+    guard radioSession.settings.autoConnectSelectedProfileOnLaunch else {
+      Diagnostics.log(category: "Session", message: "Startup auto-connect skipped: disabled")
+      return
+    }
+    guard let selectedProfile = profileStore.selectedProfile else {
+      Diagnostics.log(category: "Session", message: "Startup auto-connect skipped: no selected profile")
+      return
+    }
     guard radioSession.state != .connecting, radioSession.state != .connected else { return }
 
     Diagnostics.log(

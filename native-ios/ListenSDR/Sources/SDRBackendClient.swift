@@ -3399,7 +3399,9 @@ actor FMDXWebserverClient: SDRBackendClient {
         },
         supportsAM: capabilities.supportsAM,
         supportsFilterControls: capabilities.supportsFilterControls,
-        supportsAGCControl: capabilities.supportsAGCControl
+        supportsAGCControl: capabilities.supportsAGCControl,
+        requiresTunePassword: capabilities.requiresTunePassword,
+        lockedToAdmin: capabilities.lockedToAdmin
       ),
       fallback: cachedCapabilities.map { cached in
         ListenSDRCore.FMDXCapabilitiesPolicyCore.Capabilities(
@@ -3419,7 +3421,9 @@ actor FMDXWebserverClient: SDRBackendClient {
           },
           supportsAM: cached.supportsAM,
           supportsFilterControls: cached.supportsFilterControls,
-          supportsAGCControl: cached.supportsAGCControl
+          supportsAGCControl: cached.supportsAGCControl,
+          requiresTunePassword: cached.requiresTunePassword,
+          lockedToAdmin: cached.lockedToAdmin
         )
       }
     )
@@ -3433,11 +3437,13 @@ actor FMDXWebserverClient: SDRBackendClient {
       },
       supportsAM: capabilityState.capabilities.supportsAM,
       supportsFilterControls: capabilityState.capabilities.supportsFilterControls,
-      supportsAGCControl: capabilityState.capabilities.supportsAGCControl
+      supportsAGCControl: capabilityState.capabilities.supportsAGCControl,
+      requiresTunePassword: capabilityState.capabilities.requiresTunePassword,
+      lockedToAdmin: capabilityState.capabilities.lockedToAdmin
     )
     lastCapabilities = effectiveCapabilities
     log(
-      "Resolved capabilities: supportsAM=\(effectiveCapabilities.supportsAM) scriptLoaded=\(apiScript != nil) antennas=\(effectiveCapabilities.antennas.count) bandwidths=\(effectiveCapabilities.bandwidths.count) filters=\(effectiveCapabilities.supportsFilterControls) agc=\(effectiveCapabilities.supportsAGCControl) confirmedSnapshot=\(capabilityState.hasConfirmedSnapshot) usedCachedCapabilities=\(capabilityState.usedCachedCapabilities)"
+      "Resolved capabilities: supportsAM=\(effectiveCapabilities.supportsAM) scriptLoaded=\(apiScript != nil) antennas=\(effectiveCapabilities.antennas.count) bandwidths=\(effectiveCapabilities.bandwidths.count) filters=\(effectiveCapabilities.supportsFilterControls) agc=\(effectiveCapabilities.supportsAGCControl) requiresTunePassword=\(effectiveCapabilities.requiresTunePassword) lockedToAdmin=\(effectiveCapabilities.lockedToAdmin) confirmedSnapshot=\(capabilityState.hasConfirmedSnapshot) usedCachedCapabilities=\(capabilityState.usedCachedCapabilities)"
     )
     enqueueTelemetry(
       .fmdxCapabilities(
@@ -4069,12 +4075,16 @@ actor FMDXWebserverClient: SDRBackendClient {
     let supportsAM = parseAMSupport(staticData: staticData, indexHTML: indexHTML, apiScript: apiScript)
     let supportsFilterControls = parseFilterControlSupport(indexHTML: indexHTML)
     let supportsAGCControl = parseAGCSupport(indexHTML: indexHTML)
+    let requiresTunePassword = parseTunePasswordRequirement(indexHTML: indexHTML)
+    let lockedToAdmin = parseAdminLockRequirement(indexHTML: indexHTML)
     return FMDXCapabilities(
       antennas: antennas,
       bandwidths: bandwidths,
       supportsAM: supportsAM,
       supportsFilterControls: supportsFilterControls,
-      supportsAGCControl: supportsAGCControl
+      supportsAGCControl: supportsAGCControl,
+      requiresTunePassword: requiresTunePassword,
+      lockedToAdmin: lockedToAdmin
     )
   }
 
@@ -4247,6 +4257,44 @@ actor FMDXWebserverClient: SDRBackendClient {
       || normalized.contains("id=\"data-agc-phone\"")
       || normalized.contains("class=\"data-agc")
       || normalized.contains(" data-agc ")
+  }
+
+  private func parseTunePasswordRequirement(indexHTML: String?) -> Bool {
+    guard let indexHTML, !indexHTML.isEmpty else { return false }
+    let normalized = indexHTML.lowercased()
+    if hasAuthenticatedFMDXTuneAccess(indexHTML: indexHTML) {
+      return false
+    }
+    return normalized.contains("only people with tune password can tune")
+      || normalized.contains("data-tooltip=\"only people with tune password can tune")
+      || normalized.contains("aria-label=\"only people with tune password can tune")
+      || (normalized.contains("fa-key") && normalized.contains("tune password"))
+  }
+
+  private func parseAdminLockRequirement(indexHTML: String?) -> Bool {
+    guard let indexHTML, !indexHTML.isEmpty else { return false }
+    let normalized = indexHTML.lowercased()
+    if hasAuthenticatedFMDXAdminAccess(indexHTML: indexHTML) {
+      return false
+    }
+    return normalized.contains("tuner is currently locked to admin")
+      || normalized.contains("data-tooltip=\"tuner is currently locked to admin")
+      || normalized.contains("aria-label=\"tuner is currently locked to admin")
+      || (normalized.contains("fa-lock") && normalized.contains("locked to admin"))
+  }
+
+  private func hasAuthenticatedFMDXTuneAccess(indexHTML: String?) -> Bool {
+    guard let indexHTML, !indexHTML.isEmpty else { return false }
+    let normalized = indexHTML.lowercased()
+    return normalized.contains("you are logged in and can control the receiver")
+      || hasAuthenticatedFMDXAdminAccess(indexHTML: indexHTML)
+  }
+
+  private func hasAuthenticatedFMDXAdminAccess(indexHTML: String?) -> Bool {
+    guard let indexHTML, !indexHTML.isEmpty else { return false }
+    let normalized = indexHTML.lowercased()
+    return normalized.contains("you are logged in as an adminstrator")
+      || normalized.contains("you are logged in as an administrator")
   }
 
   private func parsePresetFrequencyHz(from preset: [String: Any]) -> Int? {

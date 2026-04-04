@@ -61,13 +61,60 @@ struct FMDXCapabilities: Equatable, Codable {
   let supportsAM: Bool
   let supportsFilterControls: Bool
   let supportsAGCControl: Bool
+  let requiresTunePassword: Bool
+  let lockedToAdmin: Bool
+
+  init(
+    antennas: [FMDXControlOption],
+    bandwidths: [FMDXControlOption],
+    supportsAM: Bool,
+    supportsFilterControls: Bool,
+    supportsAGCControl: Bool,
+    requiresTunePassword: Bool = false,
+    lockedToAdmin: Bool = false
+  ) {
+    self.antennas = antennas
+    self.bandwidths = bandwidths
+    self.supportsAM = supportsAM
+    self.supportsFilterControls = supportsFilterControls
+    self.supportsAGCControl = supportsAGCControl
+    self.requiresTunePassword = requiresTunePassword
+    self.lockedToAdmin = lockedToAdmin
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case antennas
+    case bandwidths
+    case supportsAM
+    case supportsFilterControls
+    case supportsAGCControl
+    case requiresTunePassword
+    case lockedToAdmin
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    antennas = try container.decodeIfPresent([FMDXControlOption].self, forKey: .antennas) ?? []
+    bandwidths = try container.decodeIfPresent([FMDXControlOption].self, forKey: .bandwidths) ?? []
+    supportsAM = try container.decodeIfPresent(Bool.self, forKey: .supportsAM) ?? false
+    supportsFilterControls =
+      try container.decodeIfPresent(Bool.self, forKey: .supportsFilterControls) ?? false
+    supportsAGCControl =
+      try container.decodeIfPresent(Bool.self, forKey: .supportsAGCControl) ?? false
+    requiresTunePassword =
+      try container.decodeIfPresent(Bool.self, forKey: .requiresTunePassword) ?? false
+    lockedToAdmin =
+      try container.decodeIfPresent(Bool.self, forKey: .lockedToAdmin) ?? false
+  }
 
   static let empty = FMDXCapabilities(
     antennas: [],
     bandwidths: [],
     supportsAM: false,
     supportsFilterControls: false,
-    supportsAGCControl: false
+    supportsAGCControl: false,
+    requiresTunePassword: false,
+    lockedToAdmin: false
   )
 }
 

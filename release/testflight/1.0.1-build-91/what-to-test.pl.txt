@@ -1,0 +1,9 @@
+Ten build poprawia ochronę FM-DX i porządkuje dostępność w katalogu odbiorników.
+
+- FM-DX rozróżnia teraz blokadę hasłem strojenia i blokadę administracyjną
+- po poprawnym haśle `tune` znika blokada strojenia, a po poprawnym haśle `admin` znika także blokada administracyjna
+- komunikat blokady przy połączeniu lepiej wyjaśnia, dlaczego sterowanie jest niedostępne
+- w filtrach katalogu odbiorników VoiceOver czyta już czyste wartości bez zbędnych ikon
+- na liście wyników stacji nie ma już zduplikowanych akcji w rotorze VoiceOver
+
+Sprawdź proszę FM-DX na `https://kazpar.pl/tuner/` bez hasła, z hasłem `chcestroic` i z hasłem `chcerzadzic`, a także filtry i akcje VoiceOver w katalogu odbiorników.

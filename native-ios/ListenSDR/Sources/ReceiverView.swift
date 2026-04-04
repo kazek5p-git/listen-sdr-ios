@@ -523,12 +523,79 @@ struct ReceiverView: View {
           .lineLimit(2)
       }
 
+      if isFMDXRemoteControlLocked(for: profile) {
+        fmdxLockedBanner(adminLocked: isFMDXAdminLocked(for: profile))
+      }
+
       if let error = radioSession.lastError {
         Text(error)
           .foregroundStyle(.red)
           .font(.footnote)
       }
     }
+  }
+
+  private func isFMDXAdminLocked(for profile: SDRConnectionProfile) -> Bool {
+    profile.backend == .fmDxWebserver && radioSession.displayedFMDXCapabilities.lockedToAdmin
+  }
+
+  private func isFMDXTunePasswordLocked(for profile: SDRConnectionProfile) -> Bool {
+    profile.backend == .fmDxWebserver && radioSession.displayedFMDXCapabilities.requiresTunePassword
+  }
+
+  private func isFMDXRemoteControlLocked(for profile: SDRConnectionProfile) -> Bool {
+    isFMDXAdminLocked(for: profile) || isFMDXTunePasswordLocked(for: profile)
+  }
+
+  private func fmdxLockedBanner(adminLocked: Bool) -> some View {
+    HStack(alignment: .top, spacing: 10) {
+      Image(systemName: "lock.fill")
+        .foregroundStyle(.secondary)
+        .padding(.top, 1)
+        .accessibilityHidden(true)
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text(fmdxLockedTitleText(adminLocked: adminLocked))
+          .font(.footnote.weight(.semibold))
+        Text(fmdxLockedBodyText(adminLocked: adminLocked))
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .padding(10)
+    .background(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(AppTheme.cardFill)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .stroke(AppTheme.cardStroke, lineWidth: 1)
+    )
+    .accessibilityElement(children: .combine)
+  }
+
+  private func fmdxLockedTitleText(adminLocked: Bool) -> String {
+    if Locale.preferredLanguages.first?.hasPrefix("pl") == true {
+      return adminLocked ? "Odbiornik zablokowany dla administratora" : "Odbiornik zablokowany"
+    }
+    return adminLocked ? "Receiver locked to administrator" : "Receiver locked"
+  }
+
+  private func fmdxLockedBodyText(adminLocked: Bool) -> String {
+    if Locale.preferredLanguages.first?.hasPrefix("pl") == true {
+      if adminLocked {
+        return
+          "Ten serwer FM-DX jest zablokowany do sterowania administracyjnego. Zdalne strojenie i zmiana ustawień sterujących wymagają hasła administratora."
+      }
+      return
+        "Ten serwer FM-DX wymaga hasła strojenia. Bez niego zdalne strojenie i zmiana ustawień sterujących są niedostępne."
+    }
+    if adminLocked {
+      return
+        "This FM-DX server is locked to administrator control. Remote tuning and control changes require the admin password."
+    }
+    return
+      "This FM-DX server requires a tune password. Without it, remote tuning and control changes are unavailable."
   }
 
   private func tuningSection(for profile: SDRConnectionProfile) -> some View {
@@ -543,8 +610,11 @@ struct ReceiverView: View {
   }
 
   private func tuningCard(for profile: SDRConnectionProfile) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
+    let fmDxRemoteControlLocked = isFMDXRemoteControlLocked(for: profile)
+    return VStack(alignment: .leading, spacing: 8) {
       frequencyInputSection(for: profile.backend)
+        .disabled(fmDxRemoteControlLocked)
+        .opacity(fmDxRemoteControlLocked ? 0.55 : 1)
       HStack(alignment: .top, spacing: 12) {
         frequencyTuningControl(for: profile.backend)
           .frame(maxWidth: .infinity)
@@ -552,6 +622,8 @@ struct ReceiverView: View {
         tuneStepControl(for: profile.backend)
           .frame(width: 156)
       }
+      .disabled(fmDxRemoteControlLocked)
+      .opacity(fmDxRemoteControlLocked ? 0.55 : 1)
 
       if profile.backend == .kiwiSDR {
         kiwiSelectionRow(
@@ -877,7 +949,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxPrimaryToggleRow() -> some View {
     let showsFilterControls = radioSession.fmdxSupportsFilterControls
-    let controlsEnabled = radioSession.state == .connected
+    let controlsEnabled = radioSession.state == .connected && !radioSession.isFMDXRemoteControlLocked
     let displayedCapabilities = radioSession.displayedFMDXCapabilities
     let hasAntennaOptions = !displayedCapabilities.antennas.isEmpty
     let hasBandwidthOptions = hasVisibleFMDXBandwidthControl()
@@ -933,6 +1005,7 @@ struct ReceiverView: View {
   private func fmDxServerPresetsSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
       let stationList = radioSession.fmdxServerPresets
+      let controlsEnabled = !isFMDXRemoteControlLocked(for: profile)
 
       Section {
         if isFMDXStationListExpanded {
@@ -942,7 +1015,7 @@ struct ReceiverView: View {
               .font(.footnote)
           } else {
             ForEach(stationList) { preset in
-              fmdxServerBookmarkRow(preset: preset)
+              fmdxServerBookmarkRow(preset: preset, isEnabled: controlsEnabled)
             }
           }
         }
@@ -963,6 +1036,7 @@ struct ReceiverView: View {
   @ViewBuilder
   private func fmDxBandScannerSection(for profile: SDRConnectionProfile) -> some View {
     if profile.backend == .fmDxWebserver {
+      let controlsEnabled = radioSession.state == .connected && !isFMDXRemoteControlLocked(for: profile)
       let availableRanges = FMDXBandScanRangePreset.availableCases(
         supportsAM: radioSession.fmdxSupportsAM
       )
@@ -980,7 +1054,7 @@ struct ReceiverView: View {
             options: availableRanges.map {
               SelectionListOption(id: $0.rawValue, title: $0.localizedTitle, detail: nil)
             },
-            disabled: radioSession.state != .connected
+            disabled: !controlsEnabled
           ) { value in
             if let preset = FMDXBandScanRangePreset(rawValue: value) {
               selectedFMDXBandScanRange = preset
@@ -998,7 +1072,7 @@ struct ReceiverView: View {
                 detail: nil
               )
             },
-            disabled: radioSession.state != .connected
+            disabled: !controlsEnabled
           ) { value in
             if let stepHz = Int(value) {
               selectedFMDXBandScanStepHz = stepHz
@@ -1016,7 +1090,7 @@ struct ReceiverView: View {
                 detail: nil
               )
             },
-            disabled: radioSession.state != .connected
+            disabled: !controlsEnabled
           ) { value in
             if let threshold = Int(value) {
               radioSession.scannerThreshold = Double(threshold)
@@ -1030,7 +1104,7 @@ struct ReceiverView: View {
             options: availableModes.map {
               SelectionListOption(id: $0.rawValue, title: $0.localizedTitle, detail: nil)
             },
-            disabled: radioSession.state != .connected
+            disabled: !controlsEnabled
           ) { value in
             if let scanMode = FMDXBandScanMode(rawValue: value),
               availableModes.contains(scanMode) {
@@ -1056,7 +1130,7 @@ struct ReceiverView: View {
               Text(L10n.text("fmdx.scanner.start"))
             }
             .buttonStyle(.borderedProminent)
-            .disabled(radioSession.state != .connected)
+            .disabled(!controlsEnabled)
           }
 
           if let statusText = radioSession.scannerStatusText, !statusText.isEmpty {
@@ -1076,7 +1150,7 @@ struct ReceiverView: View {
             )
 
             ForEach(radioSession.fmdxBandScannerResults) { result in
-              fmdxBandScanResultRow(result)
+              fmdxBandScanResultRow(result, isEnabled: controlsEnabled)
             }
           }
         }
@@ -1149,8 +1223,9 @@ struct ReceiverView: View {
     )
   }
 
-  private func fmdxServerBookmarkRow(preset: SDRServerBookmark) -> some View {
+  private func fmdxServerBookmarkRow(preset: SDRServerBookmark, isEnabled: Bool = true) -> some View {
     FocusRetainingButton {
+      guard isEnabled else { return }
       radioSession.setFrequencyHz(preset.frequencyHz)
       AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
         preset.name,
@@ -1165,10 +1240,13 @@ struct ReceiverView: View {
           .foregroundStyle(.secondary)
       }
     }
+    .disabled(!isEnabled)
+    .opacity(isEnabled ? 1 : 0.55)
   }
 
-  private func fmdxBandScanResultRow(_ result: FMDXBandScanResult) -> some View {
+  private func fmdxBandScanResultRow(_ result: FMDXBandScanResult, isEnabled: Bool = true) -> some View {
     FocusRetainingButton {
+      guard isEnabled else { return }
       radioSession.setMode(result.mode)
       radioSession.setFrequencyHz(result.frequencyHz)
     } label: {
@@ -1190,6 +1268,8 @@ struct ReceiverView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .buttonStyle(.plain)
+    .disabled(!isEnabled)
+    .opacity(isEnabled ? 1 : 0.55)
   }
 
   @ViewBuilder
@@ -1898,6 +1978,7 @@ struct ReceiverView: View {
             fmDxInsetPanel {
               VStack(alignment: .leading, spacing: 6) {
                 FocusRetainingButton {
+                  guard !isFMDXRemoteControlLocked(for: profile) else { return }
                   isFMDXAFExpanded.toggle()
                 } label: {
                   Label(
@@ -1909,6 +1990,7 @@ struct ReceiverView: View {
                     systemImage: isFMDXAFExpanded ? "chevron.up" : "chevron.down"
                   )
                 }
+                .disabled(isFMDXRemoteControlLocked(for: profile))
 
                 if isFMDXAFExpanded {
                   ScrollView(.horizontal, showsIndicators: false) {
@@ -1916,6 +1998,7 @@ struct ReceiverView: View {
                       ForEach(Array(telemetry.afMHz.prefix(16)), id: \.self) { afMHz in
                         let afHz = frequencyHz(fromMHz: afMHz)
                         FocusRetainingButton {
+                          guard !isFMDXRemoteControlLocked(for: profile) else { return }
                           radioSession.setFrequencyHz(afHz)
                           AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(
                             String(format: "%.1f MHz", afMHz),
@@ -1937,6 +2020,8 @@ struct ReceiverView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .disabled(isFMDXRemoteControlLocked(for: profile))
+                        .opacity(isFMDXRemoteControlLocked(for: profile) ? 0.55 : 1)
                       }
                     }
                   }
@@ -4221,6 +4306,7 @@ struct SelectionListView: View {
               if option.id == selectedID {
                 Image(systemName: "checkmark")
                   .foregroundStyle(.tint)
+                  .accessibilityHidden(true)
               }
             }
             .contentShape(Rectangle())
