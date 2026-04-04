@@ -329,16 +329,71 @@ Invoke-ScpWithRetry -SourcePath $AscApiKeyPath -Destination "${RemoteHost}:$remo
 Write-Host ""
 Write-Host "==> Ensure App Store provisioning profile for $BundleId"
 $profileScriptPath = Join-Path $PSScriptRoot "Ensure-ListenSDR-AppStoreProfile.ps1"
-$profileJson = powershell -ExecutionPolicy Bypass -File $profileScriptPath `
-  -BundleId $BundleId `
-  -ProfileOutputPath (Join-Path $env:TEMP "ListenSDR_AppStore.mobileprovision") `
-  -AscApiKeyPath $AscApiKeyPath `
-  -AscKeyId $AscKeyId `
-  -AscIssuerId $AscIssuerId
-if ($LASTEXITCODE -ne 0) {
-  throw "Unable to ensure provisioning profile."
+$profileOutputPath = Join-Path $env:TEMP "ListenSDR_AppStore.mobileprovision"
+$profileInfo = $null
+try {
+  $profileJson = powershell -ExecutionPolicy Bypass -File $profileScriptPath `
+    -BundleId $BundleId `
+    -ProfileOutputPath $profileOutputPath `
+    -AscApiKeyPath $AscApiKeyPath `
+    -AscKeyId $AscKeyId `
+    -AscIssuerId $AscIssuerId
+  if ($LASTEXITCODE -ne 0) {
+    throw "Unable to ensure provisioning profile."
+  }
+  $profileInfo = $profileJson | ConvertFrom-Json
+} catch {
+  Write-Warning "Provisioning profile helper failed. Falling back to an existing profile installed on $RemoteHost."
+  $remoteProfileMetadata = Invoke-SshWithRetry -RemoteHost $RemoteHost -Description "Remote provisioning profile lookup" -RemoteCommand @"
+python3 - <<'PY'
+from pathlib import Path
+import glob, json, subprocess
+
+files = sorted(glob.glob(str(Path.home() / 'Library/MobileDevice/Provisioning Profiles/*.mobileprovision')))
+if not files:
+    raise SystemExit(json.dumps({"ok": False, "error": "No provisioning profile found on remote Mac."}))
+
+profile_path = files[0]
+plist_text = subprocess.run(
+    ['security', 'cms', '-D', '-i', profile_path],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+    check=True,
+).stdout
+tmp_path = Path('/tmp/listensdr-profile-fallback.plist')
+tmp_path.write_text(plist_text, encoding='utf-8')
+profile_uuid = subprocess.run(
+    ['/usr/libexec/PlistBuddy', '-c', 'Print :UUID', str(tmp_path)],
+    stdout=subprocess.PIPE,
+    text=True,
+    check=True,
+).stdout.strip()
+profile_name = subprocess.run(
+    ['/usr/libexec/PlistBuddy', '-c', 'Print :Name', str(tmp_path)],
+    stdout=subprocess.PIPE,
+    text=True,
+    check=True,
+).stdout.strip()
+print(json.dumps({
+    "ok": True,
+    "profilePath": profile_path,
+    "profileUuid": profile_uuid,
+    "profileName": profile_name,
+}))
+PY
+"@
+  $remoteProfileInfo = (($remoteProfileMetadata -join [Environment]::NewLine) | ConvertFrom-Json)
+  if (-not $remoteProfileInfo.ok) {
+    throw "Unable to ensure provisioning profile."
+  }
+  Invoke-ScpWithRetry -SourcePath "${RemoteHost}:$($remoteProfileInfo.profilePath)" -Destination $profileOutputPath -Description "Remote provisioning profile download"
+  $profileInfo = [pscustomobject]@{
+    profilePath = $profileOutputPath
+    profileUuid = $remoteProfileInfo.profileUuid
+    profileName = $remoteProfileInfo.profileName
+  }
 }
-$profileInfo = $profileJson | ConvertFrom-Json
 
 Write-Host ""
 Write-Host "==> Upload App Store provisioning profile to remote Mac"
