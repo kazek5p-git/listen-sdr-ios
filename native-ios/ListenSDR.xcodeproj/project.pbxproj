@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		011E599230ECEE8833BEC6F4 /* NativeAdjustableChipControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C500CC42DA09B139CDE2880 /* NativeAdjustableChipControl.swift */; };
 		015FC07CFB8D3B0FF066B3C6 /* ReceiverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4286BB33324D82C98CA59BFE /* ReceiverView.swift */; };
 		048284CE689221E778C8C818 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11598D4ED736766676E23600 /* ProfileStore.swift */; };
 		106F02F6EE5D195101DB9119 /* FavoritesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 051509F0C3FD9100CF44E653 /* FavoritesStore.swift */; };
@@ -144,6 +145,7 @@
 		55C98F5F2FA36C04B236D295 /* OpenWebRXScannerSquelchPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenWebRXScannerSquelchPolicyTests.swift; sourceTree = "<group>"; };
 		5854269FF520F5087EA1E2F3 /* ListenSDRFeedbackSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRFeedbackSender.swift; sourceTree = "<group>"; };
 		5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiWaterfallProcessing.swift; sourceTree = "<group>"; };
+		5C500CC42DA09B139CDE2880 /* NativeAdjustableChipControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdjustableChipControl.swift; sourceTree = "<group>"; };
 		5D10CB9C5AF8BDD4442F5C6A /* ReceiverDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDirectory.swift; sourceTree = "<group>"; };
 		6049F51A1BF7802412488A25 /* RadioSessionSettingsBackupCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettingsBackupCodec.swift; sourceTree = "<group>"; };
 		6294264E832985350801F669 /* ReceiverDataCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverDataCache.swift; sourceTree = "<group>"; };
@@ -274,6 +276,7 @@
 				9C9508B28DC86C178D8A2BD7 /* ListenSDRAppShortcuts.swift */,
 				AB68F42E636A470995C63355 /* ListenSDRFeedbackFormView.swift */,
 				5854269FF520F5087EA1E2F3 /* ListenSDRFeedbackSender.swift */,
+				5C500CC42DA09B139CDE2880 /* NativeAdjustableChipControl.swift */,
 				A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */,
 				3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */,
 				11598D4ED736766676E23600 /* ProfileStore.swift */,
@@ -500,6 +503,7 @@
 				D3CA5A465A2F2806BBEBD178 /* ListenSDRFeedbackFormView.swift in Sources */,
 				3E7958F395139FFF50E12C41 /* ListenSDRFeedbackSender.swift in Sources */,
 				69F0FB74D682EA07F95087E3 /* ListeningHistoryStore.swift in Sources */,
+				011E599230ECEE8833BEC6F4 /* NativeAdjustableChipControl.swift in Sources */,
 				ED24BA1B1978A1D1CA10D49A /* NowPlayingMetadataController.swift in Sources */,
 				2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */,
 				048284CE689221E778C8C818 /* ProfileStore.swift in Sources */,
@@ -674,7 +678,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 90;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -769,7 +773,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 90;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
