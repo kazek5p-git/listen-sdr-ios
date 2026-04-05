@@ -13,4 +13,20 @@ final class FMDXCapabilitiesPolicyCoreTests: XCTestCase {
       )
     }
   }
+
+  func testMeaningfulCapabilitiesTreatTunePasswordLockAsMeaningful() {
+    XCTAssertTrue(
+      FMDXCapabilitiesPolicyCore.isMeaningful(
+        .init(requiresTunePassword: true)
+      )
+    )
+  }
+
+  func testMeaningfulCapabilitiesTreatAdminLockAsMeaningful() {
+    XCTAssertTrue(
+      FMDXCapabilitiesPolicyCore.isMeaningful(
+        .init(lockedToAdmin: true)
+      )
+    )
+  }
 }

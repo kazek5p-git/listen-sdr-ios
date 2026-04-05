@@ -126,6 +126,15 @@ struct SettingsView: View {
     }
   }
 
+  private func selectionAnnouncement(title: String) -> (SelectionListOption) -> String? {
+    { option in
+      AppAccessibilityAnnouncementCenter.selectionAnnouncementText(
+        title: title,
+        value: option.title
+      )
+    }
+  }
+
   private var settingsRootList: some View {
     Form {
       NavigationLink {
@@ -301,7 +310,10 @@ struct SettingsView: View {
         SelectionListView(
           title: L10n.text("settings.connection.policy.title", fallback: "Allowed network"),
           options: connectionSelectionOptions(),
-          selectedID: settingsController.state.connectionNetworkPolicy.rawValue
+          selectedID: settingsController.state.connectionNetworkPolicy.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.connection.policy.title", fallback: "Allowed network")
+          )
         ) { value in
           if let policy = ConnectionNetworkPolicy(rawValue: value) {
             settingsController.setConnectionNetworkPolicy(policy)
@@ -496,7 +508,10 @@ struct SettingsView: View {
               detail: direction.localizedDetail
             )
           },
-          selectedID: settingsController.state.tuningGestureDirection.rawValue
+          selectedID: settingsController.state.tuningGestureDirection.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.tuning.direction")
+          )
         ) { value in
           if let direction = TuningGestureDirection(rawValue: value) {
             settingsController.setTuningGestureDirection(direction)
@@ -514,7 +529,10 @@ struct SettingsView: View {
         SelectionListView(
           title: L10n.text("settings.tuning.global_step"),
           options: tuneStepSelectionOptions(),
-          selectedID: tuneStepSelectionID
+          selectedID: tuneStepSelectionID,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.tuning.global_step")
+          )
         ) { value in
           if value == TuneStepPreferenceMode.automatic.rawValue {
             settingsController.setTuneStepPreferenceMode(.automatic)
@@ -537,7 +555,13 @@ struct SettingsView: View {
             fallback: "Typed frequency"
           ),
           options: frequencyEntryCommitSelectionOptions(),
-          selectedID: settingsController.state.frequencyEntryCommitMode.rawValue
+          selectedID: settingsController.state.frequencyEntryCommitMode.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text(
+              "settings.tuning.typed_frequency",
+              fallback: "Typed frequency"
+            )
+          )
         ) { value in
           if let mode = FrequencyEntryCommitMode(rawValue: value) {
             settingsController.setFrequencyEntryCommitMode(mode)
@@ -585,7 +609,10 @@ struct SettingsView: View {
               detail: action.localizedDetail
             )
           },
-          selectedID: settingsController.state.magicTapAction.rawValue
+          selectedID: settingsController.state.magicTapAction.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.accessibility.magic_tap")
+          )
         ) { value in
           if let action = MagicTapAction(rawValue: value) {
             settingsController.setMagicTapAction(action)
@@ -605,7 +632,10 @@ struct SettingsView: View {
           options: VoiceOverRDSAnnouncementMode.allCases.map { mode in
             SelectionListOption(id: mode.rawValue, title: mode.localizedTitle, detail: nil)
           },
-          selectedID: settingsController.state.voiceOverRDSAnnouncementMode.rawValue
+          selectedID: settingsController.state.voiceOverRDSAnnouncementMode.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.accessibility.voiceover_rds_mode")
+          )
         ) { value in
           if let mode = VoiceOverRDSAnnouncementMode(rawValue: value) {
             settingsController.setVoiceOverRDSAnnouncementMode(mode)
@@ -625,7 +655,10 @@ struct SettingsView: View {
           options: ScreenReaderSelectionAnnouncementMode.allCases.map { mode in
             SelectionListOption(id: mode.rawValue, title: mode.localizedTitle, detail: nil)
           },
-          selectedID: settingsController.state.accessibilitySelectionAnnouncementMode.rawValue
+          selectedID: settingsController.state.accessibilitySelectionAnnouncementMode.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.accessibility.selection_announcements")
+          )
         ) { value in
           if let mode = ScreenReaderSelectionAnnouncementMode(rawValue: value) {
             settingsController.setAccessibilitySelectionAnnouncementMode(mode)
@@ -747,7 +780,10 @@ struct SettingsView: View {
               detail: visibility.localizedDetail
             )
           },
-          selectedID: settingsController.state.radiosSearchFiltersVisibility.rawValue
+          selectedID: settingsController.state.radiosSearchFiltersVisibility.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.radios.search_filters")
+          )
         ) { value in
           if let visibility = RadiosSearchFiltersVisibility(rawValue: value) {
             settingsController.setRadiosSearchFiltersVisibility(visibility)
@@ -851,7 +887,10 @@ struct SettingsView: View {
               detail: profile.localizedDetail
             )
           },
-          selectedID: settingsController.state.channelScannerInterferenceFilterProfile.rawValue
+          selectedID: settingsController.state.channelScannerInterferenceFilterProfile.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.scanner.interference_profile")
+          )
         ) { value in
           if let profile = ChannelScannerInterferenceFilterProfile(rawValue: value) {
             settingsController.setChannelScannerInterferenceFilterProfile(profile)
@@ -886,7 +925,10 @@ struct SettingsView: View {
           options: FMDXBandScanStartBehavior.allCases.map { behavior in
             SelectionListOption(id: behavior.rawValue, title: behavior.localizedTitle, detail: nil)
           },
-          selectedID: settingsController.state.fmdxBandScanStartBehavior.rawValue
+          selectedID: settingsController.state.fmdxBandScanStartBehavior.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.scanner.fmdx_start_behavior")
+          )
         ) { value in
           if let behavior = FMDXBandScanStartBehavior(rawValue: value) {
             settingsController.setFMDXBandScanStartBehavior(behavior)
@@ -906,7 +948,10 @@ struct SettingsView: View {
           options: FMDXBandScanHitBehavior.allCases.map { behavior in
             SelectionListOption(id: behavior.rawValue, title: behavior.localizedTitle, detail: nil)
           },
-          selectedID: settingsController.state.fmdxBandScanHitBehavior.rawValue
+          selectedID: settingsController.state.fmdxBandScanHitBehavior.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.scanner.fmdx_hit_behavior")
+          )
         ) { value in
           if let behavior = FMDXBandScanHitBehavior(rawValue: value) {
             settingsController.setFMDXBandScanHitBehavior(behavior)
@@ -963,7 +1008,10 @@ struct SettingsView: View {
               detail: scope.localizedDetail
             )
           },
-          selectedID: settingsController.state.audioSuggestionScope.rawValue
+          selectedID: settingsController.state.audioSuggestionScope.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.audio.suggestion_scope")
+          )
         ) { value in
           if let scope = AudioSuggestionScope(rawValue: value) {
             settingsController.setAudioSuggestionScope(scope)
@@ -1007,7 +1055,10 @@ struct SettingsView: View {
               detail: preset.localizedDetail
             )
           },
-          selectedID: settingsController.state.currentFMDXAudioPreset.rawValue
+          selectedID: settingsController.state.currentFMDXAudioPreset.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.audio.preset")
+          )
         ) { value in
           if let preset = FMDXAudioTuningPreset(rawValue: value) {
             settingsController.applyFMDXAudioPreset(preset)
@@ -1058,7 +1109,13 @@ struct SettingsView: View {
             fallback: "Speech loudness leveling"
           ),
           options: speechLoudnessSelectionOptions(),
-          selectedID: settingsController.state.accessibilitySpeechLoudnessLevelingMode.rawValue
+          selectedID: settingsController.state.accessibilitySpeechLoudnessLevelingMode.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text(
+              "settings.audio.speech_loudness_leveling",
+              fallback: "Speech loudness leveling"
+            )
+          )
         ) { value in
           if let mode = SpeechLoudnessLevelingMode(rawValue: value) {
             settingsController.setSpeechLoudnessLevelingMode(mode)

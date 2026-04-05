@@ -371,14 +371,13 @@ struct ReceiverDirectoryView: View {
         options: statusFilterOptions.map {
           SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
         },
-        selectedID: viewModel.statusFilter.rawValue
+        selectedID: viewModel.statusFilter.rawValue,
+        selectionAnnouncement: directorySelectionAnnouncement(
+          title: L10n.text("directory.filters.status")
+        )
       ) { value in
         if let filter = ReceiverDirectoryStatusFilter(rawValue: value) {
           viewModel.statusFilter = filter
-          announceDirectorySelection(
-            title: L10n.text("directory.filters.status"),
-            value: filter.displayName
-          )
         }
       }
     } label: {
@@ -410,14 +409,13 @@ struct ReceiverDirectoryView: View {
         options: sortOptions.map {
           SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
         },
-        selectedID: viewModel.sortOption.rawValue
+        selectedID: viewModel.sortOption.rawValue,
+        selectionAnnouncement: directorySelectionAnnouncement(
+          title: L10n.text("directory.filters.sort")
+        )
       ) { value in
         if let option = ReceiverDirectorySortOption(rawValue: value) {
           viewModel.sortOption = option
-          announceDirectorySelection(
-            title: L10n.text("directory.filters.sort"),
-            value: option.displayName
-          )
         }
       }
     } label: {
@@ -449,14 +447,13 @@ struct ReceiverDirectoryView: View {
         options: countrySortOptions.map {
           SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
         },
-        selectedID: viewModel.countrySortOption.rawValue
+        selectedID: viewModel.countrySortOption.rawValue,
+        selectionAnnouncement: directorySelectionAnnouncement(
+          title: L10n.text("directory.filters.country_sort")
+        )
       ) { value in
         if let option = ReceiverDirectoryCountrySortOption(rawValue: value) {
           viewModel.countrySortOption = option
-          announceDirectorySelection(
-            title: L10n.text("directory.filters.country_sort"),
-            value: option.displayName
-          )
         }
       }
     } label: {
@@ -486,14 +483,13 @@ struct ReceiverDirectoryView: View {
       SelectionListView(
         title: L10n.text("directory.filters.country"),
         options: countrySelectionListOptions(countryOptions: countryOptions),
-        selectedID: viewModel.selectedCountry
-      ) { value in
-        viewModel.selectedCountry = value
-        announceDirectorySelection(
+        selectedID: viewModel.selectedCountry,
+        selectionAnnouncement: directorySelectionAnnouncement(
           title: L10n.text("directory.filters.country"),
-          value: selectedCountryTitle(countryOptions: countryOptions),
           includeTitle: false
         )
+      ) { value in
+        viewModel.selectedCountry = value
       }
     } label: {
       LabeledContent(
@@ -666,6 +662,19 @@ struct ReceiverDirectoryView: View {
       AppAccessibilityAnnouncementCenter.post("\(title): \(value)")
     } else {
       AppAccessibilityAnnouncementCenter.post(value)
+    }
+  }
+
+  private func directorySelectionAnnouncement(
+    title: String,
+    includeTitle: Bool = true
+  ) -> (SelectionListOption) -> String? {
+    { option in
+      AppAccessibilityAnnouncementCenter.selectionAnnouncementText(
+        title: title,
+        value: option.title,
+        includeTitle: includeTitle
+      )
     }
   }
 

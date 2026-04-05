@@ -4276,9 +4276,24 @@ struct SelectionListView: View {
   let title: String
   let options: [SelectionListOption]
   let selectedID: String
+  let selectionAnnouncement: ((SelectionListOption) -> String?)?
   let onSelect: (String) -> Void
 
   @Environment(\.dismiss) private var dismiss
+
+  init(
+    title: String,
+    options: [SelectionListOption],
+    selectedID: String,
+    selectionAnnouncement: ((SelectionListOption) -> String?)? = nil,
+    onSelect: @escaping (String) -> Void
+  ) {
+    self.title = title
+    self.options = options
+    self.selectedID = selectedID
+    self.selectionAnnouncement = selectionAnnouncement
+    self.onSelect = onSelect
+  }
 
   var body: some View {
     List {
@@ -4286,8 +4301,16 @@ struct SelectionListView: View {
         ForEach(options) { option in
           Button {
             onSelect(option.id)
-            AppAccessibilityAnnouncementCenter.postSelectionIfEnabled(option.title)
             dismiss()
+            if let selectionAnnouncement {
+              AppAccessibilityAnnouncementCenter.postAfterNavigationTransition(
+                selectionAnnouncement(option)
+              )
+            } else {
+              AppAccessibilityAnnouncementCenter.postSelectionAfterNavigationIfEnabled(
+                option.title
+              )
+            }
           } label: {
             HStack(spacing: 12) {
               VStack(alignment: .leading, spacing: 2) {

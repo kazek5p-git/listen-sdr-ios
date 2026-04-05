@@ -218,7 +218,10 @@ struct RadiosView: View {
                     options: RadiosSearchScope.allCases.map {
                       SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
                     },
-                    selectedID: searchScope.rawValue
+                    selectedID: searchScope.rawValue,
+                    selectionAnnouncement: selectionAnnouncement(
+                      title: L10n.text("radios.search.scope")
+                    )
                   ) { value in
                     if let scope = RadiosSearchScope(rawValue: value) {
                       searchScope = scope
@@ -244,7 +247,10 @@ struct RadiosView: View {
                     options: HistorySectionFilter.allCases.map {
                       SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
                     },
-                    selectedID: historySectionFilter.rawValue
+                    selectedID: historySectionFilter.rawValue,
+                    selectionAnnouncement: selectionAnnouncement(
+                      title: L10n.text("history.filter.scope")
+                    )
                   ) { value in
                     if let filter = HistorySectionFilter(rawValue: value) {
                       historySectionFilter = filter
@@ -263,7 +269,10 @@ struct RadiosView: View {
                     options: HistoryBackendFilter.allCases.map {
                       SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
                     },
-                    selectedID: historyBackendFilter.rawValue
+                    selectedID: historyBackendFilter.rawValue,
+                    selectionAnnouncement: selectionAnnouncement(
+                      title: L10n.text("history.filter.backend")
+                    )
                   ) { value in
                     if let filter = HistoryBackendFilter(rawValue: value) {
                       historyBackendFilter = filter
@@ -436,6 +445,15 @@ struct RadiosView: View {
           )
         )
       }
+    }
+  }
+
+  private func selectionAnnouncement(title: String) -> (SelectionListOption) -> String? {
+    { option in
+      AppAccessibilityAnnouncementCenter.selectionAnnouncementText(
+        title: title,
+        value: option.title
+      )
     }
   }
 
@@ -781,7 +799,10 @@ struct RadiosView: View {
         options: HistoryReceiverSort.allCases.map {
           SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
         },
-        selectedID: historyReceiverSort.rawValue
+        selectedID: historyReceiverSort.rawValue,
+        selectionAnnouncement: selectionAnnouncement(
+          title: L10n.text("history.sort.receivers")
+        )
       ) { value in
         if let sort = HistoryReceiverSort(rawValue: value) {
           historyReceiverSort = sort
@@ -802,7 +823,10 @@ struct RadiosView: View {
         options: HistoryListeningSort.allCases.map {
           SelectionListOption(id: $0.rawValue, title: $0.displayName, detail: nil)
         },
-        selectedID: historyListeningSort.rawValue
+        selectedID: historyListeningSort.rawValue,
+        selectionAnnouncement: selectionAnnouncement(
+          title: L10n.text("history.sort.listening")
+        )
       ) { value in
         if let sort = HistoryListeningSort(rawValue: value) {
           historyListeningSort = sort

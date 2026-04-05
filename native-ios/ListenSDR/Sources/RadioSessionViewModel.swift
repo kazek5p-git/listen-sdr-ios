@@ -4136,9 +4136,9 @@ final class RadioSessionViewModel: ObservableObject {
     case .generic:
       return AutomaticReconnectCore.delaySeconds(forAttemptNumber: attemptNumber)
     case .serverBusy(_, let penaltyLevel):
-      return value(
-        at: attemptNumber + max(0, penaltyLevel - 1),
-        from: [8.0, 12.0, 18.0, 25.0, 35.0]
+      return kiwiBusyReconnectDelaySeconds(
+        attemptNumber: attemptNumber,
+        penaltyLevel: penaltyLevel
       )
     }
   }
@@ -6190,4 +6190,14 @@ final class RadioSessionViewModel: ObservableObject {
     )
     return true
   }
+}
+
+func kiwiBusyReconnectDelaySeconds(
+  attemptNumber: Int,
+  penaltyLevel: Int
+) -> TimeInterval {
+  let schedule: [TimeInterval] = [8.0, 12.0, 18.0, 25.0, 35.0]
+  let normalizedAttempt = max(1, attemptNumber + max(0, penaltyLevel - 1))
+  let index = min(normalizedAttempt - 1, schedule.count - 1)
+  return schedule[index]
 }

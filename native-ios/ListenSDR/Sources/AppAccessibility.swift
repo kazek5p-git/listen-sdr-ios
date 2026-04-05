@@ -26,6 +26,48 @@ enum AppAccessibilityAnnouncementCenter {
     UIAccessibility.post(notification: .announcement, argument: text)
   }
 
+  static func selectionAnnouncementText(
+    title: String,
+    value: String,
+    includeTitle: Bool = true
+  ) -> String? {
+    let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedValue.isEmpty else { return nil }
+    guard includeTitle, !trimmedTitle.isEmpty else { return trimmedValue }
+    return "\(trimmedTitle): \(trimmedValue)"
+  }
+
+  static func postAfterNavigationTransition(
+    _ text: String?,
+    delay: TimeInterval = 0.18
+  ) {
+    guard let text, !text.isEmpty else { return }
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+      post(text)
+    }
+  }
+
+  static func postSelectionAfterNavigationIfEnabled(
+    _ selectedItemTitle: String?,
+    delay: TimeInterval = 0.18
+  ) {
+    let settings = AppAccessibilitySettingsStore.currentSettings()
+    let mode = settings.accessibilitySelectionAnnouncementMode
+    guard mode != .off else { return }
+
+    let trimmedTitle = selectedItemTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let formattedTitle: String? = trimmedTitle?.isEmpty == false ? trimmedTitle : nil
+    let announcement = formattedTitle.map {
+      L10n.text(
+        "common.announcement.selected_item",
+        fallback: "%@ selected",
+        $0
+      )
+    }
+    postAfterNavigationTransition(announcement, delay: delay)
+  }
+
   static func postSelectionIfEnabled(
     _ selectedItemTitle: String?,
     frequencyHz: Int? = nil,

@@ -72,6 +72,27 @@ final class AppAccessibilityTests: XCTestCase {
     waitForPlaybackDispatch()
   }
 
+  func testSelectionAnnouncementTextIncludesTitleWhenRequested() {
+    XCTAssertEqual(
+      AppAccessibilityAnnouncementCenter.selectionAnnouncementText(
+        title: "Allowed network",
+        value: "Wi-Fi only"
+      ),
+      "Allowed network: Wi-Fi only"
+    )
+  }
+
+  func testSelectionAnnouncementTextCanOmitTitle() {
+    XCTAssertEqual(
+      AppAccessibilityAnnouncementCenter.selectionAnnouncementText(
+        title: "Country",
+        value: "Poland",
+        includeTitle: false
+      ),
+      "Poland"
+    )
+  }
+
   private func persistInteractionSoundSettings(
     enabled: Bool,
     muteWhileRecording: Bool,
