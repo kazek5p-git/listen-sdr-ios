@@ -344,33 +344,36 @@ try {
   $profileInfo = $profileJson | ConvertFrom-Json
 } catch {
   Write-Warning "Provisioning profile helper failed. Falling back to an existing profile installed on $RemoteHost."
-  $remoteProfileMetadata = Invoke-SshWithRetry -RemoteHost $RemoteHost -Description "Remote provisioning profile lookup" -RemoteCommand @"
-python3 - <<'PY'
+  $localFallbackScriptPath = Join-Path $env:TEMP "listen-sdr-remote-profile-fallback.py"
+  $remoteFallbackScriptPath = "$remoteCiDir/profile-fallback.py"
+  $fallbackScript = @'
 from pathlib import Path
-import glob, json, subprocess
+import json
+import subprocess
 
-files = sorted(glob.glob(str(Path.home() / 'Library/MobileDevice/Provisioning Profiles/*.mobileprovision')))
+files = sorted((Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles").glob("*.mobileprovision"))
 if not files:
-    raise SystemExit(json.dumps({"ok": False, "error": "No provisioning profile found on remote Mac."}))
+    print(json.dumps({"ok": False, "error": "No provisioning profile found on remote Mac."}))
+    raise SystemExit(0)
 
-profile_path = files[0]
+profile_path = str(files[0])
 plist_text = subprocess.run(
-    ['security', 'cms', '-D', '-i', profile_path],
+    ["security", "cms", "-D", "-i", profile_path],
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
     text=True,
     check=True,
 ).stdout
-tmp_path = Path('/tmp/listensdr-profile-fallback.plist')
-tmp_path.write_text(plist_text, encoding='utf-8')
+tmp_path = Path("/tmp/listensdr-profile-fallback.plist")
+tmp_path.write_text(plist_text, encoding="utf-8")
 profile_uuid = subprocess.run(
-    ['/usr/libexec/PlistBuddy', '-c', 'Print :UUID', str(tmp_path)],
+    ["/usr/libexec/PlistBuddy", "-c", "Print :UUID", str(tmp_path)],
     stdout=subprocess.PIPE,
     text=True,
     check=True,
 ).stdout.strip()
 profile_name = subprocess.run(
-    ['/usr/libexec/PlistBuddy', '-c', 'Print :Name', str(tmp_path)],
+    ["/usr/libexec/PlistBuddy", "-c", "Print :Name", str(tmp_path)],
     stdout=subprocess.PIPE,
     text=True,
     check=True,
@@ -381,8 +384,10 @@ print(json.dumps({
     "profileUuid": profile_uuid,
     "profileName": profile_name,
 }))
-PY
-"@
+'@
+  Write-UnixTextFile -Path $localFallbackScriptPath -Content $fallbackScript
+  Invoke-ScpWithRetry -SourcePath $localFallbackScriptPath -Destination "${RemoteHost}:$remoteFallbackScriptPath" -Description "Remote provisioning profile fallback script upload"
+  $remoteProfileMetadata = Invoke-SshWithRetry -RemoteHost $RemoteHost -Description "Remote provisioning profile lookup" -RemoteCommand ("python3 " + (ConvertTo-BashSingleQuotedLiteral -Value $remoteFallbackScriptPath))
   $remoteProfileInfo = (($remoteProfileMetadata -join [Environment]::NewLine) | ConvertFrom-Json)
   if (-not $remoteProfileInfo.ok) {
     throw "Unable to ensure provisioning profile."
