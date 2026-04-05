@@ -1,0 +1,2 @@
+Sprawdź FM-DX na zablokowanych odbiornikach bez wpisanego hasła.
+Komunikat o blokadzie powinien pojawiać się poprawnie po świeżym połączeniu, bez fałszywego odblokowania po starej sesji logowania.

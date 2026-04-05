@@ -1,0 +1,2 @@
+Verify FM-DX on locked receivers with no password configured.
+The lock banner should appear correctly on a fresh connection and should no longer stay falsely unlocked because of a stale login session.

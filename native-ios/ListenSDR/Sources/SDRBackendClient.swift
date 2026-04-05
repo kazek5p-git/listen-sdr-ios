@@ -3271,6 +3271,15 @@ final class FMDXMP3AudioPlayer {
 actor FMDXWebserverClient: SDRBackendClient {
   let backend: SDRBackend = .fmDxWebserver
   private let cachedCapabilities: FMDXCapabilities?
+  private let session: URLSession = {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+    configuration.urlCache = nil
+    configuration.httpShouldSetCookies = true
+    configuration.httpCookieAcceptPolicy = .always
+    configuration.httpCookieStorage = HTTPCookieStorage()
+    return URLSession(configuration: configuration)
+  }()
 
   private var socket: URLSessionWebSocketTask?
   private var audioSocket: URLSessionWebSocketTask?
@@ -3310,6 +3319,10 @@ actor FMDXWebserverClient: SDRBackendClient {
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
     await disconnect()
+    clearSessionCookies()
+    log(
+      "Reset FM-DX session cookies before connect. password_present=\(!profile.password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)"
+    )
     try await authenticateIfNeeded(profile: profile)
 
     activeProfile = profile
@@ -3493,8 +3506,14 @@ actor FMDXWebserverClient: SDRBackendClient {
     nextStationListRefreshAt = .distantPast
     stationListUnavailable = false
     lastPublishedFMDXPresets = []
+    clearSessionCookies()
 
     log("Disconnected")
+  }
+
+  private func clearSessionCookies() {
+    guard let cookieStorage = session.configuration.httpCookieStorage else { return }
+    cookieStorage.cookies?.forEach { cookieStorage.deleteCookie($0) }
   }
 
   func apply(settings: RadioSessionSettings) async throws {
@@ -3642,7 +3661,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
     var audioRequest = URLRequest(url: audioURL)
     audioRequest.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
-    let task = URLSession.shared.webSocketTask(with: audioRequest)
+    let task = session.webSocketTask(with: audioRequest)
     audioSocket = task
     task.resume()
     hasLoggedFirstAudioPacket = false
@@ -3671,7 +3690,7 @@ actor FMDXWebserverClient: SDRBackendClient {
 
     var textRequest = URLRequest(url: url)
     textRequest.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
-    let task = URLSession.shared.webSocketTask(with: textRequest)
+    let task = session.webSocketTask(with: textRequest)
     socket = task
     task.resume()
 
@@ -3844,7 +3863,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     let url = try makeHTTPURL(profile: profile, path: "\(basePath)login")
     let request = try URLRequest.listenSDRFMDXLoginRequest(url: url, password: password)
 
-    let (data, response) = try await URLSession.shared.data(for: request)
+    let (data, response) = try await session.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SDRClientError.unsupported("FM-DX login returned invalid response.")
     }
@@ -3863,7 +3882,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private func fetchAPI(profile: SDRConnectionProfile) async throws -> [String: Any] {
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
     let url = try makeHTTPURL(profile: profile, path: "\(basePath)api")
-    let (data, response) = try await URLSession.shared.data(from: url)
+    let (data, response) = try await session.data(from: url)
 
     guard let httpResponse = response as? HTTPURLResponse,
       (200...299).contains(httpResponse.statusCode)
@@ -3881,7 +3900,7 @@ actor FMDXWebserverClient: SDRBackendClient {
   private func fetchStaticData(profile: SDRConnectionProfile) async throws -> [String: Any] {
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
     let url = try makeHTTPURL(profile: profile, path: "\(basePath)static_data")
-    let (data, response) = try await URLSession.shared.data(from: url)
+    let (data, response) = try await session.data(from: url)
 
     guard let httpResponse = response as? HTTPURLResponse,
       (200...299).contains(httpResponse.statusCode),
@@ -3900,7 +3919,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
     request.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
 
-    let (data, response) = try await URLSession.shared.data(for: request)
+    let (data, response) = try await session.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse,
       (200...299).contains(httpResponse.statusCode),
       let html = String(data: data, encoding: .utf8) else {
@@ -3921,7 +3940,7 @@ actor FMDXWebserverClient: SDRBackendClient {
     request.setValue("application/javascript,text/javascript,*/*;q=0.1", forHTTPHeaderField: "Accept")
     request.setValue(ListenSDRNetworkIdentity.fmdxUserAgent(), forHTTPHeaderField: "User-Agent")
 
-    let (data, response) = try await URLSession.shared.data(for: request)
+    let (data, response) = try await session.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse,
       (200...299).contains(httpResponse.statusCode),
       let script = String(data: data, encoding: .utf8)
@@ -3943,7 +3962,7 @@ actor FMDXWebserverClient: SDRBackendClient {
       request.timeoutInterval = 4
       request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
 
-      let (_, response) = try await URLSession.shared.data(for: request)
+      let (_, response) = try await session.data(for: request)
       guard let httpResponse = response as? HTTPURLResponse else {
         return false
       }
