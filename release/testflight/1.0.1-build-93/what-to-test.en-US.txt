@@ -1,0 +1,2 @@
+Verify app startup with an empty setup.
+If there are no saved receivers and no listening history, Listen SDR should open directly on the Radios tab.

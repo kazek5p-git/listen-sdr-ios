@@ -1,0 +1,2 @@
+Sprawdź start aplikacji przy pustej konfiguracji.
+Jeśli nie ma żadnych zapisanych odbiorników ani historii słuchania, Listen SDR powinien otwierać się od razu na zakładce Radia.
