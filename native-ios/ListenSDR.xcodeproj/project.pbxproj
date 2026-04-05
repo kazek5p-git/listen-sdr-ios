@@ -21,6 +21,7 @@
 		2923CE16937A6A7AE87483FB /* AudioRecordingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93986B585C4FB7BCA27AF6F /* AudioRecordingStore.swift */; };
 		2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */; };
 		2E24DB309E0344833D3B83FD /* ReceiverIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 950DF21350969254EFC903CF /* ReceiverIdentityTests.swift */; };
+		2FC8897F2FF9E49E2623C482 /* KiwiBusyReconnectPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E1B78B1ED041E6FB8AD783B /* KiwiBusyReconnectPolicyTests.swift */; };
 		30A7D9FE5D13B5732D7B0601 /* RecordingFolderPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FFB853C809B874633967E /* RecordingFolderPicker.swift */; };
 		33F3F8C45A5BB961112E001B /* RadioSessionSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30CF02B6D5C9776336DA7B30 /* RadioSessionSettingsTests.swift */; };
 		347C30C3093802313590E3B7 /* FMDXCapabilitiesPolicyBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1555E324C13738FC619AD1 /* FMDXCapabilitiesPolicyBridge.swift */; };
@@ -132,6 +133,7 @@
 		3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
 		3BA532EA2B2941E71FB621C0 /* ListenSDRCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ListenSDRCore; path = ../shared/ListenSDRCore; sourceTree = SOURCE_ROOT; };
 		3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackendClient.swift; sourceTree = "<group>"; };
+		3E1B78B1ED041E6FB8AD783B /* KiwiBusyReconnectPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiBusyReconnectPolicyTests.swift; sourceTree = "<group>"; };
 		4275A45DF4651D0079994B01 /* AppTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTutorialView.swift; sourceTree = "<group>"; };
 		4286BB33324D82C98CA59BFE /* ReceiverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverView.swift; sourceTree = "<group>"; };
 		478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXPresetScriptParserTests.swift; sourceTree = "<group>"; };
@@ -353,6 +355,7 @@
 				478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */,
 				07F5A68FE08373C6C9818B34 /* FMDXStationListResolverTests.swift */,
 				1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */,
+				3E1B78B1ED041E6FB8AD783B /* KiwiBusyReconnectPolicyTests.swift */,
 				E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */,
 				AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */,
 				67898200E1DD7BF2FE5AC5A3 /* LiveAudioStabilityTests.swift */,
@@ -550,6 +553,7 @@
 				5A076344D3BDA61EB1C1213F /* FMDXPresetScriptParserTests.swift in Sources */,
 				F95C89B3900EBD196A458D33 /* FMDXStationListResolverTests.swift in Sources */,
 				8EEE5FD254E0DE0BAF51E579 /* FrequencyInputParserTests.swift in Sources */,
+				2FC8897F2FF9E49E2623C482 /* KiwiBusyReconnectPolicyTests.swift in Sources */,
 				7D25DAE60B06F3AA4E27B9F6 /* KiwiWaterfallViewportTests.swift in Sources */,
 				442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */,
 				6F72CC2D76B74F9892D20F69 /* LiveAudioStabilityTests.swift in Sources */,
@@ -678,7 +682,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 93;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -773,7 +777,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 92;
+				CURRENT_PROJECT_VERSION = 93;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
