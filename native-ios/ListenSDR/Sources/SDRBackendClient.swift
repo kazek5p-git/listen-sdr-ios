@@ -361,6 +361,7 @@ actor KiwiSDRClient: SDRBackendClient {
 
   private let kiwiStableAudioFrameThreshold = 3
   private let kiwiStableAudioWaterfallDelaySeconds: TimeInterval = 2.5
+  private let kiwiCanonicalSampleRatesHz = [8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000]
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -934,7 +935,13 @@ actor KiwiSDRClient: SDRBackendClient {
 
       case "sample_rate":
         if let value, let sampleRate = Double(value) {
-          sampleRateHz = max(8000, Int(sampleRate.rounded()))
+          let normalizedSampleRateHz = normalizeKiwiSampleRateHz(sampleRate)
+          if sampleRateHz != normalizedSampleRateHz {
+            log(
+              "Kiwi sample rate updated: raw_hz=\(Int(sampleRate.rounded())) normalized_hz=\(normalizedSampleRateHz)"
+            )
+          }
+          sampleRateHz = normalizedSampleRateHz
           emitKiwiTelemetry(force: true)
         }
 
@@ -1313,6 +1320,24 @@ actor KiwiSDRClient: SDRBackendClient {
     }
     guard let doubleValue = Double(rawValue), doubleValue.isFinite else { return nil }
     return Int(doubleValue.rounded())
+  }
+
+  private func normalizeKiwiSampleRateHz(_ rawRate: Double) -> Int {
+    let roundedRate = max(8_000, Int(rawRate.rounded()))
+    guard
+      let nearestCanonical = kiwiCanonicalSampleRatesHz.min(by: {
+        abs(Double($0) - rawRate) < abs(Double($1) - rawRate)
+      })
+    else {
+      return roundedRate
+    }
+
+    // Kiwi frequently reports e.g. 11999 for nominal 12 kHz.
+    let toleranceHz = max(2.0, Double(nearestCanonical) * 0.002)
+    if abs(Double(nearestCanonical) - rawRate) <= toleranceHz {
+      return nearestCanonical
+    }
+    return roundedRate
   }
 
   private func enqueueTelemetry(_ event: BackendTelemetryEvent) {

@@ -33,8 +33,14 @@ final class AudioOutputEngine {
   private let playerNode = AVAudioPlayerNode()
   private let outputSampleRate = AudioPCMUtilities.preferredOutputSampleRate
   private let preferredIOBufferDurationSeconds: TimeInterval = 0.023
-  private let startupBufferedSeconds: TimeInterval = 0.18
-  private let startupBufferedChunks = 3
+  private let startupBufferedSeconds: TimeInterval = 0.20
+  private let startupBufferedChunks = 4
+  private let lowRateStartupBufferedSeconds: TimeInterval = 0.24
+  private let lowRateStartupBufferedChunks = 5
+  private let drainRecoveryBufferedSeconds: TimeInterval = 0.30
+  private let drainRecoveryBufferedChunks = 7
+  private let lowRateInputThresholdHz = 16_000
+  private let drainRecoveryWindowSeconds: TimeInterval = 12
   private lazy var outputFormat: AVAudioFormat? = AVAudioFormat(
     commonFormat: .pcmFormatFloat32,
     sampleRate: outputSampleRate,
@@ -62,6 +68,7 @@ final class AudioOutputEngine {
   private var needsBufferedPlaybackStart = true
   private var isSessionInterrupted = false
   private var shouldResumeAfterInterruption = false
+  private var lastQueueDrainAt = Date.distantPast
   private var notificationTokens: [NSObjectProtocol] = []
 
   init() {
@@ -197,6 +204,7 @@ final class AudioOutputEngine {
     queuedDurationSeconds = 0
     queuedBufferDurations.removeAll()
     needsBufferedPlaybackStart = true
+    lastQueueDrainAt = .distantPast
     playerNode.stop()
     engine.stop()
     lastInputSampleRateHz = nil
@@ -362,6 +370,7 @@ final class AudioOutputEngine {
     queuedBuffers = 0
     queuedDurationSeconds = 0
     queuedBufferDurations.removeAll()
+    lastQueueDrainAt = .distantPast
     recentSignalMetrics.removeAll()
     speechLoudnessLeveler.reset()
     scannerPlaybackMuted = false
@@ -533,6 +542,7 @@ final class AudioOutputEngine {
     queuedDurationSeconds = 0
     queuedBufferDurations.removeAll()
     needsBufferedPlaybackStart = true
+    lastQueueDrainAt = .distantPast
     playerNode.stop()
     engine.stop()
     engine.reset()
@@ -600,8 +610,28 @@ final class AudioOutputEngine {
 
   private func startPlaybackIfReady() {
     if needsBufferedPlaybackStart {
-      let hasBufferedEnough = queuedDurationSeconds >= startupBufferedSeconds
-        || queuedBuffers >= startupBufferedChunks
+      let isLowRateInput = (lastInputSampleRateHz ?? Int(outputSampleRate.rounded())) <= lowRateInputThresholdHz
+      let isRecoveringFromDrain = Date().timeIntervalSince(lastQueueDrainAt) <= drainRecoveryWindowSeconds
+      let requiredBufferedSeconds: TimeInterval
+      let requiredBufferedChunks: Int
+      if isRecoveringFromDrain {
+        requiredBufferedSeconds = max(
+          drainRecoveryBufferedSeconds,
+          isLowRateInput ? lowRateStartupBufferedSeconds : startupBufferedSeconds
+        )
+        requiredBufferedChunks = max(
+          drainRecoveryBufferedChunks,
+          isLowRateInput ? lowRateStartupBufferedChunks : startupBufferedChunks
+        )
+      } else if isLowRateInput {
+        requiredBufferedSeconds = lowRateStartupBufferedSeconds
+        requiredBufferedChunks = lowRateStartupBufferedChunks
+      } else {
+        requiredBufferedSeconds = startupBufferedSeconds
+        requiredBufferedChunks = startupBufferedChunks
+      }
+      let hasBufferedEnough = queuedDurationSeconds >= requiredBufferedSeconds
+        || queuedBuffers >= requiredBufferedChunks
       guard hasBufferedEnough else { return }
     }
 
@@ -626,6 +656,7 @@ final class AudioOutputEngine {
 
     playerNode.stop()
     needsBufferedPlaybackStart = true
+    lastQueueDrainAt = Date()
     log("Shared audio queue drained; waiting for buffered resume.", severity: .warning)
   }
 
