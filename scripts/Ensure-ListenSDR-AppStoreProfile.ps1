@@ -78,36 +78,76 @@ if not certificates:
     raise SystemExit(json.dumps({"ok": False, "error": "No DISTRIBUTION certificate found in Apple Developer."}))
 certificate = certificates[0]
 
-profiles_payload = api_get(f"/v1/bundleIds/{bundle['id']}/profiles", {"limit": "50"})
-profiles = profiles_payload.get("data", [])
-profile = None
-for candidate in profiles:
-    attrs = candidate.get("attributes", {})
-    if attrs.get("profileState") == "ACTIVE" and attrs.get("profileType") == "IOS_APP_STORE":
-        profile = candidate
-        break
+def list_profiles(limit=200):
+    next_url = "https://api.appstoreconnect.apple.com/v1/profiles?" + urllib.parse.urlencode({"limit": str(limit)})
+    collected = []
+    while next_url:
+        req = urllib.request.Request(next_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        collected.extend(payload.get("data", []))
+        next_url = payload.get("links", {}).get("next")
+    return collected
+
+def choose_profile(candidates):
+    preferred = None
+    fallback = None
+    for candidate in candidates:
+        attrs = candidate.get("attributes", {})
+        if attrs.get("profileState") != "ACTIVE" or attrs.get("profileType") != "IOS_APP_STORE":
+            continue
+
+        candidate_bundle = (
+            candidate.get("relationships", {})
+            .get("bundleId", {})
+            .get("data", {})
+            .get("id")
+        )
+        is_target_bundle = candidate_bundle == bundle["id"]
+        is_target_name = attrs.get("name") == profile_name
+
+        if is_target_bundle and is_target_name:
+            return candidate
+        if is_target_bundle and fallback is None:
+            fallback = candidate
+        if is_target_name and preferred is None:
+            preferred = candidate
+
+    return fallback or preferred
+
+profiles = list_profiles(limit=200)
+profile = choose_profile(profiles)
 
 if profile is None:
-    profile = api_post(
-        "/v1/profiles",
-        {
-            "data": {
-                "type": "profiles",
-                "attributes": {
-                    "name": profile_name,
-                    "profileType": "IOS_APP_STORE"
+    create_payload = {
+        "data": {
+            "type": "profiles",
+            "attributes": {
+                "name": profile_name,
+                "profileType": "IOS_APP_STORE"
+            },
+            "relationships": {
+                "bundleId": {
+                    "data": {"type": "bundleIds", "id": bundle["id"]}
                 },
-                "relationships": {
-                    "bundleId": {
-                        "data": {"type": "bundleIds", "id": bundle["id"]}
-                    },
-                    "certificates": {
-                        "data": [{"type": "certificates", "id": certificate["id"]}]
-                    }
+                "certificates": {
+                    "data": [{"type": "certificates", "id": certificate["id"]}]
                 }
             }
         }
-    )["data"]
+    }
+
+    try:
+        profile = api_post("/v1/profiles", create_payload)["data"]
+    except urllib.error.HTTPError as exc:
+        if exc.code != 409:
+            raise
+        # Profile can already exist but may be hidden by eventual consistency
+        # or ordering; refresh and select again.
+        profiles = list_profiles(limit=200)
+        profile = choose_profile(profiles)
+        if profile is None:
+            raise
 
 profile_id = profile["id"]
 profile_detail = api_get(f"/v1/profiles/{profile_id}")["data"]
