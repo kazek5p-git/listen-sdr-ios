@@ -7,6 +7,7 @@ struct ListenSDRFeedbackFormView: View {
   @EnvironmentObject private var historyStore: ListeningHistoryStore
   @EnvironmentObject private var recordingStore: RecordingStore
   @Environment(\.dismiss) private var dismiss
+  @AppStorage("ListenSDR.feedback.senderName.v1") private var persistedSenderName = ""
 
   let kind: ListenSDRFeedbackKind
 
@@ -61,6 +62,14 @@ struct ListenSDRFeedbackFormView: View {
     .navigationTitle(kind.localizedTitle)
     .navigationBarTitleDisplayMode(.inline)
     .appScreenBackground()
+    .onAppear {
+      if senderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        senderName = persistedSenderName
+      }
+    }
+    .onChange(of: senderName) { newValue in
+      persistedSenderName = newValue
+    }
     .alert(resultAlertTitle, isPresented: $showResultAlert) {
       Button(L10n.text("OK")) {
         if resultAlertTitle == L10n.text("settings.feedback.form.sent.title") {
@@ -125,6 +134,7 @@ struct ListenSDRFeedbackFormView: View {
 
     inlineError = nil
     isSending = true
+    persistedSenderName = trimmedSender
 
     let context = ListenSDRFeedbackContext.current(
       profile: radioSession.connectedProfileSnapshot ?? profileStore.selectedProfile,
@@ -157,7 +167,6 @@ struct ListenSDRFeedbackFormView: View {
 
         await MainActor.run {
           isSending = false
-          senderName = ""
           message = ""
           Diagnostics.log(
             category: "Feedback",

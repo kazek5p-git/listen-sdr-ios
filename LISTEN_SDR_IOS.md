@@ -302,3 +302,9 @@ Jesli wracamy do rozwoju produktu, najpierw warto otwierac:
 5. `native-ios/ListenSDR/Sources/RadioSessionSettings.swift`
 
 To sa pliki, w ktorych skupia sie najwiecej logiki produktu i tam beda trafialy wiekszosc kolejnych zmian.
+
+## Chromecast roadmap (etap 1)
+
+Dokument roboczy dla przygotowania Chromecast jako dodatkowej sciezki odtwarzania:
+
+- `docs/chromecast-stage1-plan.md`
