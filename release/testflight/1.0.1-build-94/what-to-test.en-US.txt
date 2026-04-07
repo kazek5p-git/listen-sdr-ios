@@ -1,0 +1,5 @@
+Please test iOS KiwiSDR for audio pops/crackles.
+Focus on longer listening sessions and frequency changes to verify more stable buffering during short network drops.
+
+Please test the feedback form (Report a bug / Send a suggestion).
+The "Name or nickname" field should keep the last value and should not clear after a successful send.

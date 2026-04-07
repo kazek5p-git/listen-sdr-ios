@@ -1,0 +1,5 @@
+Sprawdź iOS KiwiSDR pod kątem trzasków/popsów audio.
+Najważniejsze jest dłuższe słuchanie oraz zmiany częstotliwości, żeby potwierdzić stabilniejszy bufor po chwilowych spadkach sieci.
+
+Sprawdź formularz zgłoszeń (Zgłoś błąd / Napisz sugestię).
+Pole „Imię lub nick” powinno zapamiętywać ostatnią wartość i nie czyścić się po wysłaniu.
