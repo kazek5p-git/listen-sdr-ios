@@ -293,7 +293,7 @@ enum AppTheme {
     )
   }
 
-  private static var customPalette: AppThemePalette {
+  static var customPalette: AppThemePalette {
     let backgroundTop = customUIColor(
       forKey: customBackgroundTopKey,
       fallbackHex: defaultCustomBackgroundTopHex
