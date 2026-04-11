@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import UIKit
 
@@ -18,6 +19,40 @@ struct AppThemePalette {
   let primaryTextDark: UIColor
   let secondaryTextLight: UIColor
   let secondaryTextDark: UIColor
+}
+
+struct AppThemeCustomColors: Codable {
+  let backgroundTop: String
+  let backgroundBottom: String
+  let cardFill: String
+  let cardStroke: String
+  let primaryText: String
+  let secondaryText: String
+  let tint: String
+  let accent: String
+}
+
+struct AppThemeCustomExportPayload: Codable {
+  let schemaVersion: Int
+  let theme: String
+  let colors: AppThemeCustomColors
+}
+
+enum AppThemeImportError: LocalizedError {
+  case empty
+  case invalidJSON
+  case invalidColors
+
+  var errorDescription: String? {
+    switch self {
+    case .empty:
+      return "No custom skin data was provided."
+    case .invalidJSON:
+      return "The custom skin JSON could not be read."
+    case .invalidColors:
+      return "The imported skin is missing required color values."
+    }
+  }
 }
 
 enum AppThemeOption: String, CaseIterable, Identifiable {
@@ -187,6 +222,79 @@ enum AppTheme {
 
   static var tint: Color { palette.tint }
   static var accent: Color { palette.accent }
+
+  static var customColorsSnapshot: AppThemeCustomColors {
+    AppThemeCustomColors(
+      backgroundTop: UserDefaults.standard.string(forKey: customBackgroundTopKey) ?? defaultCustomBackgroundTopHex,
+      backgroundBottom: UserDefaults.standard.string(forKey: customBackgroundBottomKey) ?? defaultCustomBackgroundBottomHex,
+      cardFill: UserDefaults.standard.string(forKey: customCardFillKey) ?? defaultCustomCardFillHex,
+      cardStroke: UserDefaults.standard.string(forKey: customCardStrokeKey) ?? defaultCustomCardStrokeHex,
+      primaryText: UserDefaults.standard.string(forKey: customPrimaryTextKey) ?? defaultCustomPrimaryTextHex,
+      secondaryText: UserDefaults.standard.string(forKey: customSecondaryTextKey) ?? defaultCustomSecondaryTextHex,
+      tint: UserDefaults.standard.string(forKey: customTintKey) ?? defaultCustomTintHex,
+      accent: UserDefaults.standard.string(forKey: customAccentKey) ?? defaultCustomAccentHex
+    )
+  }
+
+  static func exportCustomThemeJSONString() throws -> String {
+    let payload = AppThemeCustomExportPayload(
+      schemaVersion: 1,
+      theme: AppThemeOption.custom.rawValue,
+      colors: customColorsSnapshot
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let data = try encoder.encode(payload)
+    guard let json = String(data: data, encoding: .utf8) else {
+      throw AppThemeImportError.invalidJSON
+    }
+    return json
+  }
+
+  static func importCustomTheme(from json: String) throws {
+    let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+      throw AppThemeImportError.empty
+    }
+
+    guard let data = trimmed.data(using: .utf8) else {
+      throw AppThemeImportError.invalidJSON
+    }
+
+    let decoder = JSONDecoder()
+    guard let payload = try? decoder.decode(AppThemeCustomExportPayload.self, from: data) else {
+      throw AppThemeImportError.invalidJSON
+    }
+
+    let colors = payload.colors
+    let validated = [
+      (colors.backgroundTop, defaultCustomBackgroundTopHex),
+      (colors.backgroundBottom, defaultCustomBackgroundBottomHex),
+      (colors.cardFill, defaultCustomCardFillHex),
+      (colors.cardStroke, defaultCustomCardStrokeHex),
+      (colors.primaryText, defaultCustomPrimaryTextHex),
+      (colors.secondaryText, defaultCustomSecondaryTextHex),
+      (colors.tint, defaultCustomTintHex),
+      (colors.accent, defaultCustomAccentHex),
+    ].allSatisfy { value, fallback in
+      UIColor(hex: value) != nil || UIColor(hex: fallback) != nil
+    }
+
+    guard validated else {
+      throw AppThemeImportError.invalidColors
+    }
+
+    let defaults = UserDefaults.standard
+    defaults.set(colors.backgroundTop, forKey: customBackgroundTopKey)
+    defaults.set(colors.backgroundBottom, forKey: customBackgroundBottomKey)
+    defaults.set(colors.cardFill, forKey: customCardFillKey)
+    defaults.set(colors.cardStroke, forKey: customCardStrokeKey)
+    defaults.set(colors.primaryText, forKey: customPrimaryTextKey)
+    defaults.set(colors.secondaryText, forKey: customSecondaryTextKey)
+    defaults.set(colors.tint, forKey: customTintKey)
+    defaults.set(colors.accent, forKey: customAccentKey)
+    defaults.set(AppThemeOption.custom.rawValue, forKey: selectionKey)
+  }
 
   static var cardFill: Color {
     dynamicColor(light: palette.cardFillLight, dark: palette.cardFillDark)

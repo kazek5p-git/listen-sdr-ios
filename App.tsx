@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -6,6 +7,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -30,6 +32,12 @@ type ThemePalette = ThemeColors & {
   name: string;
   description: string;
   statusBarStyle: 'light' | 'dark';
+};
+
+type CustomThemeExportPayload = {
+  schemaVersion: 1;
+  theme: 'custom';
+  colors: ThemeColors;
 };
 
 const THEME_STORAGE_KEY = 'ListenSDR.androidTheme.v1';
@@ -237,11 +245,50 @@ function themeColorsFromPalette(theme: ThemePalette): ThemeColors {
   };
 }
 
+function exportCustomThemePayload(colors: ThemeColors): CustomThemeExportPayload {
+  return {
+    schemaVersion: 1,
+    theme: 'custom',
+    colors,
+  };
+}
+
+function exportCustomThemeJson(colors: ThemeColors): string {
+  return JSON.stringify(exportCustomThemePayload(colors), null, 2);
+}
+
+function parseImportedCustomTheme(input: string): ThemeColors {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new Error('Wklej JSON własnej skórki.');
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new Error('Nie udało się odczytać JSON własnej skórki.');
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Plik lub tekst nie zawiera prawidłowej skórki.');
+  }
+
+  const colors = coerceThemeColors((parsed as { colors?: unknown }).colors);
+  if (!colors) {
+    throw new Error('Importowana skórka nie zawiera kompletu poprawnych kolorów.');
+  }
+
+  return colors;
+}
+
 export default function App() {
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId>('classic');
   const [customTheme, setCustomTheme] = useState<ThemeColors>(DEFAULT_CUSTOM_THEME);
   const [customInputs, setCustomInputs] = useState<ThemeColors>(DEFAULT_CUSTOM_THEME);
   const [customError, setCustomError] = useState('');
+  const [importJsonInput, setImportJsonInput] = useState('');
+  const [importExportStatus, setImportExportStatus] = useState('');
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
   const activeTheme = useMemo(
@@ -361,6 +408,44 @@ export default function App() {
     setCustomError('');
     await persistCustomTheme(normalizedColors);
     await persistThemeSelection('custom');
+  };
+
+  const handleCopyCustomTheme = async () => {
+    await Clipboard.setStringAsync(exportCustomThemeJson(customTheme));
+    setImportExportStatus('JSON własnej skórki został skopiowany do schowka.');
+  };
+
+  const handleShareCustomTheme = async () => {
+    try {
+      await Share.share({
+        message: exportCustomThemeJson(customTheme),
+        title: 'Listen SDR custom skin',
+      });
+      setImportExportStatus('Udostępniono JSON własnej skórki.');
+    } catch {
+      setImportExportStatus('Nie udało się udostępnić JSON własnej skórki.');
+    }
+  };
+
+  const handleLoadImportFromClipboard = async () => {
+    const clipboardText = await Clipboard.getStringAsync();
+    setImportJsonInput(clipboardText);
+    setImportExportStatus('Wczytano zawartość schowka do pola importu.');
+  };
+
+  const handleImportCustomTheme = async (rawValue: string) => {
+    try {
+      const importedTheme = parseImportedCustomTheme(rawValue);
+      setCustomError('');
+      setImportExportStatus('');
+      await persistCustomTheme(importedTheme);
+      await persistThemeSelection('custom');
+      setImportJsonInput(exportCustomThemeJson(importedTheme));
+      setImportExportStatus('Zaimportowano własną skórkę i ustawiono ją jako aktywną.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Nie udało się zaimportować własnej skórki.';
+      setImportExportStatus(message);
+    }
   };
 
   const handleCustomInputChange = (field: ThemeField, value: string) => {
@@ -517,12 +602,120 @@ export default function App() {
             </Pressable>
           </View>
 
+          <View style={styles.buttonRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                void handleCopyCustomTheme();
+              }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                {
+                  backgroundColor: draftTheme.backgroundSecondary,
+                  borderColor: draftTheme.cardBorder,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.actionButtonText, { color: draftTheme.tint }]}>
+                Kopiuj JSON
+              </Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                void handleShareCustomTheme();
+              }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                {
+                  backgroundColor: draftTheme.card,
+                  borderColor: draftTheme.cardBorder,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.actionButtonText, { color: draftTheme.text }]}>
+                Udostępnij JSON
+              </Text>
+            </Pressable>
+          </View>
+
           <ThemeCard theme={draftTheme} nested>
             <Text style={[styles.cardTitle, { color: draftTheme.text }]}>Podgląd własnej skórki</Text>
             <Text style={[styles.cardDescription, { color: draftTheme.textMuted }]}>
               Tak będzie wyglądał wariant własny po zapisaniu.
             </Text>
             <ThemeSwatches theme={draftTheme} />
+          </ThemeCard>
+
+          <ThemeCard theme={draftTheme} nested>
+            <Text style={[styles.cardTitle, { color: draftTheme.text }]}>Import własnej skórki</Text>
+            <Text style={[styles.cardDescription, { color: draftTheme.textMuted }]}>
+              Wklej JSON eksportu własnej skórki albo wczytaj go ze schowka.
+            </Text>
+
+            <View style={styles.buttonRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  void handleLoadImportFromClipboard();
+                }}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  {
+                    backgroundColor: draftTheme.backgroundSecondary,
+                    borderColor: draftTheme.cardBorder,
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.actionButtonText, { color: draftTheme.tint }]}>
+                  Wczytaj ze schowka
+                </Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  void handleImportCustomTheme(importJsonInput);
+                }}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  {
+                    backgroundColor: draftTheme.card,
+                    borderColor: draftTheme.cardBorder,
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.actionButtonText, { color: draftTheme.text }]}>
+                  Importuj JSON
+                </Text>
+              </Pressable>
+            </View>
+
+            <TextInput
+              accessibilityLabel="JSON własnej skórki"
+              autoCapitalize="none"
+              autoCorrect={false}
+              multiline
+              numberOfLines={8}
+              onChangeText={setImportJsonInput}
+              placeholder={'{\n  "schemaVersion": 1,\n  "theme": "custom"\n}'}
+              placeholderTextColor={draftTheme.textMuted}
+              style={[
+                styles.importInput,
+                {
+                  backgroundColor: draftTheme.card,
+                  borderColor: draftTheme.cardBorder,
+                  color: draftTheme.text,
+                },
+              ]}
+              textAlignVertical="top"
+              value={importJsonInput}
+            />
           </ThemeCard>
 
           <View style={styles.fieldList}>
@@ -569,6 +762,10 @@ export default function App() {
 
           {customError ? (
             <Text style={styles.errorText}>{customError}</Text>
+          ) : importExportStatus ? (
+            <Text style={[styles.helperText, { color: draftTheme.textMuted }]}>
+              {importExportStatus}
+            </Text>
           ) : (
             <Text style={[styles.helperText, { color: draftTheme.textMuted }]}>
               Akceptowane są wartości w formacie #RRGGBB lub #RRGGBBAA.
@@ -798,6 +995,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     fontWeight: '600',
+  },
+  importInput: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 160,
+    fontSize: 14,
+    lineHeight: 20,
   },
   helperText: {
     fontSize: 13,
