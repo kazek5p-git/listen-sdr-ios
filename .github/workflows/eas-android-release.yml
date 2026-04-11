@@ -1,0 +1,104 @@
+name: EAS Android Public Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-release:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Expo CLI
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          expo-cache: true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve app version
+        run: |
+          APP_VERSION=$(node -p "require('./app.json').expo.version")
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+
+      - name: Build Android APK with EAS
+        run: |
+          eas build --platform android --profile preview --non-interactive --wait --json > build.json
+          cat build.json
+          node <<'NODE'
+          const fs = require('fs');
+          const raw = fs.readFileSync('build.json', 'utf8').trim();
+          const parsed = JSON.parse(raw);
+          const build = Array.isArray(parsed) ? parsed[0] : parsed;
+          const url =
+            build?.artifacts?.buildUrl ||
+            build?.artifacts?.applicationArchiveUrl ||
+            build?.artifacts?.url ||
+            build?.artifacts?.apkUrl;
+          if (!url) {
+            console.error('Unable to resolve Android artifact URL from EAS build output.');
+            console.error(JSON.stringify(build, null, 2));
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_ENV, `EAS_BUILD_ID=${build.id || ''}\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `APK_URL=${url}\n`);
+          NODE
+
+      - name: Download APK artifact
+        run: curl -L "$APK_URL" -o ListenSDR-android-release.apk
+
+      - name: Compute release tag
+        run: |
+          LAST_BUILD=$(git tag -l "android-v${APP_VERSION}-build-*" | sed -E 's/.*-build-([0-9]+)/\1/' | sort -n | tail -1)
+          if [ -z "$LAST_BUILD" ]; then
+            NEXT_BUILD=1
+          else
+            NEXT_BUILD=$((LAST_BUILD + 1))
+          fi
+          RELEASE_TAG="android-v${APP_VERSION}-build-${NEXT_BUILD}"
+          RELEASE_TITLE="Listen SDR Android ${APP_VERSION} (${NEXT_BUILD})"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=$RELEASE_TITLE" >> "$GITHUB_ENV"
+
+      - name: Prepare release notes
+        run: |
+          cat > release-notes.md <<EOF
+          This Android release adds customizable skins and keeps the updated visual presets in sync with iOS.
+
+          - added a custom skin editor so users can choose their own colors for background, cards, text, and accents
+          - kept the existing preset skins, including the more elegant muted blue variant
+          - aligned the Android visual theme work with the current iOS/TestFlight release
+
+          EAS build ID: ${EAS_BUILD_ID}
+          EOF
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            ListenSDR-android-release.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$RELEASE_TITLE" \
+            --notes-file release-notes.md \
+            --latest
