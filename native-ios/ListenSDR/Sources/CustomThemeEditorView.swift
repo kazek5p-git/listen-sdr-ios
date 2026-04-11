@@ -13,7 +13,7 @@ struct CustomThemeEditorView: View {
   @AppStorage(AppTheme.customAccentKey) private var accentHex = AppTheme.defaultCustomAccentHex
 
   var body: some View {
-    Form {
+    List {
       Section {
         VStack(alignment: .leading, spacing: 8) {
           Text(
@@ -127,6 +127,7 @@ struct CustomThemeEditorView: View {
       .appSectionStyle()
     }
     .voiceOverStable()
+    .listStyle(.insetGrouped)
     .scrollContentBackground(.hidden)
     .navigationTitle(
       L10n.text(
