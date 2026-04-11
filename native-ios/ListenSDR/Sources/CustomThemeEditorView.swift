@@ -112,10 +112,10 @@ struct CustomThemeEditorView: View {
       .appSectionStyle()
 
       Section {
-        FocusRetainingButton(role: .destructive) {
+        FocusRetainingButton({
           AppTheme.resetCustomTheme()
           selectedThemeID = AppThemeOption.custom.rawValue
-        } label: {
+        }, role: .destructive) {
           Text(
             L10n.text(
               "settings.appearance.custom.reset",
