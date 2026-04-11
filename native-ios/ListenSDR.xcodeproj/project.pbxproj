@@ -64,6 +64,7 @@
 		8B826A963B180CA475FCD2F3 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE45DEDE28EA384BBF400F2 /* SettingsViewController.swift */; };
 		8EEE5FD254E0DE0BAF51E579 /* FrequencyInputParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */; };
 		904026A13868756A60C1ACBE /* FrequencyPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */; };
+		9553300AA9D4ADC1318DE742 /* CustomThemeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40FD43C9BD9E6E292499D9D /* CustomThemeEditorView.swift */; };
 		97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */; };
 		99B848C6E7F71B573709D3C3 /* RecordingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6867FB3EC2B87AF1C82B810 /* RecordingsView.swift */; };
 		9BF77A166D2A0D5A041A8877 /* StableAnnouncementGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCF73B9FCCAD68A13500644 /* StableAnnouncementGateTests.swift */; };
@@ -206,6 +207,7 @@
 		EAD1C8D99F65C7CAD5126479 /* TuneStepPreferenceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuneStepPreferenceMode.swift; sourceTree = "<group>"; };
 		F01FFB853C809B874633967E /* RecordingFolderPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingFolderPicker.swift; sourceTree = "<group>"; };
 		F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXBandScannerTests.swift; sourceTree = "<group>"; };
+		F40FD43C9BD9E6E292499D9D /* CustomThemeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomThemeEditorView.swift; sourceTree = "<group>"; };
 		F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettings.swift; sourceTree = "<group>"; };
 		FF8CEEFF5137077F585714EE /* AudioDecoders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDecoders.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -256,6 +258,7 @@
 				D6B2838C0A3517392C242645 /* ChannelScannerSignalCore.swift */,
 				B0824AE53AE902C225CE4DE5 /* ConnectionNetworkPolicy.swift */,
 				AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */,
+				F40FD43C9BD9E6E292499D9D /* CustomThemeEditorView.swift */,
 				9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */,
 				A08F4C0EC7957D2F44890F03 /* DiagnosticsExportBuilder.swift */,
 				DAE460852390C71A3267E19E /* DiagnosticsStore.swift */,
@@ -484,6 +487,7 @@
 				A85BB4C1E4D9B6BA4C2914C1 /* ChannelScannerSignalCore.swift in Sources */,
 				64D53B13A96F59388A01A58A /* ConnectionNetworkPolicy.swift in Sources */,
 				ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */,
+				9553300AA9D4ADC1318DE742 /* CustomThemeEditorView.swift in Sources */,
 				97FBD7C3975B191CF77DD737 /* DemodulationMode.swift in Sources */,
 				D3F4C7905F934163B69D3D83 /* DiagnosticsExportBuilder.swift in Sources */,
 				1B9906A35F32EAC682AF5EE2 /* DiagnosticsStore.swift in Sources */,
