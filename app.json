@@ -33,6 +33,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "owner": "kazek5p"
+    "owner": "kazek5p",
+    "extra": {
+      "eas": {
+        "projectId": "9538f0a2-c799-4ad4-8db5-fa3b1d09895f"
+      }
+    }
   }
 }
