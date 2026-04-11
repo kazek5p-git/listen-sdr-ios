@@ -1,0 +1,4 @@
+Please test the new skin selection on both iPhone and iPad.
+Focus on switching between presets, opening “Customize skin”, and changing your own background, card, text, and accent colors.
+
+Please verify that the custom skin updates the interface immediately and that your chosen colors remain saved after reopening the app.
