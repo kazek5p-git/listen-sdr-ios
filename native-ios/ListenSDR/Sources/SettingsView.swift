@@ -2,6 +2,7 @@ import ListenSDRCore
 import SwiftUI
 
 struct SettingsView: View {
+  @AppStorage(AppTheme.selectionKey) private var selectedThemeID = AppThemeOption.classic.rawValue
   @EnvironmentObject private var settingsController: SettingsViewController
   @EnvironmentObject private var recordingStore: RecordingStore
   @State private var isCheckingFeedbackServer = false
@@ -19,6 +20,7 @@ struct SettingsView: View {
       .scrollContentBackground(.hidden)
       .navigationTitle(L10n.text("Settings"))
       .appScreenBackground()
+      .foregroundStyle(AppTheme.primaryText)
       .sheet(isPresented: $isRecordingFolderPickerPresented) {
         RecordingFolderPicker(
           onPick: { url in
@@ -207,6 +209,16 @@ struct SettingsView: View {
 
       NavigationLink {
         settingsDestinationScreen(
+          title: L10n.text("settings.appearance.section", fallback: "Appearance")
+        ) {
+          appearanceSection
+        }
+      } label: {
+        Text(L10n.text("settings.appearance.section", fallback: "Appearance"))
+      }
+
+      NavigationLink {
+        settingsDestinationScreen(
           title: L10n.text("settings.accessibility.section")
         ) {
           accessibilitySection
@@ -277,6 +289,62 @@ struct SettingsView: View {
     .scrollContentBackground(.hidden)
     .navigationTitle(title)
     .appScreenBackground()
+    .foregroundStyle(AppTheme.primaryText)
+    .id(selectedThemeID)
+  }
+
+  private var appearanceSection: some View {
+    Section {
+      settingsInfoBlock(
+        title: L10n.text("settings.appearance.theme.title", fallback: "Color theme"),
+        description: L10n.text(
+          "settings.appearance.theme.description",
+          fallback: "Choose the visual skin that feels best to you. This only changes the look and colors, not the layout or workflow."
+        )
+      )
+
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text("settings.appearance.theme.title", fallback: "Color theme"),
+          options: appearanceThemeOptions(),
+          selectedID: selectedThemeID,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text("settings.appearance.theme.title", fallback: "Color theme")
+          )
+        ) { value in
+          if AppThemeOption(rawValue: value) != nil {
+            selectedThemeID = value
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text("settings.appearance.theme.title", fallback: "Color theme"),
+          value: selectedThemeTitle
+        )
+      }
+
+      Text(selectedThemeDetail)
+        .font(.footnote)
+        .foregroundStyle(AppTheme.secondaryText)
+
+      NavigationLink {
+        CustomThemeEditorView()
+      } label: {
+        LabeledContent(
+          L10n.text(
+            "settings.appearance.custom.navigation_title",
+            fallback: "Customize skin"
+          ),
+          value: L10n.text(
+            "settings.appearance.theme.custom",
+            fallback: "Custom"
+          )
+        )
+      }
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.appearance.section", fallback: "Appearance"))
+    }
+    .appSectionStyle()
   }
 
   private var startupSection: some View {
@@ -1387,7 +1455,7 @@ struct SettingsView: View {
 
       Text(description)
         .font(.footnote)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(AppTheme.secondaryText)
     }
     .accessibilityElement(children: .combine)
   }
@@ -1484,6 +1552,28 @@ struct SettingsView: View {
         detail: policy.localizedDetail
       )
     }
+  }
+
+  private func appearanceThemeOptions() -> [SelectionListOption] {
+    AppThemeOption.allCases.map { theme in
+      SelectionListOption(
+        id: theme.rawValue,
+        title: theme.localizedTitle,
+        detail: theme.localizedDetail
+      )
+    }
+  }
+
+  private var selectedThemeOption: AppThemeOption {
+    AppThemeOption(rawValue: selectedThemeID) ?? .classic
+  }
+
+  private var selectedThemeTitle: String {
+    selectedThemeOption.localizedTitle
+  }
+
+  private var selectedThemeDetail: String {
+    selectedThemeOption.localizedDetail
   }
 
   private func scannerSlider(

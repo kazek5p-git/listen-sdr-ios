@@ -4,6 +4,7 @@ import UIKit
 struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   @AppStorage("ListenSDR.hasShownFirstConnectionTips.v1") private var hasShownFirstConnectionTips = false
+  @AppStorage(AppTheme.selectionKey) private var selectedThemeID = AppThemeOption.classic.rawValue
   @EnvironmentObject private var accessibilityState: AppAccessibilityState
   @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
@@ -37,6 +38,8 @@ struct ContentView: View {
         }
     }
     .tint(AppTheme.tint)
+    .foregroundStyle(AppTheme.primaryText)
+    .id(selectedThemeID)
     .toolbarBackground(.regularMaterial, for: .tabBar)
     .toolbarBackground(.visible, for: .tabBar)
     .background(AppAccessibilityRotorHost())

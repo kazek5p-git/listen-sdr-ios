@@ -452,6 +452,7 @@ struct AppSectionHeader: View {
   var body: some View {
     Text(title)
       .textCase(nil)
+      .foregroundStyle(AppTheme.secondaryText)
       .accessibilityAddTraits(.isHeader)
   }
 }

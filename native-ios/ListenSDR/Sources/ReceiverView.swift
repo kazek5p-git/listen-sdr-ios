@@ -4315,12 +4315,12 @@ struct SelectionListView: View {
             HStack(spacing: 12) {
               VStack(alignment: .leading, spacing: 2) {
                 Text(option.title)
-                  .foregroundStyle(.primary)
+                  .foregroundStyle(AppTheme.primaryText)
 
                 if let detail = option.detail, !detail.isEmpty {
                   Text(detail)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.secondaryText)
                 }
               }
 
@@ -4345,6 +4345,7 @@ struct SelectionListView: View {
     .navigationTitle(title)
     .navigationBarTitleDisplayMode(.inline)
     .appScreenBackground()
+    .foregroundStyle(AppTheme.primaryText)
   }
 }
 
