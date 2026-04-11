@@ -13,7 +13,7 @@ struct CustomThemeEditorView: View {
   @AppStorage(AppTheme.customAccentKey) private var accentHex = AppTheme.defaultCustomAccentHex
 
   var body: some View {
-    SwiftUI.Form {
+    Form {
       Section {
         VStack(alignment: .leading, spacing: 8) {
           Text(
