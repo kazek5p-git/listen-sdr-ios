@@ -409,6 +409,8 @@
 "settings.accessibility.magic_tap.disconnect.detail" = "Ends the current connection and stops the audio stream.";
 "settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute" = "Start or stop recording";
 "settings.accessibility.magic_tap.stop_recording_if_active_otherwise_toggle_mute.detail" = "Stops an active recording; otherwise starts recording the current receiver.";
+"settings.accessibility.speech_loudness_leveling" = "Speech loudness leveling";
+"settings.accessibility.speech_loudness_leveling.hint" = "Keeps KiwiSDR and OpenWebRX speech audio closer to one listening level. Recordings and FM-DX playback stay unchanged.";
 "accessibility.rds_announcement.station" = "Station %@";
 "accessibility.rds_announcement.ps" = "RDS station %@";
 "accessibility.rds_announcement.rt" = "RDS text %@";
@@ -517,6 +519,8 @@
 "settings.tuning.typed_frequency.manual.detail" = "Shows the Apply button and tunes only after manual confirmation.";
 "settings.tuning.tune_confirmation_warnings" = "Show tune confirmation warnings";
 "settings.tuning.tune_confirmation_warnings.hint" = "Shows warnings when the receiver does not confirm tuning or reports a different frequency or mode than requested.";
+"settings.tuning.fmdx_tune_confirmation_warnings" = "Show FM-DX tune confirmation warnings";
+"settings.tuning.fmdx_tune_confirmation_warnings.hint" = "Shows warnings when an FM-DX receiver does not confirm tuning or reports a different frequency than requested.";
 "settings.tuning.tune_confirmation_warning_timeout" = "The receiver did not confirm tuning to %@.";
 "settings.tuning.tune_confirmation_warning_mismatch" = "The receiver tuned to %@ instead of %@.";
 "favorites.section" = "Favorites";
