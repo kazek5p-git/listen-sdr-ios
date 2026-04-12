@@ -1,5 +1,6 @@
 import ListenSDRCore
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
   @AppStorage(AppTheme.selectionKey) private var selectedThemeID = AppThemeOption.classic.rawValue
@@ -12,6 +13,8 @@ struct SettingsView: View {
   @State private var settingsBackupDocument: SettingsBackupDocument?
   @State private var isSettingsBackupExporterPresented = false
   @State private var isSettingsBackupImporterPresented = false
+  @State private var customThemeImportPayload = ""
+  @State private var isCustomThemeImportSheetPresented = false
 
   var body: some View {
     NavigationStack {
@@ -31,6 +34,71 @@ struct SettingsView: View {
             isRecordingFolderPickerPresented = false
           }
         )
+      }
+      .sheet(isPresented: $isCustomThemeImportSheetPresented) {
+        NavigationStack {
+          VStack(alignment: .leading, spacing: 12) {
+            Text(
+              L10n.text(
+                "settings.appearance.custom.import.description",
+                fallback: "Paste a custom skin JSON export here. Importing replaces your current custom colors."
+              )
+            )
+            .font(.footnote)
+            .foregroundStyle(AppTheme.secondaryText)
+
+            TextEditor(text: $customThemeImportPayload)
+              .frame(minHeight: 220)
+              .padding(8)
+              .background(AppTheme.cardFill)
+              .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                  .stroke(AppTheme.cardStroke, lineWidth: 1)
+              }
+
+            HStack(spacing: 12) {
+              FocusRetainingButton {
+                customThemeImportPayload = UIPasteboard.general.string ?? ""
+              } label: {
+                Text(
+                  L10n.text(
+                    "settings.appearance.custom.import.load_clipboard",
+                    fallback: "Load clipboard"
+                  )
+                )
+              }
+
+              FocusRetainingButton {
+                applyImportedCustomTheme(customThemeImportPayload)
+              } label: {
+                Text(
+                  L10n.text(
+                    "settings.appearance.custom.import.apply",
+                    fallback: "Import custom skin"
+                  )
+                )
+              }
+            }
+
+            Spacer()
+          }
+          .padding()
+          .navigationTitle(
+            L10n.text(
+              "settings.appearance.custom.import.sheet_title",
+              fallback: "Import custom skin"
+            )
+          )
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(L10n.text("Cancel")) {
+                isCustomThemeImportSheetPresented = false
+              }
+            }
+          }
+          .appScreenBackground()
+        }
       }
       .fileExporter(
         isPresented: $isSettingsBackupExporterPresented,
@@ -295,13 +363,14 @@ struct SettingsView: View {
 
   private var appearanceSection: some View {
     Section {
-      settingsInfoBlock(
-        title: L10n.text("settings.appearance.theme.title", fallback: "Color theme"),
-        description: L10n.text(
+      Text(
+        L10n.text(
           "settings.appearance.theme.description",
           fallback: "Choose the visual skin that feels best to you. This only changes the look and colors, not the layout or workflow."
         )
       )
+      .font(.footnote)
+      .foregroundStyle(AppTheme.secondaryText)
 
       NavigationLink {
         SelectionListView(
@@ -341,8 +410,6 @@ struct SettingsView: View {
           )
         )
       }
-    } header: {
-      AppSectionHeader(title: L10n.text("settings.appearance.section", fallback: "Appearance"))
     }
     .appSectionStyle()
   }
@@ -443,6 +510,67 @@ struct SettingsView: View {
           fallback: "Creates or restores a settings backup file that you can keep, copy, or move to another device."
         )
       )
+
+      settingsInfoBlock(
+        title: L10n.text("settings.backup_restore.custom_skin.title", fallback: "Custom skin"),
+        description: L10n.text(
+          "settings.backup_restore.custom_skin.description",
+          fallback: "Copy, share, or import the JSON for your own skin. This only affects the custom skin colors, not the rest of the app settings."
+        )
+      )
+
+      FocusRetainingButton {
+        copyCustomThemeToClipboard()
+      } label: {
+        Text(
+          L10n.text(
+            "settings.appearance.custom.export.copy",
+            fallback: "Copy custom skin JSON"
+          )
+        )
+      }
+
+      if let exportPayload = try? AppTheme.exportCustomThemeJSONString() {
+        ShareLink(
+          item: exportPayload,
+          preview: SharePreview(
+            L10n.text(
+              "settings.appearance.custom.export.share_title",
+              fallback: "Listen SDR custom skin"
+            )
+          )
+        ) {
+          Text(
+            L10n.text(
+              "settings.appearance.custom.export.share",
+              fallback: "Share custom skin JSON"
+            )
+          )
+        }
+      }
+
+      FocusRetainingButton {
+        importCustomThemeFromClipboard()
+      } label: {
+        Text(
+          L10n.text(
+            "settings.appearance.custom.import.clipboard",
+            fallback: "Import custom skin from clipboard"
+          )
+        )
+      }
+
+      FocusRetainingButton {
+        customThemeImportPayload = UIPasteboard.general.string ?? ""
+        isCustomThemeImportSheetPresented = true
+      } label: {
+        Text(
+          L10n.text(
+            "settings.appearance.custom.import.manual",
+            fallback: "Paste custom skin JSON"
+          )
+        )
+      }
 
       settingsInfoBlock(
         title: L10n.text("settings.backup.scope.title", fallback: "Backup contents"),
@@ -1574,6 +1702,61 @@ struct SettingsView: View {
 
   private var selectedThemeDetail: String {
     selectedThemeOption.localizedDetail
+  }
+
+  private func copyCustomThemeToClipboard() {
+    do {
+      UIPasteboard.general.string = try AppTheme.exportCustomThemeJSONString()
+      activeAlert = FeedbackServerAlert(
+        title: L10n.text(
+          "settings.appearance.custom.export.success.title",
+          fallback: "Custom skin copied"
+        ),
+        message: L10n.text(
+          "settings.appearance.custom.export.success.body",
+          fallback: "The custom skin JSON was copied to the clipboard."
+        )
+      )
+    } catch {
+      activeAlert = FeedbackServerAlert(
+        title: L10n.text(
+          "settings.appearance.custom.export.failure.title",
+          fallback: "Unable to export custom skin"
+        ),
+        message: error.localizedDescription
+      )
+    }
+  }
+
+  private func importCustomThemeFromClipboard() {
+    applyImportedCustomTheme(UIPasteboard.general.string ?? "")
+  }
+
+  private func applyImportedCustomTheme(_ rawValue: String) {
+    do {
+      try AppTheme.importCustomTheme(from: rawValue)
+      selectedThemeID = AppThemeOption.custom.rawValue
+      customThemeImportPayload = try AppTheme.exportCustomThemeJSONString()
+      isCustomThemeImportSheetPresented = false
+      activeAlert = FeedbackServerAlert(
+        title: L10n.text(
+          "settings.appearance.custom.import.success.title",
+          fallback: "Custom skin imported"
+        ),
+        message: L10n.text(
+          "settings.appearance.custom.import.success.body",
+          fallback: "The imported custom skin is now active."
+        )
+      )
+    } catch {
+      activeAlert = FeedbackServerAlert(
+        title: L10n.text(
+          "settings.appearance.custom.import.failure.title",
+          fallback: "Unable to import custom skin"
+        ),
+        message: error.localizedDescription
+      )
+    }
   }
 
   private func scannerSlider(

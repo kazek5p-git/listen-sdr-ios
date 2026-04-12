@@ -11,9 +11,6 @@ struct CustomThemeEditorView: View {
   @AppStorage(AppTheme.customSecondaryTextKey) private var secondaryTextHex = AppTheme.defaultCustomSecondaryTextHex
   @AppStorage(AppTheme.customTintKey) private var tintHex = AppTheme.defaultCustomTintHex
   @AppStorage(AppTheme.customAccentKey) private var accentHex = AppTheme.defaultCustomAccentHex
-  @State private var importPayload = ""
-  @State private var isImportSheetPresented = false
-  @State private var statusAlert: CustomThemeStatusAlert?
 
   var body: some View {
     List {
@@ -115,59 +112,6 @@ struct CustomThemeEditorView: View {
       .appSectionStyle()
 
       Section {
-        FocusRetainingButton {
-          copyCustomThemeToClipboard()
-        } label: {
-          Text(
-            L10n.text(
-              "settings.appearance.custom.export.copy",
-              fallback: "Copy custom skin JSON"
-            )
-          )
-        }
-
-        if let exportPayload = try? AppTheme.exportCustomThemeJSONString() {
-          ShareLink(
-            item: exportPayload,
-            preview: SharePreview(
-              L10n.text(
-                "settings.appearance.custom.export.share_title",
-                fallback: "Listen SDR custom skin"
-              )
-            )
-          ) {
-            Text(
-              L10n.text(
-                "settings.appearance.custom.export.share",
-                fallback: "Share custom skin JSON"
-              )
-            )
-          }
-        }
-
-        FocusRetainingButton {
-          importCustomThemeFromClipboard()
-        } label: {
-          Text(
-            L10n.text(
-              "settings.appearance.custom.import.clipboard",
-              fallback: "Import custom skin from clipboard"
-            )
-          )
-        }
-
-        FocusRetainingButton {
-          importPayload = UIPasteboard.general.string ?? ""
-          isImportSheetPresented = true
-        } label: {
-          Text(
-            L10n.text(
-              "settings.appearance.custom.import.manual",
-              fallback: "Paste custom skin JSON"
-            )
-          )
-        }
-
         FocusRetainingButton({
           AppTheme.resetCustomTheme()
           selectedThemeID = AppThemeOption.custom.rawValue
@@ -195,84 +139,6 @@ struct CustomThemeEditorView: View {
     .navigationBarTitleDisplayMode(.inline)
     .appScreenBackground()
     .foregroundStyle(AppTheme.primaryText)
-    .sheet(isPresented: $isImportSheetPresented) {
-      NavigationStack {
-        VStack(alignment: .leading, spacing: 12) {
-          Text(
-            L10n.text(
-              "settings.appearance.custom.import.description",
-              fallback: "Paste a custom skin JSON export here. Importing replaces your current custom colors."
-            )
-          )
-          .font(.footnote)
-          .foregroundStyle(AppTheme.secondaryText)
-
-          TextEditor(text: $importPayload)
-            .frame(minHeight: 220)
-            .padding(8)
-            .background(AppTheme.cardFill)
-            .overlay {
-              RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AppTheme.cardStroke, lineWidth: 1)
-            }
-
-          HStack(spacing: 12) {
-            FocusRetainingButton {
-              importPayload = UIPasteboard.general.string ?? ""
-            } label: {
-              Text(
-                L10n.text(
-                  "settings.appearance.custom.import.load_clipboard",
-                  fallback: "Load clipboard"
-                )
-              )
-            }
-
-            FocusRetainingButton {
-              applyImportedPayload(importPayload)
-            } label: {
-              Text(
-                L10n.text(
-                  "settings.appearance.custom.import.apply",
-                  fallback: "Import custom skin"
-                )
-              )
-            }
-          }
-
-          Spacer()
-        }
-        .padding()
-        .navigationTitle(
-          L10n.text(
-            "settings.appearance.custom.import.sheet_title",
-            fallback: "Import custom skin"
-          )
-        )
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button(L10n.text("Cancel")) {
-              isImportSheetPresented = false
-            }
-          }
-        }
-        .appScreenBackground()
-      }
-    }
-    .alert(
-      statusAlert?.title ?? "",
-      isPresented: Binding(
-        get: { statusAlert != nil },
-        set: { if !$0 { statusAlert = nil } }
-      )
-    ) {
-      Button(L10n.text("OK")) {
-        statusAlert = nil
-      }
-    } message: {
-      Text(statusAlert?.message ?? "")
-    }
   }
 
   private func colorBinding(hex: Binding<String>, fallbackHex: String) -> Binding<Color> {
@@ -302,61 +168,6 @@ struct CustomThemeEditorView: View {
     tintHex = AppTheme.customColorsSnapshot.tint
     accentHex = AppTheme.customColorsSnapshot.accent
   }
-
-  private func copyCustomThemeToClipboard() {
-    do {
-      UIPasteboard.general.string = try AppTheme.exportCustomThemeJSONString()
-      statusAlert = CustomThemeStatusAlert(
-        title: L10n.text(
-          "settings.appearance.custom.export.success.title",
-          fallback: "Custom skin copied"
-        ),
-        message: L10n.text(
-          "settings.appearance.custom.export.success.body",
-          fallback: "The custom skin JSON was copied to the clipboard."
-        )
-      )
-    } catch {
-      statusAlert = CustomThemeStatusAlert(
-        title: L10n.text(
-          "settings.appearance.custom.export.failure.title",
-          fallback: "Unable to export custom skin"
-        ),
-        message: error.localizedDescription
-      )
-    }
-  }
-
-  private func importCustomThemeFromClipboard() {
-    applyImportedPayload(UIPasteboard.general.string ?? "")
-  }
-
-  private func applyImportedPayload(_ rawValue: String) {
-    do {
-      try AppTheme.importCustomTheme(from: rawValue)
-      selectedThemeID = AppThemeOption.custom.rawValue
-      syncVisibleHexFields()
-      isImportSheetPresented = false
-      statusAlert = CustomThemeStatusAlert(
-        title: L10n.text(
-          "settings.appearance.custom.import.success.title",
-          fallback: "Custom skin imported"
-        ),
-        message: L10n.text(
-          "settings.appearance.custom.import.success.body",
-          fallback: "The imported custom skin is now active."
-        )
-      )
-    } catch {
-      statusAlert = CustomThemeStatusAlert(
-        title: L10n.text(
-          "settings.appearance.custom.import.failure.title",
-          fallback: "Unable to import custom skin"
-        ),
-        message: error.localizedDescription
-      )
-    }
-  }
 }
 
 private struct CustomThemeColorPickerRow: View {
@@ -367,10 +178,4 @@ private struct CustomThemeColorPickerRow: View {
     ColorPicker(title, selection: $selection, supportsOpacity: true)
       .foregroundStyle(AppTheme.primaryText)
   }
-}
-
-private struct CustomThemeStatusAlert: Identifiable {
-  let id = UUID()
-  let title: String
-  let message: String
 }

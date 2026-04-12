@@ -602,120 +602,12 @@ export default function App() {
             </Pressable>
           </View>
 
-          <View style={styles.buttonRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                void handleCopyCustomTheme();
-              }}
-              style={({ pressed }) => [
-                styles.actionButton,
-                {
-                  backgroundColor: draftTheme.backgroundSecondary,
-                  borderColor: draftTheme.cardBorder,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
-            >
-              <Text style={[styles.actionButtonText, { color: draftTheme.tint }]}>
-                Kopiuj JSON
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                void handleShareCustomTheme();
-              }}
-              style={({ pressed }) => [
-                styles.actionButton,
-                {
-                  backgroundColor: draftTheme.card,
-                  borderColor: draftTheme.cardBorder,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}
-            >
-              <Text style={[styles.actionButtonText, { color: draftTheme.text }]}>
-                Udostępnij JSON
-              </Text>
-            </Pressable>
-          </View>
-
           <ThemeCard theme={draftTheme} nested>
             <Text style={[styles.cardTitle, { color: draftTheme.text }]}>Podgląd własnej skórki</Text>
             <Text style={[styles.cardDescription, { color: draftTheme.textMuted }]}>
               Tak będzie wyglądał wariant własny po zapisaniu.
             </Text>
             <ThemeSwatches theme={draftTheme} />
-          </ThemeCard>
-
-          <ThemeCard theme={draftTheme} nested>
-            <Text style={[styles.cardTitle, { color: draftTheme.text }]}>Import własnej skórki</Text>
-            <Text style={[styles.cardDescription, { color: draftTheme.textMuted }]}>
-              Wklej JSON eksportu własnej skórki albo wczytaj go ze schowka.
-            </Text>
-
-            <View style={styles.buttonRow}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  void handleLoadImportFromClipboard();
-                }}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  {
-                    backgroundColor: draftTheme.backgroundSecondary,
-                    borderColor: draftTheme.cardBorder,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.actionButtonText, { color: draftTheme.tint }]}>
-                  Wczytaj ze schowka
-                </Text>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  void handleImportCustomTheme(importJsonInput);
-                }}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  {
-                    backgroundColor: draftTheme.card,
-                    borderColor: draftTheme.cardBorder,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.actionButtonText, { color: draftTheme.text }]}>
-                  Importuj JSON
-                </Text>
-              </Pressable>
-            </View>
-
-            <TextInput
-              accessibilityLabel="JSON własnej skórki"
-              autoCapitalize="none"
-              autoCorrect={false}
-              multiline
-              numberOfLines={8}
-              onChangeText={setImportJsonInput}
-              placeholder={'{\n  "schemaVersion": 1,\n  "theme": "custom"\n}'}
-              placeholderTextColor={draftTheme.textMuted}
-              style={[
-                styles.importInput,
-                {
-                  backgroundColor: draftTheme.card,
-                  borderColor: draftTheme.cardBorder,
-                  color: draftTheme.text,
-                },
-              ]}
-              textAlignVertical="top"
-              value={importJsonInput}
-            />
           </ThemeCard>
 
           <View style={styles.fieldList}>
@@ -762,10 +654,6 @@ export default function App() {
 
           {customError ? (
             <Text style={styles.errorText}>{customError}</Text>
-          ) : importExportStatus ? (
-            <Text style={[styles.helperText, { color: draftTheme.textMuted }]}>
-              {importExportStatus}
-            </Text>
           ) : (
             <Text style={[styles.helperText, { color: draftTheme.textMuted }]}>
               Akceptowane są wartości w formacie #RRGGBB lub #RRGGBBAA.
@@ -788,6 +676,121 @@ export default function App() {
           >
             <Text style={styles.primaryButtonText}>Zastosuj własną skórkę</Text>
           </Pressable>
+        </ThemeCard>
+
+        <ThemeCard theme={activeTheme}>
+          <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Kopia i przywracanie</Text>
+          <Text style={[styles.cardDescription, { color: activeTheme.textMuted }]}>
+            Tutaj skopiujesz, udostępnisz albo przywrócisz JSON własnej skórki bez mieszania tego
+            z samą edycją kolorów.
+          </Text>
+
+          <View style={styles.buttonRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                void handleCopyCustomTheme();
+              }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                {
+                  backgroundColor: activeTheme.backgroundSecondary,
+                  borderColor: activeTheme.cardBorder,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
+                Kopiuj JSON
+              </Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                void handleShareCustomTheme();
+              }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                {
+                  backgroundColor: activeTheme.card,
+                  borderColor: activeTheme.cardBorder,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.actionButtonText, { color: activeTheme.text }]}>
+                Udostępnij JSON
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.buttonRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                void handleLoadImportFromClipboard();
+              }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                {
+                  backgroundColor: activeTheme.backgroundSecondary,
+                  borderColor: activeTheme.cardBorder,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
+                Wczytaj ze schowka
+              </Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                void handleImportCustomTheme(importJsonInput);
+              }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                {
+                  backgroundColor: activeTheme.card,
+                  borderColor: activeTheme.cardBorder,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.actionButtonText, { color: activeTheme.text }]}>
+                Importuj JSON
+              </Text>
+            </Pressable>
+          </View>
+
+          <TextInput
+            accessibilityLabel="JSON własnej skórki"
+            autoCapitalize="none"
+            autoCorrect={false}
+            multiline
+            numberOfLines={8}
+            onChangeText={setImportJsonInput}
+            placeholder={'{\n  "schemaVersion": 1,\n  "theme": "custom"\n}'}
+            placeholderTextColor={activeTheme.textMuted}
+            style={[
+              styles.importInput,
+              {
+                backgroundColor: activeTheme.card,
+                borderColor: activeTheme.cardBorder,
+                color: activeTheme.text,
+              },
+            ]}
+            textAlignVertical="top"
+            value={importJsonInput}
+          />
+
+          {importExportStatus ? (
+            <Text style={[styles.helperText, { color: activeTheme.textMuted }]}>
+              {importExportStatus}
+            </Text>
+          ) : null}
         </ThemeCard>
       </ScrollView>
     </SafeAreaView>
