@@ -131,7 +131,6 @@
 		301576C788F755FF6721E79F /* KiwiWaterfallViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiWaterfallViewport.swift; sourceTree = "<group>"; };
 		30CF02B6D5C9776336DA7B30 /* RadioSessionSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettingsTests.swift; sourceTree = "<group>"; };
 		317CE6791652B8E4C5A4327D /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
-		3A12B4C56D78E90F1234ABCD /* cs */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = cs; path = cs.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
 		3BA532EA2B2941E71FB621C0 /* ListenSDRCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ListenSDRCore; path = ../shared/ListenSDRCore; sourceTree = SOURCE_ROOT; };
 		3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SDRBackendClient.swift; sourceTree = "<group>"; };
@@ -147,6 +146,7 @@
 		538629FD19959273EAEB0434 /* ReceiverIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverIdentity.swift; sourceTree = "<group>"; };
 		53C8E30919D0CCF77C1D172C /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
 		55C98F5F2FA36C04B236D295 /* OpenWebRXScannerSquelchPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenWebRXScannerSquelchPolicyTests.swift; sourceTree = "<group>"; };
+		560FA22463CD70E5ED874A7A /* cs */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = cs; path = cs.lproj/Localizable.strings; sourceTree = "<group>"; };
 		5854269FF520F5087EA1E2F3 /* ListenSDRFeedbackSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenSDRFeedbackSender.swift; sourceTree = "<group>"; };
 		5C1B4F8D475FBFBB16DFC80D /* KiwiWaterfallProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiWaterfallProcessing.swift; sourceTree = "<group>"; };
 		5C500CC42DA09B139CDE2880 /* NativeAdjustableChipControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdjustableChipControl.swift; sourceTree = "<group>"; };
@@ -168,7 +168,6 @@
 		86D584BECE59BE8BE8B2AFF1 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		88475086572CB3D2B0573EC0 /* DirectoryChangeNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryChangeNotificationService.swift; sourceTree = "<group>"; };
 		887030AF4F58D8CE54A54C2F /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
-		8C34D5E67F8091A2B3C4D5E6 /* sk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = sk; path = sk.lproj/Localizable.strings; sourceTree = "<group>"; };
 		950DF21350969254EFC903CF /* ReceiverIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiverIdentityTests.swift; sourceTree = "<group>"; };
 		96F51D7953819B7CA4FF071D /* VoiceOverRotorControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOverRotorControl.swift; sourceTree = "<group>"; };
 		9C02A583D9687A70C4BFDB7B /* DemodulationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemodulationMode.swift; sourceTree = "<group>"; };
@@ -210,6 +209,7 @@
 		F01FFB853C809B874633967E /* RecordingFolderPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingFolderPicker.swift; sourceTree = "<group>"; };
 		F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXBandScannerTests.swift; sourceTree = "<group>"; };
 		F40FD43C9BD9E6E292499D9D /* CustomThemeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomThemeEditorView.swift; sourceTree = "<group>"; };
+		F6876418A4DECE6BFD98FEB0 /* sk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = sk; path = sk.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettings.swift; sourceTree = "<group>"; };
 		FF8CEEFF5137077F585714EE /* AudioDecoders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDecoders.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -588,7 +588,7 @@
 		7B8C0A52D13309CB9883A20A /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
-				3A12B4C56D78E90F1234ABCD /* cs */,
+				560FA22463CD70E5ED874A7A /* cs */,
 				86D584BECE59BE8BE8B2AFF1 /* de */,
 				9D4640039B5A50DBCB293C69 /* en */,
 				D94B9941F71A65E867B363C7 /* es */,
@@ -596,7 +596,7 @@
 				53C8E30919D0CCF77C1D172C /* it */,
 				7F806ECE48FB8AF9299DF745 /* pl */,
 				887030AF4F58D8CE54A54C2F /* ru */,
-				8C34D5E67F8091A2B3C4D5E6 /* sk */,
+				F6876418A4DECE6BFD98FEB0 /* sk */,
 				82DF57675BC4A0C2E7238FF9 /* zh-Hans */,
 			);
 			name = Localizable.strings;
