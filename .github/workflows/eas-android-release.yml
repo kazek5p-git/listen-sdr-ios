@@ -83,12 +83,13 @@ jobs:
       - name: Prepare release notes
         run: |
           cat > release-notes.md <<EOF
-          This Android release refines custom skin handling and keeps the updated visual presets in sync with iOS.
+          This Android release expands the Listen SDR skin system and keeps it aligned with the current iOS/TestFlight build.
 
-          - keeps the preset skins, including the more elegant muted blue variant
-          - lets users edit their custom skin colors separately from backup and restore actions
-          - moves custom skin JSON copy, share, and import into the backup and restore area to match iOS
-          - aligns the Android visual theme flow with the current iOS/TestFlight release
+          - keeps the built-in presets: Classic, Mist Blue, Sea Glass, Warm Light, and the new High Contrast skin
+          - adds the brighter High Contrast preset with stronger text, card, and accent separation for better readability
+          - preserves the custom skin editor for your own background, card, text, border, and accent colors
+          - keeps custom skin JSON copy, share, and import in Backup and restore
+          - keeps Android and iOS skin names, presets, and custom-theme flow in sync
 
           EAS build ID: ${EAS_BUILD_ID}
           EOF

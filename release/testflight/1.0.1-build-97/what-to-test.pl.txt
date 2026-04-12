@@ -1,0 +1,12 @@
+Sprawdź ekran Wygląd na iPhonie i iPadzie.
+Najważniejsze są: przełączanie między wszystkimi skórkami, czyli Klasyczną, Przygaszonym błękitem, Morskim szkłem, Ciepłym światłem, Kontrastową i Własną.
+
+Sprawdź, czy nowa skórka „Kontrastowa” rzeczywiście daje wyraźniejsze odcięcie kart, mocniejszy tekst pomocniczy i bardziej czytelne akcenty, ale nadal wygląda estetycznie.
+
+Sprawdź też „Dostosuj skórkę”.
+Najważniejsze są: ustawianie własnych kolorów tła, kart, obramowań, tekstu i akcentów, przełączenie aplikacji na skórkę własną od razu po zmianie koloru oraz poprawne zapamiętanie zmian po ponownym uruchomieniu aplikacji.
+
+Sprawdź sekcję „Kopia i przywracanie”.
+Najważniejsze są: kopiowanie JSON własnej skórki, udostępnianie JSON, import ze schowka i ręczne wklejenie JSON tak, aby po imporcie własna skórka od razu stała się aktywna.
+
+Jeśli testujesz po czesku lub słowacku, sprawdź też szybko ekran Wygląd i sekcję Kopia i przywracanie, żeby upewnić się, że nowe teksty skórek są przetłumaczone i mieszczą się poprawnie.

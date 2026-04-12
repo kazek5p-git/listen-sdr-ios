@@ -1,0 +1,12 @@
+Please test the Appearance screen on both iPhone and iPad.
+Focus on switching between all available skins: Classic, Mist Blue, Sea Glass, Warm Light, High Contrast, and Custom.
+
+Please verify that the new “High Contrast” skin gives clearer card separation, stronger secondary text, and more readable accents while still feeling visually polished.
+
+Please also test “Customize skin”.
+Focus on changing your own background, card, border, text, and accent colors, confirm that the app switches to the custom skin immediately after a color change, and verify that the selected values remain saved after reopening the app.
+
+Please test the “Backup and restore” section as well.
+Focus on copying the custom skin JSON, sharing it, importing from the clipboard, and pasting JSON manually so that the imported custom skin becomes active immediately.
+
+If you test in Czech or Slovak, please also do a quick check of the Appearance screen and Backup and restore section to confirm that the new skin strings are translated and fit correctly.
