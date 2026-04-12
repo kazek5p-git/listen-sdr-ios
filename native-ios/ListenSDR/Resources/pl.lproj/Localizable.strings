@@ -292,6 +292,8 @@
 "fmdx.af_scan_name" = "AF %@";
 "fmdx.tune_warning_mismatch" = "Rozjazd strojenia. Zadano %@, odbiornik podaje %@.";
 "fmdx.tune_warning_no_confirmation" = "Brak potwierdzenia strojenia dla %@.";
+"fmdx.locked.title" = "Odbiornik zablokowany";
+"fmdx.locked.body" = "Ten serwer FM-DX wymaga hasła do strojenia. Bez niego zdalne strojenie i zmiany sterowania są niedostępne.";
 
 "backend.kiwi" = "KiwiSDR";
 "backend.openwebrx" = "OpenWebRX";
