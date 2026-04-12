@@ -1,0 +1,7 @@
+Please test the Appearance screen on both iPhone and iPad.
+Focus on switching between presets, confirming there are no redundant duplicated headings when the screen opens, opening “Customize skin”, and changing your own background, card, text, and accent colors.
+
+Please also test the “Backup and restore” section.
+Focus on copying the custom skin JSON, sharing it, importing from the clipboard, and pasting JSON manually so that the imported custom skin becomes active immediately.
+
+Please verify that changing or importing a custom skin refreshes the interface right away and that the chosen colors remain saved after reopening the app.

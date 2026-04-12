@@ -83,11 +83,12 @@ jobs:
       - name: Prepare release notes
         run: |
           cat > release-notes.md <<EOF
-          This Android release adds customizable skins and keeps the updated visual presets in sync with iOS.
+          This Android release refines custom skin handling and keeps the updated visual presets in sync with iOS.
 
-          - added a custom skin editor so users can choose their own colors for background, cards, text, and accents
-          - kept the existing preset skins, including the more elegant muted blue variant
-          - aligned the Android visual theme work with the current iOS/TestFlight release
+          - keeps the preset skins, including the more elegant muted blue variant
+          - lets users edit their custom skin colors separately from backup and restore actions
+          - moves custom skin JSON copy, share, and import into the backup and restore area to match iOS
+          - aligns the Android visual theme flow with the current iOS/TestFlight release
 
           EAS build ID: ${EAS_BUILD_ID}
           EOF

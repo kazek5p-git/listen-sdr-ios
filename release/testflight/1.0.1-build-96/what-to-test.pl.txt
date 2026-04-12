@@ -1,0 +1,7 @@
+Sprawdź ekran Wygląd na iPhonie i iPadzie.
+Najważniejsze są: przełączanie między presetami, brak zbędnych zdublowanych nagłówków po wejściu, wejście w „Dostosuj skórkę” oraz ustawianie własnych kolorów tła, kart, tekstu i akcentów.
+
+Sprawdź też sekcję „Kopia i przywracanie”.
+Najważniejsze są: kopiowanie JSON własnej skórki, udostępnianie JSON, import ze schowka i ręczne wklejenie JSON tak, aby po imporcie własna skórka od razu stała się aktywna.
+
+Zwróć uwagę, czy po zmianie lub imporcie własnej skórki aplikacja od razu odświeża wygląd i czy ustawienia zostają zapamiętane po ponownym uruchomieniu.
