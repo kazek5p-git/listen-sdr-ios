@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-type ThemeId = 'classic' | 'mistBlue' | 'seaGlass' | 'warmLight' | 'custom';
+type ThemeId = 'classic' | 'mistBlue' | 'seaGlass' | 'warmLight' | 'highContrast' | 'custom';
 type ThemeField =
   | 'background'
   | 'backgroundSecondary'
@@ -98,6 +98,20 @@ const PRESET_THEMES: ThemePalette[] = [
     textMuted: '#705844',
     tint: '#B26B1F',
     accent: '#D6923A',
+    statusBarStyle: 'dark',
+  },
+  {
+    id: 'highContrast',
+    name: 'Kontrastowa',
+    description: 'Jasny motyw z mocniejszym kontrastem tekstu, kart i akcentów dla lepszej czytelności.',
+    background: '#F4F7FB',
+    backgroundSecondary: '#DCE4F0',
+    card: '#FFFFFF',
+    cardBorder: '#4A617D',
+    text: '#0F1B2D',
+    textMuted: '#2D405C',
+    tint: '#0B4EA2',
+    accent: '#0A6C66',
     statusBarStyle: 'dark',
   },
 ];
@@ -324,6 +338,7 @@ export default function App() {
           storedThemeId === 'mistBlue' ||
           storedThemeId === 'seaGlass' ||
           storedThemeId === 'warmLight' ||
+          storedThemeId === 'highContrast' ||
           storedThemeId === 'custom'
             ? storedThemeId
             : 'classic';

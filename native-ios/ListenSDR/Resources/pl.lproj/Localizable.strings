@@ -1098,6 +1098,8 @@
 "settings.appearance.theme.sea_glass.detail" = "Świeży turkusowo-morski motyw z czytelnymi kartami i delikatnym kontrastem.";
 "settings.appearance.theme.warm_light" = "Ciepłe światło";
 "settings.appearance.theme.warm_light.detail" = "Jasny, cieplejszy motyw z kremowym tłem i łagodnymi bursztynowymi akcentami.";
+"settings.appearance.theme.high_contrast" = "Kontrastowa";
+"settings.appearance.theme.high_contrast.detail" = "Jasny motyw z mocniejszym kontrastem tekstu, kart i akcentów dla lepszej czytelności.";
 "settings.appearance.theme.custom" = "Własna";
 "settings.appearance.theme.custom.detail" = "Wybierz własne kolory tła, kart, obramowań, tekstu i akcentów.";
 "settings.appearance.custom.navigation_title" = "Dostosuj skórkę";

@@ -945,6 +945,8 @@
 "settings.appearance.theme.sea_glass.detail" = "A fresh teal and sea-glass palette with clear cards and soft contrast.";
 "settings.appearance.theme.warm_light" = "Warm Light";
 "settings.appearance.theme.warm_light.detail" = "A warm bright theme with cream background and gentle amber accents.";
+"settings.appearance.theme.high_contrast" = "High Contrast";
+"settings.appearance.theme.high_contrast.detail" = "A bright theme with stronger text, card and accent contrast for better readability.";
 "settings.appearance.theme.custom" = "Custom";
 "settings.appearance.theme.custom.detail" = "Choose your own background, card, border, text and accent colors.";
 "settings.appearance.custom.navigation_title" = "Customize skin";

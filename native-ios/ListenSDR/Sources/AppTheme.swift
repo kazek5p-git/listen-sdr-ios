@@ -60,6 +60,7 @@ enum AppThemeOption: String, CaseIterable, Identifiable {
   case mistBlue
   case seaGlass
   case warmLight
+  case highContrast
   case custom
 
   var id: String { rawValue }
@@ -74,6 +75,8 @@ enum AppThemeOption: String, CaseIterable, Identifiable {
       return L10n.text("settings.appearance.theme.sea_glass", fallback: "Sea Glass")
     case .warmLight:
       return L10n.text("settings.appearance.theme.warm_light", fallback: "Warm Light")
+    case .highContrast:
+      return L10n.text("settings.appearance.theme.high_contrast", fallback: "High Contrast")
     case .custom:
       return L10n.text("settings.appearance.theme.custom", fallback: "Custom")
     }
@@ -100,6 +103,11 @@ enum AppThemeOption: String, CaseIterable, Identifiable {
       return L10n.text(
         "settings.appearance.theme.warm_light.detail",
         fallback: "A warm bright theme with cream background and gentle amber accents."
+      )
+    case .highContrast:
+      return L10n.text(
+        "settings.appearance.theme.high_contrast.detail",
+        fallback: "A brighter high-contrast theme with stronger text, card and accent separation."
       )
     case .custom:
       return L10n.text(
@@ -178,6 +186,23 @@ enum AppThemeOption: String, CaseIterable, Identifiable {
         primaryTextDark: UIColor(red: 0.99, green: 0.95, blue: 0.89, alpha: 1),
         secondaryTextLight: UIColor(red: 0.44, green: 0.33, blue: 0.21, alpha: 1),
         secondaryTextDark: UIColor(red: 0.92, green: 0.84, blue: 0.74, alpha: 1)
+      )
+    case .highContrast:
+      return AppTheme.makePalette(
+        tint: UIColor(red: 0.04, green: 0.31, blue: 0.64, alpha: 1),
+        accent: UIColor(red: 0.04, green: 0.42, blue: 0.40, alpha: 1),
+        backgroundTop: UIColor(red: 0.96, green: 0.97, blue: 0.98, alpha: 1),
+        backgroundBottom: UIColor(red: 0.86, green: 0.89, blue: 0.94, alpha: 1),
+        cardFillLight: UIColor(red: 1.00, green: 1.00, blue: 1.00, alpha: 0.98),
+        cardFillDark: UIColor(red: 0.07, green: 0.10, blue: 0.15, alpha: 0.96),
+        cardStrokeLight: UIColor(red: 0.29, green: 0.38, blue: 0.49, alpha: 0.32),
+        cardStrokeDark: UIColor(red: 0.77, green: 0.83, blue: 0.91, alpha: 0.34),
+        chipFillLight: UIColor(red: 0.04, green: 0.31, blue: 0.64, alpha: 0.12),
+        chipFillDark: UIColor(red: 0.77, green: 0.83, blue: 0.91, alpha: 0.20),
+        primaryTextLight: UIColor(red: 0.06, green: 0.11, blue: 0.18, alpha: 1),
+        primaryTextDark: UIColor(red: 0.97, green: 0.98, blue: 1.00, alpha: 1),
+        secondaryTextLight: UIColor(red: 0.18, green: 0.25, blue: 0.36, alpha: 1),
+        secondaryTextDark: UIColor(red: 0.86, green: 0.90, blue: 0.95, alpha: 1)
       )
     case .custom:
       return AppTheme.customPalette
