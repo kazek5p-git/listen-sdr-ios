@@ -47,7 +47,7 @@ const PRESET_THEMES: ThemePalette[] = [
   {
     id: 'classic',
     name: 'Klasyczny',
-    description: 'Obecny lekki wygląd z chłodnym, jasnym tłem i miękkimi akcentami.',
+    description: 'Obecny lekki wygl\u0105d z ch\u0142odnym, jasnym t\u0142em i mi\u0119kkimi akcentami.',
     background: '#F3F6FA',
     backgroundSecondary: '#E7EEF7',
     card: '#FFFFFF',
@@ -60,8 +60,8 @@ const PRESET_THEMES: ThemePalette[] = [
   },
   {
     id: 'mistBlue',
-    name: 'Przygaszony błękit',
-    description: 'Spokojny, elegancki błękit z bardziej szlachetnym i lekko ciemniejszym tonem.',
+    name: 'Przygaszony b\u0142\u0119kit',
+    description: 'Spokojny, elegancki b\u0142\u0119kit z bardziej szlachetnym i lekko ciemniejszym tonem.',
     background: '#E6ECF4',
     backgroundSecondary: '#D1DBE8',
     card: '#F9FBFD',
@@ -74,8 +74,8 @@ const PRESET_THEMES: ThemePalette[] = [
   },
   {
     id: 'seaGlass',
-    name: 'Morskie szkło',
-    description: 'Świeży morski motyw z lekkim turkusem i czystymi, czytelnymi kartami.',
+    name: 'Morskie szk\u0142o',
+    description: '\u015awie\u017cy morski motyw z lekkim turkusem i czystymi, czytelnymi kartami.',
     background: '#EAF7F5',
     backgroundSecondary: '#D9EFEA',
     card: '#FBFFFE',
@@ -88,8 +88,8 @@ const PRESET_THEMES: ThemePalette[] = [
   },
   {
     id: 'warmLight',
-    name: 'Ciepłe światło',
-    description: 'Jaśniejszy kremowy motyw z łagodnymi bursztynowymi akcentami.',
+    name: 'Ciep\u0142e \u015bwiat\u0142o',
+    description: 'Ja\u015bniejszy kremowy motyw z \u0142agodnymi bursztynowymi akcentami.',
     background: '#F8F2E7',
     backgroundSecondary: '#EFE4D1',
     card: '#FFFDFA',
@@ -103,7 +103,7 @@ const PRESET_THEMES: ThemePalette[] = [
   {
     id: 'highContrast',
     name: 'Kontrastowa',
-    description: 'Jasny motyw z mocniejszym kontrastem tekstu, kart i akcentów dla lepszej czytelności.',
+    description: 'Jasny motyw z mocniejszym kontrastem tekstu, kart i akcent\xf3w dla lepszej czytelno\u015bci.',
     background: '#F4F7FB',
     backgroundSecondary: '#DCE4F0',
     card: '#FFFFFF',
@@ -128,13 +128,13 @@ const DEFAULT_CUSTOM_THEME: ThemeColors = {
 };
 
 const COLOR_FIELDS: Array<{ field: ThemeField; label: string }> = [
-  { field: 'background', label: 'Tło główne' },
-  { field: 'backgroundSecondary', label: 'Tło pomocnicze' },
-  { field: 'card', label: 'Tło kart' },
+  { field: 'background', label: 'T\u0142o g\u0142\xf3wne' },
+  { field: 'backgroundSecondary', label: 'T\u0142o pomocnicze' },
+  { field: 'card', label: 'T\u0142o kart' },
   { field: 'cardBorder', label: 'Obramowanie kart' },
-  { field: 'text', label: 'Tekst główny' },
+  { field: 'text', label: 'Tekst g\u0142\xf3wny' },
   { field: 'textMuted', label: 'Tekst pomocniczy' },
-  { field: 'tint', label: 'Główny akcent' },
+  { field: 'tint', label: 'G\u0142\xf3wny akcent' },
   { field: 'accent', label: 'Drugi akcent' },
 ];
 
@@ -233,8 +233,8 @@ function makeThemePalette(
 function makeCustomTheme(colors: ThemeColors): ThemePalette {
   return makeThemePalette(
     'custom',
-    'Własna',
-    'Ręcznie ustawione kolory tła, kart, tekstu i akcentów.',
+    'W\u0142asna',
+    'R\u0119cznie ustawione kolory t\u0142a, kart, tekstu i akcent\xf3w.',
     colors
   );
 }
@@ -274,23 +274,23 @@ function exportCustomThemeJson(colors: ThemeColors): string {
 function parseImportedCustomTheme(input: string): ThemeColors {
   const trimmed = input.trim();
   if (!trimmed) {
-    throw new Error('Wklej JSON własnej skórki.');
+    throw new Error('Wklej JSON w\u0142asnej sk\xf3rki.');
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);
   } catch {
-    throw new Error('Nie udało się odczytać JSON własnej skórki.');
+    throw new Error('Nie uda\u0142o si\u0119 odczyta\u0107 JSON w\u0142asnej sk\xf3rki.');
   }
 
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('Plik lub tekst nie zawiera prawidłowej skórki.');
+    throw new Error('Plik lub tekst nie zawiera prawid\u0142owej sk\xf3rki.');
   }
 
   const colors = coerceThemeColors((parsed as { colors?: unknown }).colors);
   if (!colors) {
-    throw new Error('Importowana skórka nie zawiera kompletu poprawnych kolorów.');
+    throw new Error('Importowana sk\xf3rka nie zawiera kompletu poprawnych kolor\xf3w.');
   }
 
   return colors;
@@ -414,7 +414,7 @@ export default function App() {
     for (const { field, label } of COLOR_FIELDS) {
       const value = normalizeHex(customInputs[field]);
       if (!isValidHexColor(value)) {
-        setCustomError(`Pole „${label}” wymaga koloru w formacie #RRGGBB lub #RRGGBBAA.`);
+        setCustomError(`Pole \u201e${label}\u201d wymaga koloru w formacie #RRGGBB lub #RRGGBBAA.`);
         return;
       }
       normalizedColors[field] = value;
@@ -427,7 +427,7 @@ export default function App() {
 
   const handleCopyCustomTheme = async () => {
     await Clipboard.setStringAsync(exportCustomThemeJson(customTheme));
-    setImportExportStatus('JSON własnej skórki został skopiowany do schowka.');
+    setImportExportStatus('JSON w\u0142asnej sk\xf3rki zosta\u0142 skopiowany do schowka.');
   };
 
   const handleShareCustomTheme = async () => {
@@ -436,16 +436,16 @@ export default function App() {
         message: exportCustomThemeJson(customTheme),
         title: 'Listen SDR custom skin',
       });
-      setImportExportStatus('Udostępniono JSON własnej skórki.');
+      setImportExportStatus('Udost\u0119pniono JSON w\u0142asnej sk\xf3rki.');
     } catch {
-      setImportExportStatus('Nie udało się udostępnić JSON własnej skórki.');
+      setImportExportStatus('Nie uda\u0142o si\u0119 udost\u0119pni\u0107 JSON w\u0142asnej sk\xf3rki.');
     }
   };
 
   const handleLoadImportFromClipboard = async () => {
     const clipboardText = await Clipboard.getStringAsync();
     setImportJsonInput(clipboardText);
-    setImportExportStatus('Wczytano zawartość schowka do pola importu.');
+    setImportExportStatus('Wczytano zawarto\u015b\u0107 schowka do pola importu.');
   };
 
   const handleImportCustomTheme = async (rawValue: string) => {
@@ -456,9 +456,9 @@ export default function App() {
       await persistCustomTheme(importedTheme);
       await persistThemeSelection('custom');
       setImportJsonInput(exportCustomThemeJson(importedTheme));
-      setImportExportStatus('Zaimportowano własną skórkę i ustawiono ją jako aktywną.');
+      setImportExportStatus('Zaimportowano w\u0142asn\u0105 sk\xf3rk\u0119 i ustawiono j\u0105 jako aktywn\u0105.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Nie udało się zaimportować własnej skórki.';
+      const message = error instanceof Error ? error.message : 'Nie uda\u0142o si\u0119 zaimportowa\u0107 w\u0142asnej sk\xf3rki.';
       setImportExportStatus(message);
     }
   };
@@ -482,7 +482,7 @@ export default function App() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={PRESET_THEMES[0].tint} />
           <Text style={[styles.loadingText, { color: PRESET_THEMES[0].textMuted }]}>
-            Ładowanie motywu...
+            \u0141adowanie motywu...
           </Text>
         </View>
       </SafeAreaView>
@@ -501,14 +501,14 @@ export default function App() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: activeTheme.text }]}>Listen SDR</Text>
           <Text style={[styles.subtitle, { color: activeTheme.textMuted }]}>
-            Android preview z presetami i własną skórką
+            Android preview z presetami i w\u0142asn\u0105 sk\xf3rk\u0105
           </Text>
         </View>
 
         <ThemeCard theme={activeTheme}>
-          <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Aktualny wygląd</Text>
+          <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Aktualny wygl\u0105d</Text>
           <Text style={[styles.cardDescription, { color: activeTheme.textMuted }]}>
-            Wybrana skórka:
+            Wybrana sk\xf3rka:
           </Text>
           <View style={styles.badgeRow}>
             <View
@@ -529,9 +529,9 @@ export default function App() {
         </ThemeCard>
 
         <ThemeCard theme={activeTheme}>
-          <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Skórki</Text>
+          <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Sk\xf3rki</Text>
           <Text style={[styles.cardDescription, { color: activeTheme.textMuted }]}>
-            Wybierz wariant kolorystyczny albo przejdź na własne ustawienia.
+            Wybierz wariant kolorystyczny albo przejd\u017a na w\u0142asne ustawienia.
           </Text>
 
           <View style={styles.themeList}>
@@ -571,10 +571,10 @@ export default function App() {
         </ThemeCard>
 
         <ThemeCard theme={draftTheme}>
-          <Text style={[styles.cardTitle, { color: draftTheme.text }]}>Własna skórka</Text>
+          <Text style={[styles.cardTitle, { color: draftTheme.text }]}>W\u0142asna sk\xf3rka</Text>
           <Text style={[styles.cardDescription, { color: draftTheme.textMuted }]}>
-            Tutaj ustawisz własne kolory tła, kart, tekstu i akcentów. Kliknięcie „Zastosuj”
-            zapisuje skórkę i przełącza aplikację na wariant własny.
+            Tutaj ustawisz w\u0142asne kolory t\u0142a, kart, tekstu i akcent\xf3w. Klikni\u0119cie \u201eZastosuj\u201d
+            zapisuje sk\xf3rk\u0119 i prze\u0142\u0105cza aplikacj\u0119 na wariant w\u0142asny.
           </Text>
 
           <View style={styles.buttonRow}>
@@ -593,7 +593,7 @@ export default function App() {
               ]}
             >
               <Text style={[styles.actionButtonText, { color: draftTheme.tint }]}>
-                Użyj bieżącej jako bazy
+                U\u017cyj bie\u017c\u0105cej jako bazy
               </Text>
             </Pressable>
 
@@ -618,9 +618,9 @@ export default function App() {
           </View>
 
           <ThemeCard theme={draftTheme} nested>
-            <Text style={[styles.cardTitle, { color: draftTheme.text }]}>Podgląd własnej skórki</Text>
+            <Text style={[styles.cardTitle, { color: draftTheme.text }]}>Podgl\u0105d w\u0142asnej sk\xf3rki</Text>
             <Text style={[styles.cardDescription, { color: draftTheme.textMuted }]}>
-              Tak będzie wyglądał wariant własny po zapisaniu.
+              Tak b\u0119dzie wygl\u0105da\u0142 wariant w\u0142asny po zapisaniu.
             </Text>
             <ThemeSwatches theme={draftTheme} />
           </ThemeCard>
@@ -671,7 +671,7 @@ export default function App() {
             <Text style={styles.errorText}>{customError}</Text>
           ) : (
             <Text style={[styles.helperText, { color: draftTheme.textMuted }]}>
-              Akceptowane są wartości w formacie #RRGGBB lub #RRGGBBAA.
+              Akceptowane s\u0105 warto\u015bci w formacie #RRGGBB lub #RRGGBBAA.
             </Text>
           )}
 
@@ -689,15 +689,15 @@ export default function App() {
               },
             ]}
           >
-            <Text style={styles.primaryButtonText}>Zastosuj własną skórkę</Text>
+            <Text style={styles.primaryButtonText}>Zastosuj w\u0142asn\u0105 sk\xf3rk\u0119</Text>
           </Pressable>
         </ThemeCard>
 
         <ThemeCard theme={activeTheme}>
           <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Kopia i przywracanie</Text>
           <Text style={[styles.cardDescription, { color: activeTheme.textMuted }]}>
-            Tutaj skopiujesz, udostępnisz albo przywrócisz JSON własnej skórki bez mieszania tego
-            z samą edycją kolorów.
+            Tutaj skopiujesz, udost\u0119pnisz albo przywr\xf3cisz JSON w\u0142asnej sk\xf3rki bez mieszania tego
+            z sam\u0105 edycj\u0105 kolor\xf3w.
           </Text>
 
           <View style={styles.buttonRow}>
@@ -735,7 +735,7 @@ export default function App() {
               ]}
             >
               <Text style={[styles.actionButtonText, { color: activeTheme.text }]}>
-                Udostępnij JSON
+                Udost\u0119pnij JSON
               </Text>
             </Pressable>
           </View>
@@ -781,7 +781,7 @@ export default function App() {
           </View>
 
           <TextInput
-            accessibilityLabel="JSON własnej skórki"
+            accessibilityLabel="JSON w\u0142asnej sk\xf3rki"
             autoCapitalize="none"
             autoCorrect={false}
             multiline
@@ -850,7 +850,7 @@ function ThemeSwatches({ theme }: { theme: ThemePalette }) {
       </View>
       <View style={styles.swatchItem}>
         <View style={[styles.swatch, { backgroundColor: theme.backgroundSecondary }]} />
-        <Text style={[styles.swatchLabel, { color: theme.textMuted }]}>Tło</Text>
+        <Text style={[styles.swatchLabel, { color: theme.textMuted }]}>T\u0142o</Text>
       </View>
     </View>
   );
