@@ -20,7 +20,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -65,7 +65,7 @@ jobs:
           )
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Listen-SDR-unsigned-ipa
           path: Listen-SDR-unsigned.ipa
@@ -74,7 +74,7 @@ jobs:
 
       - name: Upload build log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Listen-SDR-native-ios-build-log
           path: native-ios-build.log
