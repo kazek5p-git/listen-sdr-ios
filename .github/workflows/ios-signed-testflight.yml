@@ -49,11 +49,7 @@ jobs:
             APPLE_TEAM_ID \
             ASC_KEY_ID \
             ASC_ISSUER_ID \
-            ASC_API_KEY_BASE64 \
-            IOS_DIST_CERT_P12_BASE64 \
-            IOS_DIST_CERT_PASSWORD \
-            IOS_PROVISION_PROFILE_BASE64 \
-            KEYCHAIN_PASSWORD; do
+            ASC_API_KEY_BASE64; do
             if [ -z "${!var:-}" ]; then
               echo "::error::Missing required secret: $var"
               missing=1
@@ -61,6 +57,25 @@ jobs:
           done
           if [ "$missing" -ne 0 ]; then
             exit 1
+          fi
+
+      - name: Resolve signing mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${IOS_DIST_CERT_P12_BASE64:-}" ] && \
+             [ -n "${IOS_DIST_CERT_PASSWORD:-}" ] && \
+             [ -n "${IOS_PROVISION_PROFILE_BASE64:-}" ] && \
+             [ -n "${KEYCHAIN_PASSWORD:-}" ]; then
+            echo "SIGNING_MODE=manual" >> "$GITHUB_ENV"
+            echo "EXPORT_SIGNING_STYLE=manual" >> "$GITHUB_ENV"
+            echo "EXPORT_METHOD=app-store" >> "$GITHUB_ENV"
+            echo "Using manual signing from repository secrets."
+          else
+            echo "SIGNING_MODE=automatic" >> "$GITHUB_ENV"
+            echo "EXPORT_SIGNING_STYLE=automatic" >> "$GITHUB_ENV"
+            echo "EXPORT_METHOD=app-store-connect" >> "$GITHUB_ENV"
+            echo "Manual signing secrets are incomplete. Falling back to automatic Xcode signing with ASC auth."
           fi
 
       - name: Install XcodeGen
@@ -80,6 +95,7 @@ jobs:
           chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
       - name: Setup signing keychain and certificate
+        if: ${{ env.SIGNING_MODE == 'manual' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -97,6 +113,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
       - name: Install provisioning profile
+        if: ${{ env.SIGNING_MODE == 'manual' }}
         id: profile
         shell: bash
         run: |
@@ -116,6 +133,7 @@ jobs:
           echo "profile_uuid=$PROFILE_UUID" >> "$GITHUB_OUTPUT"
 
       - name: Archive signed app
+        if: ${{ env.SIGNING_MODE == 'manual' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -134,41 +152,91 @@ jobs:
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
             clean archive | tee native-ios-build-signed.log
 
+      - name: Archive signed app automatically
+        if: ${{ env.SIGNING_MODE == 'automatic' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf native-ios/build
+          xcodebuild \
+            -project "$IOS_PROJECT" \
+            -scheme "$IOS_SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            PRODUCT_BUNDLE_IDENTIFIER="$IOS_BUNDLE_ID" \
+            clean archive | tee native-ios-build-signed.log
+
       - name: Export IPA
         shell: bash
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/exportOptions.plist" <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>teamID</key>
-            <string>$APPLE_TEAM_ID</string>
-            <key>provisioningProfiles</key>
+          if [ "$SIGNING_MODE" = "manual" ]; then
+            cat > "$RUNNER_TEMP/exportOptions.plist" <<EOF
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
             <dict>
-              <key>$IOS_BUNDLE_ID</key>
-              <string>${{ steps.profile.outputs.profile_name }}</string>
+              <key>method</key>
+              <string>$EXPORT_METHOD</string>
+              <key>signingStyle</key>
+              <string>$EXPORT_SIGNING_STYLE</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                <key>$IOS_BUNDLE_ID</key>
+                <string>${{ steps.profile.outputs.profile_name }}</string>
+              </dict>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>compileBitcode</key>
+              <false/>
+              <key>destination</key>
+              <string>export</string>
             </dict>
-            <key>stripSwiftSymbols</key>
-            <true/>
-            <key>compileBitcode</key>
-            <false/>
-            <key>destination</key>
-            <string>export</string>
-          </dict>
-          </plist>
-          EOF
+            </plist>
+            EOF
+          else
+            cat > "$RUNNER_TEMP/exportOptions.plist" <<EOF
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+              <key>method</key>
+              <string>$EXPORT_METHOD</string>
+              <key>signingStyle</key>
+              <string>$EXPORT_SIGNING_STYLE</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+              <key>manageAppVersionAndBuildNumber</key>
+              <false/>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>compileBitcode</key>
+              <false/>
+              <key>destination</key>
+              <string>export</string>
+            </dict>
+            </plist>
+            EOF
+          fi
 
           xcodebuild \
             -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportPath "$EXPORT_PATH" \
-            -exportOptionsPlist "$RUNNER_TEMP/exportOptions.plist" | tee native-ios-export.log
+            -exportOptionsPlist "$RUNNER_TEMP/exportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tee native-ios-export.log
 
       - name: Resolve exported IPA path
         id: ipa
@@ -219,4 +287,6 @@ jobs:
         run: |
           set +e
           rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-          security delete-keychain "$KEYCHAIN_PATH"
+          if [ "${SIGNING_MODE:-}" = "manual" ]; then
+            security delete-keychain "$KEYCHAIN_PATH"
+          fi
