@@ -17,6 +17,7 @@ struct AppTutorialView: View {
       accessibilitySection
       recordingSection
       launchBehaviorSection
+      supportSection
       doneSection
     }
     .voiceOverStable()
@@ -117,6 +118,26 @@ struct AppTutorialView: View {
       bodyKey: "tutorial.recording.body",
       bodyFallback: "You can record locally, review saved recordings, and route audio to AirPlay or other system audio outputs."
     )
+  }
+
+  private var supportSection: some View {
+    Section {
+      SupportDevelopmentCard(
+        descriptionText: L10n.text(
+          "tutorial.support.body",
+          fallback: "If Listen SDR is useful to you and you want to support its further development, you can contribute through PayPal. Every contribution helps fund accessibility work, fixes, and new features."
+        ),
+        showsCopyLinkButton: false
+      )
+    } header: {
+      AppSectionHeader(
+        title: L10n.text(
+          "tutorial.support.title",
+          fallback: "Support development"
+        )
+      )
+    }
+    .appSectionStyle()
   }
 
   private var launchBehaviorSection: some View {

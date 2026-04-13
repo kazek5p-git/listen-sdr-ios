@@ -46,11 +46,20 @@ enum AppThemeImportError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .empty:
-      return "No custom skin data was provided."
+      return L10n.text(
+        "settings.appearance.custom.import.error.empty",
+        fallback: "No custom skin data was provided."
+      )
     case .invalidJSON:
-      return "The custom skin JSON could not be read."
+      return L10n.text(
+        "settings.appearance.custom.import.error.invalid_json",
+        fallback: "The custom skin JSON could not be read."
+      )
     case .invalidColors:
-      return "The imported skin is missing required color values."
+      return L10n.text(
+        "settings.appearance.custom.import.error.invalid_colors",
+        fallback: "The imported skin is missing required color values."
+      )
     }
   }
 }

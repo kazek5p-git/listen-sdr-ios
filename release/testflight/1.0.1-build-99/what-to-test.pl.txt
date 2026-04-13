@@ -1,0 +1,11 @@
+Sprawdź ekran Ustawienia na iPhonie i iPadzie.
+Najważniejsze są: bardziej ogólne podsumowania głównych kategorii, nowa sekcja Wesprzyj rozwój w Pomoc i prywatność oraz poprawne działanie przycisków PayPal i kopiowania linku wsparcia.
+
+Sprawdź samouczek przy pierwszym uruchomieniu i otwierany później z Ustawień.
+Najważniejsze są: nowa karta Wesprzyj rozwój pod koniec samouczka, szybkie kwoty 5, 10, 20 i 50 PLN oraz opcja wpisania własnej kwoty.
+
+Sprawdź przepływ wsparcia na iOS i Androidzie.
+Najważniejsze są: otwieranie PayPal.Me z przygotowaną kwotą w PLN, działanie własnej kwoty oraz kopiowanie linku wsparcia do schowka.
+
+Sprawdź też Wygląd oraz Kopię i przywracanie.
+Najważniejsze są: wszystkie skórki, własna skórka, kopiowanie i import JSON oraz poprawne polskie znaki bez uszkodzonego kodowania.

@@ -1,0 +1,11 @@
+Please test the Settings screen on both iPhone and iPad.
+Focus on the more general root-category summaries, the new Support development section under Help and privacy, and the PayPal plus copy-link actions.
+
+Please test the tutorial both on first launch and when reopened from Settings.
+Focus on the new Support development card near the end, the quick amounts 5, 10, 20, and 50 PLN, and the custom amount option.
+
+Please test the support flow on both iOS and Android.
+Focus on opening PayPal.Me with a prepared PLN amount, the custom amount flow, and copying the support link to the clipboard.
+
+Please also test Appearance and Backup and restore.
+Focus on all built-in skins, the custom skin flow, JSON copy and import, and correct Polish text rendering without broken encoding.

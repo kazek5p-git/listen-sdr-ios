@@ -83,13 +83,13 @@ jobs:
       - name: Prepare release notes
         run: |
           cat > release-notes.md <<EOF
-          This Android release expands the Listen SDR skin system and keeps it aligned with the current iOS/TestFlight build.
+          This Android release expands the Listen SDR support flow and keeps the current skin work aligned with iOS/TestFlight.
 
-          - keeps the built-in presets: Classic, Mist Blue, Sea Glass, Warm Light, and the new High Contrast skin
-          - adds the brighter High Contrast preset with stronger text, card, and accent separation for better readability
-          - preserves the custom skin editor for your own background, card, text, border, and accent colors
-          - keeps custom skin JSON copy, share, and import in Backup and restore
-          - keeps Android and iOS skin names, presets, and custom-theme flow in sync
+          - adds a new Support development card with direct PayPal.Me support actions
+          - adds quick support amounts: 5 PLN, 10 PLN, 20 PLN, and 50 PLN
+          - adds a custom amount field that opens PayPal.Me with the entered PLN amount
+          - keeps copying the PayPal support link available directly in the app
+          - keeps the built-in skins, custom skin editor, and JSON import/export flow working with the current Android preview UI
 
           EAS build ID: ${EAS_BUILD_ID}
           EOF

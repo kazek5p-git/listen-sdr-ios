@@ -249,7 +249,7 @@ struct SettingsView: View {
             "settings.group.startup_connection",
             fallback: "Startup and connection"
           ),
-          summary: settingsController.state.connectionNetworkPolicy.localizedTitle
+          summary: startupConnectionSummary
         )
       }
 
@@ -270,7 +270,7 @@ struct SettingsView: View {
             "settings.group.tuning_scanning",
             fallback: "Tuning and scanning"
           ),
-          summary: tuneStepSummaryValue
+          summary: tuningScanningSummary
         )
       }
 
@@ -290,7 +290,7 @@ struct SettingsView: View {
             "settings.group.history_radios",
             fallback: "History and radios"
           ),
-          summary: settingsController.state.radiosSearchFiltersVisibility.localizedTitle
+          summary: historyRadiosSummary
         )
       }
 
@@ -303,7 +303,7 @@ struct SettingsView: View {
       } label: {
         settingsRowLabel(
           title: L10n.text("settings.audio.section"),
-          summary: settingsController.state.currentFMDXAudioPreset.localizedTitle
+          summary: audioSettingsSummary
         )
       }
 
@@ -316,7 +316,7 @@ struct SettingsView: View {
       } label: {
         settingsRowLabel(
           title: L10n.text("settings.appearance.section", fallback: "Appearance"),
-          summary: selectedThemeTitle
+          summary: appearanceSettingsSummary
         )
       }
 
@@ -329,7 +329,7 @@ struct SettingsView: View {
       } label: {
         settingsRowLabel(
           title: L10n.text("settings.accessibility.section"),
-          summary: settingsController.state.magicTapAction.localizedTitle
+          summary: accessibilitySettingsSummary
         )
       }
 
@@ -342,9 +342,7 @@ struct SettingsView: View {
       } label: {
         settingsRowLabel(
           title: L10n.text("settings.backup_restore.section", fallback: "Backup and restore"),
-          summary: settingsController.state.hasSavedSettingsSnapshot
-            ? L10n.text("settings.summary.restore_point.saved", fallback: "Restore point saved")
-            : L10n.text("settings.summary.restore_point.missing", fallback: "No restore point")
+          summary: backupRestoreSummary
         )
       }
 
@@ -364,9 +362,7 @@ struct SettingsView: View {
             "settings.group.diagnostics_feedback",
             fallback: "Diagnostics and feedback"
           ),
-          summary: feedbackServerStatus == .idle
-            ? nil
-            : feedbackServerStatus.localizedTitle
+          summary: diagnosticsFeedbackSummary
         )
       }
 
@@ -378,6 +374,7 @@ struct SettingsView: View {
           )
         ) {
           helpSection
+          supportSection
           authorSection
           privacyAndFeedbackSection
         }
@@ -387,9 +384,7 @@ struct SettingsView: View {
             "settings.group.help_privacy",
             fallback: "Help and privacy"
           ),
-          summary: settingsController.state.showTutorialOnLaunchEnabled
-            ? L10n.text("settings.summary.tutorial_on_start", fallback: "Tutorial on start")
-            : nil
+          summary: helpPrivacySummary
         )
       }
     }
@@ -1672,6 +1667,26 @@ struct SettingsView: View {
     .appSectionStyle()
   }
 
+  private var supportSection: some View {
+    Section {
+      SupportDevelopmentCard(
+        descriptionText: L10n.text(
+          "settings.support.body",
+          fallback: "If you enjoy Listen SDR and want to support its development, you can contribute through PayPal. Every contribution helps fund accessibility work, fixes, and new features."
+        ),
+        showsCopyLinkButton: true
+      )
+    } header: {
+      AppSectionHeader(
+        title: L10n.text(
+          "settings.support.section",
+          fallback: "Support development"
+        )
+      )
+    }
+    .appSectionStyle()
+  }
+
   private var privacyAndFeedbackSection: some View {
     Section {
       settingsInfoBlock(
@@ -1787,6 +1802,69 @@ struct SettingsView: View {
     case .automatic:
       return settingsController.state.tuneStepPreferenceMode.localizedTitle
     }
+  }
+
+  private var startupConnectionSummary: String {
+    L10n.text(
+      "settings.summary.startup_connection.overview",
+      fallback: "Startup, network and receiver connection"
+    )
+  }
+
+  private var tuningScanningSummary: String {
+    L10n.text(
+      "settings.summary.tuning_scanning.overview",
+      fallback: "Tuning, scanner and FM-DX settings"
+    )
+  }
+
+  private var historyRadiosSummary: String {
+    L10n.text(
+      "settings.summary.history_radios.overview",
+      fallback: "Listening history and receiver profiles"
+    )
+  }
+
+  private var audioSettingsSummary: String {
+    L10n.text(
+      "settings.summary.audio.overview",
+      fallback: "Playback, speech and recording"
+    )
+  }
+
+  private var appearanceSettingsSummary: String {
+    L10n.text(
+      "settings.summary.appearance.overview",
+      fallback: "Skins, colors and interface appearance"
+    )
+  }
+
+  private var accessibilitySettingsSummary: String {
+    L10n.text(
+      "settings.summary.accessibility.overview",
+      fallback: "VoiceOver, sounds and announcements"
+    )
+  }
+
+  private var backupRestoreSummary: String {
+    L10n.text(
+      "settings.summary.backup_restore.overview",
+      fallback: "Settings backup, import and restore"
+    )
+  }
+
+  private var diagnosticsFeedbackSummary: String {
+    L10n.text(
+      "settings.summary.diagnostics_feedback.overview",
+      fallback: "Logs, diagnostics and feedback"
+    )
+  }
+
+  private var helpPrivacySummary: String {
+    L10n.text(
+      "settings.summary.help_privacy.overview",
+      fallback: "Tutorial, support and privacy"
+    )
   }
 
   private func tuneStepSelectionOptions() -> [SelectionListOption] {

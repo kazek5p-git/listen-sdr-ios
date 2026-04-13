@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -42,6 +43,8 @@ type CustomThemeExportPayload = {
 
 const THEME_STORAGE_KEY = 'ListenSDR.androidTheme.v1';
 const CUSTOM_THEME_STORAGE_KEY = 'ListenSDR.androidTheme.custom.v1';
+const SUPPORT_URL = 'https://paypal.me/KazimierzParzych';
+const SUPPORT_QUICK_AMOUNTS = [5, 10, 20, 50] as const;
 
 const PRESET_THEMES: ThemePalette[] = [
   {
@@ -296,6 +299,33 @@ function parseImportedCustomTheme(input: string): ThemeColors {
   return colors;
 }
 
+function normalizeSupportAmount(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const replaced = trimmed.replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(replaced)) {
+    return null;
+  }
+
+  const numericValue = Number(replaced);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return null;
+  }
+
+  return replaced.includes('.') ? replaced.replace(/\.?0+$/, '') : replaced;
+}
+
+function buildSupportUrl(amount?: string): string {
+  if (!amount) {
+    return SUPPORT_URL;
+  }
+
+  return `${SUPPORT_URL}/${amount}PLN`;
+}
+
 export default function App() {
   const [selectedThemeId, setSelectedThemeId] = useState<ThemeId>('classic');
   const [customTheme, setCustomTheme] = useState<ThemeColors>(DEFAULT_CUSTOM_THEME);
@@ -303,6 +333,8 @@ export default function App() {
   const [customError, setCustomError] = useState('');
   const [importJsonInput, setImportJsonInput] = useState('');
   const [importExportStatus, setImportExportStatus] = useState('');
+  const [supportAmountInput, setSupportAmountInput] = useState('');
+  const [supportStatus, setSupportStatus] = useState('');
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
   const activeTheme = useMemo(
@@ -468,6 +500,30 @@ export default function App() {
       ...current,
       [field]: value,
     }));
+  };
+
+  const handleOpenSupport = async (amount?: string) => {
+    try {
+      await Linking.openURL(buildSupportUrl(amount));
+      setSupportStatus('Otworzono stron\u0119 PayPal do wsparcia Listen SDR.');
+    } catch {
+      setSupportStatus('Nie uda\u0142o si\u0119 otworzy\u0107 strony PayPal.');
+    }
+  };
+
+  const handleCopySupportLink = async () => {
+    await Clipboard.setStringAsync(SUPPORT_URL);
+    setSupportStatus('Link PayPal do wsparcia Listen SDR zosta\u0142 skopiowany do schowka.');
+  };
+
+  const handleOpenCustomSupport = async () => {
+    const normalizedAmount = normalizeSupportAmount(supportAmountInput);
+    if (!normalizedAmount) {
+      setSupportStatus('Wpisz prawid\u0142ow\u0105 kwot\u0119, na przyk\u0142ad 15 albo 15.50.');
+      return;
+    }
+
+    await handleOpenSupport(normalizedAmount);
   };
 
   const themeOptions = useMemo(
@@ -804,6 +860,109 @@ export default function App() {
           {importExportStatus ? (
             <Text style={[styles.helperText, { color: activeTheme.textMuted }]}>
               {importExportStatus}
+            </Text>
+          ) : null}
+        </ThemeCard>
+
+        <ThemeCard theme={activeTheme}>
+          <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Wesprzyj rozw\xf3j</Text>
+          <Text style={[styles.cardDescription, { color: activeTheme.textMuted }]}>
+            Je\u015bli podoba Ci si\u0119 Listen SDR i chcesz wesprze\u0107 dalszy rozw\xf3j aplikacji, mo\u017cesz
+            zrobi\u0107 to przez PayPal. Ka\u017cde wsparcie pomaga rozwija\u0107 dost\u0119pno\u015b\u0107, poprawki i
+            nowe funkcje.
+          </Text>
+
+          <Text style={[styles.helperText, { color: activeTheme.textMuted }]}>
+            Wybierz szybk\u0105 kwot\u0119 albo wpisz w\u0142asn\u0105. PayPal i tak poprosi u\u017cytkownika o
+            potwierdzenie p\u0142atno\u015bci.
+          </Text>
+
+          <View style={styles.buttonRow}>
+            {SUPPORT_QUICK_AMOUNTS.map((amount) => (
+              <Pressable
+                key={amount}
+                accessibilityRole="button"
+                onPress={() => {
+                  void handleOpenSupport(String(amount));
+                }}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  {
+                    backgroundColor: activeTheme.backgroundSecondary,
+                    borderColor: activeTheme.cardBorder,
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
+                  {amount} PLN
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            <Text style={[styles.fieldLabel, { color: activeTheme.text }]}>W\u0142asna kwota</Text>
+            <TextInput
+              accessibilityLabel="W\u0142asna kwota wsparcia"
+              autoCapitalize="none"
+              autoCorrect={false}
+              inputMode="decimal"
+              keyboardType="decimal-pad"
+              onChangeText={setSupportAmountInput}
+              placeholder="Na przyk\u0142ad 15"
+              placeholderTextColor={activeTheme.textMuted}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: activeTheme.card,
+                  borderColor: activeTheme.cardBorder,
+                  color: activeTheme.text,
+                },
+              ]}
+              value={supportAmountInput}
+            />
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void handleOpenCustomSupport();
+            }}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              {
+                backgroundColor: activeTheme.tint,
+                borderColor: activeTheme.tint,
+                opacity: pressed ? 0.92 : 1,
+              },
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>Wesprzyj w\u0142asn\u0105 kwot\u0105</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void handleCopySupportLink();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: activeTheme.backgroundSecondary,
+                borderColor: activeTheme.cardBorder,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
+              Kopiuj link wsparcia
+            </Text>
+          </Pressable>
+
+          {supportStatus ? (
+            <Text style={[styles.helperText, { color: activeTheme.textMuted }]}>
+              {supportStatus}
             </Text>
           ) : null}
         </ThemeCard>
