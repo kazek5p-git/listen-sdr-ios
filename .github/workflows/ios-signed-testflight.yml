@@ -177,56 +177,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$SIGNING_MODE" = "manual" ]; then
-            cat > "$RUNNER_TEMP/exportOptions.plist" <<EOF
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0">
-            <dict>
-              <key>method</key>
-              <string>$EXPORT_METHOD</string>
-              <key>signingStyle</key>
-              <string>$EXPORT_SIGNING_STYLE</string>
-              <key>teamID</key>
-              <string>$APPLE_TEAM_ID</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                <key>$IOS_BUNDLE_ID</key>
-                <string>${{ steps.profile.outputs.profile_name }}</string>
-              </dict>
-              <key>stripSwiftSymbols</key>
-              <true/>
-              <key>compileBitcode</key>
-              <false/>
-              <key>destination</key>
-              <string>export</string>
-            </dict>
-            </plist>
-            EOF
-          else
-            cat > "$RUNNER_TEMP/exportOptions.plist" <<EOF
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0">
-            <dict>
-              <key>method</key>
-              <string>$EXPORT_METHOD</string>
-              <key>signingStyle</key>
-              <string>$EXPORT_SIGNING_STYLE</string>
-              <key>teamID</key>
-              <string>$APPLE_TEAM_ID</string>
-              <key>manageAppVersionAndBuildNumber</key>
-              <false/>
-              <key>stripSwiftSymbols</key>
-              <true/>
-              <key>compileBitcode</key>
-              <false/>
-              <key>destination</key>
-              <string>export</string>
-            </dict>
-            </plist>
-            EOF
-          fi
+          python - <<'PY'
+          import os
+          import plistlib
+
+          payload = {
+              "method": os.environ["EXPORT_METHOD"],
+              "signingStyle": os.environ["EXPORT_SIGNING_STYLE"],
+              "teamID": os.environ["APPLE_TEAM_ID"],
+              "stripSwiftSymbols": True,
+              "compileBitcode": False,
+              "destination": "export",
+          }
+
+          if os.environ["SIGNING_MODE"] == "manual":
+              payload["provisioningProfiles"] = {
+                  os.environ["IOS_BUNDLE_ID"]: os.environ["PROFILE_NAME"]
+              }
+          else:
+              payload["manageAppVersionAndBuildNumber"] = False
+
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "exportOptions.plist"), "wb") as handle:
+              plistlib.dump(payload, handle)
+          PY
 
           xcodebuild \
             -exportArchive \
@@ -237,6 +210,8 @@ jobs:
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tee native-ios-export.log
+        env:
+          PROFILE_NAME: ${{ steps.profile.outputs.profile_name }}
 
       - name: Resolve exported IPA path
         id: ipa
