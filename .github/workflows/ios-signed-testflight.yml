@@ -23,7 +23,6 @@ jobs:
       IOS_PROJECT: native-ios/ListenSDR.xcodeproj
       ARCHIVE_PATH: native-ios/build/ListenSDR.xcarchive
       EXPORT_PATH: native-ios/build/export
-      KEYCHAIN_PATH: ${{ runner.temp }}/listen-sdr-signing.keychain-db
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
@@ -35,6 +34,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Resolve temp paths
+        shell: bash
+        run: |
+          echo "KEYCHAIN_PATH=$RUNNER_TEMP/listen-sdr-signing.keychain-db" >> "$GITHUB_ENV"
 
       - name: Validate required secrets
         shell: bash
