@@ -1,0 +1,11 @@
+Please test the Settings screen on both iPhone and iPad.
+Focus on the new summaries on the root list, the split Audio, Accessibility, and Backup and restore sections, and the removal of duplicated entry headers inside subpages.
+
+Please test VoiceOver focus and status feedback flows.
+Focus on returning focus after export/import sheets, recording-folder selection, and custom-skin import, and confirm that successful actions now show an inline status message instead of a modal alert.
+
+Please also test Appearance and Backup and restore.
+Focus on all built-in skins, the custom skin flow, JSON copy/import, and correct Polish text rendering throughout the skin UI.
+
+Please verify settings, profile editor, and helper-screen translations.
+Focus on the absence of stray English strings in Polish, German, Spanish, French, Italian, Russian, and Simplified Chinese, and confirm that the updated texts still fit on screen.

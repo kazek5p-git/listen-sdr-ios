@@ -1,0 +1,11 @@
+Sprawdz ekran Ustawienia na iPhonie i iPadzie.
+Najwazniejsze sa: nowe podsumowania na glownej liscie, rozbicie sekcji Audio, Dostepnosc oraz Kopia i przywracanie, a takze brak zdublowanych naglowkow na wejsciu do podsekcji.
+
+Sprawdz przeplyw fokusow i komunikatow VoiceOver.
+Najwazniejsze sa: powrot fokusu po zamknieciu eksportu/importu, folderu nagran i importu wlasnej skorki oraz to, ze sukcesy sa teraz pokazywane jako komunikat wbudowany w ekran zamiast wyskakujacego alertu.
+
+Sprawdz ekran Wyglad i sekcje Kopia i przywracanie.
+Najwazniejsze sa: wszystkie skorki, wlasna skorka, kopiowanie i import JSON oraz poprawne, w pelni czytelne polskie znaki.
+
+Sprawdz tez tlumaczenia w ustawieniach, edytorze profilu i ekranach pomocniczych.
+Najwazniejsze sa: brak losowych angielskich napisow w polskim, niemieckim, hiszpanskim, francuskim, wloskim, rosyjskim i chinskim uproszczonym oraz poprawne mieszczenie sie nowych tekstow.

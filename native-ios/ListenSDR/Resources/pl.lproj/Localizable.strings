@@ -463,6 +463,10 @@
 "settings.backup_restore.local_point.restore" = "Przywróć lokalny punkt przywracania";
 "settings.backup_restore.local_point.available" = "Na tym urządzeniu jest zapisany lokalny punkt przywracania.";
 "settings.backup_restore.local_point.missing" = "Na tym urządzeniu nie ma jeszcze zapisanego lokalnego punktu przywracania.";
+"settings.backup_restore.custom_skin.title" = "Własna skórka";
+"settings.summary.restore_point.saved" = "Punkt zapisany";
+"settings.summary.restore_point.missing" = "Brak punktu";
+"settings.summary.tutorial_on_start" = "Samouczek przy starcie";
 "settings.backup_restore.file.title" = "Plik kopii ustawień";
 "settings.backup_restore.file.description" = "Tworzy albo przywraca plik kopii ustawień, który możesz zachować, skopiować lub przenieść na inne urządzenie.";
 "settings.backup.section" = "Kopia ustawień";
@@ -517,6 +521,9 @@
 "settings.scanner.fmdx_custom_metadata_window.hint" = "Określa, jak długo skaner Własny próbuje zebrać nazwę stacji i inne dane po wykryciu sygnału.";
 "settings.diagnostics.section" = "Diagnostyka";
 "settings.diagnostics.open" = "Otwórz diagnostykę";
+"settings.diagnostics.reconnect" = "Połącz ponownie";
+"settings.diagnostics.reset_signal" = "Resetuj ustawienia sygnału";
+"settings.diagnostics.reset_signal.description" = "Przywraca domyślny tryb demodulacji i ustawienia przetwarzania sygnału. Dokładny zakres zależy od typu odbiornika.";
 "settings.diagnostics.entries" = "Wpisy logu";
 "session.status.sync_tuning" = "Synchronizacja strojenia z odbiornika...";
 "frequency_input.dynamic_hint" = "Przykłady: %@ lub %@";
@@ -540,6 +547,12 @@
 "receiver.voiceover_rotor.tune_step" = "Krok strojenia";
 
 "settings.accessibility.section" = "Dostępność";
+"settings.accessibility.spoken_feedback.section" = "Mowa i potwierdzenia";
+"settings.accessibility.spoken_feedback.description" = "Wybierz, jak Listen SDR ma reagować na Magic Tap, wybory z list i zmiany RDS, gdy aktywny jest czytnik ekranu.";
+"settings.accessibility.feedback_sounds.section" = "Dźwięki informacji zwrotnej";
+"settings.accessibility.feedback_sounds.description" = "Włącz tylko te sygnały dźwiękowe, których chcesz używać. Odsłuch korzysta z bieżącej głośności dźwięków informacji zwrotnej.";
+"settings.accessibility.speech_audio.section" = "Audio mowy";
+"settings.accessibility.speech_audio.description" = "Utrzymuje strumienie nastawione na mowę bliżej jednego poziomu głośności. Odtwarzanie i nagrania FM-DX pozostają bez zmian.";
 "settings.accessibility.voiceover_rds" = "Czytaj zmiany RDS";
 "settings.accessibility.voiceover_rds.hint" = "Gdy VoiceOver jest włączony, odczytuje nową nazwę stacji lub tekst RDS po zmianie.";
 "settings.accessibility.voiceover_rds_mode" = "Odczyt RDS przez czytnik ekranu";
@@ -554,6 +567,8 @@
 "settings.accessibility.voiceover_rds_mode.off" = "Wyłączone";
 "settings.accessibility.voiceover_rds_mode.station_only" = "Tylko stacja";
 "settings.accessibility.voiceover_rds_mode.full" = "Pełny RDS";
+"common.open_selection_list.hint" = "Otwiera listę wyboru.";
+"Done" = "Gotowe";
 "settings.accessibility.magic_tap" = "Akcja Magic Tap";
 "settings.accessibility.magic_tap.hint" = "Wybiera, co ma zrobić systemowy gest Magic Tap, gdy aktywne jest Listen SDR.";
 "settings.accessibility.magic_tap.toggle_mute" = "Wycisz lub odcisz";
@@ -569,6 +584,12 @@
 
 "settings.integrations.section" = "Integracje";
 "settings.audio.section" = "Ustawienia audio";
+"settings.audio.playback.section" = "Odtwarzanie";
+"settings.audio.playback.description" = "Steruje zachowaniem odtwarzania przed ustawieniami strojenia FM-DX i nagrywania.";
+"settings.audio.fmdx.section" = "Audio FM-DX";
+"settings.audio.fmdx.description" = "Wybierz gotowy profil audio FM-DX albo ręcznie dostrój bufory strumienia.";
+"settings.audio.recording.section" = "Nagrywanie";
+"settings.audio.recording.description" = "Wybierz miejsce zapisu nowych nagrań. Domyślna lokalizacja pozostaje w aplikacji.";
 "settings.audio.recording_folder" = "Folder nagrań";
 "settings.audio.recording_folder.hint" = "Wybierz miejsce zapisu nowych nagrań. Domyślną lokalizacją jest folder Recordings aplikacji.";
 "settings.audio.recording_folder.choose" = "Wybierz folder nagrań";
@@ -614,6 +635,7 @@
 "settings.audio.suggestion.disabled" = "Sugestie audio są wyłączone.";
 "settings.audio.suggestion.log.recommended" = "Sugerowany profil audio: %@. %@";
 "settings.audio.suggestion.log.applied" = "Zastosowano profil audio: %@.";
+"settings.status.dismiss" = "Ukryj komunikat";
 "diagnostics.audio_suggestions.section" = "Historia sugestii audio";
 "diagnostics.audio_quality.section" = "Jakość strumienia FM-DX";
 "diagnostics.fmdx_presets.section" = "Presety FM-DX";

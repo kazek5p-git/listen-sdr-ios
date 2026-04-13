@@ -9,12 +9,15 @@ struct SettingsView: View {
   @State private var isCheckingFeedbackServer = false
   @State private var feedbackServerStatus: FeedbackServerStatus = .idle
   @State private var activeAlert: FeedbackServerAlert?
+  @State private var inlineStatus: SettingsInlineStatus?
   @State private var isRecordingFolderPickerPresented = false
   @State private var settingsBackupDocument: SettingsBackupDocument?
   @State private var isSettingsBackupExporterPresented = false
   @State private var isSettingsBackupImporterPresented = false
   @State private var customThemeImportPayload = ""
   @State private var isCustomThemeImportSheetPresented = false
+  @State private var pendingFocusRestoreTarget: SettingsFocusTarget?
+  @AccessibilityFocusState private var focusedSettingsControl: SettingsFocusTarget?
 
   var body: some View {
     NavigationStack {
@@ -111,7 +114,7 @@ struct SettingsView: View {
           do {
             let data = try SettingsBackupDocument.readData(from: url)
             _ = try RadioSessionSettingsBackupCodec.decodePayload(data)
-            activeAlert = FeedbackServerAlert(
+            presentInlineStatus(
               title: L10n.text(
                 "settings.backup.export.success.title",
                 fallback: "Settings backup saved"
@@ -151,7 +154,7 @@ struct SettingsView: View {
           do {
             let data = try SettingsBackupDocument.readData(from: url)
             try settingsController.importSettingsBackup(from: data)
-            activeAlert = FeedbackServerAlert(
+            presentInlineStatus(
               title: L10n.text(
                 "settings.backup.import.success.title",
                 fallback: "Settings backup restored"
@@ -193,20 +196,43 @@ struct SettingsView: View {
       } message: {
         Text(activeAlert?.message ?? "")
       }
+      .onChange(of: isRecordingFolderPickerPresented) { isPresented in
+        if !isPresented {
+          restoreFocusIfNeeded(for: .recordingFolder)
+        }
+      }
+      .onChange(of: isCustomThemeImportSheetPresented) { isPresented in
+        if !isPresented {
+          restoreFocusIfNeeded(for: .customThemeImport)
+        }
+      }
+      .onChange(of: isSettingsBackupExporterPresented) { isPresented in
+        if !isPresented {
+          restoreFocusIfNeeded(for: .settingsExport)
+        }
+      }
+      .onChange(of: isSettingsBackupImporterPresented) { isPresented in
+        if !isPresented {
+          restoreFocusIfNeeded(for: .settingsImport)
+        }
+      }
     }
   }
 
-  private func selectionAnnouncement(title: String) -> (SelectionListOption) -> String? {
+  private func selectionAnnouncement(title _: String) -> (SelectionListOption) -> String? {
     { option in
       AppAccessibilityAnnouncementCenter.selectionAnnouncementText(
-        title: title,
-        value: option.title
+        title: "",
+        value: option.title,
+        includeTitle: false
       )
     }
   }
 
   private var settingsRootList: some View {
     Form {
+      settingsStatusSection
+
       NavigationLink {
         settingsDestinationScreen(
           title: L10n.text(
@@ -218,11 +244,12 @@ struct SettingsView: View {
           connectionSection
         }
       } label: {
-        Text(
-          L10n.text(
+        settingsRowLabel(
+          title: L10n.text(
             "settings.group.startup_connection",
             fallback: "Startup and connection"
-          )
+          ),
+          summary: settingsController.state.connectionNetworkPolicy.localizedTitle
         )
       }
 
@@ -238,11 +265,12 @@ struct SettingsView: View {
           dxSection
         }
       } label: {
-        Text(
-          L10n.text(
+        settingsRowLabel(
+          title: L10n.text(
             "settings.group.tuning_scanning",
             fallback: "Tuning and scanning"
-          )
+          ),
+          summary: tuneStepSummaryValue
         )
       }
 
@@ -257,11 +285,12 @@ struct SettingsView: View {
           radiosSection
         }
       } label: {
-        Text(
-          L10n.text(
+        settingsRowLabel(
+          title: L10n.text(
             "settings.group.history_radios",
             fallback: "History and radios"
-          )
+          ),
+          summary: settingsController.state.radiosSearchFiltersVisibility.localizedTitle
         )
       }
 
@@ -269,10 +298,13 @@ struct SettingsView: View {
         settingsDestinationScreen(
           title: L10n.text("settings.audio.section")
         ) {
-          audioSection
+          audioSections
         }
       } label: {
-        Text(L10n.text("settings.audio.section"))
+        settingsRowLabel(
+          title: L10n.text("settings.audio.section"),
+          summary: settingsController.state.currentFMDXAudioPreset.localizedTitle
+        )
       }
 
       NavigationLink {
@@ -282,27 +314,38 @@ struct SettingsView: View {
           appearanceSection
         }
       } label: {
-        Text(L10n.text("settings.appearance.section", fallback: "Appearance"))
+        settingsRowLabel(
+          title: L10n.text("settings.appearance.section", fallback: "Appearance"),
+          summary: selectedThemeTitle
+        )
       }
 
       NavigationLink {
         settingsDestinationScreen(
           title: L10n.text("settings.accessibility.section")
         ) {
-          accessibilitySection
+          accessibilitySections
         }
       } label: {
-        Text(L10n.text("settings.accessibility.section"))
+        settingsRowLabel(
+          title: L10n.text("settings.accessibility.section"),
+          summary: settingsController.state.magicTapAction.localizedTitle
+        )
       }
 
       NavigationLink {
         settingsDestinationScreen(
           title: L10n.text("settings.backup_restore.section", fallback: "Backup and restore")
         ) {
-          backupRestoreSection
+          backupRestoreSections
         }
       } label: {
-        Text(L10n.text("settings.backup_restore.section", fallback: "Backup and restore"))
+        settingsRowLabel(
+          title: L10n.text("settings.backup_restore.section", fallback: "Backup and restore"),
+          summary: settingsController.state.hasSavedSettingsSnapshot
+            ? L10n.text("settings.summary.restore_point.saved", fallback: "Restore point saved")
+            : L10n.text("settings.summary.restore_point.missing", fallback: "No restore point")
+        )
       }
 
       NavigationLink {
@@ -316,11 +359,14 @@ struct SettingsView: View {
           feedbackSection
         }
       } label: {
-        Text(
-          L10n.text(
+        settingsRowLabel(
+          title: L10n.text(
             "settings.group.diagnostics_feedback",
             fallback: "Diagnostics and feedback"
-          )
+          ),
+          summary: feedbackServerStatus == .idle
+            ? nil
+            : feedbackServerStatus.localizedTitle
         )
       }
 
@@ -336,11 +382,14 @@ struct SettingsView: View {
           privacyAndFeedbackSection
         }
       } label: {
-        Text(
-          L10n.text(
+        settingsRowLabel(
+          title: L10n.text(
             "settings.group.help_privacy",
             fallback: "Help and privacy"
-          )
+          ),
+          summary: settingsController.state.showTutorialOnLaunchEnabled
+            ? L10n.text("settings.summary.tutorial_on_start", fallback: "Tutorial on start")
+            : nil
         )
       }
     }
@@ -351,6 +400,7 @@ struct SettingsView: View {
     @ViewBuilder content: () -> Content
   ) -> some View {
     Form {
+      settingsStatusSection
       content()
     }
     .voiceOverStable()
@@ -472,11 +522,11 @@ struct SettingsView: View {
     .appSectionStyle()
   }
 
-  private var backupRestoreSection: some View {
+  @ViewBuilder
+  private var backupRestoreSections: some View {
     Section {
-      settingsInfoBlock(
-        title: L10n.text("settings.backup_restore.local_point.title", fallback: "Local restore point"),
-        description: L10n.text(
+      settingsSectionDescription(
+        L10n.text(
           "settings.backup_restore.local_point.description",
           fallback: "Saves one temporary restore point on this device. Use it to return quickly to your earlier settings without creating a file."
         )
@@ -502,18 +552,16 @@ struct SettingsView: View {
       )
       .font(.footnote)
       .foregroundStyle(.secondary)
-
-      settingsInfoBlock(
-        title: L10n.text("settings.backup_restore.file.title", fallback: "Backup file"),
-        description: L10n.text(
-          "settings.backup_restore.file.description",
-          fallback: "Creates or restores a settings backup file that you can keep, copy, or move to another device."
-        )
+    } header: {
+      AppSectionHeader(
+        title: L10n.text("settings.backup_restore.local_point.title", fallback: "Local restore point")
       )
+    }
+    .appSectionStyle()
 
-      settingsInfoBlock(
-        title: L10n.text("settings.backup_restore.custom_skin.title", fallback: "Custom skin"),
-        description: L10n.text(
+    Section {
+      settingsSectionDescription(
+        L10n.text(
           "settings.backup_restore.custom_skin.description",
           fallback: "Copy, share, or import the JSON for your own skin. This only affects the custom skin colors, not the rest of the app settings."
         )
@@ -560,7 +608,8 @@ struct SettingsView: View {
         )
       }
 
-      FocusRetainingButton {
+      Button {
+        pendingFocusRestoreTarget = .customThemeImport
         customThemeImportPayload = UIPasteboard.general.string ?? ""
         isCustomThemeImportSheetPresented = true
       } label: {
@@ -571,10 +620,17 @@ struct SettingsView: View {
           )
         )
       }
+      .accessibilityFocused($focusedSettingsControl, equals: .customThemeImport)
+    } header: {
+      AppSectionHeader(
+        title: L10n.text("settings.backup_restore.custom_skin.title", fallback: "Custom skin")
+      )
+    }
+    .appSectionStyle()
 
-      settingsInfoBlock(
-        title: L10n.text("settings.backup.scope.title", fallback: "Backup contents"),
-        description: L10n.text(
+    Section {
+      settingsSectionDescription(
+        L10n.text(
           "settings.backup.scope.description",
           fallback: "Choose which parts of the app should be included in the backup file."
         )
@@ -637,12 +693,26 @@ struct SettingsView: View {
         .font(.footnote)
         .foregroundStyle(.secondary)
       }
+    } header: {
+      AppSectionHeader(title: L10n.text("settings.backup.scope.title", fallback: "Backup contents"))
+    }
+    .appSectionStyle()
 
-      FocusRetainingButton {
+    Section {
+      settingsSectionDescription(
+        L10n.text(
+          "settings.backup_restore.file.description",
+          fallback: "Creates or restores a settings backup file that you can keep, copy, or move to another device."
+        )
+      )
+
+      Button {
+        pendingFocusRestoreTarget = .settingsExport
         do {
           settingsBackupDocument = try settingsController.makeSettingsBackupDocument()
           isSettingsBackupExporterPresented = true
         } catch {
+          pendingFocusRestoreTarget = nil
           activeAlert = FeedbackServerAlert(
             title: L10n.text(
               "settings.backup.export.failure.title",
@@ -655,12 +725,15 @@ struct SettingsView: View {
         Text(L10n.text("settings.backup.export", fallback: "Export settings backup"))
       }
       .disabled(!isAnyBackupScopeEnabled)
+      .accessibilityFocused($focusedSettingsControl, equals: .settingsExport)
 
-      FocusRetainingButton {
+      Button {
+        pendingFocusRestoreTarget = .settingsImport
         isSettingsBackupImporterPresented = true
       } label: {
         Text(L10n.text("settings.backup.import", fallback: "Import settings backup"))
       }
+      .accessibilityFocused($focusedSettingsControl, equals: .settingsImport)
 
       Text(
         L10n.text(
@@ -671,7 +744,7 @@ struct SettingsView: View {
       .font(.footnote)
       .foregroundStyle(.secondary)
     } header: {
-      AppSectionHeader(title: L10n.text("settings.backup_restore.section", fallback: "Backup and restore"))
+      AppSectionHeader(title: L10n.text("settings.backup_restore.file.title", fallback: "Backup file"))
     }
     .appSectionStyle()
   }
@@ -793,8 +866,16 @@ struct SettingsView: View {
     .appSectionStyle()
   }
 
-  private var accessibilitySection: some View {
+  @ViewBuilder
+  private var accessibilitySections: some View {
     Section {
+      settingsSectionDescription(
+        L10n.text(
+          "settings.accessibility.spoken_feedback.description",
+          fallback: "Choose how Listen SDR should react to Magic Tap, list selections, and RDS updates when a screen reader is active."
+        )
+      )
+
       NavigationLink {
         SelectionListView(
           title: L10n.text("settings.accessibility.magic_tap"),
@@ -820,7 +901,6 @@ struct SettingsView: View {
           value: settingsController.state.magicTapAction.localizedTitle
         )
       }
-      .accessibilityHint(L10n.text("settings.accessibility.magic_tap.hint"))
 
       NavigationLink {
         SelectionListView(
@@ -843,7 +923,6 @@ struct SettingsView: View {
           value: settingsController.state.voiceOverRDSAnnouncementMode.localizedTitle
         )
       }
-      .accessibilityHint(L10n.text("settings.accessibility.voiceover_rds_mode.hint"))
 
       NavigationLink {
         SelectionListView(
@@ -866,7 +945,23 @@ struct SettingsView: View {
           value: settingsController.state.accessibilitySelectionAnnouncementMode.localizedTitle
         )
       }
-      .accessibilityHint(L10n.text("settings.accessibility.selection_announcements.hint"))
+    } header: {
+      AppSectionHeader(
+        title: L10n.text(
+          "settings.accessibility.spoken_feedback.section",
+          fallback: "Spoken feedback"
+        )
+      )
+    }
+    .appSectionStyle()
+
+    Section {
+      settingsSectionDescription(
+        L10n.text(
+          "settings.accessibility.feedback_sounds.description",
+          fallback: "Turn on the sound cues you want. The preview uses the current feedback sound volume."
+        )
+      )
 
       Toggle(
         L10n.text("settings.accessibility.interaction_sounds"),
@@ -875,7 +970,6 @@ struct SettingsView: View {
           set: { settingsController.setAccessibilityInteractionSoundsEnabled($0) }
         )
       )
-      .accessibilityHint(L10n.text("settings.accessibility.interaction_sounds.hint"))
 
       Toggle(
         L10n.text("settings.accessibility.connection_sounds"),
@@ -884,7 +978,6 @@ struct SettingsView: View {
           set: { settingsController.setAccessibilityConnectionSoundsEnabled($0) }
         )
       )
-      .accessibilityHint(L10n.text("settings.accessibility.connection_sounds.hint"))
 
       Toggle(
         L10n.text("settings.accessibility.recording_sounds"),
@@ -893,7 +986,6 @@ struct SettingsView: View {
           set: { settingsController.setAccessibilityRecordingSoundsEnabled($0) }
         )
       )
-      .accessibilityHint(L10n.text("settings.accessibility.recording_sounds.hint"))
 
       percentageSlider(
         title: L10n.text("settings.accessibility.interaction_sounds.volume"),
@@ -912,7 +1004,6 @@ struct SettingsView: View {
         Text(L10n.text("settings.accessibility.interaction_sounds.preview"))
       }
       .disabled(!settingsController.state.accessibilityInteractionSoundsEnabled)
-      .accessibilityHint(L10n.text("settings.accessibility.interaction_sounds.preview.hint"))
 
       Toggle(
         L10n.text("settings.accessibility.interaction_sounds.mute_while_recording"),
@@ -922,9 +1013,97 @@ struct SettingsView: View {
         )
       )
       .disabled(!settingsController.state.accessibilityInteractionSoundsEnabled)
-      .accessibilityHint(L10n.text("settings.accessibility.interaction_sounds.mute_while_recording.hint"))
     } header: {
-      AppSectionHeader(title: L10n.text("settings.accessibility.section"))
+      AppSectionHeader(
+        title: L10n.text(
+          "settings.accessibility.feedback_sounds.section",
+          fallback: "Feedback sounds"
+        )
+      )
+    }
+    .appSectionStyle()
+
+    Section {
+      settingsSectionDescription(
+        L10n.text(
+          "settings.accessibility.speech_audio.description",
+          fallback: "Keep speech-focused streams closer to one listening level. FM-DX playback and recordings stay unchanged."
+        )
+      )
+
+      NavigationLink {
+        SelectionListView(
+          title: L10n.text(
+            "settings.audio.speech_loudness_leveling",
+            fallback: "Speech loudness leveling"
+          ),
+          options: speechLoudnessSelectionOptions(),
+          selectedID: settingsController.state.accessibilitySpeechLoudnessLevelingMode.rawValue,
+          selectionAnnouncement: selectionAnnouncement(
+            title: L10n.text(
+              "settings.audio.speech_loudness_leveling",
+              fallback: "Speech loudness leveling"
+            )
+          )
+        ) { value in
+          if let mode = SpeechLoudnessLevelingMode(rawValue: value) {
+            settingsController.setSpeechLoudnessLevelingMode(mode)
+          }
+        }
+      } label: {
+        LabeledContent(
+          L10n.text(
+            "settings.audio.speech_loudness_leveling",
+            fallback: "Speech loudness leveling"
+          ),
+          value: settingsController.state.accessibilitySpeechLoudnessLevelingMode.localizedTitle
+        )
+      }
+
+      if settingsController.state.accessibilitySpeechLoudnessLevelingMode == .custom {
+        scannerSlider(
+          title: L10n.text("settings.audio.speech_loudness_target"),
+          value: settingsController.state.accessibilitySpeechLoudnessCustomTargetRMS,
+          range: 0.10...0.40,
+          step: 0.01,
+          valueFormat: "%.2f",
+          valueSuffix: "",
+          hintKey: "settings.audio.speech_loudness_target.hint"
+        ) {
+          settingsController.setSpeechLoudnessCustomTargetRMS($0)
+        }
+
+        scannerSlider(
+          title: L10n.text("settings.audio.speech_loudness_max_gain"),
+          value: settingsController.state.accessibilitySpeechLoudnessCustomMaximumGain,
+          range: 4.0...24.0,
+          step: 0.5,
+          valueFormat: "%.1f",
+          valueSuffix: "x",
+          hintKey: "settings.audio.speech_loudness_max_gain.hint"
+        ) {
+          settingsController.setSpeechLoudnessCustomMaximumGain($0)
+        }
+
+        scannerSlider(
+          title: L10n.text("settings.audio.speech_loudness_peak_limit"),
+          value: settingsController.state.accessibilitySpeechLoudnessCustomPeakLimit,
+          range: 0.70...0.99,
+          step: 0.01,
+          valueFormat: "%.2f",
+          valueSuffix: "",
+          hintKey: "settings.audio.speech_loudness_peak_limit.hint"
+        ) {
+          settingsController.setSpeechLoudnessCustomPeakLimit($0)
+        }
+      }
+    } header: {
+      AppSectionHeader(
+        title: L10n.text(
+          "settings.accessibility.speech_audio.section",
+          fallback: "Speech audio"
+        )
+      )
     }
     .appSectionStyle()
   }
@@ -1192,8 +1371,16 @@ struct SettingsView: View {
     .appSectionStyle()
   }
 
-  private var audioSection: some View {
+  @ViewBuilder
+  private var audioSections: some View {
     Section {
+      settingsSectionDescription(
+        L10n.text(
+          "settings.audio.playback.description",
+          fallback: "Control playback behavior that applies before FM-DX tuning and recording settings."
+        )
+      )
+
       NavigationLink {
         SelectionListView(
           title: L10n.text("settings.audio.suggestion_scope"),
@@ -1219,7 +1406,6 @@ struct SettingsView: View {
           value: settingsController.state.audioSuggestionScope.localizedTitle
         )
       }
-      .accessibilityHint(L10n.text("settings.audio.suggestion_scope.hint"))
 
       Toggle(
         L10n.text("settings.audio.mix_with_other_apps"),
@@ -1237,9 +1423,25 @@ struct SettingsView: View {
           set: { settingsController.setRememberSquelchOnConnectEnabled($0) }
         )
       )
-      .accessibilityHint(L10n.text("settings.audio.remember_squelch_on_connect.hint"))
 
       SettingsLiveAudioInsightSection()
+    } header: {
+      AppSectionHeader(
+        title: L10n.text(
+          "settings.audio.playback.section",
+          fallback: "Playback"
+        )
+      )
+    }
+    .appSectionStyle()
+
+    Section {
+      settingsSectionDescription(
+        L10n.text(
+          "settings.audio.fmdx.description",
+          fallback: "Choose a ready FM-DX audio profile or fine-tune the stream buffers manually."
+        )
+      )
 
       NavigationLink {
         SelectionListView(
@@ -1266,7 +1468,6 @@ struct SettingsView: View {
           value: settingsController.state.currentFMDXAudioPreset.localizedTitle
         )
       }
-      .accessibilityHint(L10n.text("settings.audio.preset.hint"))
 
       audioSlider(
         title: L10n.text("settings.audio.startup_buffer"),
@@ -1298,78 +1499,28 @@ struct SettingsView: View {
         settingsController.setFMDXAudioPacketHoldSeconds($0)
       }
 
-      NavigationLink {
-        SelectionListView(
-          title: L10n.text(
-            "settings.audio.speech_loudness_leveling",
-            fallback: "Speech loudness leveling"
-          ),
-          options: speechLoudnessSelectionOptions(),
-          selectedID: settingsController.state.accessibilitySpeechLoudnessLevelingMode.rawValue,
-          selectionAnnouncement: selectionAnnouncement(
-            title: L10n.text(
-              "settings.audio.speech_loudness_leveling",
-              fallback: "Speech loudness leveling"
-            )
-          )
-        ) { value in
-          if let mode = SpeechLoudnessLevelingMode(rawValue: value) {
-            settingsController.setSpeechLoudnessLevelingMode(mode)
-          }
-        }
+      FocusRetainingButton {
+        settingsController.resetFMDXAudioTuning()
       } label: {
-        LabeledContent(
-          L10n.text(
-            "settings.audio.speech_loudness_leveling",
-            fallback: "Speech loudness leveling"
-          ),
-          value: settingsController.state.accessibilitySpeechLoudnessLevelingMode.localizedTitle
-        )
+        Text(L10n.text("settings.audio.reset"))
       }
-      .accessibilityHint(
-        L10n.text(
-          "settings.audio.speech_loudness_leveling.hint",
-          fallback: "Keeps KiwiSDR and OpenWebRX speech audio closer to one listening level. Recordings and FM-DX playback stay unchanged."
+    } header: {
+      AppSectionHeader(
+        title: L10n.text(
+          "settings.audio.fmdx.section",
+          fallback: "FM-DX audio"
         )
       )
+    }
+    .appSectionStyle()
 
-      if settingsController.state.accessibilitySpeechLoudnessLevelingMode == .custom {
-        scannerSlider(
-          title: L10n.text("settings.audio.speech_loudness_target"),
-          value: settingsController.state.accessibilitySpeechLoudnessCustomTargetRMS,
-          range: 0.10...0.40,
-          step: 0.01,
-          valueFormat: "%.2f",
-          valueSuffix: "",
-          hintKey: "settings.audio.speech_loudness_target.hint"
-        ) {
-          settingsController.setSpeechLoudnessCustomTargetRMS($0)
-        }
-
-        scannerSlider(
-          title: L10n.text("settings.audio.speech_loudness_max_gain"),
-          value: settingsController.state.accessibilitySpeechLoudnessCustomMaximumGain,
-          range: 4.0...24.0,
-          step: 0.5,
-          valueFormat: "%.1f",
-          valueSuffix: "x",
-          hintKey: "settings.audio.speech_loudness_max_gain.hint"
-        ) {
-          settingsController.setSpeechLoudnessCustomMaximumGain($0)
-        }
-
-        scannerSlider(
-          title: L10n.text("settings.audio.speech_loudness_peak_limit"),
-          value: settingsController.state.accessibilitySpeechLoudnessCustomPeakLimit,
-          range: 0.70...0.99,
-          step: 0.01,
-          valueFormat: "%.2f",
-          valueSuffix: "",
-          hintKey: "settings.audio.speech_loudness_peak_limit.hint"
-        ) {
-          settingsController.setSpeechLoudnessCustomPeakLimit($0)
-        }
-      }
+    Section {
+      settingsSectionDescription(
+        L10n.text(
+          "settings.audio.recording.description",
+          fallback: "Choose where new recordings should be saved. The default location stays inside the app."
+        )
+      )
 
       LabeledContent(
         L10n.text(
@@ -1379,16 +1530,8 @@ struct SettingsView: View {
         value: recordingStore.recordingDestinationSummary
       )
 
-      Text(
-        L10n.text(
-          "settings.audio.recording_folder.hint",
-          fallback: "Choose where new recordings are saved. The default location is the app's Recordings folder."
-        )
-      )
-      .font(.footnote)
-      .foregroundStyle(.secondary)
-
-      FocusRetainingButton {
+      Button {
+        pendingFocusRestoreTarget = .recordingFolder
         isRecordingFolderPickerPresented = true
       } label: {
         Text(
@@ -1399,6 +1542,7 @@ struct SettingsView: View {
         )
       }
       .disabled(recordingStore.isRecording)
+      .accessibilityFocused($focusedSettingsControl, equals: .recordingFolder)
 
       if recordingStore.hasCustomRecordingDestination {
         FocusRetainingButton {
@@ -1422,16 +1566,13 @@ struct SettingsView: View {
       )
       .font(.footnote)
       .foregroundStyle(.secondary)
-
-      FocusRetainingButton {
-        settingsController.resetFMDXAudioTuning()
-      } label: {
-        Text(L10n.text("settings.audio.reset"))
-      }
     } header: {
-      AppSectionHeader(title: L10n.text("settings.audio.section"))
-    } footer: {
-      Text(L10n.text("settings.audio.footer"))
+      AppSectionHeader(
+        title: L10n.text(
+          "settings.audio.recording.section",
+          fallback: "Recording"
+        )
+      )
     }
     .appSectionStyle()
   }
@@ -1447,20 +1588,34 @@ struct SettingsView: View {
       FocusRetainingButton {
         settingsController.reconnectSelectedProfile()
       } label: {
-        Text(L10n.text("Reconnect"))
+        Text(
+          L10n.text(
+            "settings.diagnostics.reconnect",
+            fallback: "Reconnect"
+          )
+        )
       }
       .disabled(!settingsController.state.canReconnectSelectedProfile)
 
       FocusRetainingButton {
         settingsController.resetDSPSettings()
       } label: {
-        Text(L10n.text("Reset signal settings"))
+        Text(
+          L10n.text(
+            "settings.diagnostics.reset_signal",
+            fallback: "Reset signal settings"
+          )
+        )
       }
 
       settingsInfoBlock(
-        title: L10n.text("Reset signal settings"),
+        title: L10n.text(
+          "settings.diagnostics.reset_signal",
+          fallback: "Reset signal settings"
+        ),
         description: L10n.text(
-          "Restores demodulation mode and signal processing controls to their defaults. The exact range depends on the receiver type."
+          "settings.diagnostics.reset_signal.description",
+          fallback: "Restores demodulation mode and signal processing controls to their defaults. The exact range depends on the receiver type."
         )
       )
     } header: {
@@ -1704,10 +1859,95 @@ struct SettingsView: View {
     selectedThemeOption.localizedDetail
   }
 
+  @ViewBuilder
+  private var settingsStatusSection: some View {
+    if let inlineStatus {
+      Section {
+        HStack(alignment: .top, spacing: 12) {
+          Image(systemName: inlineStatus.symbolName)
+            .font(.title3)
+            .foregroundStyle(inlineStatus.tintColor)
+
+          VStack(alignment: .leading, spacing: 4) {
+            Text(inlineStatus.title)
+              .font(.headline)
+
+            if let message = inlineStatus.message, !message.isEmpty {
+              Text(message)
+                .font(.footnote)
+                .foregroundStyle(AppTheme.secondaryText)
+            }
+          }
+
+          Spacer(minLength: 8)
+
+          Button {
+            self.inlineStatus = nil
+          } label: {
+            Image(systemName: "xmark.circle.fill")
+              .foregroundStyle(AppTheme.secondaryText)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(
+            L10n.text(
+              "settings.status.dismiss",
+              fallback: "Dismiss status"
+            )
+          )
+        }
+        .padding(.vertical, 4)
+      }
+      .appSectionStyle()
+    }
+  }
+
+  @ViewBuilder
+  private func settingsRowLabel(title: String, summary: String?) -> some View {
+    if let summary, !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      LabeledContent(title, value: summary)
+    } else {
+      Text(title)
+    }
+  }
+
+  private func settingsSectionDescription(_ text: String) -> some View {
+    Text(text)
+      .font(.footnote)
+      .foregroundStyle(AppTheme.secondaryText)
+  }
+
+  private func presentInlineStatus(
+    title: String,
+    message: String? = nil,
+    kind: SettingsInlineStatus.Kind = .success
+  ) {
+    inlineStatus = SettingsInlineStatus(kind: kind, title: title, message: message)
+    let announcement = [title, message]
+      .compactMap { value in
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+      }
+      .joined(separator: ". ")
+    AppAccessibilityAnnouncementCenter.post(announcement)
+  }
+
+  private func restoreFocusIfNeeded(for target: SettingsFocusTarget) {
+    guard pendingFocusRestoreTarget == target else { return }
+    pendingFocusRestoreTarget = nil
+
+    guard UIAccessibility.isVoiceOverRunning else { return }
+
+    Task { @MainActor in
+      try? await Task.sleep(nanoseconds: 180_000_000)
+      focusedSettingsControl = target
+    }
+  }
+
   private func copyCustomThemeToClipboard() {
     do {
       UIPasteboard.general.string = try AppTheme.exportCustomThemeJSONString()
-      activeAlert = FeedbackServerAlert(
+      presentInlineStatus(
         title: L10n.text(
           "settings.appearance.custom.export.success.title",
           fallback: "Custom skin copied"
@@ -1738,7 +1978,7 @@ struct SettingsView: View {
       selectedThemeID = AppThemeOption.custom.rawValue
       customThemeImportPayload = try AppTheme.exportCustomThemeJSONString()
       isCustomThemeImportSheetPresented = false
-      activeAlert = FeedbackServerAlert(
+      presentInlineStatus(
         title: L10n.text(
           "settings.appearance.custom.import.success.title",
           fallback: "Custom skin imported"
@@ -1850,7 +2090,7 @@ struct SettingsView: View {
           isCheckingFeedbackServer = false
           if isHealthy {
             feedbackServerStatus = .success
-            activeAlert = FeedbackServerAlert(
+            presentInlineStatus(
               title: L10n.text("settings.feedback.health_check.success.title"),
               message: L10n.text("settings.feedback.health_check.success.body")
             )
@@ -1880,6 +2120,43 @@ private struct FeedbackServerAlert: Identifiable {
   let id = UUID()
   let title: String
   let message: String
+}
+
+private enum SettingsFocusTarget: Hashable {
+  case recordingFolder
+  case settingsExport
+  case settingsImport
+  case customThemeImport
+}
+
+private struct SettingsInlineStatus: Identifiable, Equatable {
+  enum Kind: Equatable {
+    case success
+    case info
+  }
+
+  let id = UUID()
+  let kind: Kind
+  let title: String
+  let message: String?
+
+  var symbolName: String {
+    switch kind {
+    case .success:
+      return "checkmark.circle.fill"
+    case .info:
+      return "info.circle.fill"
+    }
+  }
+
+  var tintColor: Color {
+    switch kind {
+    case .success:
+      return AppTheme.tint
+    case .info:
+      return AppTheme.accent
+    }
+  }
 }
 
 private enum FeedbackServerStatus: Equatable {

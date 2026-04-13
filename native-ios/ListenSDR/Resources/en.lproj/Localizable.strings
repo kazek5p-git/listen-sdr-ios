@@ -309,6 +309,10 @@
 "settings.backup_restore.local_point.restore" = "Restore local restore point";
 "settings.backup_restore.local_point.available" = "A local restore point is available on this device.";
 "settings.backup_restore.local_point.missing" = "No local restore point saved on this device yet.";
+"settings.backup_restore.custom_skin.title" = "Custom skin";
+"settings.summary.restore_point.saved" = "Restore point saved";
+"settings.summary.restore_point.missing" = "No restore point";
+"settings.summary.tutorial_on_start" = "Tutorial on start";
 "settings.backup_restore.file.title" = "Backup file";
 "settings.backup_restore.file.description" = "Creates or restores a settings backup file that you can keep, copy, or move to another device.";
 "settings.backup.section" = "Settings backup";
@@ -363,6 +367,9 @@
 "settings.scanner.fmdx_custom_metadata_window.hint" = "How long the Custom scan keeps listening after a hit to collect station name and related data.";
 "settings.diagnostics.section" = "Diagnostics";
 "settings.diagnostics.open" = "Open diagnostics";
+"settings.diagnostics.reconnect" = "Reconnect";
+"settings.diagnostics.reset_signal" = "Reset signal settings";
+"settings.diagnostics.reset_signal.description" = "Restores demodulation mode and signal processing controls to their defaults. The exact range depends on the receiver type.";
 "settings.diagnostics.entries" = "Log entries";
 "session.status.sync_tuning" = "Synchronizing tuning from the receiver...";
 "frequency_input.dynamic_hint" = "Examples: %@ or %@";
@@ -386,6 +393,12 @@
 "receiver.voiceover_rotor.tune_step" = "Tune step";
 
 "settings.accessibility.section" = "Accessibility";
+"settings.accessibility.spoken_feedback.section" = "Spoken feedback";
+"settings.accessibility.spoken_feedback.description" = "Choose how Listen SDR should react to Magic Tap, list selections, and RDS updates when a screen reader is active.";
+"settings.accessibility.feedback_sounds.section" = "Feedback sounds";
+"settings.accessibility.feedback_sounds.description" = "Turn on the sound cues you want. The preview uses the current feedback sound volume.";
+"settings.accessibility.speech_audio.section" = "Speech audio";
+"settings.accessibility.speech_audio.description" = "Keep speech-focused streams closer to one listening level. FM-DX playback and recordings stay unchanged.";
 
 "settings.accessibility.voiceover_rds" = "Announce RDS changes";
 "settings.accessibility.voiceover_rds.hint" = "When VoiceOver is active, reads a new station name or RDS text after it changes.";
@@ -401,6 +414,8 @@
 "settings.accessibility.voiceover_rds_mode.off" = "Off";
 "settings.accessibility.voiceover_rds_mode.station_only" = "Station only";
 "settings.accessibility.voiceover_rds_mode.full" = "Full RDS";
+"common.open_selection_list.hint" = "Opens the selection list.";
+"Done" = "Done";
 "settings.accessibility.magic_tap" = "Magic Tap action";
 "settings.accessibility.magic_tap.hint" = "Choose what the system Magic Tap gesture should do while Listen SDR is active.";
 "settings.accessibility.magic_tap.toggle_mute" = "Mute or unmute";
@@ -418,6 +433,12 @@
 
 "settings.integrations.section" = "Integrations";
 "settings.audio.section" = "Audio settings";
+"settings.audio.playback.section" = "Playback";
+"settings.audio.playback.description" = "Control playback behavior that applies before FM-DX tuning and recording settings.";
+"settings.audio.fmdx.section" = "FM-DX audio";
+"settings.audio.fmdx.description" = "Choose a ready FM-DX audio profile or fine-tune the stream buffers manually.";
+"settings.audio.recording.section" = "Recording";
+"settings.audio.recording.description" = "Choose where new recordings should be saved. The default location stays inside the app.";
 "settings.audio.recording_folder" = "Recording folder";
 "settings.audio.recording_folder.hint" = "Choose where new recordings are saved. The default location is the app's Recordings folder.";
 "settings.audio.recording_folder.choose" = "Choose recording folder";
@@ -463,6 +484,7 @@
 "settings.audio.suggestion.disabled" = "Audio suggestions are disabled.";
 "settings.audio.suggestion.log.recommended" = "Suggested audio profile: %@. %@";
 "settings.audio.suggestion.log.applied" = "Applied audio profile: %@.";
+"settings.status.dismiss" = "Dismiss status";
 "diagnostics.audio_suggestions.section" = "Audio suggestion history";
 "diagnostics.audio_quality.section" = "FM-DX stream quality";
 "diagnostics.fmdx_presets.section" = "FM-DX presets";

@@ -29,7 +29,7 @@ struct ProfileEditorView: View {
             .accessibilityHint(L10n.text("Name shown in your radio list"))
 
           CyclingOptionCard(
-            title: L10n.text("Receiver type"),
+            title: L10n.text("history.filter.backend"),
             selectedTitle: draft.backend.displayName,
             detail: nil,
             canDecrement: SDRBackend.allCases.count > 1,
