@@ -33,6 +33,7 @@
 		3E2755D3C3B1A94376FBDDD6 /* AppAccessibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0099FA003BD98E52868FCF81 /* AppAccessibilityTests.swift */; };
 		3E7958F395139FFF50E12C41 /* ListenSDRFeedbackSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5854269FF520F5087EA1E2F3 /* ListenSDRFeedbackSender.swift */; };
 		41BD2FA1F71A8000434283F9 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C476CA16083ED45EBA81466 /* ShareSheet.swift */; };
+		4366B72BA89B72E0C8FADB88 /* SupportDevelopmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3299DBEB4871DAFC099B75 /* SupportDevelopmentCard.swift */; };
 		442DC03F435B53670FA2A19C /* ListeningHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC11AA84D6A3FD50363521F5 /* ListeningHistoryStoreTests.swift */; };
 		4D7ABA4F816056972029EBCC /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1030E7AA0B8CC314535900F8 /* AppTheme.swift */; };
 		52F0AE13AAA510955B7A3385 /* ListenSDRCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4F521E4994F054040E5B3E17 /* ListenSDRCore */; };
@@ -120,6 +121,7 @@
 		11099F867EDFFECA567B45FC /* FMDXBandScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXBandScanner.swift; sourceTree = "<group>"; };
 		11598D4ED736766676E23600 /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
 		1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyInputParserTests.swift; sourceTree = "<group>"; };
+		1C3299DBEB4871DAFC099B75 /* SupportDevelopmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportDevelopmentCard.swift; sourceTree = "<group>"; };
 		1C777C6695B92488F095F27C /* StableAnnouncementGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StableAnnouncementGate.swift; sourceTree = "<group>"; };
 		224AE639D3D4FFDF4FFF6401 /* FrequencyPresetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyPresetStore.swift; sourceTree = "<group>"; };
 		260D2B31601E03EF1A96EE7D /* FMDXTelemetrySyncBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXTelemetrySyncBridge.swift; sourceTree = "<group>"; };
@@ -310,6 +312,7 @@
 				DEAB72153F050B8965259B27 /* SpeechLoudnessLeveler.swift */,
 				715098CB8FB779868AF3E9DC /* SpeechLoudnessLevelingMode.swift */,
 				1C777C6695B92488F095F27C /* StableAnnouncementGate.swift */,
+				1C3299DBEB4871DAFC099B75 /* SupportDevelopmentCard.swift */,
 				4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */,
 				EAD1C8D99F65C7CAD5126479 /* TuneStepPreferenceMode.swift */,
 				DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */,
@@ -541,6 +544,7 @@
 				9E8A626DE4609D0BCB843FD0 /* SpeechLoudnessLeveler.swift in Sources */,
 				8948677C0ED62F0809B97D46 /* SpeechLoudnessLevelingMode.swift in Sources */,
 				AB76E3B4F5EFBA54A76658E6 /* StableAnnouncementGate.swift in Sources */,
+				4366B72BA89B72E0C8FADB88 /* SupportDevelopmentCard.swift in Sources */,
 				721B688F74C2905447CF723D /* SystemRemoteCommandController.swift in Sources */,
 				3D199DA0C04AC43A8B628250 /* TuneStepPreferenceMode.swift in Sources */,
 				217D33FBBCC6215FD86050A3 /* UnavailableContentView.swift in Sources */,
@@ -692,7 +696,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 98;
+				CURRENT_PROJECT_VERSION = 99;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -787,7 +791,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 98;
+				CURRENT_PROJECT_VERSION = 99;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
