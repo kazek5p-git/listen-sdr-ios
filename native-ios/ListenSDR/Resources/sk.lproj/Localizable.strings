@@ -1160,3 +1160,4 @@
 "settings.appearance.custom.import.error.empty" = "Neboli zadané žiadne údaje vlastného vzhľadu.";
 "settings.appearance.custom.import.error.invalid_json" = "JSON vlastného vzhľadu sa nepodarilo načítať.";
 "settings.appearance.custom.import.error.invalid_colors" = "Importovaný vzhľad neobsahuje požadované hodnoty farieb.";
+"support.amount.other_currency.button" = "Iná suma alebo mena";

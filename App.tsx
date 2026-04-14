@@ -526,6 +526,10 @@ export default function App() {
     await handleOpenSupport(normalizedAmount);
   };
 
+  const handleOpenSupportBase = async () => {
+    await handleOpenSupport();
+  };
+
   const themeOptions = useMemo(
     () => [...PRESET_THEMES, makeCustomTheme(customTheme)],
     [customTheme]
@@ -939,6 +943,25 @@ export default function App() {
             ]}
           >
             <Text style={styles.primaryButtonText}>Wesprzyj w\u0142asn\u0105 kwot\u0105</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void handleOpenSupportBase();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: activeTheme.backgroundSecondary,
+                borderColor: activeTheme.cardBorder,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
+              Inna kwota lub waluta
+            </Text>
           </Pressable>
 
           <Pressable

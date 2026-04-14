@@ -1161,3 +1161,4 @@
 "settings.appearance.custom.import.error.empty" = "No se proporcionaron datos del tema personalizado.";
 "settings.appearance.custom.import.error.invalid_json" = "No se pudo leer el JSON del tema personalizado.";
 "settings.appearance.custom.import.error.invalid_colors" = "Al tema importado le faltan valores de color obligatorios.";
+"support.amount.other_currency.button" = "Elegir otro importe o moneda";

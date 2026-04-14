@@ -897,6 +897,7 @@
 "support.amount.custom.placeholder" = "Na przykład 15";
 "support.amount.custom.button" = "Wesprzyj własną kwotą";
 "support.amount.custom.invalid" = "Wpisz prawidłową kwotę, na przykład 15 albo 15.50.";
+"support.amount.other_currency.button" = "Inna kwota lub waluta";
 "support.amount.copy_link" = "Kopiuj link wsparcia";
 "support.amount.copy_success" = "Link PayPal do wsparcia jest już w schowku.";
 "settings.feedback.health_check.success.title" = "Połączenie działa";

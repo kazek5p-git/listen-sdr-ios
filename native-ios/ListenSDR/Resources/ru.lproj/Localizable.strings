@@ -1143,3 +1143,4 @@
 "settings.appearance.custom.import.error.empty" = "Данные пользовательской темы не были предоставлены.";
 "settings.appearance.custom.import.error.invalid_json" = "Не удалось прочитать JSON пользовательской темы.";
 "settings.appearance.custom.import.error.invalid_colors" = "В импортированной теме отсутствуют обязательные значения цветов.";
+"support.amount.other_currency.button" = "Другая сумма или валюта";

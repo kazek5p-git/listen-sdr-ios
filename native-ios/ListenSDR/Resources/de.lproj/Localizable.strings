@@ -1161,3 +1161,4 @@
 "settings.appearance.custom.import.error.empty" = "Es wurden keine Daten fuer den eigenen Skin angegeben.";
 "settings.appearance.custom.import.error.invalid_json" = "Das JSON des eigenen Skins konnte nicht gelesen werden.";
 "settings.appearance.custom.import.error.invalid_colors" = "Dem importierten Skin fehlen erforderliche Farbwerte.";
+"support.amount.other_currency.button" = "Anderen Betrag oder Währung wählen";

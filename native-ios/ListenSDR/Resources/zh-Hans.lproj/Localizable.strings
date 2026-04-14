@@ -1143,3 +1143,4 @@
 "settings.appearance.custom.import.error.empty" = "未提供自定义皮肤数据。";
 "settings.appearance.custom.import.error.invalid_json" = "无法读取自定义皮肤 JSON。";
 "settings.appearance.custom.import.error.invalid_colors" = "导入的皮肤缺少必需的颜色值。";
+"support.amount.other_currency.button" = "其他金额或货币";

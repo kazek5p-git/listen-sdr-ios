@@ -86,9 +86,10 @@ jobs:
           cat > release-notes.md <<EOF
           This Android release expands the Listen SDR support flow and keeps the current skin work aligned with iOS/TestFlight.
 
-          - adds a new Support development card with direct PayPal.Me support actions
-          - adds quick support amounts: 5 PLN, 10 PLN, 20 PLN, and 50 PLN
-          - adds a custom amount field that opens PayPal.Me with the entered PLN amount
+          - adds a Support development card with direct PayPal.Me support actions
+          - keeps quick support amounts: 5 PLN, 10 PLN, 20 PLN, and 50 PLN
+          - keeps a custom amount field that opens PayPal.Me with the entered PLN amount
+          - adds a neutral "other amount or currency" action that opens the base PayPal.Me page without forcing PLN
           - keeps copying the PayPal support link available directly in the app
           - keeps the built-in skins, custom skin editor, and JSON import/export flow working with the current Android preview UI
 

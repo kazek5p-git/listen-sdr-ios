@@ -95,6 +95,18 @@ struct SupportDevelopmentCard: View {
         .tint(AppTheme.accent)
       }
 
+      FocusRetainingButton {
+        openSupportBaseURL()
+      } label: {
+        Text(
+          L10n.text(
+            "support.amount.other_currency.button",
+            fallback: "Choose another amount or currency"
+          )
+        )
+        .frame(maxWidth: .infinity)
+      }
+
       if showsCopyLinkButton {
         FocusRetainingButton {
           UIPasteboard.general.string = listenSDRSupportBaseURL.absoluteString
@@ -136,6 +148,11 @@ struct SupportDevelopmentCard: View {
     }
 
     openSupportAmount(normalizedAmount)
+  }
+
+  private func openSupportBaseURL() {
+    localStatusMessage = nil
+    openURL(listenSDRSupportBaseURL)
   }
 
   private func normalizedCustomAmount() -> String? {

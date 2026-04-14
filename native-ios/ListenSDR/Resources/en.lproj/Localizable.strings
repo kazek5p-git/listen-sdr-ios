@@ -746,6 +746,7 @@
 "support.amount.custom.placeholder" = "For example 15";
 "support.amount.custom.button" = "Support with a custom amount";
 "support.amount.custom.invalid" = "Enter a valid amount, for example 15 or 15.50.";
+"support.amount.other_currency.button" = "Choose another amount or currency";
 "support.amount.copy_link" = "Copy support link";
 "support.amount.copy_success" = "The PayPal support link is now in the clipboard.";
 "settings.feedback.health_check.success.title" = "Connection works";

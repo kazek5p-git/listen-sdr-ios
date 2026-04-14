@@ -1,0 +1,11 @@
+Please test the Settings screen on both iPhone and iPad.
+Focus on the Support development section under Help and privacy, the quick amounts 5, 10, 20, and 50 PLN, and the new Choose another amount or currency action.
+
+Please test the tutorial both on first launch and when reopened from Settings.
+Focus on the Support development card near the end, the custom amount flow, and the new neutral option for other currencies.
+
+Please test the support flow on both iOS and Android.
+Focus on opening PayPal.Me with a prepared PLN amount, opening the base PayPal.Me page without a forced currency, and copying the support link to the clipboard.
+
+Please also test Appearance and Backup and restore.
+Focus on all built-in skins, the custom skin flow, JSON copy and import, and correct Polish text rendering without broken encoding.
