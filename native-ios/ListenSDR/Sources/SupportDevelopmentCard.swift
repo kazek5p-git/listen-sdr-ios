@@ -148,7 +148,8 @@ struct SupportDevelopmentCard: View {
     guard replaced.filter({ $0 == "." }).count <= 1 else { return nil }
 
     let decimalNumber = NSDecimalNumber(string: replaced, locale: Locale(identifier: "en_US_POSIX"))
-    guard decimalNumber != .notANumber, decimalNumber.compare(.zero) == .orderedDescending else {
+    guard decimalNumber != .notANumber,
+          decimalNumber.compare(NSDecimalNumber.zero) == .orderedDescending else {
       return nil
     }
 
