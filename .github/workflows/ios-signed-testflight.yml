@@ -6,7 +6,7 @@ on:
       upload_to_testflight:
         description: "Upload exported IPA to App Store Connect TestFlight"
         required: true
-        default: false
+        default: true
         type: boolean
 
 jobs:
