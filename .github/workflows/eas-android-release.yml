@@ -1,108 +1,16 @@
-name: EAS Android Public Release
+name: Android Public Release Disabled
 
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  build-android-release:
+  disabled:
     runs-on: ubuntu-latest
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Fetch tags
-        run: git fetch --tags --force
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Setup Expo CLI
-        uses: expo/expo-github-action@v8
-        with:
-          expo-version: latest
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-          expo-cache: true
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Resolve app version
+      - name: Stop deprecated Android EAS release flow
         run: |
-          APP_VERSION=$(node -p "require('./app.json').expo.version")
-          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
-
-      - name: Build Android APK with EAS
-        run: |
-          eas build --platform android --profile preview --non-interactive --wait --json > build.json
-          cat build.json
-          node <<'NODE'
-          const fs = require('fs');
-          const raw = fs.readFileSync('build.json', 'utf8').trim();
-          const parsed = JSON.parse(raw);
-          const build = Array.isArray(parsed) ? parsed[0] : parsed;
-          const url =
-            build?.artifacts?.buildUrl ||
-            build?.artifacts?.applicationArchiveUrl ||
-            build?.artifacts?.url ||
-            build?.artifacts?.apkUrl;
-          if (!url) {
-            console.error('Unable to resolve Android artifact URL from EAS build output.');
-            console.error(JSON.stringify(build, null, 2));
-            process.exit(1);
-          }
-          fs.appendFileSync(process.env.GITHUB_ENV, `EAS_BUILD_ID=${build.id || ''}\n`);
-          fs.appendFileSync(process.env.GITHUB_ENV, `APK_URL=${url}\n`);
-          NODE
-
-      - name: Download APK artifact
-        run: curl -L "$APK_URL" -o ListenSDR-android-release.apk
-
-      - name: Compute release tag
-        run: |
-          LAST_BUILD=$(git tag -l "android-v${APP_VERSION}-build-*" | sed -E 's/.*-build-([0-9]+)/\1/' | sort -n | tail -1)
-          if [ -z "$LAST_BUILD" ]; then
-            NEXT_BUILD=1
-          else
-            NEXT_BUILD=$((LAST_BUILD + 1))
-          fi
-          RELEASE_TAG="android-v${APP_VERSION}-build-${NEXT_BUILD}"
-          RELEASE_TITLE="Listen SDR Android ${APP_VERSION} (${NEXT_BUILD})"
-          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
-          echo "RELEASE_TITLE=$RELEASE_TITLE" >> "$GITHUB_ENV"
-
-      - name: Prepare release notes
-        run: |
-          cat > release-notes.md <<EOF
-          This Android release expands the Listen SDR support flow and keeps the current skin work aligned with iOS/TestFlight.
-
-          - adds a Support development card with direct PayPal.Me support actions
-          - keeps quick support amounts: 5 PLN, 10 PLN, 20 PLN, and 50 PLN
-          - keeps a custom amount field that opens PayPal.Me with the entered PLN amount
-          - adds a neutral "other amount or currency" action that opens the base PayPal.Me page without forcing PLN
-          - keeps copying the PayPal support link available directly in the app
-          - keeps the built-in skins, custom skin editor, and JSON import/export flow working with the current Android preview UI
-
-          EAS build ID: ${EAS_BUILD_ID}
-          EOF
-
-      - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$RELEASE_TAG" \
-            ListenSDR-android-release.apk \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$RELEASE_TITLE" \
-            --notes-file release-notes.md \
-            --latest
+          echo "This workflow is intentionally disabled."
+          echo "Reason: the EAS preview/internal artifact produced a much larger public APK than the local signed release."
+          echo "Public Android releases must be published from the local signed APK in the private android-starter-app repository."
+          echo "Use scripts\\Publish-ListenSDR-GitHubRelease.ps1 in android-starter-app instead."
+          exit 1

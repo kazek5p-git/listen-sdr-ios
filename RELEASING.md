@@ -33,9 +33,12 @@ This project is the public source of truth for Listen SDR releases.
 - Asset name: `ListenSDR-android-release.apk`
 - Public download pattern:
   `https://github.com/kazek5p-git/listen-sdr-ios/releases/download/<tag>/ListenSDR-android-release.apk`
-- Standard public Android flow now runs from GitHub Actions workflow:
-  `EAS Android Public Release`
-- The workflow builds an Android APK with EAS, computes the next `android-v<version>-build-<n>` tag, and publishes the APK directly as a GitHub Release asset.
+- Public Android releases should be published from the local signed APK built in the private `android-starter-app` repository.
+- Do not use the deprecated GitHub Actions workflow in this repository for Android public APK publishing.
+- The previous EAS preview/internal flow is intentionally disabled because it produced a much larger public APK than the local signed release.
+- Use:
+  `android-starter-app\scripts\Publish-ListenSDR-GitHubRelease.ps1`
+  to publish the public `ListenSDR-android-release.apk` asset into this repository.
 
 ### Release hygiene
 
