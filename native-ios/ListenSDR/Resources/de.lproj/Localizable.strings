@@ -1,4 +1,4 @@
-"Radios" = "Empfänger";
+"Radios" = "Empfängerliste";
 "Receiver" = "Empfänger";
 "Diagnostics" = "Diagnose";
 
@@ -11,6 +11,10 @@
 "Edit Radio" = "Empfänger bearbeiten";
 "Delete" = "Löschen";
 "Double tap to select this receiver profile" = "Doppeltippen, um dieses Empfängerprofil auszuwählen";
+"Share receiver link" = "Empfängerlink teilen";
+"Copy receiver link" = "Empfängerlink kopieren";
+"Receiver link copied to the clipboard." = "Empfängerlink wurde in die Zwischenablage kopiert.";
+"Double tap to change connection state. Long press for receiver link actions." = "Doppeltippen, um den Verbindungsstatus zu ändern. Für Empfängerlink-Aktionen lange gedrückt halten.";
 
 "General" = "Allgemein";
 "Profile name" = "Profilname";
@@ -853,7 +857,7 @@
 "settings.accessibility.interaction_sounds.hint" = "Spielt einen tieferen Ton beim Ausschalten und einen hoeheren Ton beim Einschalten, zum Beispiel fuer Stumm und Stereo.";
 "accessibility.magic_tap.muted" = "Stummgeschaltet";
 "accessibility.magic_tap.unmuted" = "Stummschaltung aufgehoben";
-"settings.radios.section" = "Radios";
+"settings.radios.section" = "Empfängerliste";
 "settings.radios.search_filters" = "Sichtbarkeit der Suchfilter";
 "settings.radios.search_filters.hint" = "Waehlt, ob Such- und Verlaufsfilter im Tab Radios immer sichtbar sind oder nur bei aktivem Suchfeld.";
 "settings.radios.search_filters.always_visible" = "Immer sichtbar";

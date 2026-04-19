@@ -274,6 +274,8 @@ struct ReceiverView: View {
   @State private var selectedFMDXBandScanRange: FMDXBandScanRangePreset = .upperUKF
   @State private var selectedFMDXBandScanMode: FMDXBandScanMode = .standard
   @State private var selectedFMDXBandScanStepHz = FMDXBandScanRangePreset.upperUKF.definition.defaultStepHz
+  @State private var sharedReceiverLink: String?
+  @State private var showingReceiverLinkCopiedConfirmation = false
 
   private let defaultFrequencyRangeHz: ClosedRange<Int> = 100_000...3_000_000_000
   private let kiwiFrequencyRangeHz: ClosedRange<Int> = 10_000...32_000_000
@@ -381,6 +383,30 @@ struct ReceiverView: View {
             }
           }
       }
+    }
+    .sheet(
+      isPresented: Binding(
+        get: { sharedReceiverLink != nil },
+        set: { isPresented in
+          if !isPresented {
+            sharedReceiverLink = nil
+          }
+        }
+      )
+    ) {
+      if let sharedReceiverLink {
+        ShareSheet(items: [sharedReceiverLink])
+      }
+    }
+    .alert(L10n.text("Copied", fallback: "Copied"), isPresented: $showingReceiverLinkCopiedConfirmation) {
+      Button(L10n.text("OK"), role: .cancel) {}
+    } message: {
+      Text(
+        L10n.text(
+          "Receiver link copied to the clipboard.",
+          fallback: "Receiver link copied to the clipboard."
+        )
+      )
     }
   }
 
@@ -512,7 +538,37 @@ struct ReceiverView: View {
             Text(connectionButtonTitle(for: profile))
           }
           .buttonStyle(.borderedProminent)
-          .accessibilityHint(L10n.text("Double tap to change connection state"))
+          .contextMenu {
+            Button {
+              sharedReceiverLink = profile.endpointDescription
+            } label: {
+              Label(
+                L10n.text("Share receiver link", fallback: "Share receiver link"),
+                systemImage: "square.and.arrow.up"
+              )
+            }
+
+            Button {
+              copyReceiverLinkToClipboard(profile)
+            } label: {
+              Label(
+                L10n.text("Copy receiver link", fallback: "Copy receiver link"),
+                systemImage: "doc.on.doc"
+              )
+            }
+          }
+          .accessibilityHint(
+            L10n.text(
+              "Double tap to change connection state. Long press for receiver link actions.",
+              fallback: "Double tap to change connection state. Long press for receiver link actions."
+            )
+          )
+          .accessibilityAction(named: Text(L10n.text("Share receiver link", fallback: "Share receiver link"))) {
+            sharedReceiverLink = profile.endpointDescription
+          }
+          .accessibilityAction(named: Text(L10n.text("Copy receiver link", fallback: "Copy receiver link"))) {
+            copyReceiverLinkToClipboard(profile)
+          }
         }
       }
 
@@ -2347,6 +2403,11 @@ struct ReceiverView: View {
     }
 
     radioSession.connect(to: profile)
+  }
+
+  private func copyReceiverLinkToClipboard(_ profile: SDRConnectionProfile) {
+    UIPasteboard.general.string = profile.endpointDescription
+    showingReceiverLinkCopiedConfirmation = true
   }
 
   private func receiverAccentColor(for backend: SDRBackend) -> Color {
