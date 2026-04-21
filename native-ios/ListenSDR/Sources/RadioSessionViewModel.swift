@@ -3418,13 +3418,14 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   private func effectiveAudioMuted(
-    settings: RadioSessionSettings = settings,
+    settings: RadioSessionSettings? = nil,
     communicationInterruptionActive: Bool? = nil,
     allowAudioDuringCommunicationInterruption: Bool? = nil
   ) -> Bool {
+    let resolvedSettings = settings ?? self.settings
     let interruptionActive = communicationInterruptionActive ?? isCommunicationInterruptionActive
     let allowsAudio = allowAudioDuringCommunicationInterruption ?? self.allowAudioDuringCommunicationInterruption
-    return settings.audioMuted || (interruptionActive && !allowsAudio)
+    return resolvedSettings.audioMuted || (interruptionActive && !allowsAudio)
   }
 
   private func applyEffectiveAudioMuteState() {
