@@ -162,7 +162,8 @@ if not builds:
 build = builds[0]
 build_id = build["id"]
 
-status, group_payload = api_get(f"{base_url}/apps/{app_id}/betaGroups?limit=200")
+group_query = urllib.parse.urlencode({"filter[app]": app_id, "limit": "200"})
+status, group_payload = api_get(f"{base_url}/betaGroups?{group_query}")
 groups = group_payload.get("data", [])
 
 selected_group = None

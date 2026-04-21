@@ -8,8 +8,8 @@ param(
   [string]$ReleaseNotesRoot,
   [string]$MarketingVersion,
   [string]$BuildVersion,
-  [string]$BetaGroupName = "wewnetrzna",
-  [string]$BetaGroupId = "89359342-cf9d-480b-9c75-8e34a7fef728",
+  [string]$BetaGroupName = "alfa",
+  [string]$BetaGroupId = "a0c0017c-8e47-46e6-9185-6fdc948c91f8",
   [switch]$ValidateOnly,
   [switch]$Json
 )
@@ -346,7 +346,11 @@ try:
                 "id": existing["id"],
             })
 
-    beta_groups_payload = api_get(f"{base_url}/apps/{app_id}/betaGroups?limit=200")
+    beta_group_query = urllib.parse.urlencode({
+        "filter[app]": app_id,
+        "limit": "200",
+    })
+    beta_groups_payload = api_get(f"{base_url}/betaGroups?{beta_group_query}")
 
     def normalize_name(value: str) -> str:
         normalized = unicodedata.normalize("NFKD", value or "")
