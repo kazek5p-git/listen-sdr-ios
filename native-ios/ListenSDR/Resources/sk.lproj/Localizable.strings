@@ -155,6 +155,7 @@
 "session.status.disconnected" = "OdpojenÃ©";
 "session.status.connecting_to" = "PripÃ¡ja sa k %@...";
 "session.status.connected_to" = "PripojenÃ© k %@";
+"session.status.connected_short" = "Pripojené";
 "session.status.connection_failed" = "Pripojenie zlyhalo";
 "session.status.connected_with_setting_error" = "SÃºvisÃ­ s chybou nastavenia";
 "session.status.connection_lost" = "Spojenie sa stratilo";

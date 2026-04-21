@@ -155,6 +155,7 @@
 "session.status.disconnected" = "Rozłączono";
 "session.status.connecting_to" = "Łączenie z %@...";
 "session.status.connected_to" = "Połączono z %@";
+"session.status.connected_short" = "Połączono";
 "session.status.connection_failed" = "Połączenie nieudane";
 "session.status.connected_with_setting_error" = "Połączono, ale wystąpił błąd ustawień";
 "session.status.connection_lost" = "Utracono połączenie";

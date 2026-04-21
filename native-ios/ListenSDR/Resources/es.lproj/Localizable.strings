@@ -153,6 +153,7 @@
 "session.status.disconnected" = "Desconectado";
 "session.status.connecting_to" = "Conectando a %@...";
 "session.status.connected_to" = "Conectado a %@";
+"session.status.connected_short" = "Conectado";
 "session.status.connection_failed" = "Conexión fallida";
 "session.status.connected_with_setting_error" = "Conectado con error de configuracion";
 "session.status.connection_lost" = "Conexión perdida";

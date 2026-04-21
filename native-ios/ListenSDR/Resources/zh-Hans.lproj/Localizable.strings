@@ -74,6 +74,7 @@
 "session.status.disconnected" = "已断开";
 "session.status.connecting_to" = "正在连接 %@...";
 "session.status.connected_to" = "已连接到 %@";
+"session.status.connected_short" = "已连接";
 "session.status.connection_failed" = "连接失败";
 "session.status.connected_with_setting_error" = "已连接，但设置出错";
 "session.status.connection_lost" = "连接已中断";

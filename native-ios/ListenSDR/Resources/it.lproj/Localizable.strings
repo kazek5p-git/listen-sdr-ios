@@ -153,6 +153,7 @@
 "session.status.disconnected" = "Disconnesso";
 "session.status.connecting_to" = "Connessione a %@...";
 "session.status.connected_to" = "Connesso a %@";
+"session.status.connected_short" = "Connesso";
 "session.status.connection_failed" = "Connessione non riuscita";
 "session.status.connected_with_setting_error" = "Connesso con errore impostazioni";
 "session.status.connection_lost" = "Connessione persa";

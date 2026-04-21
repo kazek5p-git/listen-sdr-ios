@@ -74,6 +74,7 @@
 "session.status.disconnected" = "Отключено";
 "session.status.connecting_to" = "Подключение к %@...";
 "session.status.connected_to" = "Подключено к %@";
+"session.status.connected_short" = "Подключено";
 "session.status.connection_failed" = "Ошибка подключения";
 "session.status.connected_with_setting_error" = "Подключено, но есть ошибка настроек";
 "session.status.connection_lost" = "Соединение потеряно";

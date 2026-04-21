@@ -157,6 +157,7 @@
 "session.status.disconnected" = "Getrennt";
 "session.status.connecting_to" = "Verbinde mit %@...";
 "session.status.connected_to" = "Verbunden mit %@";
+"session.status.connected_short" = "Verbunden";
 "session.status.connection_failed" = "Verbindung fehlgeschlagen";
 "session.status.connected_with_setting_error" = "Verbunden, aber Einstellungsfehler";
 "session.status.connection_lost" = "Verbindung verloren";

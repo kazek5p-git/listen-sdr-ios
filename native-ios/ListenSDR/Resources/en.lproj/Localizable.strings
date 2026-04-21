@@ -1,6 +1,7 @@
 "session.status.disconnected" = "Disconnected";
 "session.status.connecting_to" = "Connecting to %@...";
 "session.status.connected_to" = "Connected to %@";
+"session.status.connected_short" = "Connected";
 "session.status.connection_failed" = "Connection failed";
 "session.status.connected_with_setting_error" = "Connected with setting error";
 "session.status.connection_lost" = "Connection lost";

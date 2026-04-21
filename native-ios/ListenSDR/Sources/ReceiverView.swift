@@ -520,7 +520,9 @@ struct ReceiverView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.85)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(profile.name)
+        .accessibilityValue(receiverSummaryAccessibilityStatus(for: profile))
 
         Spacer(minLength: 8)
 
@@ -531,6 +533,7 @@ struct ReceiverView: View {
             .padding(.vertical, 6)
             .background(receiverStatusBackground, in: Capsule())
             .foregroundStyle(receiverStatusForeground)
+            .accessibilityHidden(true)
 
           FocusRetainingButton({
             handleConnectionButtonTap(for: profile)
@@ -2444,6 +2447,27 @@ struct ReceiverView: View {
       return .red
     case .disconnected:
       return .secondary
+    }
+  }
+
+  private func receiverSummaryAccessibilityStatus(
+    for profile: SDRConnectionProfile
+  ) -> String {
+    switch radioSession.state {
+    case .connected:
+      if radioSession.connectedProfileID == profile.id {
+        return L10n.text(
+          "session.status.connected_short",
+          fallback: "Connected"
+        )
+      }
+      return L10n.text("session.status.disconnected")
+    case .connecting:
+      return L10n.text("connection.connecting")
+    case .failed:
+      return L10n.text("session.status.connection_failed")
+    case .disconnected:
+      return L10n.text("session.status.disconnected")
     }
   }
 
