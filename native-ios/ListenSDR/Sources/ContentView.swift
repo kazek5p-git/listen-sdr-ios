@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVFAudio
 
 struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
@@ -84,6 +85,12 @@ struct ContentView: View {
         selectedTab: selectedTab
       )
     }
+    .onChange(of: radioSession.isCommunicationInterruptionActive) { _ in
+      radioSession.updateRuntimePolicy(
+        isForegroundActive: scenePhase == .active,
+        selectedTab: navigationState.selectedTab
+      )
+    }
     .onChange(of: scenePhase) { phase in
       logScenePhaseTransition(to: phase)
       radioSession.updateRuntimePolicy(
@@ -113,6 +120,23 @@ struct ContentView: View {
     }
     .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
       logApplicationLifecycleEvent("UIApplication did become active")
+    }
+    .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)) { notification in
+      guard
+        let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+        let interruptionType = AVAudioSession.InterruptionType(rawValue: rawType)
+      else {
+        return
+      }
+
+      switch interruptionType {
+      case .began:
+        radioSession.handleCommunicationInterruptionBegan()
+      case .ended:
+        radioSession.handleCommunicationInterruptionEnded()
+      @unknown default:
+        break
+      }
     }
   }
 

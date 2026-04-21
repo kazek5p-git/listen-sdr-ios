@@ -133,6 +133,8 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   @Published private(set) var state: ConnectionState = .disconnected
+  @Published private(set) var isAudioOutputMuted = false
+  @Published private(set) var isCommunicationInterruptionActive = false
   @Published private(set) var connectedProfileID: UUID?
   @Published private(set) var statusText: String = L10n.text("session.status.disconnected")
   @Published private(set) var backendStatusText: String?
@@ -250,6 +252,9 @@ final class RadioSessionViewModel: ObservableObject {
   private var initialTuningFallbackTask: Task<Void, Never>?
   private let manualReconnectDelayNanoseconds: UInt64 = 120_000_000
   private var runtimePolicy: BackendRuntimePolicy = .interactive
+  private var runtimePolicyForegroundActive = true
+  private var runtimePolicySelectedTab: AppTab = .receiver
+  private var allowAudioDuringCommunicationInterruption = false
   private var lastReducedActivityAudioAnalysisAt = Date.distantPast
   private var connectedSince = Date.distantPast
   private var automaticReconnectAttempts = 0
@@ -308,14 +313,13 @@ final class RadioSessionViewModel: ObservableObject {
     manualSettingsSnapshot = loadPersistedSnapshot(forKey: manualSettingsSnapshotKey)
     hasSavedSettingsSnapshot = manualSettingsSnapshot != nil
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
-    SharedAudioOutput.engine.setMuted(settings.audioMuted)
+    applyEffectiveAudioMuteState()
     SharedAudioOutput.engine.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
     SharedAudioOutput.engine.setSpeechLoudnessLeveling(
       mode: settings.accessibilitySpeechLoudnessLevelingMode,
       customProfile: speechLoudnessCustomProfile(from: settings)
     )
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
-    FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
     FMDXMP3AudioPlayer.shared.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
     applyFMDXAudioTuning()
     seedFMDXBandMemory()
@@ -327,10 +331,12 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func updateRuntimePolicy(isForegroundActive: Bool, selectedTab: AppTab) {
+    runtimePolicyForegroundActive = isForegroundActive
+    runtimePolicySelectedTab = selectedTab
     let previousPolicy = runtimePolicy
     let newPolicy = BackendRuntimePolicy(
       BackendRuntimePolicyCore.policy(
-        isForegroundActive: isForegroundActive,
+        isForegroundActive: isForegroundActive || isCommunicationInterruptionActive,
         isReceiverTabSelected: selectedTab == .receiver
       )
     )
@@ -1942,13 +1948,21 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setAudioMuted(_ muted: Bool) {
-    guard settings.audioMuted != muted else { return }
+    let updatedOverride = isCommunicationInterruptionActive && !muted
+    let effectiveMutedAfterChange = effectiveAudioMuted(
+      settings: settings.updatingAudioMuted(muted),
+      communicationInterruptionActive: isCommunicationInterruptionActive,
+      allowAudioDuringCommunicationInterruption: updatedOverride
+    )
+    let settingsChanged = settings.audioMuted != muted
+    let overrideChanged = allowAudioDuringCommunicationInterruption != updatedOverride
+    guard settingsChanged || overrideChanged || isAudioOutputMuted != effectiveMutedAfterChange else { return }
+
+    allowAudioDuringCommunicationInterruption = updatedOverride
     settings.audioMuted = muted
-    SharedAudioOutput.engine.setMuted(muted)
-    FMDXMP3AudioPlayer.shared.setMuted(muted)
-    NowPlayingMetadataController.shared.setMuted(muted)
+    applyEffectiveAudioMuteState()
     persistSettings()
-    playInteractionFeedbackIfEnabled(isOn: !muted)
+    playInteractionFeedbackIfEnabled(isOn: !effectiveMutedAfterChange)
   }
 
   func setMixWithOtherAudioApps(_ enabled: Bool) {
@@ -1961,7 +1975,15 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func toggleAudioMuted() {
-    setAudioMuted(!settings.audioMuted)
+    setAudioMuted(!isAudioOutputMuted)
+  }
+
+  func handleCommunicationInterruptionBegan() {
+    applyCommunicationInterruptionState(true)
+  }
+
+  func handleCommunicationInterruptionEnded() {
+    applyCommunicationInterruptionState(false)
   }
 
   func setAGCEnabled(_ enabled: Bool) {
@@ -2451,7 +2473,7 @@ final class RadioSessionViewModel: ObservableObject {
       toggleAudioMuted()
       AppAccessibilityAnnouncementCenter.post(
         L10n.text(
-          settings.audioMuted
+          isAudioOutputMuted
             ? "accessibility.magic_tap.muted"
             : "accessibility.magic_tap.unmuted"
         )
@@ -3382,6 +3404,37 @@ final class RadioSessionViewModel: ObservableObject {
     UserDefaults.standard.set(encoded, forKey: settingsKey)
   }
 
+  private func applyCommunicationInterruptionState(_ active: Bool) {
+    guard isCommunicationInterruptionActive != active else { return }
+    isCommunicationInterruptionActive = active
+    if !active {
+      allowAudioDuringCommunicationInterruption = false
+    }
+    applyEffectiveAudioMuteState()
+    updateRuntimePolicy(
+      isForegroundActive: runtimePolicyForegroundActive,
+      selectedTab: runtimePolicySelectedTab
+    )
+  }
+
+  private func effectiveAudioMuted(
+    settings: RadioSessionSettings = settings,
+    communicationInterruptionActive: Bool? = nil,
+    allowAudioDuringCommunicationInterruption: Bool? = nil
+  ) -> Bool {
+    let interruptionActive = communicationInterruptionActive ?? isCommunicationInterruptionActive
+    let allowsAudio = allowAudioDuringCommunicationInterruption ?? self.allowAudioDuringCommunicationInterruption
+    return settings.audioMuted || (interruptionActive && !allowsAudio)
+  }
+
+  private func applyEffectiveAudioMuteState() {
+    let muted = effectiveAudioMuted()
+    isAudioOutputMuted = muted
+    SharedAudioOutput.engine.setMuted(muted)
+    FMDXMP3AudioPlayer.shared.setMuted(muted)
+    NowPlayingMetadataController.shared.setMuted(muted)
+  }
+
   private func loadPersistedSnapshot(forKey key: String) -> RadioSessionSettings? {
     guard let raw = UserDefaults.standard.data(forKey: key),
       let decoded = try? JSONDecoder().decode(RadioSessionSettings.self, from: raw) else {
@@ -3470,9 +3523,8 @@ final class RadioSessionViewModel: ObservableObject {
 
   private func applyCurrentSettingsToConnectedBackend() {
     SharedAudioOutput.engine.setVolume(settings.audioVolume)
-    SharedAudioOutput.engine.setMuted(settings.audioMuted)
+    applyEffectiveAudioMuteState()
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
-    FMDXMP3AudioPlayer.shared.setMuted(settings.audioMuted)
     SharedAudioOutput.engine.setMixWithOtherAudioApps(settings.mixWithOtherAudioApps)
     SharedAudioOutput.engine.setSpeechLoudnessLeveling(
       mode: settings.accessibilitySpeechLoudnessLevelingMode,
@@ -6189,6 +6241,14 @@ final class RadioSessionViewModel: ObservableObject {
       message: "Tune step adjusted to \(state.tuneStepHz) Hz for band profile \(profile.id) (mode=\(settings.tuneStepPreferenceMode.rawValue))"
     )
     return true
+  }
+}
+
+private extension RadioSessionSettings {
+  func updatingAudioMuted(_ muted: Bool) -> RadioSessionSettings {
+    var copy = self
+    copy.audioMuted = muted
+    return copy
   }
 }
 

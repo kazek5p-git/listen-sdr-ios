@@ -2333,7 +2333,7 @@ struct ReceiverView: View {
       Toggle(
         "Mute audio",
         isOn: Binding(
-          get: { radioSession.settings.audioMuted },
+          get: { radioSession.isAudioOutputMuted },
           set: { radioSession.setAudioMuted($0) }
         )
       )
