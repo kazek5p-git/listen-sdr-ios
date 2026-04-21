@@ -1,0 +1,14 @@
+Sprawdź ekran odbiornika na iPhonie i iPadzie.
+Najważniejsze są: długie przytrzymanie przycisku Połącz lub Rozłącz, kopiowanie linku odbiornika oraz udostępnianie linku odbiornika.
+
+Sprawdź dostępność ekranu odbiornika.
+Najważniejsze są: akcje VoiceOver do kopiowania i udostępniania linku oraz poprawna wskazówka o długim przytrzymaniu przycisku połączenia.
+
+Sprawdź zachowanie aplikacji podczas rozmowy telefonicznej lub innego przerwania audio.
+Najważniejsze są: automatyczne wyciszenie odbiornika bez blokowania sterowania, możliwość ręcznego odmutowania w trakcie rozmowy oraz automatyczny powrót dźwięku po zakończeniu rozmowy.
+
+Sprawdź niemiecki interfejs.
+Najważniejsze są: zakładka Odbiornik jako Empfänger oraz zakładka Radia jako Empfängerliste.
+
+Sprawdź też Wygląd oraz Kopię i przywracanie.
+Najważniejsze są: wszystkie skórki, własna skórka, kopiowanie i import JSON oraz brak regresji po ostatnich zmianach.
