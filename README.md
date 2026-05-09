@@ -37,6 +37,11 @@ Katalog: `native-ios/`
 - Ikony aplikacji sa gotowe w `native-ios/ListenSDR/Resources/Assets.xcassets/AppIcon.appiconset`.
 - `ASSETCATALOG_COMPILER_APPICON_NAME` jest ustawione na `AppIcon`.
 
+## Utrzymanie projektu
+
+- Mapa kodu, główne punkty długu technicznego i zasady refaktoryzacji są w `docs/maintenance.md`.
+- Przy nowych funkcjach audio, dostępności, skórek i release pipeline najpierw dopisz funkcję, a potem zrób osobny mały etap porządkowy.
+
 Podpisanie przez inne konto Apple w Xcode:
 1. Wygeneruj projekt przez XcodeGen (`xcodegen generate` w `native-ios/`).
 2. Otworz `ListenSDR.xcodeproj` w Xcode.
