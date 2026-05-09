@@ -334,12 +334,11 @@ final class RadioSessionViewModel: ObservableObject {
     runtimePolicyForegroundActive = isForegroundActive
     runtimePolicySelectedTab = selectedTab
     let previousPolicy = runtimePolicy
-    let newPolicy = BackendRuntimePolicy(
-      BackendRuntimePolicyCore.policy(
-        isForegroundActive: isForegroundActive || isCommunicationInterruptionActive,
-        isReceiverTabSelected: selectedTab == .receiver
-      )
-    )
+    let newPolicy = RadioSessionRuntimePolicy(
+      foregroundActive: isForegroundActive,
+      selectedTab: selectedTab,
+      communicationInterruptionActive: isCommunicationInterruptionActive
+    ).backendPolicy
 
     guard runtimePolicy != newPolicy else { return }
     runtimePolicy = newPolicy
