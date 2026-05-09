@@ -499,6 +499,7 @@ except Exception as exc:
     }
     Write-Host ("Locales on build: " + ($result.locales -join ", "))
   }
+  exit 0
 } finally {
   if (Test-Path $tempInputPath) {
     Remove-Item $tempInputPath -Force -ErrorAction SilentlyContinue

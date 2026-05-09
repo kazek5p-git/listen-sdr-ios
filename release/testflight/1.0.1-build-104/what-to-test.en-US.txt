@@ -1,0 +1,14 @@
+Please test the receiver screen on both iPhone and iPad.
+Focus on the long press on the Connect or Disconnect button, copying the receiver link, and sharing the receiver link.
+
+Please test accessibility on the receiver screen.
+Focus on the VoiceOver actions for copying and sharing the receiver link, and the updated hint about long pressing the connection button.
+
+Please test app behavior during a phone call or any other audio interruption.
+Focus on automatic receiver muting without losing control access, manual unmute during the call, and automatic audio recovery after the call ends.
+
+Please test the German interface.
+Focus on the Receiver tab label staying as Empfänger and the Radios tab label changing to Empfängerliste.
+
+Please also test Appearance and Backup and restore.
+Focus on all built-in skins, the custom skin flow, JSON copy and import, and no regressions after the latest changes.

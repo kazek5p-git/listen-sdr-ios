@@ -278,7 +278,12 @@ if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {
 
 $status = @(& git -C $RepoRoot status --short | Where-Object {
     $_ -notmatch 'sideloadlydaemon\.log$' -and
-    $_ -notmatch '^\s*[MADRCU?]{1,2}\s+scripts/Run-ListenSDR-RemoteTestFlight\.ps1$'
+    $_ -notmatch '^\s*[MADRCU?]{1,2}\s+scripts/Run-ListenSDR-RemoteTestFlight\.ps1$' -and
+    $_ -notmatch '^\s*[MADRCU?]{1,2}\s+native-ios/project\.yml$' -and
+    $_ -notmatch '^\s*[MADRCU?]{1,2}\s+native-ios/ListenSDR/Info\.plist$' -and
+    $_ -notmatch '^\s*[MADRCU?]{1,2}\s+release/testflight/.+$' -and
+    $_ -notmatch '^\s*[MADRCU?]{1,2}\s+release/testflight/.+/what-to-test\.pl\.txt$' -and
+    $_ -notmatch '^\s*[MADRCU?]{1,2}\s+release/testflight/.+/what-to-test\.en-US\.txt$'
   })
 if ($status.Count -gt 0) {
   throw "Repository has unrelated uncommitted changes. Commit or stash them before remote TestFlight build."

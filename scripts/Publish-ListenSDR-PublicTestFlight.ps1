@@ -279,6 +279,7 @@ Path(r'''$tempOutputPath''').write_text(json.dumps(result, indent=2, ensure_asci
     Write-Host ("Submission action: " + $result.submissionAction)
     Write-Host ("Public link: " + $result.publicLink)
   }
+  exit 0
 } finally {
   Remove-Item $tempPythonPath -ErrorAction SilentlyContinue
   Remove-Item $tempOutputPath -ErrorAction SilentlyContinue
