@@ -1948,7 +1948,10 @@ final class RadioSessionViewModel: ObservableObject {
   }
 
   func setAudioMuted(_ muted: Bool) {
-    let updatedOverride = isCommunicationInterruptionActive && !muted
+    let updatedOverride = RadioSessionAudioMutePolicy.allowAudioDuringInterruption(
+      whenUserRequestsMuted: muted,
+      communicationInterruptionActive: isCommunicationInterruptionActive
+    )
     let effectiveMutedAfterChange = effectiveAudioMuted(
       settings: settings.updatingAudioMuted(muted),
       communicationInterruptionActive: isCommunicationInterruptionActive,
@@ -3425,7 +3428,11 @@ final class RadioSessionViewModel: ObservableObject {
     let resolvedSettings = settings ?? self.settings
     let interruptionActive = communicationInterruptionActive ?? isCommunicationInterruptionActive
     let allowsAudio = allowAudioDuringCommunicationInterruption ?? self.allowAudioDuringCommunicationInterruption
-    return resolvedSettings.audioMuted || (interruptionActive && !allowsAudio)
+    return RadioSessionAudioMutePolicy(
+      settingsAudioMuted: resolvedSettings.audioMuted,
+      communicationInterruptionActive: interruptionActive,
+      allowAudioDuringCommunicationInterruption: allowsAudio
+    ).effectiveMuted
   }
 
   private func applyEffectiveAudioMuteState() {
@@ -6242,14 +6249,6 @@ final class RadioSessionViewModel: ObservableObject {
       message: "Tune step adjusted to \(state.tuneStepHz) Hz for band profile \(profile.id) (mode=\(settings.tuneStepPreferenceMode.rawValue))"
     )
     return true
-  }
-}
-
-private extension RadioSessionSettings {
-  func updatingAudioMuted(_ muted: Bool) -> RadioSessionSettings {
-    var copy = self
-    copy.audioMuted = muted
-    return copy
   }
 }
 
