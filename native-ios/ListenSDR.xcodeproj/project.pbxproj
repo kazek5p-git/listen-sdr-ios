@@ -91,6 +91,7 @@
 		DDE4048086B329E1DA759831 /* AudioPCMUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 289E855420AAC4FEB4FE9053 /* AudioPCMUtilities.swift */; };
 		DE15F0055B02E64403FA1BCD /* FMDXPresetScriptParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6DE626B86ADD59B5EF7360F /* FMDXPresetScriptParser.swift */; };
 		E23F2265F3F9263F898DC5F4 /* SDRBackendClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1E849968434E33A4D5FBD4 /* SDRBackendClient.swift */; };
+		E92974DA8C823187E1B13226 /* RadioSessionAudioMutePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E557BC8BFB17FA4BE6C9A3D1 /* RadioSessionAudioMutePolicy.swift */; };
 		ED24BA1B1978A1D1CA10D49A /* NowPlayingMetadataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */; };
 		ED71D0FE9EB6F20C7C5A65E0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03F4D6FF900C3D6AFD78A0 /* ContentView.swift */; };
 		EE37865A11091F7E0CD56E39 /* ListenSDRCore in Frameworks */ = {isa = PBXBuildFile; productRef = 50781FA28737E544F01F509E /* ListenSDRCore */; };
@@ -204,6 +205,7 @@
 		DEAB72153F050B8965259B27 /* SpeechLoudnessLeveler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechLoudnessLeveler.swift; sourceTree = "<group>"; };
 		DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnavailableContentView.swift; sourceTree = "<group>"; };
 		E36EBE8CBCFB821A066116D2 /* ListeningHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningHistoryStore.swift; sourceTree = "<group>"; };
+		E557BC8BFB17FA4BE6C9A3D1 /* RadioSessionAudioMutePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionAudioMutePolicy.swift; sourceTree = "<group>"; };
 		E8E5AAA5B9EB3467D7BB3385 /* FMDXCapabilitiesSyncBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXCapabilitiesSyncBridge.swift; sourceTree = "<group>"; };
 		E929C19EBE9CBC4876BEB082 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
 		E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiwiWaterfallViewportTests.swift; sourceTree = "<group>"; };
@@ -289,6 +291,7 @@
 				A32D37F54EC86991F772EE76 /* NowPlayingMetadataController.swift */,
 				3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */,
 				11598D4ED736766676E23600 /* ProfileStore.swift */,
+				E557BC8BFB17FA4BE6C9A3D1 /* RadioSessionAudioMutePolicy.swift */,
 				F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */,
 				6049F51A1BF7802412488A25 /* RadioSessionSettingsBackupCodec.swift */,
 				C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */,
@@ -521,6 +524,7 @@
 				ED24BA1B1978A1D1CA10D49A /* NowPlayingMetadataController.swift in Sources */,
 				2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */,
 				048284CE689221E778C8C818 /* ProfileStore.swift in Sources */,
+				E92974DA8C823187E1B13226 /* RadioSessionAudioMutePolicy.swift in Sources */,
 				69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */,
 				6B47527E4E649B8AC8D03808 /* RadioSessionSettingsBackupCodec.swift in Sources */,
 				5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */,
