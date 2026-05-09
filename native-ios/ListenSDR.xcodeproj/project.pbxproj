@@ -75,6 +75,7 @@
 		A1F4C0EB94461ABEC5F20105 /* AudioOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1EF5343192338BEDC2CD79 /* AudioOutputEngine.swift */; };
 		A5B5C702F7D887555E1937CC /* AppNavigationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AA3EF25749DE49C7AFCB68C /* AppNavigationState.swift */; };
 		A5FE69B889FD2CBA8C9E44B5 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA8430FABA0F566E0392A547 /* L10n.swift */; };
+		A72FC263F200F2C2E1782680 /* RadioSessionRuntimePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14BD5F59455C669CA3532016 /* RadioSessionRuntimePolicy.swift */; };
 		A83F58F1D406EC3C8894D954 /* RadiosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC198DC08EE579F8E7D22664 /* RadiosView.swift */; };
 		A85BB4C1E4D9B6BA4C2914C1 /* ChannelScannerSignalCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6B2838C0A3517392C242645 /* ChannelScannerSignalCore.swift */; };
 		AB76E3B4F5EFBA54A76658E6 /* StableAnnouncementGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C777C6695B92488F095F27C /* StableAnnouncementGate.swift */; };
@@ -121,6 +122,7 @@
 		1030E7AA0B8CC314535900F8 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		11099F867EDFFECA567B45FC /* FMDXBandScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXBandScanner.swift; sourceTree = "<group>"; };
 		11598D4ED736766676E23600 /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
+		14BD5F59455C669CA3532016 /* RadioSessionRuntimePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionRuntimePolicy.swift; sourceTree = "<group>"; };
 		1B6C093CD016FE82C348F51F /* FrequencyInputParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyInputParserTests.swift; sourceTree = "<group>"; };
 		1C3299DBEB4871DAFC099B75 /* SupportDevelopmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportDevelopmentCard.swift; sourceTree = "<group>"; };
 		1C777C6695B92488F095F27C /* StableAnnouncementGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StableAnnouncementGate.swift; sourceTree = "<group>"; };
@@ -292,6 +294,7 @@
 				3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */,
 				11598D4ED736766676E23600 /* ProfileStore.swift */,
 				E557BC8BFB17FA4BE6C9A3D1 /* RadioSessionAudioMutePolicy.swift */,
+				14BD5F59455C669CA3532016 /* RadioSessionRuntimePolicy.swift */,
 				F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */,
 				6049F51A1BF7802412488A25 /* RadioSessionSettingsBackupCodec.swift */,
 				C44E25CC6B23AD72D38F0809 /* RadioSessionViewModel.swift */,
@@ -525,6 +528,7 @@
 				2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */,
 				048284CE689221E778C8C818 /* ProfileStore.swift in Sources */,
 				E92974DA8C823187E1B13226 /* RadioSessionAudioMutePolicy.swift in Sources */,
+				A72FC263F200F2C2E1782680 /* RadioSessionRuntimePolicy.swift in Sources */,
 				69BF8B8DBEB4F474977BEEBA /* RadioSessionSettings.swift in Sources */,
 				6B47527E4E649B8AC8D03808 /* RadioSessionSettingsBackupCodec.swift in Sources */,
 				5AB0C9CDECD2E3F0E2AF7F16 /* RadioSessionViewModel.swift in Sources */,
