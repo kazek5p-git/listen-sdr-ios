@@ -93,6 +93,14 @@ Suggested verification:
 - Run Android shared-core parity tests.
 - Commit iOS shared-core changes and Android fixture/parity updates separately unless the change is intentionally atomic across repos.
 
+## Automation And Public Docs Checklist
+
+- If a change affects generated Xcode settings, update `native-ios/project.yml` and let the generated project sync workflow handle `ListenSDR.xcodeproj`.
+- If a change affects support, privacy, or public wording, review `docs/index.html`, `docs/support.html`, and `docs/privacy-policy.html`.
+- If a change affects feedback/report collection, check `server/listen-sdr-feedback-bot/` and the Telegram/reporting scripts.
+- Do not commit local IPA/log artifacts as release source of truth.
+- Treat EAS workflows as legacy unless a task explicitly targets Expo/EAS.
+
 ## TestFlight Checklist
 
 - Do not mix build-number bumps with refactors or feature work.
@@ -102,6 +110,7 @@ Suggested verification:
 - Run TestFlight preflight before upload.
 - Run the end-to-end TestFlight script only when the repo contains the intended release commit.
 - After upload, verify App Store Connect processing, beta groups, and What to Test metadata.
+- If metadata or beta-group publishing fails, use the App Store Connect check scripts before retrying the full upload.
 
 ## Minimum Command Matrix
 

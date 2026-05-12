@@ -13,8 +13,11 @@ This document describes the native iOS app and the shared Swift package. Use it 
 - `scripts/` contains Windows-side build, sync, TestFlight, metadata, and diagnostics automation.
 - `release/testflight/` contains versioned What to Test notes.
 - `server/` contains support tooling for feedback/reporting services.
+- `.github/workflows/` contains CI workflows for unsigned IPA, signed TestFlight, generated Xcode project sync, and legacy EAS paths.
+- `docs/index.html`, `docs/support.html`, and `docs/privacy-policy.html` are public-facing pages and must stay consistent with app metadata and support wording.
 
-The Expo files still exist, but the maintained app path is the native iOS project under `native-ios/`.
+The Expo files still exist, but the maintained app path is the native iOS project under `native-ios/`. Root-level Expo files (`App.tsx`, `app.json`, `eas.json`, `package.json`) and `.expo` logs are legacy or support tooling unless a task explicitly targets Expo/EAS.
+`Listen-SDR-unsigned-local-latest.ipa`, `native-ios-build-local-latest.log`, and `sideloadlydaemon.log` are local build/install artifacts; do not treat them as canonical source or release metadata.
 
 ## Startup Path
 
@@ -37,7 +40,9 @@ Important files under `native-ios/ListenSDR/Sources/`:
 - `SettingsViewController.swift` bridges settings state and stores into the UI/session layer.
 - `ContentView.swift` owns tab navigation, lifecycle hooks, startup auto-connect, and interruption notifications.
 - `AppNavigationState.swift`, `AppShortcutCommandCenter.swift`, and `ListenSDRAppShortcuts.swift` support app navigation and shortcuts.
-- `UnavailableContentView.swift`, `NativeAdjustableChipControl.swift`, `VoiceOverRotorControl.swift`, and other small views are examples of focused files that should guide future extraction.
+- `UnavailableContentView.swift`, `NativeAdjustableChipControl.swift`, `VoiceOverRotorControl.swift`, `ProfileEditorView.swift`, and other small views are examples of focused files that should guide future extraction.
+- `ShareSheet.swift` is the UIKit bridge for iOS sharing flows.
+- `StableAnnouncementGate.swift` throttles repeated accessibility announcements and should be considered when changing status speech.
 
 Rule: avoid adding new large feature blocks to `RadioSessionViewModel.swift`, `SDRBackendClient.swift`, `ReceiverView.swift`, or `SettingsView.swift` unless the change is small and local.
 
@@ -48,6 +53,7 @@ Rule: avoid adding new large feature blocks to `RadioSessionViewModel.swift`, `S
 - `SDRBackendClient.swift` contains backend transport integration for KiwiSDR, FM-DX Webserver, OpenWebRX, and shared protocol behavior.
 - `BackendTelemetry.swift` models runtime backend telemetry.
 - `FMDXBandScanner.swift`, `FMDXCapabilities*`, `FMDXPresetScriptParser.swift`, and `FMDXStationListResolverTests.swift` cover FM-DX-specific scanning, capabilities, presets, and station-list behavior.
+- `FMDXCapabilitiesPolicyBridge.swift`, `FMDXCapabilitiesSyncBridge.swift`, and `FMDXTelemetrySyncBridge.swift` adapt shared FM-DX core decisions into the app/session layer.
 - `KiwiNoiseProcessing.swift`, `KiwiWaterfallProcessing.swift`, and `KiwiWaterfallViewport.swift` cover Kiwi-specific waterfall and signal behavior.
 - `ReceiverDirectory.swift`, `ReceiverDirectoryView.swift`, `ReceiverDataCache.swift`, and `DirectoryChangeNotificationService.swift` cover receiver directory download, cache, browsing, and update notifications.
 - `ReceiverLinkImport.swift` and `ImportReceiverLinkView.swift` support importing receiver links into profiles.
@@ -76,6 +82,8 @@ During phone calls or communication interruptions, prefer muting receiver audio 
 - `RadioSessionSettingsBackupCodec.swift`, `SettingsBackupDocument.swift`, and settings backup/restore UI handle import/export of app settings.
 - `DiagnosticsStore.swift`, `DiagnosticsView.swift`, and `DiagnosticsExportBuilder.swift` manage diagnostic logs and exports.
 - `ListenSDRFeedbackFormView.swift` and `ListenSDRFeedbackSender.swift` support in-app feedback/report submission.
+- `FrequencyPresetStore.swift`, `BandTuningProfile.swift`, `ConnectionNetworkPolicy.swift`, and `ReceiverIdentity.swift` support saved tuning, runtime connection policy, and stable receiver identity behavior.
+- `DemodulationMode.swift`, `TuneStepPreferenceMode.swift`, and `ChannelScannerSignalCore.swift` define app-facing session, tuning, and scanner signal concepts that overlap with shared-core behavior.
 
 Storage and backup changes should include tests for migration, decoding, and failure behavior when practical.
 
@@ -106,6 +114,16 @@ Typical shared-core areas:
 - saved settings snapshots and fixture contracts
 
 When shared behavior changes, update Swift tests and fixtures first, then sync Android fixtures and run Android parity tests.
+
+## Automation, Public Pages, And Support Services
+
+- `.github/workflows/sync-xcodeproj.yml` keeps the generated Xcode project aligned with `native-ios/project.yml`.
+- `.github/workflows/ios-unsigned-ipa.yml` builds unsigned IPA artifacts for Sideloadly-style installation.
+- `.github/workflows/ios-signed-testflight.yml` builds signed IPA artifacts and can upload to TestFlight when secrets are configured.
+- `.github/workflows/eas-ios.yml` and `eas-android-release.yml` are legacy Expo/EAS paths; do not use them as the primary native iOS release path unless intentionally reviving EAS.
+- `server/listen-sdr-feedback-bot/` contains the Telegram/reporting feedback bot and service file for the support pipeline.
+- `scripts/Deploy-ListenSDR-FeedbackBot.ps1`, `Check-ListenSDRTelegramReports.ps1`, and related Telegram scripts operate the feedback/reporting side channel.
+- Public HTML files in `docs/` should be updated when support, privacy, or public product wording changes.
 
 ## Test And Verification Commands
 
