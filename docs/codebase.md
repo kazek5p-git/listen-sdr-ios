@@ -125,6 +125,13 @@ When shared behavior changes, update Swift tests and fixtures first, then sync A
 - `scripts/Deploy-ListenSDR-FeedbackBot.ps1`, `Check-ListenSDRTelegramReports.ps1`, and related Telegram scripts operate the feedback/reporting side channel.
 - Public HTML files in `docs/` should be updated when support, privacy, or public product wording changes.
 
+Script inventory by responsibility:
+
+- Build/install/sync: `scripts/Build-And-Install-ListenSDR.ps1`, `scripts/Build-ListenSDR-RemoteUnsigned.ps1`, `scripts/Sync-ListenSDR-ToMac.ps1`, and `scripts/start-ios-live.ps1`.
+- TestFlight release flow: `scripts/Run-ListenSDR-TestFlight.ps1`, `scripts/Run-ListenSDR-RemoteTestFlight.ps1`, `scripts/Run-ListenSDR-TestFlightEndToEnd.ps1`, `scripts/Test-ListenSDR-TestFlightPreflight.ps1`, `scripts/Publish-ListenSDR-TestFlightMetadata.ps1`, `scripts/Publish-ListenSDR-PublicTestFlight.ps1`, `scripts/New-ListenSDR-TestFlightReleaseNotes.ps1`, and `scripts/Publish-ListenSDR.ps1`.
+- App Store Connect checks/secrets: `scripts/Check-ListenSDR-AppStoreConnect.ps1`, `scripts/Check-ListenSDR-TestFlightReports.ps1`, `scripts/Check-ListenSDR-TestFlightStatus.ps1`, `scripts/Ensure-ListenSDR-AppStoreProfile.ps1`, and `scripts/Set-ListenSDR-TestFlightSecrets.ps1`.
+- Feedback/reporting: `scripts/Deploy-ListenSDR-FeedbackBot.ps1`, `scripts/Check-ListenSDRTelegramReports.ps1`, `scripts/Get-ListenSDRTelegramReports.ps1`, `scripts/Read-ListenSDR-TweeseCakeTelegramChat.py`, `scripts/Set-ListenSDRTelegramReportsSecret.ps1`, and `scripts/Test-ListenSDR-TestFlightWebhookHealth.ps1`.
+
 ## Test And Verification Commands
 
 Use the smallest command that proves the change, then run broader checks before TestFlight.
