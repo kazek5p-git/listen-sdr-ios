@@ -2,6 +2,12 @@
 
 Projekt skonfigurowany do live testow na iPhonie z Windows przez Expo.
 
+## Dokumentacja projektu
+
+- Dokumentacja iOS zaczyna się w `docs/README.md`.
+- Mapa kodu natywnej aplikacji iOS jest w `docs/codebase.md`.
+- Krótkie zasady utrzymania i refaktoryzacji są w `docs/maintenance.md`.
+
 ## Aktualna konfiguracja
 - App name: `Listen SDR`
 - Slug: `listen-sdr`
