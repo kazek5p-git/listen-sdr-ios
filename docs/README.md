@@ -7,6 +7,7 @@ This directory is the working documentation for the iOS Listen SDR codebase.
 - `codebase.md` - practical map of the native iOS app, shared Swift package, main flows, tests, and safe change rules.
 - `maintenance.md` - short maintenance map: large-file hotspots, refactor cadence, TestFlight checklist, and AI working rules.
 - `chromecast-stage1-plan.md` - staged notes for Chromecast-related work.
+- `workflow-checklists.md` - practical checklists for features, bugfixes, audio, accessibility, localization, backend changes, shared-core sync, and TestFlight.
 
 ## Documentation rules
 
