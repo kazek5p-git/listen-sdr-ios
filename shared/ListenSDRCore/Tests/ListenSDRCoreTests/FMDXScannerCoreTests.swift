@@ -128,6 +128,91 @@ final class FMDXScannerCoreTests: XCTestCase {
     }
   }
 
+  func testMergedSavedResultsAccumulatesAndRefreshesMatches() {
+    let saved = [
+      FMDXBandScanResult(
+        frequencyHz: 99_900_000,
+        mode: .fm,
+        signal: 24.0,
+        signalTop: 24.0,
+        stationName: "Radio Test",
+        programService: nil,
+        radioText0: nil,
+        radioText1: nil,
+        city: "Old city",
+        countryName: nil,
+        distanceKm: nil,
+        erpKW: nil,
+        userCount: nil
+      ),
+    ]
+    let scanned = [
+      FMDXBandScanResult(
+        frequencyHz: 99_950_000,
+        mode: .fm,
+        signal: 31.0,
+        signalTop: 33.0,
+        stationName: nil,
+        programService: nil,
+        radioText0: "Fresh RDS",
+        radioText1: nil,
+        city: nil,
+        countryName: nil,
+        distanceKm: nil,
+        erpKW: nil,
+        userCount: 3
+      ),
+      FMDXBandScanResult(
+        frequencyHz: 101_100_000,
+        mode: .fm,
+        signal: 28.0,
+        signalTop: 28.0,
+        stationName: "New Station",
+        programService: nil,
+        radioText0: nil,
+        radioText1: nil,
+        city: "New city",
+        countryName: nil,
+        distanceKm: nil,
+        erpKW: nil,
+        userCount: nil
+      ),
+    ]
+
+    let merged = FMDXSavedScanResultMatcher.mergedSavedResults(saved, with: scanned)
+
+    XCTAssertEqual(merged.count, 2)
+    XCTAssertEqual(merged.first?.frequencyHz, 99_950_000)
+    XCTAssertEqual(merged.first?.signal ?? -1, 31.0, accuracy: 0.0001)
+    XCTAssertEqual(merged.first?.stationName, "Radio Test")
+    XCTAssertEqual(merged.first?.radioText0, "Fresh RDS")
+    XCTAssertEqual(merged.first?.city, "Old city")
+    XCTAssertEqual(merged.first?.userCount, 3)
+    XCTAssertEqual(merged.last?.stationName, "New Station")
+  }
+
+  func testMergedSavedResultsKeepsSavedResultsWhenScanIsEmpty() {
+    let saved = [
+      FMDXBandScanResult(
+        frequencyHz: 99_900_000,
+        mode: .fm,
+        signal: 24.0,
+        signalTop: 24.0,
+        stationName: "Radio Test",
+        programService: nil,
+        radioText0: nil,
+        radioText1: nil,
+        city: nil,
+        countryName: nil,
+        distanceKm: nil,
+        erpKW: nil,
+        userCount: nil
+      ),
+    ]
+
+    XCTAssertEqual(FMDXSavedScanResultMatcher.mergedSavedResults(saved, with: []), saved)
+  }
+
   func testNoaaPresetIsAvailableAndUsesWeatherChannelSteps() {
     XCTAssertTrue(FMDXBandScanRangePreset.availableCases(supportsAM: false).contains(.noaa))
 

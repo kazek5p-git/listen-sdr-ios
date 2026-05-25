@@ -1,0 +1,12 @@
+Ten build poprawia niezawodność dźwięku i skanera FM-DX.
+
+Sprawdź zachowanie audio po odłączeniu słuchawek lub głośnika Bluetooth.
+Najważniejsze jest to, czy dźwięk odbiornika wraca na głośnik telefonu zamiast znikać.
+
+Sprawdź skaner pasma FM-DX na serwerze FM-DX.
+Najważniejsze jest to, czy znalezione mocne stacje zapisują się po każdym skanowaniu oraz czy wcześniejsze zapisane wyniki nie znikają po skanowaniu tylko części pasma.
+
+Sprawdź też szybkie wyszukiwanie nowych sygnałów.
+Najważniejsze jest to, czy aplikacja nadal pokazuje nowe sygnały względem zapisanej bazy, ale sama baza zapisanych wyników pozostaje kompletna.
+
+Kontrolnie sprawdź zwykłe połączenie z odbiornikiem, rozłączenie oraz brak regresji w sterowaniu odbiornikiem.

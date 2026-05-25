@@ -1048,6 +1048,16 @@ final class RadioSessionViewModel: ObservableObject {
         ) {
           if Task.isCancelled { return }
           rawSamples.append(sample)
+          if shouldSaveScanResults {
+            let partialResults = FMDXBandScanReducer.reduce(
+              samples: rawSamples,
+              mergeSpacingHz: definition.mergeSpacingProfileBand.peakMergeSpacingHz(stepHz: normalizedStepHz)
+            )
+            await MainActor.run {
+              guard self.activeScannerToken == scannerToken else { return }
+              self.persistMergedFMDXScanResults(partialResults)
+            }
+          }
           if hitBehavior == .stopOnSignal {
             stoppedOnSignalSample = sample
             break
@@ -1080,7 +1090,12 @@ final class RadioSessionViewModel: ObservableObject {
         self.activeScannerToken = nil
         self.fmdxBandScannerResults = displayResults
         if shouldSaveScanResults {
-          self.persistCurrentFMDXScanResults(results)
+          let mergedResults = self.persistMergedFMDXScanResults(results)
+          Diagnostics.log(
+            category: "FMDX Scanner",
+            message:
+              "Band scanner saved merged results: scanned_results=\(results.count) saved_results=\(mergedResults.count)"
+          )
         }
         if shouldRestoreSession {
           self.restoreFMDXBandScannerSession(
@@ -1565,6 +1580,16 @@ final class RadioSessionViewModel: ObservableObject {
   private func currentSavedFMDXScanResults() -> [FMDXBandScanResult] {
     guard let activeProfileCacheKey else { return [] }
     return receiverDataCache.cachedData(for: activeProfileCacheKey)?.fmdxSavedScanResults ?? []
+  }
+
+  @discardableResult
+  private func persistMergedFMDXScanResults(_ scannedResults: [FMDXBandScanResult]) -> [FMDXBandScanResult] {
+    let mergedResults = FMDXSavedScanResultMatcher.mergedSavedResults(
+      currentSavedFMDXScanResults(),
+      with: scannedResults
+    )
+    persistCurrentFMDXScanResults(mergedResults)
+    return mergedResults
   }
 
   private func persistCurrentFMDXScanResults(_ results: [FMDXBandScanResult]) {

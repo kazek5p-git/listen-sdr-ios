@@ -709,6 +709,26 @@ public enum FMDXSavedScanResultMatcher {
     }
   }
 
+  public static func mergedSavedResults(
+    _ savedResults: [FMDXBandScanResult],
+    with scannedResults: [FMDXBandScanResult]
+  ) -> [FMDXBandScanResult] {
+    guard !savedResults.isEmpty else { return sorted(scannedResults) }
+    guard !scannedResults.isEmpty else { return sorted(savedResults) }
+
+    var merged = savedResults
+    for scanned in scannedResults {
+      if let existingIndex = merged.firstIndex(where: { saved in
+        isSameResult(scanned, saved)
+      }) {
+        merged[existingIndex] = mergedResult(saved: merged[existingIndex], scanned: scanned)
+      } else {
+        merged.append(scanned)
+      }
+    }
+    return sorted(merged)
+  }
+
   public static func isSameResult(
     _ lhs: FMDXBandScanResult,
     _ rhs: FMDXBandScanResult
@@ -738,5 +758,49 @@ public enum FMDXSavedScanResultMatcher {
 
     guard let normalized, !normalized.isEmpty else { return nil }
     return normalized
+  }
+
+  private static func mergedResult(
+    saved: FMDXBandScanResult,
+    scanned: FMDXBandScanResult
+  ) -> FMDXBandScanResult {
+    let stronger = scanned.signal >= saved.signal ? scanned : saved
+    return FMDXBandScanResult(
+      frequencyHz: stronger.frequencyHz,
+      mode: stronger.mode,
+      signal: stronger.signal,
+      signalTop: [saved.signalTop, scanned.signalTop].compactMap { $0 }.max(),
+      stationName: preferredNonEmpty(scanned.stationName, fallback: saved.stationName),
+      programService: preferredNonEmpty(scanned.programService, fallback: saved.programService),
+      radioText0: preferredNonEmpty(scanned.radioText0, fallback: saved.radioText0),
+      radioText1: preferredNonEmpty(scanned.radioText1, fallback: saved.radioText1),
+      city: preferredNonEmpty(scanned.city, fallback: saved.city),
+      countryName: preferredNonEmpty(scanned.countryName, fallback: saved.countryName),
+      distanceKm: preferredNonEmpty(scanned.distanceKm, fallback: saved.distanceKm),
+      erpKW: preferredNonEmpty(scanned.erpKW, fallback: saved.erpKW),
+      userCount: [saved.userCount, scanned.userCount].compactMap { $0 }.max()
+    )
+  }
+
+  private static func preferredNonEmpty(_ value: String?, fallback: String?) -> String? {
+    if let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+      return value
+    }
+    if let fallback = fallback?.trimmingCharacters(in: .whitespacesAndNewlines), !fallback.isEmpty {
+      return fallback
+    }
+    return nil
+  }
+
+  private static func sorted(_ results: [FMDXBandScanResult]) -> [FMDXBandScanResult] {
+    results.sorted { lhs, rhs in
+      if lhs.mode.rawValue != rhs.mode.rawValue {
+        return lhs.mode.rawValue < rhs.mode.rawValue
+      }
+      if lhs.frequencyHz != rhs.frequencyHz {
+        return lhs.frequencyHz < rhs.frequencyHz
+      }
+      return lhs.signal > rhs.signal
+    }
   }
 }

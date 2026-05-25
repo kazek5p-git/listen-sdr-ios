@@ -490,6 +490,9 @@ final class AudioOutputEngine {
     let currentRoute = describeRoute(AVAudioSession.sharedInstance().currentRoute)
     let previousRoute = (notification.userInfo?[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription)
       .map(describeRoute) ?? "unknown"
+    let routeChangeReason = AVAudioSession.RouteChangeReason(
+      rawValue: notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
+    )
     if let reasonValue = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
       let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) {
       log(
@@ -497,6 +500,27 @@ final class AudioOutputEngine {
       )
     } else {
       log("Shared audio route changed: previous=\(previousRoute) current=\(currentRoute)")
+    }
+
+    guard shouldRecoverAudioRouteChange(routeChangeReason) else { return }
+    let hadActivePlayback = engine.isRunning || playerNode.isPlaying || queuedBuffers > 0
+    guard hadActivePlayback else { return }
+    configureAudioSessionIfNeeded(force: true)
+    recoverGraph()
+    _ = startEngineIfNeeded()
+    log("Shared audio route recovery completed. route=\(describeRoute(AVAudioSession.sharedInstance().currentRoute))")
+  }
+
+  private func shouldRecoverAudioRouteChange(_ reason: AVAudioSession.RouteChangeReason?) -> Bool {
+    switch reason {
+    case .oldDeviceUnavailable,
+      .newDeviceAvailable,
+      .override,
+      .routeConfigurationChange,
+      .noSuitableRouteForCategory:
+      return true
+    default:
+      return false
     }
   }
 

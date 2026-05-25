@@ -1,0 +1,12 @@
+This build improves audio-route recovery and FM-DX scanner result saving.
+
+Please test audio after disconnecting Bluetooth headphones or speakers.
+The most important check is whether receiver audio returns to the phone speaker instead of disappearing.
+
+Please test the FM-DX band scanner on an FM-DX server.
+The most important check is whether strong detected stations are saved after each scan and whether previously saved results are not lost after scanning only part of the band.
+
+Please also test quick new-signal scanning.
+The most important check is whether the app still shows new signals compared with the saved baseline while keeping the complete saved-results database.
+
+As a regression check, test normal receiver connection, disconnection, and receiver controls.
