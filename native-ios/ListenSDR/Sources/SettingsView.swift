@@ -24,6 +24,7 @@ struct SettingsView: View {
       settingsRootList
       .voiceOverStable()
       .scrollContentBackground(.hidden)
+      .tabBarScrollClearance()
       .navigationTitle(L10n.text("Settings"))
       .appScreenBackground()
       .foregroundStyle(AppTheme.primaryText)
@@ -394,16 +395,13 @@ struct SettingsView: View {
     title: String,
     @ViewBuilder content: () -> Content
   ) -> some View {
-    Form {
+    SettingsDestinationScreen(
+      title: title,
+      selectedThemeID: selectedThemeID
+    ) {
       settingsStatusSection
       content()
     }
-    .voiceOverStable()
-    .scrollContentBackground(.hidden)
-    .navigationTitle(title)
-    .appScreenBackground()
-    .foregroundStyle(AppTheme.primaryText)
-    .id(selectedThemeID)
   }
 
   private var appearanceSection: some View {
@@ -2191,6 +2189,56 @@ struct SettingsView: View {
         }
       }
     }
+  }
+}
+
+private struct SettingsDestinationScreen<Content: View>: View {
+  @Environment(\.dismiss) private var dismiss
+
+  let title: String
+  let selectedThemeID: String
+  let content: Content
+
+  init(
+    title: String,
+    selectedThemeID: String,
+    @ViewBuilder content: () -> Content
+  ) {
+    self.title = title
+    self.selectedThemeID = selectedThemeID
+    self.content = content()
+  }
+
+  var body: some View {
+    Form {
+      content
+    }
+    .voiceOverStable()
+    .scrollContentBackground(.hidden)
+    .tabBarScrollClearance()
+    .navigationTitle(title)
+    .navigationBarBackButtonHidden(true)
+    .toolbar {
+      ToolbarItem(placement: .navigationBarLeading) {
+        Button {
+          dismiss()
+        } label: {
+          Label(
+            L10n.text("settings.back_to_settings", fallback: "Back to Settings"),
+            systemImage: "chevron.left"
+          )
+          .frame(
+            minWidth: AppAccessibilityLayout.minimumTouchTarget,
+            minHeight: AppAccessibilityLayout.minimumTouchTarget,
+            alignment: .leading
+          )
+        }
+        .accessibilityLabel(L10n.text("settings.back_to_settings", fallback: "Back to Settings"))
+      }
+    }
+    .appScreenBackground()
+    .foregroundStyle(AppTheme.primaryText)
+    .id(selectedThemeID)
   }
 }
 

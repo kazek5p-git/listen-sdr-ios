@@ -1190,3 +1190,13 @@
 "settings.appearance.custom.tint" = "Główny akcent";
 "settings.appearance.custom.accent" = "Drugi akcent";
 "settings.appearance.custom.reset" = "Przywróć domyślną własną skórkę";
+"frequency_input.accessibility_label" = "Częstotliwość";
+"receiver.frequency.decrease" = "Zmniejsz częstotliwość";
+"receiver.frequency.increase" = "Zwiększ częstotliwość";
+"receiver.frequency.button_hint" = "Używa aktualnego kroku strojenia.";
+"receiver.adjustment.decrease_format" = "Zmniejsz %@";
+"receiver.adjustment.increase_format" = "Zwiększ %@";
+"radios.search.accessibility_label" = "Szukaj radia";
+"radios.search.accessibility_hint" = "Przeszukuje historię odsłuchu i zapisane profile odbiorników.";
+"radios.search.clear" = "Wyczyść wyszukiwanie";
+"settings.back_to_settings" = "Wróć do ustawień";

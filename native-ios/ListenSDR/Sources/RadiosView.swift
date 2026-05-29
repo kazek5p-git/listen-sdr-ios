@@ -168,6 +168,8 @@ struct RadiosView: View {
           initialHistoryEmptyState
         } else {
           List {
+            radiosSearchFieldSection
+
             let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             let isSearching = !query.isEmpty
             let favoriteProfiles = favoritesStore.favoriteProfiles(in: profileStore.profiles)
@@ -377,16 +379,20 @@ struct RadiosView: View {
           .voiceOverStable()
           .listStyle(.insetGrouped)
           .scrollContentBackground(.hidden)
+          .tabBarScrollClearance()
         }
       }
       .navigationTitle(L10n.text("Radios"))
-      .searchable(text: $searchText, prompt: L10n.text("radios.search.prompt"))
       .toolbar {
         ToolbarItem(placement: .navigationBarLeading) {
           Button {
             isDirectoryPresented = true
           } label: {
             Label(L10n.text("Directory"), systemImage: "globe")
+              .frame(
+                minWidth: AppAccessibilityLayout.minimumTouchTarget,
+                minHeight: AppAccessibilityLayout.minimumTouchTarget
+              )
           }
         }
 
@@ -395,6 +401,10 @@ struct RadiosView: View {
             isAddReceiverOptionsPresented = true
           } label: {
             Label(L10n.text("radios.add_receiver", fallback: "Add receiver"), systemImage: "plus")
+              .frame(
+                minWidth: AppAccessibilityLayout.minimumTouchTarget,
+                minHeight: AppAccessibilityLayout.minimumTouchTarget
+              )
           }
         }
       }
@@ -455,6 +465,46 @@ struct RadiosView: View {
         value: option.title
       )
     }
+  }
+
+  private var radiosSearchFieldSection: some View {
+    Section {
+      HStack(spacing: 10) {
+        Image(systemName: "magnifyingglass")
+          .font(.title3)
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+
+        TextField(L10n.text("radios.search.prompt"), text: $searchText)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .submitLabel(.search)
+          .accessibilityLabel(L10n.text("radios.search.accessibility_label", fallback: "Search radios"))
+          .accessibilityHint(
+            L10n.text(
+              "radios.search.accessibility_hint",
+              fallback: "Searches listening history and saved receiver profiles."
+            )
+          )
+
+        if !searchText.isEmpty {
+          Button {
+            searchText = ""
+          } label: {
+            Image(systemName: "xmark.circle.fill")
+              .frame(
+                minWidth: AppAccessibilityLayout.minimumTouchTarget,
+                minHeight: AppAccessibilityLayout.minimumTouchTarget
+              )
+          }
+          .buttonStyle(.plain)
+          .foregroundStyle(.secondary)
+          .accessibilityLabel(L10n.text("radios.search.clear", fallback: "Clear search"))
+        }
+      }
+      .frame(minHeight: AppAccessibilityLayout.minimumTouchTarget)
+    }
+    .appSectionStyle()
   }
 
   private var initialHistoryEmptyState: some View {

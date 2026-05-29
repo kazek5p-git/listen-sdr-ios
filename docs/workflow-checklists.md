@@ -52,11 +52,14 @@ Suggested verification:
 - Magic Tap performs the expected quick action for the current state.
 - VoiceOver rotor and shortcut command behavior remain valid.
 - UI should remain usable during call/interruption mute state where possible.
+- Scrollable tab content should leave clearance above the bottom tab bar, and visible touch targets should be at least 44 x 44 pt.
+- Text fields should have explicit accessibility labels; do not rely on placeholders as the only accessible name.
 
 Suggested verification:
 
 - VoiceOver review on Receiver, Radios, Settings, Diagnostics, profile editor, directory import, and scanner screens.
 - Simulator is acceptable for simple focus checks; use real iPhone for audio and interruption behavior.
+- For DRihelp-style audits, compare Receiver top, Receiver scrolled, Radios, Settings root, and Settings -> Accessibility against the baseline in `docs/accessibility.md`.
 
 ## Localization Checklist
 

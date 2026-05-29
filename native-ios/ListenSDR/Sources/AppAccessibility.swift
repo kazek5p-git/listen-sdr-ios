@@ -414,6 +414,12 @@ enum AppInteractionFeedbackCenter {
   }
 }
 
+enum AppAccessibilityLayout {
+  static let minimumTouchTarget: CGFloat = 44
+  static let comfortableTouchTarget: CGFloat = 52
+  static let tabBarScrollClearance: CGFloat = 96
+}
+
 private struct VoiceOverStableModifier: ViewModifier {
   func body(content: Content) -> some View {
     content.transaction { transaction in
@@ -454,6 +460,16 @@ struct AppSectionHeader: View {
       .textCase(nil)
       .foregroundStyle(AppTheme.secondaryText)
       .accessibilityAddTraits(.isHeader)
+  }
+}
+
+private struct TabBarScrollClearanceModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content.safeAreaInset(edge: .bottom, spacing: 0) {
+      Color.clear
+        .frame(height: AppAccessibilityLayout.tabBarScrollClearance)
+        .accessibilityHidden(true)
+    }
   }
 }
 
@@ -801,5 +817,9 @@ extension View {
     hint: String? = nil
   ) -> some View {
     modifier(AccessibleControlModifier(label: label, value: value, hint: hint))
+  }
+
+  func tabBarScrollClearance() -> some View {
+    modifier(TabBarScrollClearanceModifier())
   }
 }

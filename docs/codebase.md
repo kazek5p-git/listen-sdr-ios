@@ -97,6 +97,7 @@ Storage and backup changes should include tests for migration, decoding, and fai
 - `SupportDevelopmentCard.swift` contains support/donation UI.
 
 Accessibility is a product requirement, not an optional polish pass. Any UI change should check VoiceOver order, labels, adjustable controls, Magic Tap behavior, and whether controls remain usable during audio interruptions.
+Use `docs/accessibility.md` as the current accessibility implementation note. It documents the DRihelp audit baseline, minimum touch-target constants, tab-bar scroll clearance, and required manual checks.
 
 ## Shared Swift Core And Android Parity
 

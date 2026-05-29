@@ -325,6 +325,7 @@ struct ReceiverView: View {
     }
     .voiceOverStable()
     .scrollContentBackground(.hidden)
+    .tabBarScrollClearance()
     .environment(\.defaultMinListHeaderHeight, 1)
     .onAppear {
       resetInlineFrequencyInput()
@@ -539,8 +540,10 @@ struct ReceiverView: View {
             handleConnectionButtonTap(for: profile)
           }) {
             Text(connectionButtonTitle(for: profile))
+              .frame(minHeight: AppAccessibilityLayout.minimumTouchTarget)
           }
           .buttonStyle(.borderedProminent)
+          .controlSize(.large)
           .contextMenu {
             Button {
               sharedReceiverLink = profile.endpointDescription
@@ -1262,6 +1265,7 @@ struct ReceiverView: View {
           .accessibilityHidden(true)
       }
       .contentShape(Rectangle())
+      .frame(minHeight: AppAccessibilityLayout.minimumTouchTarget)
     }
     .buttonStyle(.plain)
     .accessibilityAddTraits(.isHeader)
@@ -2646,10 +2650,14 @@ struct ReceiverView: View {
     HStack(spacing: 12) {
       Button(action: onTapDecrement) {
         Image(systemName: "minus")
-          .frame(maxWidth: .infinity, minHeight: 44)
+          .frame(
+            minWidth: AppAccessibilityLayout.comfortableTouchTarget,
+            minHeight: AppAccessibilityLayout.comfortableTouchTarget
+          )
       }
       .buttonStyle(.bordered)
-      .accessibilityHidden(true)
+      .accessibilityLabel(adjustmentButtonLabel(decrement: true, controlLabel: label))
+      .accessibilityValue(accessibilityValueText ?? value)
 
       VStack(spacing: 4) {
         if let centerIconSystemName, !centerIconSystemName.isEmpty {
@@ -2668,10 +2676,14 @@ struct ReceiverView: View {
 
       Button(action: onTapIncrement) {
         Image(systemName: "plus")
-          .frame(maxWidth: .infinity, minHeight: 44)
+          .frame(
+            minWidth: AppAccessibilityLayout.comfortableTouchTarget,
+            minHeight: AppAccessibilityLayout.comfortableTouchTarget
+          )
       }
       .buttonStyle(.borderedProminent)
-      .accessibilityHidden(true)
+      .accessibilityLabel(adjustmentButtonLabel(decrement: false, controlLabel: label))
+      .accessibilityValue(accessibilityValueText ?? value)
     }
     .padding(10)
     .background {
@@ -3088,10 +3100,15 @@ struct ReceiverView: View {
         tuneFrequency(byStepCount: -1)
       } label: {
         Image(systemName: "minus")
-          .frame(maxWidth: .infinity, minHeight: 44)
+          .frame(
+            minWidth: AppAccessibilityLayout.comfortableTouchTarget,
+            minHeight: AppAccessibilityLayout.comfortableTouchTarget
+          )
       }
       .buttonStyle(.bordered)
-      .accessibilityHidden(true)
+      .accessibilityLabel(L10n.text("receiver.frequency.decrease", fallback: "Decrease frequency"))
+      .accessibilityValue(frequencyValue)
+      .accessibilityHint(L10n.text("receiver.frequency.button_hint", fallback: "Uses the current tuning step."))
 
       Text(frequencyValue)
         .font(.title2.monospacedDigit().weight(.semibold))
@@ -3102,10 +3119,15 @@ struct ReceiverView: View {
         tuneFrequency(byStepCount: 1)
       } label: {
         Image(systemName: "plus")
-          .frame(maxWidth: .infinity, minHeight: 44)
+          .frame(
+            minWidth: AppAccessibilityLayout.comfortableTouchTarget,
+            minHeight: AppAccessibilityLayout.comfortableTouchTarget
+          )
       }
       .buttonStyle(.borderedProminent)
-      .accessibilityHidden(true)
+      .accessibilityLabel(L10n.text("receiver.frequency.increase", fallback: "Increase frequency"))
+      .accessibilityValue(frequencyValue)
+      .accessibilityHint(L10n.text("receiver.frequency.button_hint", fallback: "Uses the current tuning step."))
     }
     .padding(10)
     .background {
@@ -3143,6 +3165,14 @@ struct ReceiverView: View {
   private func tuneFrequency(byStepCount stepCount: Int) {
     radioSession.tune(byStepCount: stepCount)
     focusFrequencyControl()
+  }
+
+  private func adjustmentButtonLabel(decrement: Bool, controlLabel: String) -> String {
+    L10n.text(
+      decrement ? "receiver.adjustment.decrease_format" : "receiver.adjustment.increase_format",
+      fallback: decrement ? "Decrease %@" : "Increase %@",
+      controlLabel
+    )
   }
 
   private func currentFavoriteStationTitle(for profile: SDRConnectionProfile) -> String {
@@ -3283,7 +3313,10 @@ struct ReceiverView: View {
       .lineLimit(1)
       .minimumScaleFactor(0.7)
       .padding(.horizontal, 10)
-      .frame(minHeight: 34)
+      .frame(
+        minWidth: AppAccessibilityLayout.minimumTouchTarget,
+        minHeight: AppAccessibilityLayout.minimumTouchTarget
+      )
       .fixedSize(horizontal: true, vertical: false)
   }
 
@@ -3417,6 +3450,8 @@ struct ReceiverView: View {
       .autocorrectionDisabled()
       .textFieldStyle(.roundedBorder)
       .focused($isInlineFrequencyFocused)
+      .frame(minHeight: AppAccessibilityLayout.minimumTouchTarget)
+      .accessibilityLabel(L10n.text("frequency_input.accessibility_label", fallback: "Frequency"))
       .accessibilityHint(Text(frequencyInputHint(for: backend)))
       .submitLabel(.done)
       .onSubmit {

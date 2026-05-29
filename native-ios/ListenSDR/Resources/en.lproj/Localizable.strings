@@ -1178,3 +1178,13 @@
 "Apply" = "Apply";
 "Frequency input" = "Frequency input";
 "Frequency input error" = "Frequency input error";
+"frequency_input.accessibility_label" = "Frequency";
+"receiver.frequency.decrease" = "Decrease frequency";
+"receiver.frequency.increase" = "Increase frequency";
+"receiver.frequency.button_hint" = "Uses the current tuning step.";
+"receiver.adjustment.decrease_format" = "Decrease %@";
+"receiver.adjustment.increase_format" = "Increase %@";
+"radios.search.accessibility_label" = "Search radios";
+"radios.search.accessibility_hint" = "Searches listening history and saved receiver profiles.";
+"radios.search.clear" = "Clear search";
+"settings.back_to_settings" = "Back to Settings";
