@@ -1,0 +1,12 @@
+This build improves accessibility and interface usability.
+
+Please test the Receiver tab at the top and after scrolling down.
+The most important check is whether the bottom tab bar no longer covers sections and whether tuning buttons have clear VoiceOver names, for example increase or decrease frequency.
+
+Please test the Radios tab.
+The most important checks are the search field, Directory button, Add receiver button, and the first visible list rows. The search field should be announced as Search radios instead of only as placeholder text.
+
+Please test Settings and Settings -> Accessibility.
+The most important check is whether the back button is announced as Back to Settings and whether content no longer hides under the bottom tab bar.
+
+As a regression check, test normal connection, disconnection, tuning, and FM-DX controls.

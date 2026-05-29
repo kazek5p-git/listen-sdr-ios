@@ -1,0 +1,12 @@
+Ten build poprawia dostępność i wygodę obsługi interfejsu.
+
+Sprawdź zakładkę Odbiornik na górze i po przewinięciu niżej.
+Najważniejsze jest to, czy dolna belka zakładek nie przykrywa już sekcji i czy przyciski strojenia mają jasne nazwy VoiceOver, na przykład zwiększ lub zmniejsz częstotliwość.
+
+Sprawdź zakładkę Radia.
+Najważniejsze jest pole wyszukiwania, przycisk Katalog, przycisk Dodaj odbiornik oraz pierwsze widoczne pozycje listy. Pole wyszukiwania powinno być czytane jako Szukaj radia, a nie tylko jako tekst zastępczy.
+
+Sprawdź Ustawienia oraz Ustawienia -> Dostępność.
+Najważniejsze jest to, czy przycisk powrotu jest czytany jako Wróć do ustawień i czy treść nie chowa się pod dolną belką zakładek.
+
+Kontrolnie sprawdź zwykłe połączenie, rozłączenie, strojenie i sterowanie FM-DX, żeby potwierdzić brak regresji w obsłudze odbiornika.
