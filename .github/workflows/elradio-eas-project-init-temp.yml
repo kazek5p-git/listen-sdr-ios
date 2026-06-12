@@ -1,0 +1,64 @@
+name: Temporary ElRadio EAS Project Init
+
+on:
+  workflow_dispatch:
+
+jobs:
+  init-elradio-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Expo CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          expo-cache: true
+
+      - name: Create minimal ElRadio app config
+        run: |
+          set -euo pipefail
+          mkdir elradio-eas-init
+          cd elradio-eas-init
+          cat > app.json <<'JSON'
+          {
+            "expo": {
+              "name": "El Radio Łódź 90,8",
+              "slug": "elradio-app",
+              "owner": "kazek5p",
+              "version": "1.0.0",
+              "ios": {
+                "bundleIdentifier": "pl.elradio.app"
+              },
+              "android": {
+                "package": "pl.elradio.app"
+              }
+            }
+          }
+          JSON
+          cat > package.json <<'JSON'
+          {
+            "name": "elradio-eas-init",
+            "version": "1.0.0",
+            "private": true
+          }
+          JSON
+
+      - name: Create or link EAS project
+        working-directory: elradio-eas-init
+        run: |
+          set -euo pipefail
+          eas init --non-interactive --force
+          PROJECT_ID="$(node -e "console.log(require('./app.json').expo.extra.eas.projectId)")"
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+          printf '{\n  "projectId": "%s"\n}\n' "$PROJECT_ID" > elradio-eas-project.json
+          {
+            echo "## ElRadio EAS project"
+            echo
+            echo "projectId: \`$PROJECT_ID\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload project id artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: elradio-eas-project
+          path: elradio-eas-init/elradio-eas-project.json
