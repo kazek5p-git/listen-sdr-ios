@@ -1,10 +1,26 @@
 # Listen SDR Firebase integration
 
-Listen SDR is prepared for Firebase on iOS, but data-collection features remain intentionally opt-in. A build without `GoogleService-Info.plist` starts normally and logs that Firebase is disabled.
+Listen SDR uses one Firebase project for both maintained mobile clients. This file documents the iOS wiring. Android-specific Firebase wiring lives in the Android source repo.
+
+Data-collection features remain intentionally narrow. A build without `GoogleService-Info.plist` starts normally and logs that Firebase is disabled.
+
+## Cross-platform map
+
+- Shared Firebase project: `listen-sdr-kazek5p` (`Listen SDR`).
+- iOS source repo: `kazek5p-git/listen-sdr-ios`, local path `C:\Users\Kazek\Documents\iphone-live-starter`.
+- Android source repo: `kazek5p-git/listen-sdr-android-source`, local path `C:\Users\Kazek\Documents\listen-sdr-android-source`.
+- Android public APK channel: `kazek5p-git/listen-sdr-android`.
+- iOS Firebase app: `Listen SDR iOS`, bundle identifier `com.kazek.sdr`, app id `1:606471268412:ios:0b31e3078f417c0391bb39`.
+- Android Firebase app: `Listen SDR Android`, package `com.kazek.sdr`, app id `1:606471268412:android:f445fb51e23e849391bb39`.
+- iOS client config: `native-ios/ListenSDR/Resources/GoogleService-Info.plist`.
+- Android client config: `app/google-services.json` in the Android source repo.
+- iOS Crashlytics is intended for signed Release/TestFlight builds. Unsigned local/GitHub IPA builds keep collection and dSYM upload disabled.
+- Android Crashlytics is enabled for release builds and disabled for debug builds.
+- Neither platform adds Firebase Analytics. Receiver addresses, listening history, recordings, exported diagnostics, and feedback text are not attached to Crashlytics reports by the Firebase integration.
 
 ## Current scope
 
-- Firebase is wired only in the maintained native iOS app under `native-ios/`.
+- This repo wires Firebase only for the maintained native iOS app under `native-ios/`.
 - The Firebase project is `listen-sdr-kazek5p` (`Listen SDR`).
 - The iOS Firebase app is `Listen SDR iOS` with bundle identifier `com.kazek.sdr`.
 - `native-ios/project.yml` declares the Firebase iOS SDK Swift Package dependency.
@@ -37,7 +53,7 @@ Crashlytics is prepared for signed Release/TestFlight builds:
 5. The script declares the dSYM, dSYM DWARF binary, dSYM Info.plist, Firebase plist, and executable as input files for Xcode's script sandboxing.
 6. Run a remote unsigned build or TestFlight preflight before release.
 
-The bootstrap sends only coarse app metadata as Crashlytics custom keys: bundle identifier, app version, and build number. It does not attach receiver history, SDR server addresses, recordings, or diagnostic exports.
+The bootstrap sends only coarse app metadata as Crashlytics custom keys: bundle identifier, app version, and build number. It does not attach receiver history, SDR server addresses, recordings, feedback text, or diagnostic exports.
 
 ## Remote Config
 
