@@ -449,9 +449,10 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = AF8487B3C0FD7B5B2B944019 /* Build configuration list for PBXProject "ListenSDR" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -474,6 +475,7 @@
 				7571981B61C64D8A9A7C46DF /* XCLocalSwiftPackageReference "../shared/ListenSDRCore" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 59E6BB988DAD6EED4F7BD2D4 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
