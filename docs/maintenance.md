@@ -10,7 +10,9 @@ This file is the short operational map for keeping the iOS app maintainable whil
 - `native-ios/ListenSDR/Sources/SDRBackendClient.swift` - backend protocol clients and transport-level integration.
 - `native-ios/ListenSDR/Sources/ReceiverView.swift` - receiver tab UI, connection button, VoiceOver actions, and current receiver summary.
 - `native-ios/ListenSDR/Sources/SettingsView.swift` - settings, backup/restore, appearance, and related controls.
+- `native-ios/ListenSDR/Sources/FirebaseBootstrap.swift` - optional Firebase startup path; it is a no-op unless `GoogleService-Info.plist` is bundled.
 - `native-ios/ListenSDR/Resources/*.lproj/Localizable.strings` - native iOS localizations.
+- `docs/firebase.md` - Firebase setup, privacy, and verification notes.
 - `release/testflight/` - versioned What to Test notes for TestFlight builds.
 - `scripts/Run-ListenSDR-TestFlightEndToEnd.ps1` - normal TestFlight publishing path from Windows via the remote Mac.
 
@@ -40,6 +42,7 @@ This file is the short operational map for keeping the iOS app maintainable whil
 
 - Bump `CFBundleVersion` and `CURRENT_PROJECT_VERSION` in `native-ios/project.yml`.
 - Keep `native-ios/ListenSDR/Info.plist` in sync.
+- If Firebase is enabled for the build, verify `GoogleService-Info.plist`, Crashlytics policy wording, and `docs/firebase.md`.
 - Add `release/testflight/1.0.1-build-<build>/what-to-test.pl.txt` and `what-to-test.en-US.txt`.
 - Run `scripts/Run-ListenSDR-TestFlightEndToEnd.ps1` for TestFlight.
 - If metadata publishing fails, verify the beta groups through the global `/betaGroups?filter[app]=...` endpoint used by the current scripts.

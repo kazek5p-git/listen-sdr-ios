@@ -22,10 +22,11 @@ The Expo files still exist, but the maintained app path is the native iOS projec
 ## Startup Path
 
 1. `ListenSDRApp.swift` creates and wires the main environment objects: accessibility, navigation, profile store, session view model, settings controller, favorites, recordings, history, and diagnostics.
-2. `ContentView.swift` creates the tab shell: Receiver, Radios, and Settings.
-3. `ContentView` also handles scene phase, first-run/tutorial behavior, startup auto-connect, Magic Tap, shortcuts, and AVAudioSession interruption notifications.
-4. `RadioSessionViewModel.swift` owns the live receiver session and receives runtime policy updates from `ContentView`.
-5. `SettingsViewController.swift` binds settings-related stores to the session model.
+2. `FirebaseBootstrap.swift` performs optional Firebase startup. It exits without side effects when `GoogleService-Info.plist` is not bundled.
+3. `ContentView.swift` creates the tab shell: Receiver, Radios, and Settings.
+4. `ContentView` also handles scene phase, first-run/tutorial behavior, startup auto-connect, Magic Tap, shortcuts, and AVAudioSession interruption notifications.
+5. `RadioSessionViewModel.swift` owns the live receiver session and receives runtime policy updates from `ContentView`.
+6. `SettingsViewController.swift` binds settings-related stores to the session model.
 
 When debugging startup or state binding, follow this order: `ListenSDRApp`, `ContentView`, `RadioSessionViewModel`, then the specific tab or store.
 
@@ -38,6 +39,7 @@ Important files under `native-ios/ListenSDR/Sources/`:
 - `RadiosView.swift` and `ReceiverDirectoryView.swift` handle receiver lists, history, favorites, directory browsing, import, and selection.
 - `SettingsView.swift` contains user settings, audio controls, accessibility options, appearance/skins, backup/restore, and related settings sections.
 - `SettingsViewController.swift` bridges settings state and stores into the UI/session layer.
+- `FirebaseBootstrap.swift` configures Firebase Core, optional Crashlytics collection, and optional Remote Config when a Firebase plist is present.
 - `ContentView.swift` owns tab navigation, lifecycle hooks, startup auto-connect, and interruption notifications.
 - `AppNavigationState.swift`, `AppShortcutCommandCenter.swift`, and `ListenSDRAppShortcuts.swift` support app navigation and shortcuts.
 - `UnavailableContentView.swift`, `NativeAdjustableChipControl.swift`, `VoiceOverRotorControl.swift`, `ProfileEditorView.swift`, and other small views are examples of focused files that should guide future extraction.
@@ -122,6 +124,7 @@ When shared behavior changes, update Swift tests and fixtures first, then sync A
 - `.github/workflows/ios-unsigned-ipa.yml` builds unsigned IPA artifacts for Sideloadly-style installation.
 - `.github/workflows/ios-signed-testflight.yml` builds signed IPA artifacts and can upload to TestFlight when secrets are configured.
 - `.github/workflows/eas-ios.yml` and `eas-android-release.yml` are legacy Expo/EAS paths; do not use them as the primary native iOS release path unless intentionally reviving EAS.
+- `docs/firebase.md` documents the optional Firebase setup, including the required `GoogleService-Info.plist`, Crashlytics privacy guard, and future push-notification constraints.
 - `server/listen-sdr-feedback-bot/` contains the Telegram/reporting feedback bot and service file for the support pipeline.
 - `scripts/Deploy-ListenSDR-FeedbackBot.ps1`, `Check-ListenSDRTelegramReports.ps1`, and related Telegram scripts operate the feedback/reporting side channel.
 - Public HTML files in `docs/` should be updated when support, privacy, or public product wording changes.
@@ -139,6 +142,7 @@ Use the smallest command that proves the change, then run broader checks before 
 
 - Swift package tests: run `swift test` from `shared/ListenSDRCore` on macOS.
 - Native unsigned build from Windows: `powershell -ExecutionPolicy Bypass -File .\scripts\Build-ListenSDR-RemoteUnsigned.ps1`
+- Firebase wiring check: `powershell -ExecutionPolicy Bypass -File .\scripts\Test-ListenSDRFirebaseConfig.ps1`
 - TestFlight preflight: `powershell -ExecutionPolicy Bypass -File .\scripts\Test-ListenSDR-TestFlightPreflight.ps1`
 - End-to-end TestFlight upload: `powershell -ExecutionPolicy Bypass -File .\scripts\Run-ListenSDR-TestFlightEndToEnd.ps1`
 - Metadata-only TestFlight publish: `powershell -ExecutionPolicy Bypass -File .\scripts\Publish-ListenSDR-TestFlightMetadata.ps1`

@@ -14,6 +14,8 @@ struct ListenSDRApp: App {
   private let diagnostics = Diagnostics.sharedStore
 
   init() {
+    FirebaseBootstrap.configure()
+
     let profileStore = ProfileStore()
     let historyStore = ListeningHistoryStore.shared
     let initialTab = AppNavigationState.preferredLaunchTab(
