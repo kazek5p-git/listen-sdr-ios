@@ -10,7 +10,9 @@ Listen SDR is prepared for Firebase on iOS, but data-collection features remain 
 - `native-ios/project.yml` declares the Firebase iOS SDK Swift Package dependency.
 - `FirebaseBootstrap.swift` configures Firebase only when `GoogleService-Info.plist` is bundled.
 - `native-ios/ListenSDR/Resources/GoogleService-Info.plist` is the bundled Firebase client configuration.
-- Crashlytics collection is disabled by default through `FirebaseCrashlyticsCollectionEnabled: false` and `ListenSDRFirebaseCrashlyticsEnabled: false`.
+- Crashlytics collection is enabled for Release builds through `ListenSDRFirebaseCrashlyticsEnabled`, while SDK default collection remains disabled through `FirebaseCrashlyticsCollectionEnabled: false` until app bootstrap applies the app-specific flag.
+- Crashlytics dSYM upload is wired as an Xcode post-build script and is controlled by `LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS`.
+- Unsigned local/GitHub IPA builds explicitly set `LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS=NO` and `LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED=false`.
 - Remote Config setup is disabled by default through `ListenSDRFirebaseRemoteConfigEnabled: false`.
 
 ## Firebase Console setup
@@ -24,15 +26,16 @@ Listen SDR is prepared for Firebase on iOS, but data-collection features remain 
 
 `GoogleService-Info.plist` is an app configuration file, not a private service-account secret. Do not commit Firebase Admin SDK service-account JSON files, APNs private keys, or Apple signing secrets.
 
-## Enabling Crashlytics
+## Crashlytics
 
-Crashlytics should be enabled only after the public privacy policy and release notes reflect crash diagnostics. To enable it for a production build:
+Crashlytics is prepared for signed Release/TestFlight builds:
 
-1. Confirm `docs/privacy-policy.html` describes Firebase Crashlytics.
-2. Set `ListenSDRFirebaseCrashlyticsEnabled: true` in `native-ios/project.yml`.
-3. Keep `FirebaseCrashlyticsCollectionEnabled: false` unless there is a deliberate decision to allow SDK default collection before app bootstrap runs.
-4. Add or verify Crashlytics dSYM upload handling for signed release builds.
-5. Run a remote unsigned build or TestFlight preflight before release.
+1. `docs/privacy-policy.html` describes Firebase Crashlytics.
+2. Release builds set `LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED=true`.
+3. Unsigned builds override that flag to `false`.
+4. The post-build script runs Firebase's `Crashlytics/run` script only when `LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS=YES`.
+5. The script declares the dSYM, dSYM DWARF binary, dSYM Info.plist, Firebase plist, and executable as input files for Xcode's script sandboxing.
+6. Run a remote unsigned build or TestFlight preflight before release.
 
 The bootstrap sends only coarse app metadata as Crashlytics custom keys: bundle identifier, app version, and build number. It does not attach receiver history, SDR server addresses, recordings, or diagnostic exports.
 

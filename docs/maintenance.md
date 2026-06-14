@@ -42,7 +42,7 @@ This file is the short operational map for keeping the iOS app maintainable whil
 
 - Bump `CFBundleVersion` and `CURRENT_PROJECT_VERSION` in `native-ios/project.yml`.
 - Keep `native-ios/ListenSDR/Info.plist` in sync.
-- If Firebase is enabled for the build, verify `GoogleService-Info.plist`, Crashlytics policy wording, and `docs/firebase.md`.
+- If Firebase is enabled for the build, verify `GoogleService-Info.plist`, Crashlytics policy wording, dSYM upload logs, and `docs/firebase.md`.
 - Add `release/testflight/1.0.1-build-<build>/what-to-test.pl.txt` and `what-to-test.en-US.txt`.
 - Run `scripts/Run-ListenSDR-TestFlightEndToEnd.ps1` for TestFlight.
 - If metadata publishing fails, verify the beta groups through the global `/betaGroups?filter[app]=...` endpoint used by the current scripts.

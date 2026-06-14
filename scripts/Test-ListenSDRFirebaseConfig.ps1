@@ -26,6 +26,10 @@ Test-FileContains -Path $projectFile -Pattern "firebase-ios-sdk" -Description "F
 Test-FileContains -Path $projectFile -Pattern "FirebaseCore" -Description "FirebaseCore product dependency"
 Test-FileContains -Path $projectFile -Pattern "FirebaseCrashlytics" -Description "FirebaseCrashlytics product dependency"
 Test-FileContains -Path $projectFile -Pattern "FirebaseRemoteConfig" -Description "FirebaseRemoteConfig product dependency"
+Test-FileContains -Path $projectFile -Pattern "Crashlytics/run" -Description "Crashlytics dSYM upload script"
+Test-FileContains -Path $projectFile -Pattern "LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS" -Description "Crashlytics dSYM upload build flag"
+Test-FileContains -Path $projectFile -Pattern "LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED" -Description "Crashlytics collection build flag"
+Test-FileContains -Path $projectFile -Pattern "DWARF_DSYM_FOLDER_PATH" -Description "Crashlytics dSYM input files"
 Test-FileContains -Path $bootstrapFile -Pattern "FirebaseBootstrap" -Description "Firebase bootstrap source"
 
 if (Test-Path -LiteralPath $configFile) {

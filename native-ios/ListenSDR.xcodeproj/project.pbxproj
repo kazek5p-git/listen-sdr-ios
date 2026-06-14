@@ -405,6 +405,7 @@
 				CDCCB2A3DD3BDAB4CEF22D92 /* Sources */,
 				509BB02E5F318E67CD66A88D /* Resources */,
 				F7D8D583F714EB5A2B5A02D0 /* Frameworks */,
+				023F51B395A2905CF9C1757A /* Upload Crashlytics dSYMs */,
 			);
 			buildRules = (
 			);
@@ -497,6 +498,33 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		023F51B395A2905CF9C1757A /* Upload Crashlytics dSYMs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)",
+				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(PRODUCT_NAME)",
+				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+			);
+			name = "Upload Crashlytics dSYMs";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\n\nif [ \"${LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS:-NO}\" != \"YES\" ]; then\n  echo \"Crashlytics dSYM upload disabled for this build.\"\n  exit 0\nfi\n\nif [ \"${CONFIGURATION:-}\" != \"Release\" ]; then\n  echo \"Crashlytics dSYM upload is only enabled for Release.\"\n  exit 0\nfi\n\nGOOGLE_SERVICE_INFO=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nif [ ! -f \"$GOOGLE_SERVICE_INFO\" ]; then\n  echo \"GoogleService-Info.plist not bundled; skipping Crashlytics dSYM upload.\"\n  exit 0\nfi\n\nCRASHLYTICS_RUN=\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\nif [ ! -x \"$CRASHLYTICS_RUN\" ]; then\n  echo \"Crashlytics run script not found: $CRASHLYTICS_RUN\" >&2\n  exit 1\nfi\n\n\"$CRASHLYTICS_RUN\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		CDCCB2A3DD3BDAB4CEF22D92 /* Sources */ = {
@@ -729,6 +757,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS = NO;
+				LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED = NO;
 				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kazek.sdr;
 				SDKROOT = iphoneos;
@@ -824,6 +854,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS = YES;
+				LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED = YES;
 				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kazek.sdr;
 				SDKROOT = iphoneos;

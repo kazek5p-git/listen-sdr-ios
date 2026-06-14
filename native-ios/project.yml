@@ -38,7 +38,7 @@ targets:
         CFBundleVersion: "106"
         FirebaseCrashlyticsCollectionEnabled: false
         ITSAppUsesNonExemptEncryption: false
-        ListenSDRFirebaseCrashlyticsEnabled: false
+        ListenSDRFirebaseCrashlyticsEnabled: $(LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED)
         ListenSDRFirebaseRemoteConfigEnabled: false
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
@@ -62,9 +62,50 @@ targets:
         CURRENT_PROJECT_VERSION: 106
         MARKETING_VERSION: 1.0.1
         SWIFT_VERSION: 5.10
+        LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS: "NO"
+        LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED: "false"
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: ListenSDR/ListenSDR.entitlements
+      configs:
+        Release:
+          LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS: "YES"
+          LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED: "true"
+    postBuildScripts:
+      - name: Upload Crashlytics dSYMs
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - "$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)"
+          - "$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Resources/DWARF/$(PRODUCT_NAME)"
+          - "$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)/Contents/Info.plist"
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist"
+          - "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)"
+        script: |
+          set -euo pipefail
+
+          if [ "${LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS:-NO}" != "YES" ]; then
+            echo "Crashlytics dSYM upload disabled for this build."
+            exit 0
+          fi
+
+          if [ "${CONFIGURATION:-}" != "Release" ]; then
+            echo "Crashlytics dSYM upload is only enabled for Release."
+            exit 0
+          fi
+
+          GOOGLE_SERVICE_INFO="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist"
+          if [ ! -f "$GOOGLE_SERVICE_INFO" ]; then
+            echo "GoogleService-Info.plist not bundled; skipping Crashlytics dSYM upload."
+            exit 0
+          fi
+
+          CRASHLYTICS_RUN="${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
+          if [ ! -x "$CRASHLYTICS_RUN" ]; then
+            echo "Crashlytics run script not found: $CRASHLYTICS_RUN" >&2
+            exit 1
+          fi
+
+          "$CRASHLYTICS_RUN"
   ListenSDRTests:
     type: bundle.unit-test
     platform: iOS

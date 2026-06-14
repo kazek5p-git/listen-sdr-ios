@@ -56,7 +56,7 @@
       <p>If the user stores a receiver password, the app keeps that secret locally on the device using the platform's secure storage mechanisms.</p>
       <h2>Analytics and advertising</h2>
       <p>Listen SDR does not serve advertisements, does not sell user data, and does not use third-party analytics for advertising or tracking.</p>
-      <p>The iOS app includes optional Firebase support. Firebase Crashlytics collection is disabled by default. In builds where Firebase Crashlytics is deliberately enabled, crash diagnostics may be sent to Google Firebase Crashlytics to help diagnose app failures. Crash diagnostics are limited to technical failure information and coarse app metadata such as app version and build number; they are not used for advertising.</p>
+      <p>The iOS app includes Firebase support. In Release builds where Firebase Crashlytics is enabled, crash diagnostics may be sent to Google Firebase Crashlytics to help diagnose app failures. Crash diagnostics are limited to technical failure information and coarse app metadata such as app version and build number; they are not used for advertising. Unsigned local test builds can disable Crashlytics collection.</p>
       <h2>Data sharing</h2>
       <p>Listen SDR does not operate its own user account system and does not maintain a central cloud profile for listeners. Outside of direct connections to the SDR servers selected by the user, the app does not send personal listening data to a separate service.</p>
       <h2>Contact</h2>

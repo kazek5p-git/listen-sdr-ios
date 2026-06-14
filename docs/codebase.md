@@ -39,7 +39,7 @@ Important files under `native-ios/ListenSDR/Sources/`:
 - `RadiosView.swift` and `ReceiverDirectoryView.swift` handle receiver lists, history, favorites, directory browsing, import, and selection.
 - `SettingsView.swift` contains user settings, audio controls, accessibility options, appearance/skins, backup/restore, and related settings sections.
 - `SettingsViewController.swift` bridges settings state and stores into the UI/session layer.
-- `FirebaseBootstrap.swift` configures Firebase Core, optional Crashlytics collection, and optional Remote Config when a Firebase plist is present.
+- `FirebaseBootstrap.swift` configures Firebase Core, Release-controlled Crashlytics collection, and optional Remote Config when a Firebase plist is present.
 - `ContentView.swift` owns tab navigation, lifecycle hooks, startup auto-connect, and interruption notifications.
 - `AppNavigationState.swift`, `AppShortcutCommandCenter.swift`, and `ListenSDRAppShortcuts.swift` support app navigation and shortcuts.
 - `UnavailableContentView.swift`, `NativeAdjustableChipControl.swift`, `VoiceOverRotorControl.swift`, `ProfileEditorView.swift`, and other small views are examples of focused files that should guide future extraction.
@@ -124,7 +124,7 @@ When shared behavior changes, update Swift tests and fixtures first, then sync A
 - `.github/workflows/ios-unsigned-ipa.yml` builds unsigned IPA artifacts for Sideloadly-style installation.
 - `.github/workflows/ios-signed-testflight.yml` builds signed IPA artifacts and can upload to TestFlight when secrets are configured.
 - `.github/workflows/eas-ios.yml` and `eas-android-release.yml` are legacy Expo/EAS paths; do not use them as the primary native iOS release path unless intentionally reviving EAS.
-- `docs/firebase.md` documents the optional Firebase setup, including the required `GoogleService-Info.plist`, Crashlytics privacy guard, and future push-notification constraints.
+- `docs/firebase.md` documents the Firebase setup, including the required `GoogleService-Info.plist`, Crashlytics privacy guard, dSYM upload flow, and future push-notification constraints.
 - `server/listen-sdr-feedback-bot/` contains the Telegram/reporting feedback bot and service file for the support pipeline.
 - `scripts/Deploy-ListenSDR-FeedbackBot.ps1`, `Check-ListenSDRTelegramReports.ps1`, and related Telegram scripts operate the feedback/reporting side channel.
 - Public HTML files in `docs/` should be updated when support, privacy, or public product wording changes.

@@ -240,6 +240,8 @@ run_xcodebuild_logged "$LOG_PATH" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY="" \
+  LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS=NO \
+  LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED=false \
   build
 
 APP_BUNDLE_PATH=$(find "$DERIVED_DATA_PATH/Build/Products/Release-iphoneos" -maxdepth 1 -type d -name "*.app" | head -n 1)

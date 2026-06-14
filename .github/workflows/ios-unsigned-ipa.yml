@@ -90,6 +90,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
+            LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS=NO \
+            LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED=false \
             clean build | tee native-ios-build.log
 
       - name: Package unsigned IPA
