@@ -14,6 +14,7 @@ This document describes the native iOS app and the shared Swift package. Use it 
 - `release/testflight/` contains versioned What to Test notes.
 - `server/` contains support tooling for feedback/reporting services.
 - `.github/workflows/` contains CI workflows for unsigned IPA, signed TestFlight, generated Xcode project sync, and legacy EAS paths.
+- `.github/FUNDING.yml` contains GitHub Funding metadata for the author's GitHub profile, PayPal, and BuyCoffee/Postaw Kawę support links.
 - `docs/index.html`, `docs/support.html`, and `docs/privacy-policy.html` are public-facing pages and must stay consistent with app metadata and support wording.
 
 The Expo files still exist, but the maintained app path is the native iOS project under `native-ios/`. Root-level Expo files (`App.tsx`, `app.json`, `eas.json`, `package.json`) and `.expo` logs are legacy or support tooling unless a task explicitly targets Expo/EAS.
@@ -96,7 +97,7 @@ Storage and backup changes should include tests for migration, decoding, and fai
 - `AppAccessibility.swift`, `VoiceOverRotorControl.swift`, `NativeAdjustableChipControl.swift`, and accessibility-related actions in views support VoiceOver-first usage.
 - `AppTheme.swift`, `CustomThemeEditorView.swift`, and skin-related settings define appearance and custom themes.
 - `AppTutorialView.swift` contains first-run/tutorial UI.
-- `SupportDevelopmentCard.swift` contains support/donation UI.
+- `SupportDevelopmentCard.swift` contains support/donation UI for BuyCoffee/Postaw Kawę, PayPal, and the author's GitHub profile.
 
 Accessibility is a product requirement, not an optional polish pass. Any UI change should check VoiceOver order, labels, adjustable controls, Magic Tap behavior, and whether controls remain usable during audio interruptions.
 Use `docs/accessibility.md` as the current accessibility implementation note. It documents the DRihelp audit baseline, minimum touch-target constants, tab-bar scroll clearance, and required manual checks.
@@ -126,6 +127,7 @@ When shared behavior changes, update Swift tests and fixtures first, then sync A
 - `.github/workflows/eas-ios.yml` and `eas-android-release.yml` are legacy Expo/EAS paths; do not use them as the primary native iOS release path unless intentionally reviving EAS.
 - `docs/firebase.md` documents the Firebase setup, including the required `GoogleService-Info.plist`, Crashlytics privacy guard, dSYM upload flow, and future push-notification constraints.
 - `server/listen-sdr-feedback-bot/` contains the Telegram/reporting feedback bot and service file for the support pipeline.
+- `.github/FUNDING.yml` should stay aligned with `SupportDevelopmentCard.swift`, the legacy Expo support panel, and `docs/support.html`.
 - `scripts/Deploy-ListenSDR-FeedbackBot.ps1`, `Check-ListenSDRTelegramReports.ps1`, and related Telegram scripts operate the feedback/reporting side channel.
 - Public HTML files in `docs/` should be updated when support, privacy, or public product wording changes.
 

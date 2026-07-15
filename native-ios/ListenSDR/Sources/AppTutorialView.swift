@@ -125,7 +125,7 @@ struct AppTutorialView: View {
       SupportDevelopmentCard(
         descriptionText: L10n.text(
           "tutorial.support.body",
-          fallback: "If Listen SDR is useful to you and you want to support its further development, you can contribute through PayPal. Every contribution helps fund accessibility work, fixes, and new features."
+          fallback: "If Listen SDR is useful to you and you want to support its further development, you can contribute through BuyCoffee, PayPal, or GitHub. Every contribution helps fund accessibility work, fixes, and new features."
         ),
         showsCopyLinkButton: false
       )

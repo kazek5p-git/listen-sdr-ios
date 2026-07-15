@@ -1670,7 +1670,7 @@ struct SettingsView: View {
       SupportDevelopmentCard(
         descriptionText: L10n.text(
           "settings.support.body",
-          fallback: "If you enjoy Listen SDR and want to support its development, you can contribute through PayPal. Every contribution helps fund accessibility work, fixes, and new features."
+          fallback: "If you enjoy Listen SDR and want to support its development, you can contribute through BuyCoffee, PayPal, or GitHub. Every contribution helps fund accessibility work, fixes, and new features."
         ),
         showsCopyLinkButton: true
       )

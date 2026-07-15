@@ -43,7 +43,9 @@ type CustomThemeExportPayload = {
 
 const THEME_STORAGE_KEY = 'ListenSDR.androidTheme.v1';
 const CUSTOM_THEME_STORAGE_KEY = 'ListenSDR.androidTheme.custom.v1';
-const SUPPORT_URL = 'https://paypal.me/KazimierzParzych';
+const PAYPAL_SUPPORT_URL = 'https://paypal.me/KazimierzParzych';
+const BUYCOFFEE_SUPPORT_URL = 'https://buycoffee.to/kazimierz-parzych';
+const GITHUB_SUPPORT_URL = 'https://github.com/kazek5p-git';
 const SUPPORT_QUICK_AMOUNTS = [5, 10, 20, 50] as const;
 
 const PRESET_THEMES: ThemePalette[] = [
@@ -320,10 +322,10 @@ function normalizeSupportAmount(input: string): string | null {
 
 function buildSupportUrl(amount?: string): string {
   if (!amount) {
-    return SUPPORT_URL;
+    return PAYPAL_SUPPORT_URL;
   }
 
-  return `${SUPPORT_URL}/${amount}PLN`;
+  return `${PAYPAL_SUPPORT_URL}/${amount}PLN`;
 }
 
 export default function App() {
@@ -511,8 +513,26 @@ export default function App() {
     }
   };
 
+  const handleOpenBuyCoffeeSupport = async () => {
+    try {
+      await Linking.openURL(BUYCOFFEE_SUPPORT_URL);
+      setSupportStatus('Otworzono stron\u0119 Postaw Kaw\u0119 do wsparcia autora aplikacji.');
+    } catch {
+      setSupportStatus('Nie uda\u0142o si\u0119 otworzy\u0107 strony Postaw Kaw\u0119.');
+    }
+  };
+
+  const handleOpenGithubSupport = async () => {
+    try {
+      await Linking.openURL(GITHUB_SUPPORT_URL);
+      setSupportStatus('Otworzono profil GitHub autora.');
+    } catch {
+      setSupportStatus('Nie uda\u0142o si\u0119 otworzy\u0107 profilu GitHub.');
+    }
+  };
+
   const handleCopySupportLink = async () => {
-    await Clipboard.setStringAsync(SUPPORT_URL);
+    await Clipboard.setStringAsync(PAYPAL_SUPPORT_URL);
     setSupportStatus('Link PayPal do wsparcia Listen SDR zosta\u0142 skopiowany do schowka.');
   };
 
@@ -871,9 +891,9 @@ export default function App() {
         <ThemeCard theme={activeTheme}>
           <Text style={[styles.cardTitle, { color: activeTheme.text }]}>Wesprzyj rozw\xf3j</Text>
           <Text style={[styles.cardDescription, { color: activeTheme.textMuted }]}>
-            Je\u015bli podoba Ci si\u0119 Listen SDR i chcesz wesprze\u0107 dalszy rozw\xf3j aplikacji, mo\u017cesz
-            zrobi\u0107 to przez PayPal. Ka\u017cde wsparcie pomaga rozwija\u0107 dost\u0119pno\u015b\u0107, poprawki i
-            nowe funkcje.
+            {'Je\u015bli podoba Ci si\u0119 Listen SDR i chcesz wesprze\u0107 dalszy rozw\xf3j aplikacji, mo\u017cesz ' +
+              'zrobi\u0107 to przez Postaw Kaw\u0119, PayPal albo GitHub autora. Ka\u017cde wsparcie pomaga ' +
+              'rozwija\u0107 dost\u0119pno\u015b\u0107, poprawki i nowe funkcje.'}
           </Text>
 
           <Text style={[styles.helperText, { color: activeTheme.textMuted }]}>
@@ -948,6 +968,44 @@ export default function App() {
           <Pressable
             accessibilityRole="button"
             onPress={() => {
+              void handleOpenBuyCoffeeSupport();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: activeTheme.backgroundSecondary,
+                borderColor: activeTheme.cardBorder,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
+              {'Postaw kaw\u0119 autorowi aplikacji'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void handleOpenGithubSupport();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: activeTheme.backgroundSecondary,
+                borderColor: activeTheme.cardBorder,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
+              GitHub autora
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
               void handleOpenSupportBase();
             }}
             style={({ pressed }) => [
@@ -979,7 +1037,7 @@ export default function App() {
             ]}
           >
             <Text style={[styles.actionButtonText, { color: activeTheme.tint }]}>
-              Kopiuj link wsparcia
+              Kopiuj link PayPal
             </Text>
           </Pressable>
 

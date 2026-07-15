@@ -8,6 +8,16 @@ Projekt skonfigurowany do live testow na iPhonie z Windows przez Expo.
 - Mapa kodu natywnej aplikacji iOS jest w `docs/codebase.md`.
 - Krótkie zasady utrzymania i refaktoryzacji są w `docs/maintenance.md`.
 
+## Wsparcie autora
+
+Listen SDR pokazuje linki wsparcia w aplikacji oraz przez metadane GitHuba:
+
+- Postaw Kawę: `https://buycoffee.to/kazimierz-parzych`
+- PayPal: `https://paypal.me/KazimierzParzych`
+- GitHub autora: `https://github.com/kazek5p-git`
+
+Konfiguracja przycisku Funding/Sponsor w repozytorium jest w `.github/FUNDING.yml` i powinna pozostać zgodna z linkami w aplikacji oraz publiczną stroną `docs/support.html`.
+
 ## Aktualna konfiguracja
 - App name: `Listen SDR`
 - Slug: `listen-sdr`

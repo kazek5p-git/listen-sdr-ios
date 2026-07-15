@@ -735,10 +735,10 @@
 "settings.privacy_feedback.feedback_title" = "Feedback helps improve the app";
 "settings.privacy_feedback.feedback_body" = "Bug reports and suggestions help improve stability, accessibility, and receiver support. If something is wrong or missing, please use the feedback options above.";
 "settings.support.section" = "Support development";
-"settings.support.body" = "If you enjoy Listen SDR and want to support its development, you can contribute through PayPal. Every contribution helps fund accessibility work, fixes, and new features.";
+"settings.support.body" = "If you enjoy Listen SDR and want to support its development, you can contribute through BuyCoffee, PayPal, or GitHub. Every contribution helps fund accessibility work, fixes, and new features.";
 "settings.support.paypal" = "Support Listen SDR with PayPal";
 "settings.support.paypal.hint" = "Opens the PayPal page for supporting Listen SDR.";
-"settings.support.copy_link" = "Copy support link";
+"settings.support.copy_link" = "Copy PayPal link";
 "settings.support.copy_success.title" = "Support link copied";
 "settings.support.copy_success.body" = "The PayPal support link is now in the clipboard.";
 "support.amounts.description" = "Choose a quick amount or enter your own. PayPal still asks the user to confirm the payment.";
@@ -748,7 +748,9 @@
 "support.amount.custom.button" = "Support with a custom amount";
 "support.amount.custom.invalid" = "Enter a valid amount, for example 15 or 15.50.";
 "support.amount.other_currency.button" = "Choose another amount or currency";
-"support.amount.copy_link" = "Copy support link";
+"support.buycoffee.button" = "Buy the app author a coffee";
+"support.github.button" = "Author's GitHub";
+"support.amount.copy_link" = "Copy PayPal link";
 "support.amount.copy_success" = "The PayPal support link is now in the clipboard.";
 "settings.feedback.health_check.success.title" = "Connection works";
 "settings.feedback.health_check.success.body" = "The feedback server is reachable.";
@@ -866,7 +868,7 @@
 "tutorial.recording.title" = "Recording and playback";
 "tutorial.recording.body" = "You can record locally, review saved recordings, and route audio to AirPlay or other system audio outputs.";
 "tutorial.support.title" = "Support development";
-"tutorial.support.body" = "If Listen SDR is useful to you and you want to support its further development, you can contribute through PayPal. Every contribution helps fund accessibility work, fixes, and new features.";
+"tutorial.support.body" = "If Listen SDR is useful to you and you want to support its further development, you can contribute through BuyCoffee, PayPal, or GitHub. Every contribution helps fund accessibility work, fixes, and new features.";
 "tutorial.support.paypal" = "Support Listen SDR with PayPal";
 "tutorial.support.hint" = "Opens the PayPal page for supporting Listen SDR.";
 "tutorial.show_on_launch.section" = "Startup";

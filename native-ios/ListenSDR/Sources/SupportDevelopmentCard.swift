@@ -1,7 +1,9 @@
 import SwiftUI
 import UIKit
 
-let listenSDRSupportBaseURL = URL(string: "https://paypal.me/KazimierzParzych")!
+let listenSDRPayPalSupportBaseURL = URL(string: "https://paypal.me/KazimierzParzych")!
+let listenSDRBuyCoffeeSupportURL = URL(string: "https://buycoffee.to/kazimierz-parzych")!
+let listenSDRGitHubSupportURL = URL(string: "https://github.com/kazek5p-git")!
 
 struct SupportDevelopmentCard: View {
   @Environment(\.openURL) private var openURL
@@ -107,9 +109,33 @@ struct SupportDevelopmentCard: View {
         .frame(maxWidth: .infinity)
       }
 
+      FocusRetainingButton {
+        openBuyCoffeeSupportURL()
+      } label: {
+        Text(
+          L10n.text(
+            "support.buycoffee.button",
+            fallback: "Buy the app author a coffee"
+          )
+        )
+        .frame(maxWidth: .infinity)
+      }
+
+      FocusRetainingButton {
+        openGitHubSupportURL()
+      } label: {
+        Text(
+          L10n.text(
+            "support.github.button",
+            fallback: "Author's GitHub"
+          )
+        )
+        .frame(maxWidth: .infinity)
+      }
+
       if showsCopyLinkButton {
         FocusRetainingButton {
-          UIPasteboard.general.string = listenSDRSupportBaseURL.absoluteString
+          UIPasteboard.general.string = listenSDRPayPalSupportBaseURL.absoluteString
           localStatusMessage = L10n.text(
             "support.amount.copy_success",
             fallback: "The PayPal support link is now in the clipboard."
@@ -118,7 +144,7 @@ struct SupportDevelopmentCard: View {
           Text(
             L10n.text(
               "support.amount.copy_link",
-              fallback: "Copy support link"
+              fallback: "Copy PayPal link"
             )
           )
         }
@@ -152,7 +178,17 @@ struct SupportDevelopmentCard: View {
 
   private func openSupportBaseURL() {
     localStatusMessage = nil
-    openURL(listenSDRSupportBaseURL)
+    openURL(listenSDRPayPalSupportBaseURL)
+  }
+
+  private func openBuyCoffeeSupportURL() {
+    localStatusMessage = nil
+    openURL(listenSDRBuyCoffeeSupportURL)
+  }
+
+  private func openGitHubSupportURL() {
+    localStatusMessage = nil
+    openURL(listenSDRGitHubSupportURL)
   }
 
   private func normalizedCustomAmount() -> String? {
@@ -180,6 +216,6 @@ struct SupportDevelopmentCard: View {
   }
 
   private func supportURL(forNormalizedAmount amount: String) -> URL? {
-    URL(string: "\(listenSDRSupportBaseURL.absoluteString)/\(amount)PLN")
+    URL(string: "\(listenSDRPayPalSupportBaseURL.absoluteString)/\(amount)PLN")
   }
 }
