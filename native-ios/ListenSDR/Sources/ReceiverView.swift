@@ -677,12 +677,22 @@ struct ReceiverView: View {
       frequencyInputSection(for: profile.backend)
         .disabled(fmDxRemoteControlLocked)
         .opacity(fmDxRemoteControlLocked ? 0.55 : 1)
-      HStack(alignment: .top, spacing: 12) {
-        frequencyTuningControl(for: profile.backend)
-          .frame(maxWidth: .infinity)
+      ViewThatFits(in: .horizontal) {
+        HStack(alignment: .top, spacing: 12) {
+          frequencyTuningControl(for: profile.backend)
+            .frame(minWidth: 220, maxWidth: .infinity)
 
-        tuneStepControl(for: profile.backend)
-          .frame(width: 156)
+          tuneStepControl(for: profile.backend)
+            .frame(minWidth: 188, maxWidth: .infinity)
+        }
+
+        VStack(alignment: .leading, spacing: 8) {
+          frequencyTuningControl(for: profile.backend)
+            .frame(maxWidth: .infinity)
+
+          tuneStepControl(for: profile.backend)
+            .frame(maxWidth: .infinity)
+        }
       }
       .disabled(fmDxRemoteControlLocked)
       .opacity(fmDxRemoteControlLocked ? 0.55 : 1)
