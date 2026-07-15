@@ -359,9 +359,11 @@ actor KiwiSDRClient: SDRBackendClient {
   private var firstAudioFrameAt: Date?
   private var pendingWaterfallActivationTask: Task<Void, Never>?
 
+  private let audioStartWatchdogDelaySeconds: TimeInterval = 15
   private let kiwiStableAudioFrameThreshold = 3
   private let kiwiStableAudioWaterfallDelaySeconds: TimeInterval = 2.5
   private let kiwiCanonicalSampleRatesHz = [8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000]
+  private var reportedMissingInitialAudio = false
 
   func connect(profile: SDRConnectionProfile) async throws {
     _ = try validate(profile: profile)
@@ -370,6 +372,7 @@ actor KiwiSDRClient: SDRBackendClient {
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
     activeProfile = profile
     activeBasePath = basePath
+    reportedMissingInitialAudio = false
 
     let sndURL = try makeWebSocketURL(
       profile: profile,
@@ -391,7 +394,7 @@ actor KiwiSDRClient: SDRBackendClient {
       await self.keepAliveLoop(task: soundTask)
     }
     audioWatchdogTask = Task {
-      try? await Task.sleep(nanoseconds: 6_000_000_000)
+      try? await Task.sleep(nanoseconds: UInt64(self.audioStartWatchdogDelaySeconds * 1_000_000_000))
       self.logMissingAudioIfNeeded()
     }
 
@@ -428,6 +431,7 @@ actor KiwiSDRClient: SDRBackendClient {
 
     lastServerMessage = nil
     pendingStatusUpdate = nil
+    reportedMissingInitialAudio = false
     sampleRateHz = 12_000
     adpcmDecoder.reset()
     latestRSSI = nil
@@ -1085,12 +1089,19 @@ actor KiwiSDRClient: SDRBackendClient {
 
     let floats = int16ToFloatPCM(pcm)
     guard !floats.isEmpty else { return }
+    let isFirstAudioFrame = receivedAudioFrameCount == 0
     receivedAudioFrameCount += 1
-    if receivedAudioFrameCount == 1 {
+    if isFirstAudioFrame {
       firstAudioFrameAt = Date()
     }
     audioWatchdogTask?.cancel()
     audioWatchdogTask = nil
+    if isFirstAudioFrame, reportedMissingInitialAudio {
+      reportedMissingInitialAudio = false
+      if let activeProfile {
+        pendingStatusUpdate = "Connected to \(activeProfile.endpointDescription)"
+      }
+    }
     if receivedAudioFrameCount <= 3 {
       let rms = sqrt(floats.reduce(0) { $0 + ($1 * $1) } / Float(max(floats.count, 1)))
       log(
@@ -1122,7 +1133,11 @@ actor KiwiSDRClient: SDRBackendClient {
       "Connected, but Kiwi is not sending audio.",
       comment: "Status shown when KiwiSDR is connected but audio frames are missing"
     )
-    log("Connected, but no Kiwi audio frames were received within 6 seconds.", severity: .warning)
+    reportedMissingInitialAudio = true
+    log(
+      String(format: "Connected, but no Kiwi audio frames were received within %.0f seconds.", audioStartWatchdogDelaySeconds),
+      severity: .warning
+    )
   }
 
   private func handleKiwiWaterfall(_ body: Data) async {
@@ -1529,6 +1544,9 @@ actor OpenWebRXClient: SDRBackendClient {
   private var serverBandPlan: [SDRBandPlanEntry] = []
   private var receivedAudioFrameCount = 0
   private var audioWatchdogTask: Task<Void, Never>?
+  private let audioStartWatchdogDelaySeconds: TimeInterval = 15
+  private var activeProfile: SDRConnectionProfile?
+  private var reportedMissingInitialAudio = false
   private var lastReportedFrequencyHz: Int?
   private var lastReportedMode: DemodulationMode?
   private var hasReceivedInitialServerTuning = false
@@ -1537,6 +1555,8 @@ actor OpenWebRXClient: SDRBackendClient {
     _ = try validate(profile: profile)
     await disconnect()
 
+    activeProfile = profile
+    reportedMissingInitialAudio = false
     let basePath = pathWithTrailingSlash(profile.normalizedPath)
     let wsPath = "\(basePath)ws/"
     let url = try await resolveWebSocketURL(profile: profile, path: wsPath)
@@ -1552,7 +1572,7 @@ actor OpenWebRXClient: SDRBackendClient {
       await self.receiveLoop(task: task)
     }
     audioWatchdogTask = Task {
-      try? await Task.sleep(nanoseconds: 6_000_000_000)
+      try? await Task.sleep(nanoseconds: UInt64(self.audioStartWatchdogDelaySeconds * 1_000_000_000))
       self.logMissingAudioIfNeeded()
     }
 
@@ -1605,6 +1625,8 @@ actor OpenWebRXClient: SDRBackendClient {
     receivedAudioFrameCount = 0
     audioWatchdogTask?.cancel()
     audioWatchdogTask = nil
+    activeProfile = nil
+    reportedMissingInitialAudio = false
     lastReportedFrequencyHz = nil
     lastReportedMode = nil
     hasReceivedInitialServerTuning = false
@@ -1929,9 +1951,16 @@ actor OpenWebRXClient: SDRBackendClient {
 
     let floats = int16ToFloatPCM(pcm)
     guard !floats.isEmpty else { return }
+    let isFirstAudioFrame = receivedAudioFrameCount == 0
     receivedAudioFrameCount += 1
     audioWatchdogTask?.cancel()
     audioWatchdogTask = nil
+    if isFirstAudioFrame, reportedMissingInitialAudio {
+      reportedMissingInitialAudio = false
+      if let activeProfile {
+        pendingStatusUpdate = "Connected to \(activeProfile.endpointDescription)"
+      }
+    }
     if receivedAudioFrameCount <= 3 {
       let rms = sqrt(floats.reduce(0) { $0 + ($1 * $1) } / Float(max(floats.count, 1)))
       log(
@@ -1958,7 +1987,11 @@ actor OpenWebRXClient: SDRBackendClient {
       "Connected, but OpenWebRX is not sending audio.",
       comment: "Status shown when OpenWebRX is connected but audio frames are missing"
     )
-    log("Connected, but no OpenWebRX audio frames were received within 6 seconds.", severity: .warning)
+    reportedMissingInitialAudio = true
+    log(
+      String(format: "Connected, but no OpenWebRX audio frames were received within %.0f seconds.", audioStartWatchdogDelaySeconds),
+      severity: .warning
+    )
   }
 
   private func extractInt(_ value: Any?) -> Int? {
