@@ -1,0 +1,9 @@
+Ten build porządkuje wygląd kontrolek strojenia.
+
+Sprawdź zakładkę Odbiornik/Tuner na iPhonie.
+Najważniejsze jest to, czy kontrolka częstotliwości i kontrolka kroku strojenia wyglądają spójnie oraz czy krok strojenia nie jest ściśnięty w wąską pionową kolumnę.
+
+Sprawdź zwykłe strojenie przyciskami minus i plus oraz zmianę kroku strojenia.
+Kontrolnie sprawdź też VoiceOver: kontrolki powinny nadal działać jako regulowane elementy z akcją zwiększania i zmniejszania.
+
+Jako regresję sprawdź połączenie, rozłączenie i podstawowe sterowanie FM-DX/KiwiSDR/OpenWebRX.

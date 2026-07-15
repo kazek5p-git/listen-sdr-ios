@@ -1,0 +1,9 @@
+This build tidies the tuning controls layout.
+
+Please test the Receiver/Tuner tab on iPhone.
+The most important check is whether the frequency control and tune-step control look consistent, and whether the tune-step control is no longer squeezed into a narrow vertical column.
+
+Please test normal tuning with the minus and plus buttons, and changing the tune step.
+Also check VoiceOver: the controls should still work as adjustable elements with increment and decrement actions.
+
+As a regression check, test connection, disconnection, and basic FM-DX/KiwiSDR/OpenWebRX controls.
