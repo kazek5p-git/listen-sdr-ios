@@ -1,0 +1,9 @@
+Ten build dodaje sterowanie komunikatami aktualizacji przez Firebase Remote Config.
+
+Sprawdź Ustawienia, sekcję Pomoc i prywatność, a w niej Aktualizacje.
+Powinna być widoczna wersja aplikacji, status aktualizacji oraz przycisk ręcznego sprawdzenia.
+
+Remote Config ma bezpieczne ustawienia domyślne, więc bez konfiguracji w Firebase aplikacja nie powinna sama pokazywać nowego komunikatu aktualizacji.
+Jeśli komunikat zostanie w przyszłości włączony w Firebase, VoiceOver powinien czytać prosty tytuł, treść i przyciski otwarcia aktualizacji oraz zamknięcia.
+
+Jako regresję sprawdź start aplikacji, połączenie z odbiornikiem, rozłączenie oraz podstawowe sterowanie FM-DX/KiwiSDR/OpenWebRX.

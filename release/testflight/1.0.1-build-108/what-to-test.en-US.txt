@@ -1,0 +1,9 @@
+This build adds Firebase Remote Config update controls.
+
+Please check Settings, Help and privacy, then Updates.
+The section should show the app version, update status, and a manual update check button.
+
+Remote Config uses safe defaults, so without Firebase configuration the app should not show a new automatic update prompt.
+If a prompt is enabled in Firebase later, VoiceOver should read a simple title, message, and buttons for opening the update or closing the prompt.
+
+As a regression check, test app startup, receiver connection, disconnection, and basic FM-DX/KiwiSDR/OpenWebRX controls.

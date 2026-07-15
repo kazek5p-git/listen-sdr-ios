@@ -35,7 +35,7 @@ targets:
       properties:
         CFBundleDisplayName: Listen SDR
         CFBundleShortVersionString: "1.0.1"
-        CFBundleVersion: "107"
+        CFBundleVersion: "108"
         FirebaseCrashlyticsCollectionEnabled: false
         ITSAppUsesNonExemptEncryption: false
         ListenSDRFirebaseCrashlyticsEnabled: $(LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED)
@@ -59,7 +59,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kazek.sdr
-        CURRENT_PROJECT_VERSION: 107
+        CURRENT_PROJECT_VERSION: 108
         MARKETING_VERSION: 1.0.1
         SWIFT_VERSION: 5.10
         LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS: "NO"
