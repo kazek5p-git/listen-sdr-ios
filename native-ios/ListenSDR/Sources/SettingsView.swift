@@ -5,6 +5,7 @@ import UIKit
 struct SettingsView: View {
   @AppStorage(AppTheme.selectionKey) private var selectedThemeID = AppThemeOption.classic.rawValue
   @EnvironmentObject private var settingsController: SettingsViewController
+  @EnvironmentObject private var radioSession: RadioSessionViewModel
   @EnvironmentObject private var recordingStore: RecordingStore
   @State private var isCheckingFeedbackServer = false
   @State private var feedbackServerStatus: FeedbackServerStatus = .idle
@@ -374,6 +375,7 @@ struct SettingsView: View {
             fallback: "Help and privacy"
           )
         ) {
+          updatesSection
           helpSection
           supportSection
           authorSection
@@ -1661,6 +1663,65 @@ struct SettingsView: View {
       Text("Kazek5p")
     } header: {
       AppSectionHeader(title: L10n.text("settings.author.section"))
+    }
+    .appSectionStyle()
+  }
+
+  private var updatesSection: some View {
+    Section {
+      LabeledContent(
+        L10n.text("settings.app.version", fallback: "App version"),
+        value: radioSession.appVersionLabel
+      )
+
+      if let status = radioSession.appUpdateStatusText {
+        LabeledContent(
+          L10n.text("settings.updates.status", fallback: "Status"),
+          value: status
+        )
+      }
+
+      FocusRetainingButton {
+        radioSession.checkForAppUpdate(force: true)
+      } label: {
+        Text(
+          radioSession.isCheckingAppUpdate
+            ? L10n.text("updates.checking", fallback: "Checking for updates...")
+            : L10n.text("updates.check", fallback: "Check for updates")
+        )
+      }
+      .disabled(radioSession.isCheckingAppUpdate)
+      .accessibilityHint(
+        L10n.text(
+          "updates.check.hint",
+          fallback: "Checks Firebase Remote Config for a newer Listen SDR build."
+        )
+      )
+
+      if let update = radioSession.availableAppUpdate {
+        FocusRetainingButton {
+          radioSession.openAppUpdateURL()
+        } label: {
+          Text(
+            L10n.text(
+              "updates.open_version_format",
+              fallback: "Open update %@ (%d)",
+              update.versionName,
+              update.buildNumber
+            )
+          )
+        }
+        .accessibilityHint(
+          update.message ?? L10n.text(
+            "updates.open_update.hint",
+            fallback: "Opens the configured TestFlight, App Store, or release page link."
+          )
+        )
+      }
+    } header: {
+      AppSectionHeader(
+        title: L10n.text("settings.updates.section", fallback: "Updates")
+      )
     }
     .appSectionStyle()
   }

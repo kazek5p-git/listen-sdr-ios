@@ -85,6 +85,7 @@ During phone calls or communication interruptions, prefer muting receiver audio 
 - `RadioSessionSettingsBackupCodec.swift`, `SettingsBackupDocument.swift`, and settings backup/restore UI handle import/export of app settings.
 - `DiagnosticsStore.swift`, `DiagnosticsView.swift`, and `DiagnosticsExportBuilder.swift` manage diagnostic logs and exports.
 - `ListenSDRFeedbackFormView.swift` and `ListenSDRFeedbackSender.swift` support in-app feedback/report submission.
+- `RadioSessionViewModel.swift` also owns the lightweight Remote Config update state and prompt decisions shown by `ContentView` and `SettingsView`.
 - `FrequencyPresetStore.swift`, `BandTuningProfile.swift`, `ConnectionNetworkPolicy.swift`, and `ReceiverIdentity.swift` support saved tuning, runtime connection policy, and stable receiver identity behavior.
 - `DemodulationMode.swift`, `TuneStepPreferenceMode.swift`, and `ChannelScannerSignalCore.swift` define app-facing session, tuning, and scanner signal concepts that overlap with shared-core behavior.
 

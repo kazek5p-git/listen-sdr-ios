@@ -68,6 +68,17 @@ struct ContentView: View {
         )
       )
     }
+    .alert(appUpdateAlertTitle, isPresented: appUpdateAlertBinding) {
+      Button(L10n.text("updates.open_update", fallback: "Open update")) {
+        radioSession.openAppUpdateURL()
+        radioSession.dismissAppUpdatePrompt(remindAgain: true)
+      }
+      Button(L10n.text("Later"), role: .cancel) {
+        radioSession.dismissAppUpdatePrompt(remindAgain: pendingAppUpdateIsCritical)
+      }
+    } message: {
+      Text(appUpdateAlertMessage)
+    }
     .onAppear {
       logScenePhaseTransition(to: scenePhase)
       accessibilityState.selectedTab = navigationState.selectedTab
@@ -75,6 +86,7 @@ struct ContentView: View {
         isForegroundActive: scenePhase == .active,
         selectedTab: navigationState.selectedTab
       )
+      radioSession.maybeCheckForAppUpdate()
       attemptStartupAutoConnectIfNeeded()
       attemptStartupTutorialPresentationIfNeeded()
     }
@@ -97,6 +109,9 @@ struct ContentView: View {
         isForegroundActive: phase == .active,
         selectedTab: navigationState.selectedTab
       )
+      if phase == .active {
+        radioSession.maybeCheckForAppUpdate()
+      }
       attemptStartupAutoConnectIfNeeded()
       attemptStartupTutorialPresentationIfNeeded()
     }
@@ -170,6 +185,43 @@ struct ContentView: View {
 
     hasEvaluatedStartupTutorial = true
     isStartupTutorialPresented = settingsController.consumeStartupTutorialAutoPresentationIfNeeded()
+  }
+
+  private var appUpdateAlertBinding: Binding<Bool> {
+    Binding(
+      get: { radioSession.pendingAppUpdatePrompt != nil },
+      set: { isPresented in
+        if !isPresented {
+          radioSession.dismissAppUpdatePrompt(remindAgain: pendingAppUpdateIsCritical)
+        }
+      }
+    )
+  }
+
+  private var pendingAppUpdateIsCritical: Bool {
+    radioSession.pendingAppUpdatePrompt?.severity == .critical
+  }
+
+  private var appUpdateAlertTitle: String {
+    if pendingAppUpdateIsCritical {
+      return L10n.text("updates.critical.title", fallback: "Critical update available")
+    }
+    return L10n.text("updates.available.title", fallback: "Update available")
+  }
+
+  private var appUpdateAlertMessage: String {
+    guard let update = radioSession.pendingAppUpdatePrompt else {
+      return ""
+    }
+    if let message = update.message, !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      return message
+    }
+    return L10n.text(
+      "updates.available.body_format",
+      fallback: "Listen SDR %@ (%d) is available. Do you want to open the update now?",
+      update.versionName,
+      update.buildNumber
+    )
   }
 
   private func logScenePhaseTransition(to phase: ScenePhase) {

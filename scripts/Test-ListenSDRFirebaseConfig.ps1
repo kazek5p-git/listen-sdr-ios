@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectFile = Join-Path $repoRoot "native-ios\project.yml"
+$infoPlistFile = Join-Path $repoRoot "native-ios\ListenSDR\Info.plist"
 $configFile = Join-Path $repoRoot "native-ios\ListenSDR\Resources\GoogleService-Info.plist"
 $bootstrapFile = Join-Path $repoRoot "native-ios\ListenSDR\Sources\FirebaseBootstrap.swift"
 
@@ -26,11 +27,14 @@ Test-FileContains -Path $projectFile -Pattern "firebase-ios-sdk" -Description "F
 Test-FileContains -Path $projectFile -Pattern "FirebaseCore" -Description "FirebaseCore product dependency"
 Test-FileContains -Path $projectFile -Pattern "FirebaseCrashlytics" -Description "FirebaseCrashlytics product dependency"
 Test-FileContains -Path $projectFile -Pattern "FirebaseRemoteConfig" -Description "FirebaseRemoteConfig product dependency"
+Test-FileContains -Path $projectFile -Pattern "ListenSDRFirebaseRemoteConfigEnabled: true" -Description "Remote Config enabled info flag"
 Test-FileContains -Path $projectFile -Pattern "Crashlytics/run" -Description "Crashlytics dSYM upload script"
 Test-FileContains -Path $projectFile -Pattern "LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS" -Description "Crashlytics dSYM upload build flag"
 Test-FileContains -Path $projectFile -Pattern "LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED" -Description "Crashlytics collection build flag"
 Test-FileContains -Path $projectFile -Pattern "DWARF_DSYM_FOLDER_PATH" -Description "Crashlytics dSYM input files"
+Test-FileContains -Path $infoPlistFile -Pattern "ListenSDRFirebaseRemoteConfigEnabled" -Description "Remote Config Info.plist flag"
 Test-FileContains -Path $bootstrapFile -Pattern "FirebaseBootstrap" -Description "Firebase bootstrap source"
+Test-FileContains -Path $bootstrapFile -Pattern "listen_sdr_ios_update_enabled" -Description "Remote Config iOS update defaults"
 
 if (Test-Path -LiteralPath $configFile) {
   [xml]$plist = Get-Content -Raw -LiteralPath $configFile

@@ -39,7 +39,7 @@ targets:
         FirebaseCrashlyticsCollectionEnabled: false
         ITSAppUsesNonExemptEncryption: false
         ListenSDRFirebaseCrashlyticsEnabled: $(LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED)
-        ListenSDRFirebaseRemoteConfigEnabled: false
+        ListenSDRFirebaseRemoteConfigEnabled: true
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         UIBackgroundModes:

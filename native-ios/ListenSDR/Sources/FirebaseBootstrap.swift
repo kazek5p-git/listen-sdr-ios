@@ -60,7 +60,15 @@ enum FirebaseBootstrap {
     settings.minimumFetchInterval = 3600
     remoteConfig.configSettings = settings
     remoteConfig.setDefaults([
-      "listen_sdr_firebase_configured": true as NSObject
+      "listen_sdr_firebase_configured": NSNumber(value: true),
+      "listen_sdr_ios_update_enabled": NSNumber(value: false),
+      "listen_sdr_ios_latest_build_number": NSNumber(value: 0),
+      "listen_sdr_ios_latest_version_name": "" as NSString,
+      "listen_sdr_ios_update_url": "" as NSString,
+      "listen_sdr_ios_release_page_url": "" as NSString,
+      "listen_sdr_ios_update_message_en": "" as NSString,
+      "listen_sdr_ios_update_message_pl": "" as NSString,
+      "listen_sdr_ios_update_severity": "none" as NSString
     ])
   }
 

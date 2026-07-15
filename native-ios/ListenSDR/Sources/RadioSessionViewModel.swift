@@ -1,5 +1,7 @@
 import Foundation
 import Combine
+import FirebaseCore
+import FirebaseRemoteConfig
 import ListenSDRCore
 import UIKit
 
@@ -139,6 +141,10 @@ final class RadioSessionViewModel: ObservableObject {
   @Published private(set) var statusText: String = L10n.text("session.status.disconnected")
   @Published private(set) var backendStatusText: String?
   @Published private(set) var lastError: String?
+  @Published private(set) var availableAppUpdate: AppUpdateInfo?
+  @Published private(set) var pendingAppUpdatePrompt: AppUpdateInfo?
+  @Published private(set) var appUpdateStatusText: String?
+  @Published private(set) var isCheckingAppUpdate = false
   @Published private(set) var settings: RadioSessionSettings = .default
   @Published private(set) var openWebRXProfiles: [OpenWebRXProfileOption] = []
   @Published private(set) var selectedOpenWebRXProfileID: String?
@@ -178,6 +184,8 @@ final class RadioSessionViewModel: ObservableObject {
   private var connectTask: Task<Void, Never>?
   private var statusMonitorTask: Task<Void, Never>?
   private var sessionRecoveryTask: Task<Void, Never>?
+  private var appUpdateCheckTask: Task<Void, Never>?
+  private var dismissedAppUpdateBuildThisSession: Int?
   private var scannerTask: Task<Void, Never>?
   private var activeScannerKind: ActiveScannerKind?
   private var activeScannerToken: UUID?
@@ -194,6 +202,10 @@ final class RadioSessionViewModel: ObservableObject {
   private var hasFMDXCapabilitySnapshot = false
   private var activeBackend: SDRBackend?
   private let settingsKey = "ListenSDR.sessionSettings.v1"
+  private let appUpdateLastCheckKey = "ListenSDR.appUpdate.lastCheckEpochSeconds.v1"
+  private let appUpdateSkippedBuildKey = "ListenSDR.appUpdate.skippedBuild.v1"
+  private let appUpdateCheckInterval: TimeInterval = 12 * 60 * 60
+  private let appUpdateService = AppUpdateService()
   private let nightModeSnapshotKey = "ListenSDR.nightModeSnapshot.v1"
   private let manualSettingsSnapshotKey = "ListenSDR.manualSettingsSnapshot.v1"
   private let receiverDataCache = ReceiverDataCache.shared
@@ -330,6 +342,100 @@ final class RadioSessionViewModel: ObservableObject {
     self.accessibilityState = accessibilityState
   }
 
+  var appVersionLabel: String {
+    "\(currentVersionName) (\(currentBuildNumber))"
+  }
+
+  func maybeCheckForAppUpdate() {
+    checkForAppUpdate(force: false)
+  }
+
+  func checkForAppUpdate(force: Bool = false) {
+    let defaults = UserDefaults.standard
+    let lastCheck = defaults.double(forKey: appUpdateLastCheckKey)
+    if !force,
+       lastCheck > 0,
+       let update = availableAppUpdate,
+       Date().timeIntervalSince1970 - lastCheck < appUpdateCheckInterval {
+      if shouldShowAppUpdatePrompt(update, skippedBuild: skippedAppUpdateBuild, force: false) {
+        pendingAppUpdatePrompt = update
+      }
+      return
+    }
+
+    guard !isCheckingAppUpdate else { return }
+    appUpdateCheckTask?.cancel()
+    appUpdateCheckTask = Task { [weak self] in
+      guard let self else { return }
+      self.isCheckingAppUpdate = true
+      defer { self.isCheckingAppUpdate = false }
+
+      do {
+        let update = try await self.appUpdateService.checkForUpdate(
+          currentBuildNumber: self.currentBuildNumber,
+          languageCode: Locale.current.language.languageCode?.identifier ?? Locale.current.identifier
+        )
+        defaults.set(Date().timeIntervalSince1970, forKey: self.appUpdateLastCheckKey)
+        self.availableAppUpdate = update
+
+        if let update {
+          self.appUpdateStatusText = L10n.text(
+            "updates.status.available_format",
+            fallback: "Update available: %@ (%d).",
+            update.versionName,
+            update.buildNumber
+          )
+          if self.shouldShowAppUpdatePrompt(update, skippedBuild: self.skippedAppUpdateBuild, force: force) {
+            self.pendingAppUpdatePrompt = update
+          }
+          Diagnostics.log(
+            category: "Updates",
+            message: "iOS update available build=\(update.buildNumber) severity=\(update.severity.rawValue)"
+          )
+        } else {
+          self.pendingAppUpdatePrompt = nil
+          self.dismissedAppUpdateBuildThisSession = nil
+          self.appUpdateStatusText = L10n.text(
+            "updates.status.current",
+            fallback: "You're using the latest version."
+          )
+          defaults.removeObject(forKey: self.appUpdateSkippedBuildKey)
+          Diagnostics.log(category: "Updates", message: "No newer iOS update found")
+        }
+      } catch is CancellationError {
+        return
+      } catch {
+        if force {
+          self.appUpdateStatusText = L10n.text(
+            "updates.status.failed",
+            fallback: "Could not check for updates right now."
+          )
+        }
+        Diagnostics.log(
+          severity: .warning,
+          category: "Updates",
+          message: "iOS update check failed: \(error.localizedDescription)"
+        )
+      }
+    }
+  }
+
+  func dismissAppUpdatePrompt(remindAgain: Bool) {
+    guard let update = pendingAppUpdatePrompt else {
+      return
+    }
+    dismissedAppUpdateBuildThisSession = update.buildNumber
+    if !remindAgain && update.severity.canBeSkipped {
+      UserDefaults.standard.set(update.buildNumber, forKey: appUpdateSkippedBuildKey)
+    }
+    pendingAppUpdatePrompt = nil
+  }
+
+  func openAppUpdateURL() {
+    guard let update = pendingAppUpdatePrompt ?? availableAppUpdate else { return }
+    UIApplication.shared.open(update.updateURL)
+  }
+
   func updateRuntimePolicy(isForegroundActive: Bool, selectedTab: AppTab) {
     runtimePolicyForegroundActive = isForegroundActive
     runtimePolicySelectedTab = selectedTab
@@ -347,6 +453,31 @@ final class RadioSessionViewModel: ObservableObject {
       message: "Runtime policy changed: \(previousPolicy.diagnosticsLabel) -> \(newPolicy.diagnosticsLabel) foreground_active=\(isForegroundActive) selected_tab=\(diagnosticsLabel(for: selectedTab)) backend=\(activeBackend?.displayName ?? "none")"
     )
     applyRuntimePolicyToConnectedClient()
+  }
+
+  private var currentVersionName: String {
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.1"
+  }
+
+  private var currentBuildNumber: Int {
+    let rawValue = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    return Int(rawValue) ?? 0
+  }
+
+  private var skippedAppUpdateBuild: Int? {
+    let value = UserDefaults.standard.integer(forKey: appUpdateSkippedBuildKey)
+    return value > 0 ? value : nil
+  }
+
+  private func shouldShowAppUpdatePrompt(
+    _ update: AppUpdateInfo,
+    skippedBuild: Int?,
+    force: Bool
+  ) -> Bool {
+    if force { return true }
+    if !update.severity.shouldPromptAutomatically { return false }
+    if dismissedAppUpdateBuildThisSession == update.buildNumber { return false }
+    return !update.severity.canBeSkipped || skippedBuild != update.buildNumber
   }
 
   var fmdxSupportsAM: Bool {
@@ -6273,6 +6404,158 @@ final class RadioSessionViewModel: ObservableObject {
       message: "Tune step adjusted to \(state.tuneStepHz) Hz for band profile \(profile.id) (mode=\(settings.tuneStepPreferenceMode.rawValue))"
     )
     return true
+  }
+}
+
+enum AppUpdateSeverity: String {
+  case none
+  case info
+  case recommended
+  case critical
+
+  var shouldPromptAutomatically: Bool {
+    self == .recommended || self == .critical
+  }
+
+  var canBeSkipped: Bool {
+    self != .critical
+  }
+
+  static func fromRemoteValue(_ value: String) -> AppUpdateSeverity {
+    switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+    case "none", "off", "disabled":
+      return .none
+    case "info", "optional":
+      return .info
+    case "critical", "required", "force":
+      return .critical
+    default:
+      return .recommended
+    }
+  }
+}
+
+struct AppUpdateInfo: Identifiable, Equatable {
+  var id: Int { buildNumber }
+
+  let versionName: String
+  let buildNumber: Int
+  let updateURL: URL
+  let releasePageURL: URL?
+  let message: String?
+  let severity: AppUpdateSeverity
+  let source: String
+}
+
+private struct AppUpdateRemoteConfigValues {
+  let enabled: Bool
+  let latestBuildNumber: Int
+  let latestVersionName: String
+  let updateURL: String
+  let releasePageURL: String
+  let messageEn: String
+  let messagePl: String
+  let severity: String
+}
+
+private final class AppUpdateService {
+  private enum Keys {
+    static let updateEnabled = "listen_sdr_ios_update_enabled"
+    static let latestBuildNumber = "listen_sdr_ios_latest_build_number"
+    static let latestVersionName = "listen_sdr_ios_latest_version_name"
+    static let updateURL = "listen_sdr_ios_update_url"
+    static let releasePageURL = "listen_sdr_ios_release_page_url"
+    static let messageEn = "listen_sdr_ios_update_message_en"
+    static let messagePl = "listen_sdr_ios_update_message_pl"
+    static let severity = "listen_sdr_ios_update_severity"
+  }
+
+  private static let publicTestFlightURL = URL(string: "https://testflight.apple.com/join/bbTvprWc")!
+
+  func checkForUpdate(
+    currentBuildNumber: Int,
+    languageCode: String
+  ) async throws -> AppUpdateInfo? {
+    guard FirebaseApp.app() != nil else {
+      return nil
+    }
+
+    let remoteConfig = RemoteConfig.remoteConfig()
+    try await fetchAndActivate(remoteConfig)
+
+    return Self.findRemoteConfigUpdate(
+      values: AppUpdateRemoteConfigValues(
+        enabled: remoteConfig.configValue(forKey: Keys.updateEnabled).boolValue,
+        latestBuildNumber: remoteConfig.configValue(forKey: Keys.latestBuildNumber).numberValue.intValue,
+        latestVersionName: remoteConfig.configValue(forKey: Keys.latestVersionName).stringValue ?? "",
+        updateURL: remoteConfig.configValue(forKey: Keys.updateURL).stringValue ?? "",
+        releasePageURL: remoteConfig.configValue(forKey: Keys.releasePageURL).stringValue ?? "",
+        messageEn: remoteConfig.configValue(forKey: Keys.messageEn).stringValue ?? "",
+        messagePl: remoteConfig.configValue(forKey: Keys.messagePl).stringValue ?? "",
+        severity: remoteConfig.configValue(forKey: Keys.severity).stringValue ?? "none"
+      ),
+      currentBuildNumber: currentBuildNumber,
+      languageCode: languageCode
+    )
+  }
+
+  private func fetchAndActivate(_ remoteConfig: RemoteConfig) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      remoteConfig.fetchAndActivate { _, error in
+        if let error {
+          continuation.resume(throwing: error)
+        } else {
+          continuation.resume()
+        }
+      }
+    }
+  }
+
+  private static func findRemoteConfigUpdate(
+    values: AppUpdateRemoteConfigValues,
+    currentBuildNumber: Int,
+    languageCode: String
+  ) -> AppUpdateInfo? {
+    guard values.enabled else { return nil }
+    guard values.latestBuildNumber > currentBuildNumber else { return nil }
+
+    let severity = AppUpdateSeverity.fromRemoteValue(values.severity)
+    guard severity != .none else { return nil }
+
+    let versionName = values.latestVersionName.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !versionName.isEmpty else { return nil }
+
+    let updateURL = URL(string: values.updateURL.trimmingCharacters(in: .whitespacesAndNewlines))
+      ?? publicTestFlightURL
+    let releasePageURL = URL(string: values.releasePageURL.trimmingCharacters(in: .whitespacesAndNewlines))
+    let message = localizedMessage(values: values, languageCode: languageCode)
+
+    return AppUpdateInfo(
+      versionName: versionName,
+      buildNumber: values.latestBuildNumber,
+      updateURL: updateURL,
+      releasePageURL: releasePageURL,
+      message: message,
+      severity: severity,
+      source: "Firebase Remote Config"
+    )
+  }
+
+  private static func localizedMessage(
+    values: AppUpdateRemoteConfigValues,
+    languageCode: String
+  ) -> String? {
+    let normalizedLanguage = languageCode
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased()
+      .split(separator: "-")
+      .first
+      .map(String.init) ?? ""
+    let preferred = normalizedLanguage == "pl" ? values.messagePl : values.messageEn
+
+    return [preferred, values.messageEn, values.messagePl]
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .first { !$0.isEmpty }
   }
 }
 

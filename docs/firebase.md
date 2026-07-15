@@ -29,7 +29,7 @@ Data-collection features remain intentionally narrow. A build without `GoogleSer
 - Crashlytics collection is enabled for Release builds through `ListenSDRFirebaseCrashlyticsEnabled`, while SDK default collection remains disabled through `FirebaseCrashlyticsCollectionEnabled: false` until app bootstrap applies the app-specific flag.
 - Crashlytics dSYM upload is wired as an Xcode post-build script and is controlled by `LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS`.
 - Unsigned local/GitHub IPA builds explicitly set `LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS=NO` and `LISTENSDR_FIREBASE_CRASHLYTICS_ENABLED=false`.
-- Remote Config setup is disabled by default through `ListenSDRFirebaseRemoteConfigEnabled: false`.
+- Remote Config setup is enabled through `ListenSDRFirebaseRemoteConfigEnabled: true`, but update prompts stay disabled by default unless Remote Config sets `listen_sdr_ios_update_enabled=true`.
 
 ## Firebase Console setup
 
@@ -55,9 +55,29 @@ Crashlytics is prepared for signed Release/TestFlight builds:
 
 The bootstrap sends only coarse app metadata as Crashlytics custom keys: bundle identifier, app version, and build number. It does not attach receiver history, SDR server addresses, recordings, feedback text, or diagnostic exports.
 
-## Remote Config
+## Remote Config update controls
 
-Remote Config is present but disabled by default. Enable `ListenSDRFirebaseRemoteConfigEnabled` only when a concrete server-side setting is planned and documented. Avoid using Remote Config for behavior that would surprise users or bypass local privacy choices.
+Remote Config does not download or execute code. It only lets the app decide whether to show an update message and which public update link to open.
+
+Default behavior is safe: `listen_sdr_ios_update_enabled=false`, so no update prompt appears unless the following keys are configured:
+
+- `listen_sdr_ios_update_enabled` - boolean, set `true` to enable the Remote Config update entry.
+- `listen_sdr_ios_latest_build_number` - number, iOS `CFBundleVersion` build to offer.
+- `listen_sdr_ios_latest_version_name` - string, iOS `CFBundleShortVersionString`, for example `1.0.1`.
+- `listen_sdr_ios_update_url` - optional string. If empty, the app opens the public TestFlight link documented on the support site.
+- `listen_sdr_ios_release_page_url` - optional string for release notes or an App Store/TestFlight page.
+- `listen_sdr_ios_update_message_en` - optional English user message.
+- `listen_sdr_ios_update_message_pl` - optional Polish user message.
+- `listen_sdr_ios_update_severity` - string: `none`, `info`, `recommended`, or `critical`.
+
+Severity rules:
+
+- `none` disables the Remote Config update entry.
+- `info` shows the update in Settings/manual check but does not automatically prompt on app foreground.
+- `recommended` can automatically prompt and can be skipped for that build.
+- `critical` can automatically prompt and cannot be skipped permanently, but the user can close it for the current app session.
+
+If Firebase is unavailable, the plist is missing, or the configured build is not newer than the installed build, the app does not show an update prompt.
 
 ## Push notifications
 
