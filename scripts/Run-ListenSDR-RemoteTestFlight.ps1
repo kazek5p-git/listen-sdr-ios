@@ -567,9 +567,7 @@ if [ "$SIGNING_MODE" = "login" ]; then
     -authenticationKeyID "$ASC_KEY_ID" \
     -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
-    CODE_SIGN_STYLE=Manual \
-    CODE_SIGN_IDENTITY="Apple Distribution" \
-    PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+    CODE_SIGN_STYLE=Automatic \
     PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
     clean archive
 
@@ -583,16 +581,9 @@ if [ "$SIGNING_MODE" = "login" ]; then
   <key>destination</key>
   <string>export</string>
   <key>signingStyle</key>
-  <string>manual</string>
-  <key>signingCertificate</key>
-  <string>Apple Distribution</string>
+  <string>automatic</string>
   <key>teamID</key>
   <string>$TEAM_ID</string>
-  <key>provisioningProfiles</key>
-  <dict>
-    <key>$BUNDLE_ID</key>
-    <string>$PROFILE_NAME</string>
-  </dict>
   <key>manageAppVersionAndBuildNumber</key>
   <false/>
   <key>stripSwiftSymbols</key>
