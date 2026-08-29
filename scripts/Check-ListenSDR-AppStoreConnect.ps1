@@ -36,7 +36,7 @@ def b64url(data: bytes) -> str:
 
 header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
 now = int(time.time())
-payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+payload = {"iss": issuer_id, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"}
 signing_input = f"{b64url(json.dumps(header, separators=(',', ':')).encode())}.{b64url(json.dumps(payload, separators=(',', ':')).encode())}"
 der_sig = private_key.sign(signing_input.encode('ascii'), ec.ECDSA(hashes.SHA256()))
 r, s = utils.decode_dss_signature(der_sig)

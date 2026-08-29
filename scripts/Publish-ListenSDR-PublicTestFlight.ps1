@@ -105,7 +105,7 @@ def b64url(data: bytes) -> str:
 def make_jwt() -> str:
     header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
     now = int(time.time())
-    token_payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+    token_payload = {"iss": issuer_id, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"}
     signing_input = (
         f"{b64url(json.dumps(header, separators=(',', ':')).encode())}."
         f"{b64url(json.dumps(token_payload, separators=(',', ':')).encode())}"
