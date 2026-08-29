@@ -1166,3 +1166,14 @@
 "tutorial.support.body" = "Если Listen SDR вам полезен и вы хотите поддержать дальнейшую разработку, это можно сделать через BuyCoffee/Postaw Kawę, PayPal или GitHub. Любая поддержка помогает улучшать доступность, исправлять ошибки и добавлять новые функции.";
 "tutorial.support.paypal" = "Поддержать Listen SDR через PayPal";
 "tutorial.support.hint" = "Открывает страницу PayPal для поддержки Listen SDR.";
+"fmdx.admin.action" = "Управлять сервером";
+"fmdx.admin.title" = "Администрирование сервера";
+"fmdx.admin.webview" = "Панель администрирования FM-DX";
+"fmdx.admin.loading" = "Загрузка панели администрирования";
+"fmdx.admin.logging_in" = "Вход в панель администрирования FM-DX...";
+"fmdx.admin.invalid_profile" = "Этот профиль не является приёмником FM-DX.";
+"fmdx.admin.missing_password" = "Сначала укажите пароль администратора FM-DX в профиле приёмника.";
+"fmdx.admin.login_failed" = "Не удалось войти как администратор FM-DX. Проверьте адрес сервера и пароль.";
+"fmdx.admin.not_administrator" = "Сохранённый пароль верен, но не даёт доступа администратора.";
+"fmdx.admin.session_unavailable" = "Сервер FM-DX не создал сеанс администрирования.";
+"fmdx.admin.unavailable" = "Не удалось открыть панель администрирования.";

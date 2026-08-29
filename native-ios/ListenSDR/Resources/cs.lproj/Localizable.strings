@@ -1183,3 +1183,14 @@
 "tutorial.support.body" = "Pokud je pro vás Listen SDR užitečný a chcete podpořit jeho další vývoj, můžete to udělat přes BuyCoffee/Postaw Kawę, PayPal nebo GitHub. Každá podpora pomáhá zlepšovat přístupnost, opravy a nové funkce.";
 "tutorial.support.paypal" = "Podpořit Listen SDR přes PayPal";
 "tutorial.support.hint" = "Otevře stránku PayPal pro podporu Listen SDR.";
+"fmdx.admin.action" = "Spravovat server";
+"fmdx.admin.title" = "Správa serveru";
+"fmdx.admin.webview" = "Administrační panel FM-DX";
+"fmdx.admin.loading" = "Načítání administračního panelu";
+"fmdx.admin.logging_in" = "Přihlašování do administračního panelu FM-DX...";
+"fmdx.admin.invalid_profile" = "Tento profil není FM-DX přijímač.";
+"fmdx.admin.missing_password" = "Nejprve zadejte heslo správce FM-DX do profilu přijímače.";
+"fmdx.admin.login_failed" = "Přihlášení správce FM-DX se nezdařilo. Zkontrolujte adresu serveru a heslo.";
+"fmdx.admin.not_administrator" = "Uložené heslo je platné, ale neposkytuje přístup správce.";
+"fmdx.admin.session_unavailable" = "Server FM-DX nevytvořil administrativní relaci.";
+"fmdx.admin.unavailable" = "Administrační panel se nepodařilo otevřít.";

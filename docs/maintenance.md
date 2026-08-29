@@ -8,6 +8,7 @@ This file is the short operational map for keeping the iOS app maintainable whil
 - `native-ios/ListenSDR/Info.plist` - bundle metadata mirrored by the generated project.
 - `native-ios/ListenSDR/Sources/RadioSessionViewModel.swift` - main session state, connection lifecycle, audio policy, runtime policy, settings persistence, and VoiceOver quick actions.
 - `native-ios/ListenSDR/Sources/SDRBackendClient.swift` - backend protocol clients and transport-level integration.
+- `native-ios/ListenSDR/Sources/FMDXAdministration.swift` - logowanie administratora FM-DX, kontrola panelu `/setup` i niepersistentny WebView z sesją bez zapisywania hasła.
 - `native-ios/ListenSDR/Sources/ReceiverView.swift` - receiver tab UI, connection button, VoiceOver actions, and current receiver summary.
 - `native-ios/ListenSDR/Sources/SettingsView.swift` - settings, backup/restore, appearance, and related controls.
 - `native-ios/ListenSDR/Sources/FirebaseBootstrap.swift` - optional Firebase startup path; it is a no-op unless `GoogleService-Info.plist` is bundled.
@@ -15,6 +16,13 @@ This file is the short operational map for keeping the iOS app maintainable whil
 - `docs/firebase.md` - Firebase setup, privacy, and verification notes.
 - `release/testflight/` - versioned What to Test notes for TestFlight builds.
 - `scripts/Run-ListenSDR-TestFlightEndToEnd.ps1` - normal TestFlight publishing path from Windows via the remote Mac.
+
+## Administracja FM-DX
+
+- Funkcja jest dostępna wyłącznie przy zapisanym profilu FM-DX i używa hasła z jego bezpiecznego magazynu.
+- W profilu FM-DX akcja **Administruj serwerem** jest dostępna w akcjach przesunięcia oraz jako akcja VoiceOver. Dla KiwiSDR i OpenWebRX akcja VoiceOver nie jest wystawiana.
+- Klient najpierw wysyła `POST /login`, potem sprawdza treść `GET /setup` i przekazuje do niepersistentnego WebView wyłącznie uwierzytelniające ciasteczko FM-DX `connect.sid`. Hasło nie trafia do logów, Firebase ani JavaScriptu aplikacji, a logowanie nie podąża za przekierowaniem na inną domenę ani do innego protokołu.
+- Hasło strojenia jest odrzucane jako niewystarczające do administracji. Przy braku hasła albo błędnym logowaniu użytkownik dostaje konkretny komunikat i może spróbować ponownie.
 
 ## Current large-file hotspots
 

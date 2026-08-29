@@ -34,6 +34,24 @@ private struct ProfileEditorContext: Identifiable {
   let isNew: Bool
 }
 
+private struct FMDXAdministrationAccessibilityModifier: ViewModifier {
+  let isAvailable: Bool
+  let label: String
+  let action: () -> Void
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    if isAvailable {
+      content
+        .accessibilityAction(named: Text(label)) {
+          action()
+        }
+    } else {
+      content
+    }
+  }
+}
+
 private enum HistorySectionFilter: String, CaseIterable, Identifiable {
   case all
   case receivers
@@ -158,6 +176,7 @@ struct RadiosView: View {
   @State private var isRecentListeningExpanded = false
   @State private var isImportLinkPresented = false
   @State private var isAddReceiverOptionsPresented = false
+  @State private var administrationProfile: SDRConnectionProfile?
 
   var body: some View {
     NavigationStack {
@@ -415,6 +434,9 @@ struct RadiosView: View {
       .sheet(isPresented: $isImportLinkPresented) {
         ImportReceiverLinkView()
       }
+      .sheet(item: $administrationProfile) { profile in
+        FMDXAdministrationView(profile: profile)
+      }
       .sheet(item: $editorContext) { context in
         ProfileEditorView(
           title: context.title,
@@ -637,6 +659,18 @@ struct RadiosView: View {
         )
       }
 
+      if profile.backend == .fmDxWebserver {
+        Button {
+          administrationProfile = profile
+        } label: {
+          Label(
+            L10n.text("fmdx.admin.action", fallback: "Administer server"),
+            systemImage: "slider.horizontal.3"
+          )
+        }
+        .tint(.blue)
+      }
+
       Button(L10n.text("Delete"), role: .destructive) {
         profileStore.delete(profile)
       }
@@ -647,6 +681,13 @@ struct RadiosView: View {
       profileStore.selectedProfileID == profile.id
         ? L10n.text("common.selected")
         : L10n.text("common.not_selected")
+    )
+    .modifier(
+      FMDXAdministrationAccessibilityModifier(
+        isAvailable: profile.backend == .fmDxWebserver,
+        label: L10n.text("fmdx.admin.action", fallback: "Administer server"),
+        action: { administrationProfile = profile }
+      )
     )
   }
 

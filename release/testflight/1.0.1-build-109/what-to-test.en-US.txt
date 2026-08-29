@@ -1,0 +1,12 @@
+This build adds FM-DX server administration and accessibility improvements.
+
+Please test the following:
+
+- Open a saved FM-DX profile, open its actions, and choose "Administer server". Verify that a valid administrator password opens the FM-DX setup panel and that the panel remains usable with VoiceOver.
+- Verify that a missing password, an invalid password, or a tune-only password produces a clear error without opening the administration panel.
+- Verify that KiwiSDR and OpenWebRX profiles do not expose FM-DX administration actions.
+- On the receiver screen, navigate to the exact-frequency field with VoiceOver and verify that it is announced as an input for entering an exact frequency and remains easy to activate.
+- Check Polish, English, German, Czech, Slovak, Spanish, French, Italian, Russian, and Simplified Chinese localization around FM-DX administration and the frequency field.
+- As a regression check, start the app, connect to and disconnect from FM-DX, KiwiSDR, and OpenWebRX receivers, and verify that audio and basic controls continue to work.
+
+Please report the device model, iOS version, receiver type and server version with any issue. Do not include passwords or session cookies in reports.

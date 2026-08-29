@@ -1166,3 +1166,14 @@
 "tutorial.support.body" = "如果 Listen SDR 对你有用，并想支持它继续开发，可以通过 BuyCoffee/Postaw Kawę、PayPal 或 GitHub 支持。每一份支持都有助于无障碍改进、问题修复和新功能。";
 "tutorial.support.paypal" = "通过 PayPal 支持 Listen SDR";
 "tutorial.support.hint" = "打开用于支持 Listen SDR 的 PayPal 页面。";
+"fmdx.admin.action" = "管理服务器";
+"fmdx.admin.title" = "服务器管理";
+"fmdx.admin.webview" = "FM-DX 管理面板";
+"fmdx.admin.loading" = "正在加载管理面板";
+"fmdx.admin.logging_in" = "正在登录 FM-DX 管理面板...";
+"fmdx.admin.invalid_profile" = "此配置不是 FM-DX 接收机。";
+"fmdx.admin.missing_password" = "请先在接收机配置中输入 FM-DX 管理员密码。";
+"fmdx.admin.login_failed" = "FM-DX 管理员登录失败。请检查服务器地址和密码。";
+"fmdx.admin.not_administrator" = "保存的密码有效，但没有管理员访问权限。";
+"fmdx.admin.session_unavailable" = "FM-DX 服务器未创建管理会话。";
+"fmdx.admin.unavailable" = "无法打开管理面板。";

@@ -3458,10 +3458,13 @@ struct ReceiverView: View {
       .keyboardType(.decimalPad)
       .textInputAutocapitalization(.never)
       .autocorrectionDisabled()
+      .padding(.vertical, 5)
       .textFieldStyle(.roundedBorder)
       .focused($isInlineFrequencyFocused)
       .frame(minHeight: AppAccessibilityLayout.minimumTouchTarget)
-      .accessibilityLabel(L10n.text("frequency_input.accessibility_label", fallback: "Frequency"))
+      .accessibilityLabel(
+        L10n.text("frequency_input.voiceover_button", fallback: "Enter exact frequency")
+      )
       .accessibilityHint(Text(frequencyInputHint(for: backend)))
       .submitLabel(.done)
       .onSubmit {

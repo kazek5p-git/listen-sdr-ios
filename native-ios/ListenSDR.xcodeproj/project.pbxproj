@@ -17,6 +17,7 @@
 		217D33FBBCC6215FD86050A3 /* UnavailableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD217BC13C04BA7696556CF /* UnavailableContentView.swift */; };
 		23BBD07F1DA6AECBD4C4E948 /* AudioDecodersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0C0A8EA5CBE5FC76145AAB /* AudioDecodersTests.swift */; };
 		2787CD26843D7631A05BFEEB /* FMDXBandScannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */; };
+		D1B000000000000000000001 /* FMDXAdministrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1B000000000000000000002 /* FMDXAdministrationTests.swift */; };
 		288CC8F359232EA856E298B8 /* AudioPCMUtilitiesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */; };
 		2923CE16937A6A7AE87483FB /* AudioRecordingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93986B585C4FB7BCA27AF6F /* AudioRecordingStore.swift */; };
 		2D7614F75473CD4D3CBEE46A /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3767A118B74081FE1CD30F4F /* ProfileEditorView.swift */; };
@@ -57,6 +58,7 @@
 		721B688F74C2905447CF723D /* SystemRemoteCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF77EDC5169E7230B1F16A0 /* SystemRemoteCommandController.swift */; };
 		74E4C490FBA27B13378AFCE4 /* ReceiverLinkImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D98E491501B5A7BA10E0AEA /* ReceiverLinkImport.swift */; };
 		76509925DB5BC007FD140D3A /* FMDXBandScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11099F867EDFFECA567B45FC /* FMDXBandScanner.swift */; };
+		D1A000000000000000000001 /* FMDXAdministration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000002 /* FMDXAdministration.swift */; };
 		76E0B093C55B985B8931FCA9 /* FMDXCapabilitiesSyncBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E5AAA5B9EB3467D7BB3385 /* FMDXCapabilitiesSyncBridge.swift */; };
 		797202400EF7BB998CF5D36F /* SettingsBackupDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F3C675EAC7655F2E968B0A /* SettingsBackupDocument.swift */; };
 		7D25DAE60B06F3AA4E27B9F6 /* KiwiWaterfallViewportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9666972D9B4DB5DFFE5D8A8 /* KiwiWaterfallViewportTests.swift */; };
@@ -221,6 +223,8 @@
 		EAD1C8D99F65C7CAD5126479 /* TuneStepPreferenceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuneStepPreferenceMode.swift; sourceTree = "<group>"; };
 		F01FFB853C809B874633967E /* RecordingFolderPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingFolderPicker.swift; sourceTree = "<group>"; };
 		F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXBandScannerTests.swift; sourceTree = "<group>"; };
+		D1B000000000000000000002 /* FMDXAdministrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXAdministrationTests.swift; sourceTree = "<group>"; };
+		D1A000000000000000000002 /* FMDXAdministration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FMDXAdministration.swift; sourceTree = "<group>"; };
 		F40FD43C9BD9E6E292499D9D /* CustomThemeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomThemeEditorView.swift; sourceTree = "<group>"; };
 		F6876418A4DECE6BFD98FEB0 /* sk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = sk; path = sk.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F6CC738A091E2BE76E1A7BB0 /* RadioSessionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioSessionSettings.swift; sourceTree = "<group>"; };
@@ -285,6 +289,7 @@
 				051509F0C3FD9100CF44E653 /* FavoritesStore.swift */,
 				19CA9BDDC3C0447C9795F8CE /* FirebaseBootstrap.swift */,
 				11099F867EDFFECA567B45FC /* FMDXBandScanner.swift */,
+				D1A000000000000000000002 /* FMDXAdministration.swift */,
 				6B1555E324C13738FC619AD1 /* FMDXCapabilitiesPolicyBridge.swift */,
 				E8E5AAA5B9EB3467D7BB3385 /* FMDXCapabilitiesSyncBridge.swift */,
 				C6DE626B86ADD59B5EF7360F /* FMDXPresetScriptParser.swift */,
@@ -377,6 +382,7 @@
 				639B68BB73F279E8C50B3E96 /* AudioPCMUtilitiesTests.swift */,
 				B30168AE215D849558215B5A /* DemodulationModeTests.swift */,
 				F31333CFD257BB9C575844FC /* FMDXBandScannerTests.swift */,
+				D1B000000000000000000002 /* FMDXAdministrationTests.swift */,
 				A0652FEBFE1F5E7EBBD7ACFF /* FMDXCapabilitiesTests.swift */,
 				478CE36C765087751368DC9B /* FMDXPresetScriptParserTests.swift */,
 				07F5A68FE08373C6C9818B34 /* FMDXStationListResolverTests.swift */,
@@ -552,6 +558,7 @@
 				D3FB1C7E0EE8EFD2D27F0A46 /* DiagnosticsView.swift in Sources */,
 				9CA040C35806FD1192EC5F7F /* DirectoryChangeNotificationService.swift in Sources */,
 				76509925DB5BC007FD140D3A /* FMDXBandScanner.swift in Sources */,
+				D1A000000000000000000001 /* FMDXAdministration.swift in Sources */,
 				347C30C3093802313590E3B7 /* FMDXCapabilitiesPolicyBridge.swift in Sources */,
 				76E0B093C55B985B8931FCA9 /* FMDXCapabilitiesSyncBridge.swift in Sources */,
 				DE15F0055B02E64403FA1BCD /* FMDXPresetScriptParser.swift in Sources */,
@@ -615,6 +622,7 @@
 				288CC8F359232EA856E298B8 /* AudioPCMUtilitiesTests.swift in Sources */,
 				6778A885798D1E5525319C11 /* DemodulationModeTests.swift in Sources */,
 				2787CD26843D7631A05BFEEB /* FMDXBandScannerTests.swift in Sources */,
+				D1B000000000000000000001 /* FMDXAdministrationTests.swift in Sources */,
 				17B873B1847A451F94793070 /* FMDXCapabilitiesTests.swift in Sources */,
 				5A076344D3BDA61EB1C1213F /* FMDXPresetScriptParserTests.swift in Sources */,
 				F95C89B3900EBD196A458D33 /* FMDXStationListResolverTests.swift in Sources */,
@@ -750,7 +758,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 108;
+				CURRENT_PROJECT_VERSION = 109;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -847,7 +855,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ListenSDR/ListenSDR.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 108;
+				CURRENT_PROJECT_VERSION = 109;
 				INFOPLIST_FILE = ListenSDR/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (

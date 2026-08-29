@@ -1218,3 +1218,14 @@
 "updates.status.available_format" = "Dostępna aktualizacja: %@ (%d).";
 "updates.status.current" = "Korzystasz z najnowszej wersji.";
 "updates.status.failed" = "Nie udało się teraz sprawdzić aktualizacji.";
+"fmdx.admin.action" = "Administruj serwerem";
+"fmdx.admin.title" = "Administracja serwerem";
+"fmdx.admin.webview" = "Panel administracyjny FM-DX";
+"fmdx.admin.loading" = "Ładowanie panelu administracyjnego";
+"fmdx.admin.logging_in" = "Logowanie do panelu administracyjnego FM-DX...";
+"fmdx.admin.invalid_profile" = "Ten profil nie jest odbiornikiem FM-DX.";
+"fmdx.admin.missing_password" = "Najpierw wpisz hasło administratora FM-DX w profilu odbiornika.";
+"fmdx.admin.login_failed" = "Logowanie administratora FM-DX nie powiodło się. Sprawdź adres serwera i hasło.";
+"fmdx.admin.not_administrator" = "Zapisane hasło jest prawidłowe, ale nie daje dostępu administratora.";
+"fmdx.admin.session_unavailable" = "Serwer FM-DX nie utworzył sesji administracyjnej.";
+"fmdx.admin.unavailable" = "Nie udało się otworzyć panelu administracyjnego.";

@@ -1,0 +1,12 @@
+Ta kompilacja dodaje administrację serwerem FM-DX oraz poprawki dostępności.
+
+Proszę sprawdzić:
+
+- Otwórz zapisany profil FM-DX, otwórz jego akcje i wybierz „Administruj serwerem”. Sprawdź, czy prawidłowe hasło administratora otwiera panel ustawień FM-DX i czy panel pozostaje użyteczny z VoiceOverem.
+- Sprawdź, czy brak hasła, błędne hasło albo hasło tylko do strojenia wyświetla jasny komunikat i nie otwiera panelu administracyjnego.
+- Sprawdź, czy profile KiwiSDR i OpenWebRX nie udostępniają akcji administracji FM-DX.
+- Na ekranie odbiornika przejdź VoiceOverem do pola dokładnej częstotliwości i sprawdź, czy jest ono zapowiadane jako pole do wpisania dokładnej częstotliwości oraz czy można je łatwo aktywować.
+- Sprawdź lokalizacje polską, angielską, niemiecką, czeską, słowacką, hiszpańską, francuską, włoską, rosyjską i chińską uproszczoną w obszarze administracji FM-DX oraz pola częstotliwości.
+- Jako regresję sprawdź uruchomienie aplikacji, połączenie i rozłączenie z odbiornikami FM-DX, KiwiSDR i OpenWebRX oraz działanie dźwięku i podstawowych kontrolek.
+
+W zgłoszeniu problemu podaj model urządzenia, wersję iOS, typ odbiornika i wersję serwera. Nie dołączaj haseł ani ciasteczek sesji.

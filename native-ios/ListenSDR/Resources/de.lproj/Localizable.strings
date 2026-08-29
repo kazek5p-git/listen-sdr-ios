@@ -1188,3 +1188,14 @@
 "tutorial.support.body" = "Wenn Listen SDR für dich nützlich ist und du die weitere Entwicklung unterstützen möchtest, kannst du dies über BuyCoffee/Postaw Kawę, PayPal oder GitHub tun. Jeder Beitrag hilft bei Barrierefreiheit, Fehlerbehebungen und neuen Funktionen.";
 "tutorial.support.paypal" = "Listen SDR über PayPal unterstützen";
 "tutorial.support.hint" = "Öffnet die PayPal-Seite zur Unterstützung von Listen SDR.";
+"fmdx.admin.action" = "Server verwalten";
+"fmdx.admin.title" = "Serververwaltung";
+"fmdx.admin.webview" = "FM-DX-Administrationsbereich";
+"fmdx.admin.loading" = "Administrationsbereich wird geladen";
+"fmdx.admin.logging_in" = "Anmeldung beim FM-DX-Administrationsbereich...";
+"fmdx.admin.invalid_profile" = "Dieses Profil ist kein FM-DX-Empfänger.";
+"fmdx.admin.missing_password" = "Geben Sie zuerst das FM-DX-Administratorkennwort im Empfängerprofil ein.";
+"fmdx.admin.login_failed" = "Die Anmeldung als FM-DX-Administrator ist fehlgeschlagen. Überprüfen Sie Serveradresse und Kennwort.";
+"fmdx.admin.not_administrator" = "Das gespeicherte Kennwort ist gültig, gewährt aber keinen Administratorzugriff.";
+"fmdx.admin.session_unavailable" = "Der FM-DX-Server hat keine Administrationssitzung erstellt.";
+"fmdx.admin.unavailable" = "Der Administrationsbereich konnte nicht geöffnet werden.";
