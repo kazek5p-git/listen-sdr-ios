@@ -59,7 +59,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kazek.sdr
-        CURRENT_PROJECT_VERSION: 109
+        CURRENT_PROJECT_VERSION: 110
         MARKETING_VERSION: 1.0.1
         SWIFT_VERSION: 5.10
         LISTENSDR_CRASHLYTICS_UPLOAD_SYMBOLS: "NO"

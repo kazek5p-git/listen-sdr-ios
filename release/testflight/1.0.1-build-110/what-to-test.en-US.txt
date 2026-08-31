@@ -1,0 +1,7 @@
+This build fixes broken Czech and Slovak text caused by incorrect UTF-8 decoding.
+
+- Czech and Slovak translations should now display proper accented characters throughout the app
+- Please check the Settings, Appearance, receiver directory, and receiver control screens in Czech and Slovak
+- Verify that text still fits correctly and that VoiceOver reads the repaired labels without mojibake
+
+No receiver, audio, or tuning behavior was intentionally changed in this build.

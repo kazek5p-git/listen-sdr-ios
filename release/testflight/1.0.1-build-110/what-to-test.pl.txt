@@ -1,0 +1,7 @@
+Ten build naprawia uszkodzone czeskie i słowackie napisy, które wynikały z nieprawidłowego odczytu kodowania UTF-8.
+
+- czeskie i słowackie tłumaczenia powinny teraz wyświetlać poprawne znaki diakrytyczne w całej aplikacji
+- sprawdź Ustawienia, Wygląd, katalog odbiorników oraz ekran sterowania odbiornikiem po czesku i słowacku
+- zwróć uwagę, czy tekst mieści się poprawnie i czy VoiceOver odczytuje naprawione etykiety bez krzaków
+
+W tym buildzie celowo nie zmieniano działania odbiorników, audio ani strojenia.
