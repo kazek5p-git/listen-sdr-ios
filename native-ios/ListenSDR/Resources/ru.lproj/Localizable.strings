@@ -652,6 +652,8 @@
 "kiwi.passband.high_cut" = "Верхний срез полосы";
 "kiwi.passband.low_cut" = "Нижний срез полосы";
 "kiwi.passband.reset" = "Сбросить полосу пропускания";
+"kiwi.passband.decrease_width" = "Сузить полосу на 100 Гц";
+"kiwi.passband.increase_width" = "Расширить полосу на 100 Гц";
 "kiwi.section.noise_blanker" = "Подавитель помех";
 "kiwi.section.noise_filter" = "Шумовой фильтр";
 "kiwi.section.passband" = "Полоса пропускания";

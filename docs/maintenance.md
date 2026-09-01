@@ -24,6 +24,18 @@ This file is the short operational map for keeping the iOS app maintainable whil
 - Klient najpierw wysyła `POST /login`, potem sprawdza treść `GET /setup` i przekazuje do niepersistentnego WebView wyłącznie uwierzytelniające ciasteczko FM-DX `connect.sid`. Hasło nie trafia do logów, Firebase ani JavaScriptu aplikacji, a logowanie nie podąża za przekierowaniem na inną domenę ani do innego protokołu.
 - Hasło strojenia jest odrzucane jako niewystarczające do administracji. Przy braku hasła albo błędnym logowaniu użytkownik dostaje konkretny komunikat i może spróbować ponownie.
 
+## Ustawienia ulubionych odbiorników
+
+- `FavoriteReceiver.settings` przechowuje ustawienia strojenia i przetwarzania sygnału razem z ulubionym odbiornikiem. Dane są zapisywane dopiero po aktywnym połączeniu z odbiornikiem, więc zwykłe ustawienia globalne pozostają niezależne.
+- Przy ponownym połączeniu ustawienia ulubionego odbiornika są nakładane przed synchronizacją z serwerem. Początkowa telemetria serwera nie nadpisuje zapamiętanego wyboru; po zakończeniu synchronizacji aplikacja wysyła komplet ustawień lokalnych.
+- Jawne odtworzenie wpisu historii ma pierwszeństwo przed ustawieniami ulubionego odbiornika. Stare ulubione wpisy bez pola `settings` nadal są prawidłowe, a częściowe dane są uzupełniane wartościami domyślnymi przez dekoder.
+- `FavoriteReceiverSettings.applying` normalizuje tryb, krok strojenia, zakresy filtrów i parametry Kiwi przed użyciem.
+
+## Szybka zmiana pasma Kiwi
+
+- `KiwiPassbandCore.adjustedBandpass` zmienia szerokość pasma o 100 Hz, zachowując środek, minimalną szerokość i limit wynikający z częstotliwości próbkowania.
+- Przyciski szybkiego zwężania i poszerzania są w widoku ustawień pasma bezpośrednio nad suwakami granic pasma. Logika jest wspólna z Androidem i objęta testami rdzenia.
+
 ## Current large-file hotspots
 
 - `RadioSessionViewModel.swift` is about 6200 lines and mixes session lifecycle, backend orchestration, audio policy, settings, scanners, diagnostics, and accessibility actions.

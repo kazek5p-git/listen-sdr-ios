@@ -258,6 +258,9 @@ final class RadioSessionViewModel: ObservableObject {
   private var channelScannerSignalPreviewActive = false
   private var activeProfileCacheKey: String?
   private var currentConnectedProfile: SDRConnectionProfile?
+  private weak var favoritesStore: FavoritesStore?
+  private var pendingFavoriteReceiverRestoreID: String?
+  private var pendingFavoriteReceiverRestore: FavoriteReceiverSettings?
   private var listeningHistoryCaptureTask: Task<Void, Never>?
   private var recentFrequencyCaptureTask: Task<Void, Never>?
   private var deferredRestoreTask: Task<Void, Never>?
@@ -340,6 +343,10 @@ final class RadioSessionViewModel: ObservableObject {
 
   func bind(accessibilityState: AppAccessibilityState) {
     self.accessibilityState = accessibilityState
+  }
+
+  func bind(favoritesStore: FavoritesStore) {
+    self.favoritesStore = favoritesStore
   }
 
   var appVersionLabel: String {
@@ -645,7 +652,8 @@ final class RadioSessionViewModel: ObservableObject {
   func connect(
     to profile: SDRConnectionProfile,
     restoringFrequencyHz: Int? = nil,
-    mode restoringMode: DemodulationMode? = nil
+    mode restoringMode: DemodulationMode? = nil,
+    favoriteSettings: FavoriteReceiverSettings? = nil
   ) {
     if state == .connecting && sessionRecoveryTask == nil {
       Diagnostics.log(
@@ -676,6 +684,26 @@ final class RadioSessionViewModel: ObservableObject {
     activeBackend = nil
     currentConnectedProfile = nil
     activeProfileCacheKey = ReceiverIdentity.key(for: profile)
+    let hasExplicitSessionRestore = restoringFrequencyHz != nil || restoringMode != nil
+    let rememberedFavoriteSettings = hasExplicitSessionRestore
+      ? nil
+      : (favoriteSettings ?? favoritesStore?.settings(for: profile))
+    if let rememberedFavoriteSettings {
+      applyFavoriteReceiverSettings(rememberedFavoriteSettings, for: profile)
+    }
+    if hasExplicitSessionRestore {
+      if let restoringFrequencyHz {
+        settings.frequencyHz = restoringFrequencyHz
+      }
+      if let restoringMode {
+        settings.mode = restoringMode.normalized(for: profile.backend)
+      }
+      persistSettings(updateActiveFavorite: false)
+    }
+    pendingFavoriteReceiverRestoreID = rememberedFavoriteSettings == nil
+      ? nil
+      : ReceiverIdentity.key(for: profile)
+    pendingFavoriteReceiverRestore = rememberedFavoriteSettings
     normalizeSettingsForBackendBeforeConnect(profile.backend)
     hydrateCachedReceiverData(for: profile)
     let runtimePolicySnapshot = runtimePolicy
@@ -725,6 +753,7 @@ final class RadioSessionViewModel: ObservableObject {
             frequencyHz: restoringFrequencyHz,
             mode: restoringMode
           )
+          self.finishFavoriteReceiverRestoreIfReady(for: profile.backend)
         }
         Diagnostics.log(
           category: "Session",
@@ -821,6 +850,7 @@ final class RadioSessionViewModel: ObservableObject {
         cached.selectedOpenWebRXProfileID = profileID
       }
     }
+    persistActiveFavoriteSettings()
 
     guard state == .connected, activeBackend == .openWebRX, let client else { return }
 
@@ -2200,6 +2230,13 @@ final class RadioSessionViewModel: ObservableObject {
     else { return }
     pendingFMDXAudioModeIsStereo = mode.isStereo
     pendingFMDXAudioModeDeadline = Date().addingTimeInterval(2.5)
+    guard settings.fmdxAudioMode != mode else {
+      sendFMDXControl(.setFMDXForcedStereo(mode.isStereo))
+      playInteractionFeedbackIfEnabled(isOn: mode.isStereo)
+      return
+    }
+    settings.fmdxAudioMode = mode
+    persistSettings()
     sendFMDXControl(.setFMDXForcedStereo(mode.isStereo))
     playInteractionFeedbackIfEnabled(isOn: mode.isStereo)
   }
@@ -2208,6 +2245,8 @@ final class RadioSessionViewModel: ObservableObject {
     guard activeBackend == .fmDxWebserver else { return }
     guard !blockLockedFMDXControlAction("set_antenna", details: ["requestedID": id]) else { return }
     selectedFMDXAntennaID = id
+    settings.fmdxAntennaID = id
+    persistSettings()
     sendFMDXControl(.setFMDXAntenna(id))
   }
 
@@ -2233,6 +2272,8 @@ final class RadioSessionViewModel: ObservableObject {
         "Sending bandwidth request: selected_before=\(selectedFMDXBandwidthID ?? "nil") requested_id=\(option.id) requested_label=\(option.label) requested_legacy=\(option.legacyValue ?? "nil") available=[\(availableOptionsDescription)]"
     )
     selectedFMDXBandwidthID = option.id
+    settings.fmdxBandwidthID = option.id
+    persistSettings()
     sendFMDXControl(.setFMDXBandwidth(value: option.id, legacyValue: option.legacyValue))
   }
 
@@ -2312,6 +2353,8 @@ final class RadioSessionViewModel: ObservableObject {
     }
 
     selectedFMDXBandwidthID = option.id
+    settings.fmdxBandwidthID = option.id
+    persistSettings()
     sendFMDXControl(.setFMDXBandwidth(value: option.id, legacyValue: option.legacyValue))
   }
 
@@ -2463,6 +2506,24 @@ final class RadioSessionViewModel: ObservableObject {
     let highCut = max(min(value, limitHz), current.lowCut + minWidth)
     settings.setKiwiPassband(
       ReceiverBandpass(lowCut: current.lowCut, highCut: highCut),
+      for: settings.mode,
+      sampleRateHz: kiwiTelemetry?.sampleRateHz
+    )
+    persistSettings()
+    sendKiwiPassbandControl()
+  }
+
+  func adjustKiwiPassbandWidth(by deltaHz: Int) {
+    let current = currentKiwiPassband
+    let adjusted = RadioSessionSettings.adjustedKiwiBandpass(
+      current,
+      deltaHz: deltaHz,
+      mode: settings.mode,
+      sampleRateHz: kiwiTelemetry?.sampleRateHz
+    )
+    guard adjusted != current else { return }
+    settings.setKiwiPassband(
+      adjusted,
       for: settings.mode,
       sampleRateHz: kiwiTelemetry?.sampleRateHz
     )
@@ -3557,9 +3618,58 @@ final class RadioSessionViewModel: ObservableObject {
     return decoded
   }
 
-  private func persistSettings() {
+  private func persistSettings(updateActiveFavorite: Bool = true) {
     guard let encoded = try? JSONEncoder().encode(settings) else { return }
     UserDefaults.standard.set(encoded, forKey: settingsKey)
+    if updateActiveFavorite {
+      persistActiveFavoriteSettings()
+    }
+  }
+
+  private func persistActiveFavoriteSettings() {
+    guard let profile = currentConnectedProfile else { return }
+    favoritesStore?.updateSettings(
+      for: profile,
+      settings: FavoriteReceiverSettings(
+        settings: settings,
+        selectedOpenWebRXProfileID: profile.backend == .openWebRX
+          ? selectedOpenWebRXProfileID
+          : nil
+      )
+    )
+  }
+
+  private func applyFavoriteReceiverSettings(
+    _ favoriteSettings: FavoriteReceiverSettings,
+    for profile: SDRConnectionProfile
+  ) {
+    settings = favoriteSettings.applying(to: settings, backend: profile.backend)
+    selectedFMDXAntennaID = favoriteSettings.fmdxAntennaID
+    selectedFMDXBandwidthID = favoriteSettings.fmdxBandwidthID
+    if profile.backend == .openWebRX {
+      selectedOpenWebRXProfileID = favoriteSettings.selectedOpenWebRXProfileID
+    }
+    persistSettings(updateActiveFavorite: false)
+  }
+
+  private func shouldPreserveFavoriteReceiverSettings(for backend: SDRBackend) -> Bool {
+    pendingFavoriteReceiverRestore != nil
+      && pendingFavoriteReceiverRestoreID == activeProfileCacheKey
+      && activeBackend == backend
+  }
+
+  private func finishFavoriteReceiverRestore(for backend: SDRBackend) {
+    guard shouldPreserveFavoriteReceiverSettings(for: backend) else { return }
+    guard state == .connected else { return }
+    pendingFavoriteReceiverRestore = nil
+    pendingFavoriteReceiverRestoreID = nil
+    applyCurrentSettingsToConnectedBackend()
+  }
+
+  private func finishFavoriteReceiverRestoreIfReady(for backend: SDRBackend) {
+    guard shouldPreserveFavoriteReceiverSettings(for: backend) else { return }
+    guard InitialServerTuningSyncCore.canApplyLocalTuning(status: initialServerTuningSyncStatus()) else { return }
+    finishFavoriteReceiverRestore(for: backend)
   }
 
   private func applyCommunicationInterruptionState(_ active: Bool) {
@@ -3698,6 +3808,14 @@ final class RadioSessionViewModel: ObservableObject {
 
     if activeBackend == .fmDxWebserver {
       queueFMDXFrequencySend(settings.frequencyHz)
+      sendFMDXControl(.setFMDXForcedStereo(settings.fmdxAudioMode.isStereo))
+      if let antennaID = settings.fmdxAntennaID {
+        sendFMDXControl(.setFMDXAntenna(antennaID))
+      }
+      if let bandwidthID = settings.fmdxBandwidthID {
+        let legacyValue = fmdxCapabilities.bandwidths.first(where: { $0.id == bandwidthID })?.legacyValue
+        sendFMDXControl(.setFMDXBandwidth(value: bandwidthID, legacyValue: legacyValue))
+      }
       if fmdxCapabilities.supportsAGCControl {
         sendFMDXControl(.setFMDXAGC(settings.agcEnabled))
       }
@@ -4158,14 +4276,22 @@ final class RadioSessionViewModel: ObservableObject {
     cause: AutomaticRecoveryCause = .generic
   ) {
     guard sessionRecoveryTask == nil else { return }
-    let restoringFrequencyHz = settings.frequencyHz
-    let restoringMode = settings.mode
+    let rememberedFavoriteSettings = favoritesStore?.settings(for: profile)
 
     cancelSessionTransientTasks(resetScannerState: true)
     self.client = nil
     activeBackend = profile.backend
     activeProfileCacheKey = ReceiverIdentity.key(for: profile)
     currentConnectedProfile = nil
+    pendingFavoriteReceiverRestoreID = rememberedFavoriteSettings == nil
+      ? nil
+      : ReceiverIdentity.key(for: profile)
+    pendingFavoriteReceiverRestore = rememberedFavoriteSettings
+    if let rememberedFavoriteSettings {
+      applyFavoriteReceiverSettings(rememberedFavoriteSettings, for: profile)
+    }
+    let restoringFrequencyHz = settings.frequencyHz
+    let restoringMode = settings.mode
     applySessionLifecyclePresentation(
       SessionLifecyclePresentationCore.presentation(for: .reconnectingRequested),
       profileName: profile.name
@@ -4252,6 +4378,7 @@ final class RadioSessionViewModel: ObservableObject {
               frequencyHz: restoringFrequencyHz,
               mode: restoringMode
             )
+            self.finishFavoriteReceiverRestoreIfReady(for: profile.backend)
           }
           Diagnostics.log(
             category: "Session",
@@ -4657,6 +4784,7 @@ final class RadioSessionViewModel: ObservableObject {
     switch telemetryEvent {
     case .openWebRXProfiles(let profiles, let selectedID):
       openWebRXProfiles = profiles
+      let preservingFavoriteSettings = shouldPreserveFavoriteReceiverSettings(for: .openWebRX)
       let preferredID: String?
       if let currentPreferred = selectedOpenWebRXProfileID,
         profiles.contains(where: { $0.id == currentPreferred }) {
@@ -4665,6 +4793,9 @@ final class RadioSessionViewModel: ObservableObject {
         preferredID = selectedID
       }
       selectedOpenWebRXProfileID = preferredID
+      if !preservingFavoriteSettings {
+        persistActiveFavoriteSettings()
+      }
       persistCachedReceiverData { cached in
         cached.openWebRXProfiles = profiles
         cached.selectedOpenWebRXProfileID = preferredID
@@ -4689,7 +4820,8 @@ final class RadioSessionViewModel: ObservableObject {
       persistCachedReceiverData { cached in
         cached.openWebRXBandPlan = bands
       }
-      if syncTuneStepToCurrentBandIfNeeded() {
+      if !shouldPreserveFavoriteReceiverSettings(for: .openWebRX),
+        syncTuneStepToCurrentBandIfNeeded() {
         persistSettings()
       }
       if activeBackend == .openWebRX {
@@ -4702,6 +4834,7 @@ final class RadioSessionViewModel: ObservableObject {
       let completedInitialServerTuningSync = hasInitialServerTuningSync == false
       hasInitialServerTuningSync = true
       NowPlayingMetadataController.shared.setTitle(nil)
+      let preservingFavoriteSettings = shouldPreserveFavoriteReceiverSettings(for: .openWebRX)
       let normalizedFrequencyHz = SessionFrequencyCore.normalizedFrequencyHz(
         frequencyHz,
         backend: .openWebRX,
@@ -4715,13 +4848,18 @@ final class RadioSessionViewModel: ObservableObject {
         bandName: bandEntry?.name,
         bandTags: bandEntry?.tags ?? []
       )
-      let changed = applyWidebandRemoteTuningState(result.state)
+      let changed = preservingFavoriteSettings
+        ? false
+        : applyWidebandRemoteTuningState(result.state)
       if changed {
         persistSettings()
       }
       updateBackendStatusText(result.statusSummary)
       if completedInitialServerTuningSync {
         applyRememberedSquelchAfterInitialTuningSyncIfNeeded(for: .openWebRX)
+      }
+      if preservingFavoriteSettings {
+        finishFavoriteReceiverRestore(for: .openWebRX)
       }
       confirmWidebandTuneIfNeeded(
         backend: .openWebRX,
@@ -4736,6 +4874,7 @@ final class RadioSessionViewModel: ObservableObject {
       let completedInitialServerTuningSync = hasInitialServerTuningSync == false
       hasInitialServerTuningSync = true
       NowPlayingMetadataController.shared.setTitle(nil)
+      let preservingFavoriteSettings = shouldPreserveFavoriteReceiverSettings(for: .kiwiSDR)
       let activeMode = mode ?? settings.mode
       let result = WidebandRemoteTuningCore.synchronizeKiwi(
         state: currentWidebandRemoteTuningState(),
@@ -4746,8 +4885,11 @@ final class RadioSessionViewModel: ObservableObject {
         reportedPassband: passband,
         sampleRateHz: kiwiTelemetry?.sampleRateHz
       )
-      var changed = applyWidebandRemoteTuningState(result.state)
-      if let resolvedPassband = result.resolvedKiwiPassband,
+      var changed = preservingFavoriteSettings
+        ? false
+        : applyWidebandRemoteTuningState(result.state)
+      if !preservingFavoriteSettings,
+        let resolvedPassband = result.resolvedKiwiPassband,
         settings.kiwiPassband(for: result.state.mode, sampleRateHz: kiwiTelemetry?.sampleRateHz) != resolvedPassband {
         settings.setKiwiPassband(
           resolvedPassband,
@@ -4763,6 +4905,9 @@ final class RadioSessionViewModel: ObservableObject {
       updateBackendStatusText(result.statusSummary)
       if completedInitialServerTuningSync {
         applyRememberedSquelchAfterInitialTuningSyncIfNeeded(for: .kiwiSDR)
+      }
+      if preservingFavoriteSettings {
+        finishFavoriteReceiverRestore(for: .kiwiSDR)
       }
       confirmWidebandTuneIfNeeded(
         backend: .kiwiSDR,
@@ -4792,25 +4937,33 @@ final class RadioSessionViewModel: ObservableObject {
         selectedBandwidthID: selectedFMDXBandwidthID,
         capabilities: .init(capabilities)
       )
+      let preservingFavoriteSettings = shouldPreserveFavoriteReceiverSettings(for: .fmDxWebserver)
       if let resolvedBandwidthID = capabilitySync.resolvedBandwidthID {
-        if selectedFMDXBandwidthID != resolvedBandwidthID {
+        if !preservingFavoriteSettings, selectedFMDXBandwidthID != resolvedBandwidthID {
           Diagnostics.log(
             category: "FMDX",
             message:
               "Capability sync resolved bandwidth selection: previous_id=\(selectedFMDXBandwidthID ?? "nil") resolved_id=\(resolvedBandwidthID)"
           )
         }
-        selectedFMDXBandwidthID = resolvedBandwidthID
+        if !preservingFavoriteSettings {
+          selectedFMDXBandwidthID = resolvedBandwidthID
+        }
       }
       if capabilitySync.forcedFMBandFallback {
         isShowingFMDXTuneConfirmationWarning = false
         fmdxTuneWarningText = L10n.text("fmdx.band.am_not_supported")
       }
-      capabilitySync.settings.apply(to: &settings)
-      if capabilitySync.changedSettings {
+      if !preservingFavoriteSettings || capabilitySync.forcedFMBandFallback {
+        capabilitySync.settings.apply(to: &settings)
+      }
+      if (!preservingFavoriteSettings || capabilitySync.forcedFMBandFallback),
+        capabilitySync.changedSettings {
         persistSettings()
       }
-      if activeBackend == .fmDxWebserver, state == .connected {
+      if preservingFavoriteSettings {
+        finishFavoriteReceiverRestore(for: .fmDxWebserver)
+      } else if activeBackend == .fmDxWebserver, state == .connected {
         applyCurrentSettingsToConnectedBackend()
       }
 
@@ -4842,18 +4995,23 @@ final class RadioSessionViewModel: ObservableObject {
         pendingTuneFrequencyHz: pendingFMDXTuneFrequencyHz
       )
       fmdxBandMemory = telemetrySync.bandMemory
+      let preservingFavoriteSettings = shouldPreserveFavoriteReceiverSettings(for: .fmDxWebserver)
       if let antennaID = telemetrySync.resolvedAntennaID {
-        selectedFMDXAntennaID = antennaID
+        if !preservingFavoriteSettings {
+          selectedFMDXAntennaID = antennaID
+        }
       }
       if let bandwidthID = telemetrySync.resolvedBandwidthID {
-        if selectedFMDXBandwidthID != bandwidthID {
+        if !preservingFavoriteSettings, selectedFMDXBandwidthID != bandwidthID {
           Diagnostics.log(
             category: "FMDX",
             message:
               "Telemetry resolved bandwidth selection: previous_id=\(selectedFMDXBandwidthID ?? "nil") resolved_id=\(bandwidthID)"
           )
         }
-        selectedFMDXBandwidthID = bandwidthID
+        if !preservingFavoriteSettings {
+          selectedFMDXBandwidthID = bandwidthID
+        }
       }
       reconcilePendingFMDXAudioModeState(with: telemetry)
       logFMDXAudioModeChangeIfNeeded(previous: previousTelemetry, current: telemetry)
@@ -4868,10 +5026,24 @@ final class RadioSessionViewModel: ObservableObject {
           message: "Band synchronized from telemetry: previous_mode=\(settings.mode.rawValue) resolved_mode=\(backendMode.rawValue) reported_frequency_hz=\(backendFrequencyHz)"
         )
       }
-      telemetrySync.settings.apply(to: &settings)
-      if telemetrySync.changedSettings {
+      if !preservingFavoriteSettings {
+        telemetrySync.settings.apply(to: &settings)
+        if let audioMode = telemetrySync.resolvedAudioMode {
+          settings.fmdxAudioMode = FMDXAudioMode(audioMode)
+        }
+        if let antennaID = telemetrySync.resolvedAntennaID {
+          settings.fmdxAntennaID = antennaID
+        }
+        if let bandwidthID = telemetrySync.resolvedBandwidthID {
+          settings.fmdxBandwidthID = bandwidthID
+        }
+      }
+      if !preservingFavoriteSettings, telemetrySync.changedSettings {
         persistSettings()
         scheduleListeningHistoryCapture()
+      }
+      if preservingFavoriteSettings {
+        finishFavoriteReceiverRestore(for: .fmDxWebserver)
       }
       announceRDSChangeIfNeeded(previous: previousTelemetry, current: telemetry)
       let currentStationTitle = preferredHistoryStationTitle(
@@ -4886,12 +5058,14 @@ final class RadioSessionViewModel: ObservableObject {
     case .kiwi(let telemetry):
       let previousViewportContext = kiwiWaterfallViewportContext()
       kiwiTelemetry = telemetry
+      let preservingFavoriteSettings = shouldPreserveFavoriteReceiverSettings(for: .kiwiSDR)
       let normalizedPassband = RadioSessionSettings.normalizedKiwiBandpass(
         telemetry.passband ?? settings.kiwiPassband(for: settings.mode, sampleRateHz: telemetry.sampleRateHz),
         mode: settings.mode,
         sampleRateHz: telemetry.sampleRateHz
       )
-      if settings.kiwiPassband(for: settings.mode, sampleRateHz: telemetry.sampleRateHz) != normalizedPassband {
+      if !preservingFavoriteSettings,
+        settings.kiwiPassband(for: settings.mode, sampleRateHz: telemetry.sampleRateHz) != normalizedPassband {
         settings.setKiwiPassband(
           normalizedPassband,
           for: settings.mode,
@@ -5223,6 +5397,8 @@ final class RadioSessionViewModel: ObservableObject {
           category: "Session",
           message: "Initial server tuning sync timed out; applying local tuning fallback."
         )
+        self.pendingFavoriteReceiverRestore = nil
+        self.pendingFavoriteReceiverRestoreID = nil
         self.applyCurrentSettingsToConnectedBackend()
       }
     }
@@ -5708,6 +5884,8 @@ final class RadioSessionViewModel: ObservableObject {
     suppressAutoFilterUntil = Date.distantPast
     hasInitialServerTuningSync = false
     initialServerTuningSyncDeadline = Date.distantPast
+    pendingFavoriteReceiverRestoreID = nil
+    pendingFavoriteReceiverRestore = nil
     rdsAnnouncementGate.reset()
     clearPendingRDSAnnouncement()
     lastPostedRDSAnnouncementText = nil

@@ -652,6 +652,8 @@
 "kiwi.passband.high_cut" = "通带高切";
 "kiwi.passband.low_cut" = "通带低切";
 "kiwi.passband.reset" = "重置通带";
+"kiwi.passband.decrease_width" = "将通带缩窄 100 Hz";
+"kiwi.passband.increase_width" = "将通带加宽 100 Hz";
 "kiwi.section.noise_blanker" = "脉冲噪声抑制器";
 "kiwi.section.noise_filter" = "降噪滤波器";
 "kiwi.section.passband" = "通带";

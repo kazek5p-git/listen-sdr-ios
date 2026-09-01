@@ -10,6 +10,7 @@ struct ContentView: View {
   @EnvironmentObject private var navigationState: AppNavigationState
   @EnvironmentObject private var profileStore: ProfileStore
   @EnvironmentObject private var radioSession: RadioSessionViewModel
+  @EnvironmentObject private var favoritesStore: FavoritesStore
   @EnvironmentObject private var recordingStore: RecordingStore
   @EnvironmentObject private var settingsController: SettingsViewController
   @State private var hasAttemptedStartupAutoConnect = false
@@ -175,7 +176,10 @@ struct ContentView: View {
       category: "Session",
       message: "Startup auto-connect requested for \(selectedProfile.name)"
     )
-    radioSession.connect(to: selectedProfile)
+    radioSession.connect(
+      to: selectedProfile,
+      favoriteSettings: favoritesStore.settings(for: selectedProfile)
+    )
   }
 
   private func attemptStartupTutorialPresentationIfNeeded() {

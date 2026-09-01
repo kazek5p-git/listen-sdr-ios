@@ -9,6 +9,29 @@ struct FavoriteReceiver: Identifiable, Codable, Hashable {
   let useTLS: Bool
   let path: String
   let createdAt: Date
+  let settings: FavoriteReceiverSettings?
+
+  init(
+    id: String,
+    backend: SDRBackend,
+    name: String,
+    host: String,
+    port: Int,
+    useTLS: Bool,
+    path: String,
+    createdAt: Date,
+    settings: FavoriteReceiverSettings? = nil
+  ) {
+    self.id = id
+    self.backend = backend
+    self.name = name
+    self.host = host
+    self.port = port
+    self.useTLS = useTLS
+    self.path = path
+    self.createdAt = createdAt
+    self.settings = settings
+  }
 
   var endpointDescription: String {
     let scheme = useTLS ? "https" : "http"
@@ -52,7 +75,10 @@ final class FavoritesStore: ObservableObject {
     favoriteReceiverIDs.contains(ReceiverIdentity.key(for: entry))
   }
 
-  func toggleReceiver(_ profile: SDRConnectionProfile) {
+  func toggleReceiver(
+    _ profile: SDRConnectionProfile,
+    settings: FavoriteReceiverSettings? = nil
+  ) {
     let receiver = FavoriteReceiver(
       id: ReceiverIdentity.key(for: profile),
       backend: profile.backend,
@@ -61,12 +87,16 @@ final class FavoritesStore: ObservableObject {
       port: profile.port,
       useTLS: profile.useTLS,
       path: profile.normalizedPath,
-      createdAt: Date()
+      createdAt: Date(),
+      settings: settings
     )
     toggleReceiver(receiver)
   }
 
-  func toggleReceiver(_ entry: ReceiverDirectoryEntry) {
+  func toggleReceiver(
+    _ entry: ReceiverDirectoryEntry,
+    settings: FavoriteReceiverSettings? = nil
+  ) {
     let receiver = FavoriteReceiver(
       id: ReceiverIdentity.key(for: entry),
       backend: entry.backend,
@@ -75,9 +105,36 @@ final class FavoritesStore: ObservableObject {
       port: entry.port,
       useTLS: entry.useTLS,
       path: entry.path,
-      createdAt: Date()
+      createdAt: Date(),
+      settings: settings
     )
     toggleReceiver(receiver)
+  }
+
+  func settings(for profile: SDRConnectionProfile) -> FavoriteReceiverSettings? {
+    favoriteReceivers.first(where: { $0.id == ReceiverIdentity.key(for: profile) })?.settings
+  }
+
+  func updateSettings(
+    for profile: SDRConnectionProfile,
+    settings: FavoriteReceiverSettings
+  ) {
+    let receiverID = ReceiverIdentity.key(for: profile)
+    guard let index = favoriteReceivers.firstIndex(where: { $0.id == receiverID }) else { return }
+    guard favoriteReceivers[index].settings != settings else { return }
+    let receiver = favoriteReceivers[index]
+    favoriteReceivers[index] = FavoriteReceiver(
+      id: receiver.id,
+      backend: receiver.backend,
+      name: receiver.name,
+      host: receiver.host,
+      port: receiver.port,
+      useTLS: receiver.useTLS,
+      path: receiver.path,
+      createdAt: receiver.createdAt,
+      settings: settings
+    )
+    persistReceivers()
   }
 
   func toggleStation(

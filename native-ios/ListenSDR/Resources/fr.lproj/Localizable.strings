@@ -319,6 +319,8 @@
 "kiwi.passband.section" = "Bande passante";
 "kiwi.passband.current_value" = "%1$d a %2$d Hz";
 "kiwi.passband.reset" = "Réinitialiser le filtre";
+"kiwi.passband.decrease_width" = "Rétrécir la bande passante de 100 Hz";
+"kiwi.passband.increase_width" = "Élargir la bande passante de 100 Hz";
 "kiwi.waterfall.speed" = "Vitesse de la cascade";
 "kiwi.waterfall.speed.off" = "Arrêt";
 "kiwi.waterfall.speed.1hz" = "1 Hz";

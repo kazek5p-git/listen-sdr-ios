@@ -3602,11 +3602,19 @@ actor FMDXWebserverClient: SDRBackendClient {
     lastAppliedSettings = settings
 
     try await sendFrequency(settings.frequencyHz)
+    try await send("B\(settings.fmdxAudioMode.isStereo ? 0 : 1)")
     if lastCapabilities.supportsFilterControls {
       try await sendFilter(eqEnabled: settings.noiseReductionEnabled, imsEnabled: settings.imsEnabled)
     }
     if lastCapabilities.supportsAGCControl {
       try? await send("A\(settings.agcEnabled ? 1 : 0)")
+    }
+    if let antennaID = settings.fmdxAntennaID {
+      try await sendFMDXAntenna(antennaID)
+    }
+    if let bandwidthID = settings.fmdxBandwidthID {
+      let legacyValue = lastCapabilities.bandwidths.first(where: { $0.id == bandwidthID })?.legacyValue
+      try await sendFMDXBandwidth(value: bandwidthID, legacyValue: legacyValue)
     }
 
     FMDXMP3AudioPlayer.shared.setVolume(settings.audioVolume)
@@ -3686,19 +3694,10 @@ actor FMDXWebserverClient: SDRBackendClient {
       try await send("B\(enabled ? 0 : 1)")
 
     case .setFMDXAntenna(let value):
-      guard let safeValue = sanitizeCommandValue(value) else {
-        throw SDRClientError.unsupported("Invalid FM-DX antenna value.")
-      }
-      try await send("Z\(safeValue)")
+      try await sendFMDXAntenna(value)
 
     case .setFMDXBandwidth(let value, let legacyValue):
-      guard let safeValue = sanitizeCommandValue(value) else {
-        throw SDRClientError.unsupported("Invalid FM-DX bandwidth value.")
-      }
-      if let legacyValue, let safeLegacy = sanitizeCommandValue(legacyValue) {
-        try? await send("F\(safeLegacy)")
-      }
-      try await send("W\(safeValue)")
+      try await sendFMDXBandwidth(value: value, legacyValue: legacyValue)
     }
   }
 
@@ -3722,6 +3721,23 @@ actor FMDXWebserverClient: SDRBackendClient {
     let eq = eqEnabled ? 1 : 0
     let ims = imsEnabled ? 1 : 0
     try await send("G\(eq)\(ims)")
+  }
+
+  private func sendFMDXAntenna(_ value: String) async throws {
+    guard let safeValue = sanitizeCommandValue(value) else {
+      throw SDRClientError.unsupported("Invalid FM-DX antenna value.")
+    }
+    try await send("Z\(safeValue)")
+  }
+
+  private func sendFMDXBandwidth(value: String, legacyValue: String?) async throws {
+    guard let safeValue = sanitizeCommandValue(value) else {
+      throw SDRClientError.unsupported("Invalid FM-DX bandwidth value.")
+    }
+    if let legacyValue, let safeLegacy = sanitizeCommandValue(legacyValue) {
+      try? await send("F\(safeLegacy)")
+    }
+    try await send("W\(safeValue)")
   }
 
   private func sendAudio(_ message: String) async throws {

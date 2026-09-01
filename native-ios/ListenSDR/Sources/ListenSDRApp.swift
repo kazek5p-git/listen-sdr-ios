@@ -42,6 +42,7 @@ struct ListenSDRApp: App {
         .environmentObject(diagnostics)
         .task {
           radioSession.bind(accessibilityState: accessibilityState)
+          radioSession.bind(favoritesStore: favoritesStore)
           settingsController.bind(
             radioSession: radioSession,
             profileStore: profileStore,

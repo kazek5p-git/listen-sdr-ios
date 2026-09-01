@@ -118,7 +118,7 @@ struct FMDXCapabilities: Equatable, Codable {
   )
 }
 
-enum FMDXAudioMode: String, Equatable {
+enum FMDXAudioMode: String, Codable, Equatable {
   case mono
   case stereo
 

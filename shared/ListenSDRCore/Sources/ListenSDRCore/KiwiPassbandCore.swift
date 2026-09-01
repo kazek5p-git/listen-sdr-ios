@@ -60,4 +60,36 @@ public enum KiwiPassbandCore {
       sampleRateHz: sampleRateHz
     )
   }
+
+  public static func adjustedBandpass(
+    _ bandpass: ReceiverBandpass,
+    deltaHz: Int,
+    mode: DemodulationMode,
+    sampleRateHz: Int?
+  ) -> ReceiverBandpass {
+    let normalized = normalizedBandpass(bandpass, mode: mode, sampleRateHz: sampleRateHz)
+    let limitHz = passbandLimitHz(sampleRateHz: sampleRateHz)
+    let targetWidth = min(
+      max(normalized.highCut - normalized.lowCut + deltaHz, minimumPassbandHz),
+      limitHz * 2
+    )
+    let centeredLowCut = (normalized.lowCut + normalized.highCut - targetWidth) / 2
+    var lowCut = centeredLowCut
+    var highCut = centeredLowCut + targetWidth
+
+    if lowCut < -limitHz {
+      lowCut = -limitHz
+      highCut = lowCut + targetWidth
+    }
+    if highCut > limitHz {
+      highCut = limitHz
+      lowCut = highCut - targetWidth
+    }
+
+    return normalizedBandpass(
+      ReceiverBandpass(lowCut: lowCut, highCut: highCut),
+      mode: mode,
+      sampleRateHz: sampleRateHz
+    )
+  }
 }

@@ -323,6 +323,8 @@
 "kiwi.passband.section" = "Durchlassbereich";
 "kiwi.passband.current_value" = "%1$d bis %2$d Hz";
 "kiwi.passband.reset" = "Filter zurücksetzen";
+"kiwi.passband.decrease_width" = "Durchlassbereich um 100 Hz verengen";
+"kiwi.passband.increase_width" = "Durchlassbereich um 100 Hz erweitern";
 "kiwi.waterfall.speed" = "Wasserfalltempo";
 "kiwi.waterfall.speed.off" = "Aus";
 "kiwi.waterfall.speed.1hz" = "1 Hz";

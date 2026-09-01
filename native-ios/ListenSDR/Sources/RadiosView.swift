@@ -586,7 +586,10 @@ struct RadiosView: View {
   @ViewBuilder
   private func profileRow(for profile: SDRConnectionProfile, isFavorite: Bool) -> some View {
     FocusRetainingButton {
-      selectProfile(profile)
+      selectProfile(
+        profile,
+        favoriteSettings: favoritesStore.settings(for: profile)
+      )
     } label: {
       HStack(alignment: .top, spacing: 12) {
         Image(systemName: backendIconName(for: profile.backend))
@@ -640,7 +643,15 @@ struct RadiosView: View {
     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
       Button {
-        favoritesStore.toggleReceiver(profile)
+        favoritesStore.toggleReceiver(
+          profile,
+          settings: radioSession.connectedProfileID == profile.id
+            ? FavoriteReceiverSettings(
+              settings: radioSession.settings,
+              selectedOpenWebRXProfileID: radioSession.selectedOpenWebRXProfileID
+            )
+            : nil
+        )
       } label: {
         Label(
           favoritesStore.isFavoriteReceiver(profile)
@@ -691,11 +702,14 @@ struct RadiosView: View {
     )
   }
 
-  private func selectProfile(_ profile: SDRConnectionProfile) {
+  private func selectProfile(
+    _ profile: SDRConnectionProfile,
+    favoriteSettings: FavoriteReceiverSettings? = nil
+  ) {
     profileStore.updateSelection(profile.id)
     guard radioSession.settings.autoConnectSelectedProfileAfterSelection else { return }
     if radioSession.state != .connected || radioSession.connectedProfileID != profile.id {
-      radioSession.connect(to: profile)
+      radioSession.connect(to: profile, favoriteSettings: favoriteSettings)
     }
     navigationState.selectedTab = .receiver
   }
@@ -935,7 +949,10 @@ struct RadiosView: View {
     let storedProfile = profileStore.upsertImportedProfile(candidateProfile)
     profileStore.updateSelection(storedProfile.id)
     if radioSession.state != .connected || radioSession.connectedProfileID != storedProfile.id {
-      radioSession.connect(to: storedProfile)
+      radioSession.connect(
+        to: storedProfile,
+        favoriteSettings: favoritesStore.settings(for: storedProfile)
+      )
     }
     openReceiverTabAfterHistoryActionIfNeeded()
   }
@@ -954,7 +971,8 @@ struct RadiosView: View {
     radioSession.connect(
       to: storedProfile,
       restoringFrequencyHz: record.frequencyHz,
-      mode: record.mode
+      mode: record.mode,
+      favoriteSettings: favoritesStore.settings(for: storedProfile)
     )
     openReceiverTabAfterHistoryActionIfNeeded()
   }

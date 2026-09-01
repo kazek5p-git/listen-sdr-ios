@@ -712,14 +712,26 @@ struct ReceiverDirectoryView: View {
     let storedProfile = profileStore.upsertImportedProfile(profile)
     profileStore.updateSelection(storedProfile.id)
     if radioSession.state != .connected || radioSession.connectedProfileID != storedProfile.id {
-      radioSession.connect(to: storedProfile)
+      radioSession.connect(
+        to: storedProfile,
+        favoriteSettings: favoritesStore.settings(for: storedProfile)
+      )
     }
     navigationState.selectedTab = .receiver
     dismiss()
   }
 
   private func toggleFavoriteReceiver(_ entry: ReceiverDirectoryEntry, isFavorite: Bool) {
-    favoritesStore.toggleReceiver(entry)
+    let profile = entry.makeProfile()
+    favoritesStore.toggleReceiver(
+      entry,
+      settings: radioSession.connectedProfileID == profile.id
+        ? FavoriteReceiverSettings(
+          settings: radioSession.settings,
+          selectedOpenWebRXProfileID: radioSession.selectedOpenWebRXProfileID
+        )
+        : nil
+    )
     AppAccessibilityAnnouncementCenter.post(
       L10n.text(
         isFavorite

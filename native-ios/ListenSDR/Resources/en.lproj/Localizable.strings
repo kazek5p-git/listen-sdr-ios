@@ -176,6 +176,8 @@
 "kiwi.passband.section" = "Passband";
 "kiwi.passband.current_value" = "%1$d to %2$d Hz";
 "kiwi.passband.reset" = "Reset passband";
+"kiwi.passband.decrease_width" = "Narrow passband by 100 Hz";
+"kiwi.passband.increase_width" = "Widen passband by 100 Hz";
 "kiwi.waterfall.speed" = "Waterfall speed";
 "kiwi.waterfall.speed.off" = "Off";
 "kiwi.waterfall.speed.1hz" = "1 Hz";

@@ -330,6 +330,8 @@
 "kiwi.passband.section" = "Pasmo";
 "kiwi.passband.current_value" = "%1$d do %2$d Hz";
 "kiwi.passband.reset" = "Przywróć domyślne pasmo";
+"kiwi.passband.decrease_width" = "Zwęż pasmo o 100 Hz";
+"kiwi.passband.increase_width" = "Poszerz pasmo o 100 Hz";
 "kiwi.waterfall.speed" = "Prędkość wodospadu";
 "kiwi.waterfall.speed.off" = "Wyłączony";
 "kiwi.waterfall.speed.1hz" = "1 Hz";

@@ -330,6 +330,8 @@
 "kiwi.passband.section" = "Passband";
 "kiwi.passband.current_value" = "%1$d až %2$d Hz";
 "kiwi.passband.reset" = "Obnoviť prístupové pásmo";
+"kiwi.passband.decrease_width" = "Zúžiť priepustné pásmo o 100 Hz";
+"kiwi.passband.increase_width" = "Rozšíriť priepustné pásmo o 100 Hz";
 "kiwi.waterfall.speed" = "Rýchlosť vodopádu";
 "kiwi.waterfall.speed.off" = "Vypnuté";
 "kiwi.waterfall.speed.1hz" = "1 Hz";

@@ -2,6 +2,62 @@ import XCTest
 @testable import ListenSDR
 
 final class RadioSessionSettingsTests: XCTestCase {
+  func testFavoriteReceiverSettingsRoundTripsAndRestoresBackendState() throws {
+    var settings = RadioSessionSettings.default
+    settings.frequencyHz = 14_074_000
+    settings.mode = .usb
+    settings.tuneStepHz = 500
+    settings.preferredTuneStepHz = 1_000
+    settings.rfGain = 62.5
+    settings.agcEnabled = false
+    settings.kiwiPassbandsByMode = [
+      "usb": ReceiverBandpass(lowCut: 300, highCut: 2_700)
+    ]
+    let expected = FavoriteReceiverSettings(
+      settings: settings,
+      selectedOpenWebRXProfileID: "wideband"
+    )
+
+    let data = try JSONEncoder().encode(expected)
+    let decoded = try JSONDecoder().decode(FavoriteReceiverSettings.self, from: data)
+
+    XCTAssertEqual(decoded, expected)
+    let applied = decoded.applying(to: .default, backend: .kiwiSDR)
+    XCTAssertEqual(applied.frequencyHz, 14_074_000)
+    XCTAssertEqual(applied.mode, .usb)
+    XCTAssertEqual(applied.tuneStepHz, 500)
+    XCTAssertEqual(applied.kiwiPassbandsByMode["usb"], ReceiverBandpass(lowCut: 300, highCut: 2_700))
+  }
+
+  func testPartialFavoriteReceiverSettingsUseDefaultsAndOldFavoriteStillLoads() throws {
+    let partialData = Data(#"{"frequencyHz":14074000,"mode":"fm"}"#.utf8)
+    let partial = try JSONDecoder().decode(FavoriteReceiverSettings.self, from: partialData)
+
+    XCTAssertEqual(partial.frequencyHz, 14_074_000)
+    XCTAssertEqual(partial.mode, .fm)
+    XCTAssertEqual(partial.tuneStepHz, RadioSessionSettings.default.tuneStepHz)
+    XCTAssertEqual(partial.rfGain, RadioSessionSettings.default.rfGain)
+
+    let applied = partial.applying(to: .default, backend: .kiwiSDR)
+    XCTAssertEqual(applied.mode, .nfm)
+    XCTAssertEqual(applied.kiwiPassbandsByMode, [:])
+
+    let legacyReceiver = FavoriteReceiver(
+      id: "legacy",
+      backend: .kiwiSDR,
+      name: "Legacy",
+      host: "example.com",
+      port: 8073,
+      useTLS: false,
+      path: "/",
+      createdAt: Date(timeIntervalSince1970: 1)
+    )
+    let legacyData = try JSONEncoder().encode([legacyReceiver])
+    let decodedLegacy = try JSONDecoder().decode([FavoriteReceiver].self, from: legacyData)
+
+    XCTAssertNil(decodedLegacy.first?.settings)
+  }
+
   func testSettingsBackupCodecRoundTripsCurrentSettingsFormat() throws {
     var settings = RadioSessionSettings.default
     settings.mixWithOtherAudioApps = true

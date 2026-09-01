@@ -476,6 +476,9 @@ struct RadioSessionSettings: Codable, Equatable {
   var fmdxAudioPacketHoldSeconds: Double
   var fmdxCustomScanSettleSeconds: Double
   var fmdxCustomScanMetadataWindowSeconds: Double
+  var fmdxAudioMode: FMDXAudioMode
+  var fmdxAntennaID: String?
+  var fmdxBandwidthID: String?
   var audioSuggestionScope: AudioSuggestionScope
   var tuningGestureDirection: TuningGestureDirection
   var tuneConfirmationWarningsEnabled: Bool
@@ -582,6 +585,9 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxAudioPacketHoldSeconds: 0.14,
     fmdxCustomScanSettleSeconds: 0.16,
     fmdxCustomScanMetadataWindowSeconds: 0.90,
+    fmdxAudioMode: .stereo,
+    fmdxAntennaID: nil,
+    fmdxBandwidthID: nil,
     audioSuggestionScope: .fmDxOnly,
     tuningGestureDirection: .natural,
     tuneConfirmationWarningsEnabled: false,
@@ -667,6 +673,9 @@ struct RadioSessionSettings: Codable, Equatable {
     case fmdxAudioPacketHoldSeconds
     case fmdxCustomScanSettleSeconds
     case fmdxCustomScanMetadataWindowSeconds
+    case fmdxAudioMode
+    case fmdxAntennaID
+    case fmdxBandwidthID
     case audioSuggestionScope
     case tuningGestureDirection
     case tuneConfirmationWarningsEnabled
@@ -751,6 +760,9 @@ struct RadioSessionSettings: Codable, Equatable {
     fmdxAudioPacketHoldSeconds: Double,
     fmdxCustomScanSettleSeconds: Double = 0.16,
     fmdxCustomScanMetadataWindowSeconds: Double = 0.90,
+    fmdxAudioMode: FMDXAudioMode = Self.default.fmdxAudioMode,
+    fmdxAntennaID: String? = Self.default.fmdxAntennaID,
+    fmdxBandwidthID: String? = Self.default.fmdxBandwidthID,
     audioSuggestionScope: AudioSuggestionScope,
     tuningGestureDirection: TuningGestureDirection,
     tuneConfirmationWarningsEnabled: Bool = false,
@@ -865,6 +877,9 @@ struct RadioSessionSettings: Codable, Equatable {
     self.fmdxAudioPacketHoldSeconds = Self.clampedFMDXAudioPacketHoldSeconds(fmdxAudioPacketHoldSeconds)
     self.fmdxCustomScanSettleSeconds = Self.clampedFMDXCustomScanSettleSeconds(fmdxCustomScanSettleSeconds)
     self.fmdxCustomScanMetadataWindowSeconds = Self.clampedFMDXCustomScanMetadataWindowSeconds(fmdxCustomScanMetadataWindowSeconds)
+    self.fmdxAudioMode = fmdxAudioMode
+    self.fmdxAntennaID = fmdxAntennaID
+    self.fmdxBandwidthID = fmdxBandwidthID
     self.audioSuggestionScope = audioSuggestionScope
     self.tuningGestureDirection = tuningGestureDirection
     self.tuneConfirmationWarningsEnabled = tuneConfirmationWarningsEnabled
@@ -1099,6 +1114,12 @@ struct RadioSessionSettings: Codable, Equatable {
     let rawFMDXCustomScanMetadataWindowSeconds = try container.decodeIfPresent(Double.self, forKey: .fmdxCustomScanMetadataWindowSeconds)
       ?? Self.default.fmdxCustomScanMetadataWindowSeconds
     fmdxCustomScanMetadataWindowSeconds = Self.clampedFMDXCustomScanMetadataWindowSeconds(rawFMDXCustomScanMetadataWindowSeconds)
+    fmdxAudioMode = try container.decodeIfPresent(FMDXAudioMode.self, forKey: .fmdxAudioMode)
+      ?? Self.default.fmdxAudioMode
+    fmdxAntennaID = try container.decodeIfPresent(String.self, forKey: .fmdxAntennaID)
+      ?? Self.default.fmdxAntennaID
+    fmdxBandwidthID = try container.decodeIfPresent(String.self, forKey: .fmdxBandwidthID)
+      ?? Self.default.fmdxBandwidthID
     audioSuggestionScope = try container.decodeIfPresent(AudioSuggestionScope.self, forKey: .audioSuggestionScope)
       ?? Self.default.audioSuggestionScope
     tuningGestureDirection = try container.decodeIfPresent(TuningGestureDirection.self, forKey: .tuningGestureDirection)
@@ -1217,6 +1238,9 @@ struct RadioSessionSettings: Codable, Equatable {
     try container.encode(fmdxAudioPacketHoldSeconds, forKey: .fmdxAudioPacketHoldSeconds)
     try container.encode(fmdxCustomScanSettleSeconds, forKey: .fmdxCustomScanSettleSeconds)
     try container.encode(fmdxCustomScanMetadataWindowSeconds, forKey: .fmdxCustomScanMetadataWindowSeconds)
+    try container.encode(fmdxAudioMode, forKey: .fmdxAudioMode)
+    try container.encodeIfPresent(fmdxAntennaID, forKey: .fmdxAntennaID)
+    try container.encodeIfPresent(fmdxBandwidthID, forKey: .fmdxBandwidthID)
     try container.encode(audioSuggestionScope, forKey: .audioSuggestionScope)
     try container.encode(tuningGestureDirection, forKey: .tuningGestureDirection)
     try container.encode(tuneConfirmationWarningsEnabled, forKey: .tuneConfirmationWarningsEnabled)
@@ -1309,6 +1333,20 @@ struct RadioSessionSettings: Codable, Equatable {
   ) -> ReceiverBandpass {
     KiwiPassbandCore.normalizedBandpass(
       bandpass,
+      mode: mode,
+      sampleRateHz: sampleRateHz
+    )
+  }
+
+  static func adjustedKiwiBandpass(
+    _ bandpass: ReceiverBandpass,
+    deltaHz: Int,
+    mode: DemodulationMode,
+    sampleRateHz: Int?
+  ) -> ReceiverBandpass {
+    KiwiPassbandCore.adjustedBandpass(
+      bandpass,
+      deltaHz: deltaHz,
       mode: mode,
       sampleRateHz: sampleRateHz
     )

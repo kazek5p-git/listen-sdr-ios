@@ -1639,6 +1639,9 @@ struct ReceiverView: View {
         ),
         defaultPassband: defaultPassband,
         passbandLimitHz: passbandLimitHz,
+        onAdjustWidth: { deltaHz in
+          radioSession.adjustKiwiPassbandWidth(by: deltaHz)
+        },
         onReset: {
           radioSession.resetKiwiPassband()
         }
@@ -4322,6 +4325,7 @@ private struct KiwiPassbandEditorView: View {
   @Binding var highCut: Int
   let defaultPassband: ReceiverBandpass
   let passbandLimitHz: Int
+  let onAdjustWidth: (Int) -> Void
   let onReset: () -> Void
 
   private var currentPassband: ReceiverBandpass {
@@ -4350,6 +4354,40 @@ private struct KiwiPassbandEditorView: View {
           ),
           range: Double(lowCut + RadioSessionSettings.kiwiMinimumPassbandHz)...Double(passbandLimitHz)
         )
+
+        HStack(spacing: 12) {
+          FocusRetainingButton {
+            onAdjustWidth(-100)
+          } label: {
+            Text(L10n.text(
+              "kiwi.passband.decrease_width",
+              fallback: "Narrow passband by 100 Hz"
+            ))
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity)
+          }
+          .accessibilityLabel(L10n.text(
+            "kiwi.passband.decrease_width",
+            fallback: "Narrow passband by 100 Hz"
+          ))
+
+          FocusRetainingButton {
+            onAdjustWidth(100)
+          } label: {
+            Text(L10n.text(
+              "kiwi.passband.increase_width",
+              fallback: "Widen passband by 100 Hz"
+            ))
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity)
+          }
+          .accessibilityLabel(L10n.text(
+            "kiwi.passband.increase_width",
+            fallback: "Widen passband by 100 Hz"
+          ))
+        }
 
         FocusRetainingButton(onReset) {
           Text(L10n.text("kiwi.passband.reset"))
