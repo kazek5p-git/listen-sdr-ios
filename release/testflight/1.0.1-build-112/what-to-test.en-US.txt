@@ -1,0 +1,10 @@
+This build adds receiver-specific favorite settings and faster KiwiSDR passband control.
+
+- add a receiver to favorites, change its frequency, mode, tuning step, and signal-processing options, disconnect, and reconnect
+- verify that the favorite receiver settings are restored and are not overwritten by the initial server synchronization
+- test the accessible 100 Hz narrow and widen passband controls for KiwiSDR, including VoiceOver navigation
+- verify that an explicit history restore takes precedence over settings saved with the favorite receiver
+- test FM-DX: the saved audio mode, antenna, and bandwidth should be applied after connecting
+- verify that older favorite receivers without saved settings continue to load correctly
+
+No user data or private keys are included in the application.

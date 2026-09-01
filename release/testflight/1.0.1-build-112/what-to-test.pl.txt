@@ -1,0 +1,10 @@
+Ten build zawiera zapamiętywanie ustawień ulubionych odbiorników oraz szybką zmianę szerokości pasma KiwiSDR.
+
+- dodaj odbiornik do ulubionych, ustaw częstotliwość, tryb, krok strojenia i wybrane opcje przetwarzania sygnału, rozłącz się, a następnie połącz ponownie
+- sprawdź, czy ustawienia ulubionego odbiornika wracają po ponownym połączeniu i nie są nadpisywane przez początkową synchronizację serwera
+- sprawdź szybkie przyciski zwężania i poszerzania pasma KiwiSDR o 100 Hz oraz ich działanie z VoiceOverem
+- sprawdź, czy odtworzenie pozycji z historii ma pierwszeństwo przed ustawieniami zapisanymi w ulubionym odbiorniku
+- sprawdź FM-DX: zapamiętany tryb audio, antena i szerokość pasma powinny zostać zastosowane po połączeniu
+- sprawdź istniejące starsze ulubione odbiorniki bez zapisanych ustawień
+
+Nie dodano żadnych danych użytkownika ani kluczy do aplikacji.
