@@ -114,6 +114,7 @@ enum FMDXAdministration {
     )
     defer { session.invalidateAndCancel() }
 
+    var loginCookies: [HTTPCookie] = []
     do {
       let loginRequest = try URLRequest.listenSDRFMDXLoginRequest(
         url: loginURL,
@@ -126,10 +127,23 @@ enum FMDXAdministration {
       else {
         throw FMDXAdministrationFailure.loginFailed
       }
+
+      // iOS nie zawsze przekazuje ciasteczko z odpowiedzi do kolejnego
+      // żądania przy własnym, efemerycznym magazynie. Przechwyć je jawnie,
+      // aby żądanie panelu korzystało z tej samej sesji co Android.
+      loginCookies = responseCookies(from: httpResponse, for: loginURL)
+      loginCookies.forEach(cookieStorage.setCookie)
     } catch let failure as FMDXAdministrationFailure {
       throw failure
     } catch {
       throw FMDXAdministrationFailure.loginFailed
+    }
+
+    let authenticationCookies = sessionCookies(
+      from: loginCookies + (cookieStorage.cookies(for: setupURL) ?? [])
+    )
+    guard !authenticationCookies.isEmpty else {
+      throw FMDXAdministrationFailure.sessionUnavailable
     }
 
     let setupHTML: String
@@ -144,6 +158,9 @@ enum FMDXAdministration {
         ListenSDRNetworkIdentity.fmdxUserAgent(),
         forHTTPHeaderField: "User-Agent"
       )
+      if let cookieHeader = cookieHeader(for: authenticationCookies) {
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+      }
       let (data, response) = try await session.data(for: request)
       guard
         let httpResponse = response as? HTTPURLResponse,
@@ -163,12 +180,10 @@ enum FMDXAdministration {
       throw FMDXAdministrationFailure.notAnAdministrator
     }
 
-    let cookies = sessionCookies(from: cookieStorage.cookies(for: setupURL) ?? [])
-    guard !cookies.isEmpty else {
-      throw FMDXAdministrationFailure.sessionUnavailable
-    }
-
-    return FMDXAdministrationSessionPayload(setupURL: setupURL, cookies: cookies)
+    return FMDXAdministrationSessionPayload(
+      setupURL: setupURL,
+      cookies: authenticationCookies
+    )
   }
 
   static func isAdministrationPage(_ html: String) -> Bool {
@@ -181,7 +196,36 @@ enum FMDXAdministration {
   }
 
   static func sessionCookies(from cookies: [HTTPCookie]) -> [HTTPCookie] {
-    cookies.filter { $0.name == fmdxAdministrationSessionCookieName }
+    var result: [HTTPCookie] = []
+    for cookie in cookies where cookie.name == fmdxAdministrationSessionCookieName {
+      guard !result.contains(where: {
+        $0.name == cookie.name && $0.domain == cookie.domain && $0.path == cookie.path
+      }) else {
+        continue
+      }
+      result.append(cookie)
+    }
+    return result
+  }
+
+  static func responseCookies(
+    from response: HTTPURLResponse,
+    for url: URL
+  ) -> [HTTPCookie] {
+    let headerFields = response.allHeaderFields.reduce(into: [String: String]()) { result, entry in
+      guard
+        let key = entry.key as? String,
+        let value = entry.value as? String
+      else {
+        return
+      }
+      result[key] = value
+    }
+    return HTTPCookie.cookies(withResponseHeaderFields: headerFields, for: url)
+  }
+
+  static func cookieHeader(for cookies: [HTTPCookie]) -> String? {
+    HTTPCookie.requestHeaderFields(with: cookies)["Cookie"]
   }
 
   private static func pathWithTrailingSlash(_ path: String) -> String {

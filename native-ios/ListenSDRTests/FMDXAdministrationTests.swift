@@ -89,6 +89,27 @@ final class FMDXAdministrationTests: XCTestCase {
     XCTAssertFalse(persistentCookie.isSessionOnly)
   }
 
+  func testLoginResponseCookieCanBeSentExplicitlyToSetupRequest() throws {
+    let loginURL = try XCTUnwrap(URL(string: "https://radio.example.com/login"))
+    let response = try XCTUnwrap(
+      HTTPURLResponse(
+        url: loginURL,
+        statusCode: 200,
+        httpVersion: "HTTP/1.1",
+        headerFields: [
+          "Set-Cookie": "connect.sid=session-value; Path=/; HttpOnly"
+        ]
+      )
+    )
+
+    let cookies = FMDXAdministration.sessionCookies(
+      from: FMDXAdministration.responseCookies(from: response, for: loginURL)
+    )
+
+    XCTAssertEqual(cookies.map(\.name), ["connect.sid"])
+    XCTAssertEqual(FMDXAdministration.cookieHeader(for: cookies), "connect.sid=session-value")
+  }
+
   func testLoginRequestUsesJsonPost() throws {
     let url = try XCTUnwrap(URL(string: "https://radio.example.com/login"))
     let request = try URLRequest.listenSDRFMDXLoginRequest(

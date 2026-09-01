@@ -1,0 +1,9 @@
+This build fixes iOS sign-in to the FM-DX administration panel.
+
+- open a saved FM-DX profile, open its actions, and choose “Administer server”
+- verify that a valid administrator password opens the FM-DX setup panel
+- verify that the panel remains usable with VoiceOver
+- verify that a missing password, an invalid password, or a tune-only password shows a clear message and does not open the administration panel
+- specifically test the South-east Cracow profile and servers using HTTPS with a non-root path
+
+The fix only changes how the login session is passed to the administration panel. Receiver operation, audio, and tuning were not changed.

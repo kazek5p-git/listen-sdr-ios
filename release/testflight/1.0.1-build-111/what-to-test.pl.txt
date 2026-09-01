@@ -1,0 +1,9 @@
+Ten build zawiera poprawkę logowania do panelu administracyjnego FM-DX na iOS.
+
+- otwórz zapisany profil FM-DX, wybierz jego akcje i użyj „Administruj serwerem”
+- sprawdź, czy prawidłowe hasło administratora otwiera panel ustawień FM-DX
+- sprawdź, czy panel pozostaje użyteczny z VoiceOverem
+- sprawdź, czy brak hasła, błędne hasło albo hasło tylko do strojenia wyświetla jasny komunikat i nie otwiera panelu
+- szczególnie sprawdź profil South-east Cracow oraz serwery używające HTTPS i ścieżki innej niż katalog główny
+
+Poprawka dotyczy wyłącznie przekazania sesji logowania do panelu administracyjnego. Nie zmieniano działania odbiorników, audio ani strojenia.
